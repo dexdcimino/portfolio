@@ -72,6 +72,8 @@ const BASE = `http://127.0.0.1:${server.address().port}`;
 const fail = [];
 let pass = 0;
 const note = (ok, why) => { if (ok) pass++; else fail.push(why); };
+// + and the gallery live in the options bar (Dex, 2026-10-08): open it first.
+const optTap = async (p, sel) => { await p.evaluate(() => { if (document.getElementById('opt-bar').hidden) document.getElementById('opt-btn').click(); }); return p.click(sel); };
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 const browser = await puppeteer.launch({ executablePath: CHROME, headless: 'new',
@@ -143,7 +145,7 @@ try {
 
   // ---- 2. a real stroke, undo and redo ----------------------------------
   // A clean canvas first: + saves the migrated draft (23 now) and starts over.
-  await page.click('#plus-btn'); await sleep(800);
+  await optTap(page, '#plus-btn'); await sleep(800);
   const afterPlus = await state();
   note(afterPlus.count === 24 && afterPlus.title === 'Untitled 1', `+ left ${afterPlus.count} drawings, wanted 24 — and more than 20 is the point; the new one is "${afterPlus.title}"`);
   await page.evaluate(() => { const h = document.getElementById('hue'); h.value = 0; h.dispatchEvent(new Event('input')); });
@@ -165,10 +167,10 @@ try {
   await sleep(500);
   const reloaded = await state();
   note(reloaded.title === 'Harness sketch' && await ink() > 200, `after a reload: title "${reloaded.title}", the stroke ${await ink() > 200 ? 'kept' : 'LOST'}`);
-  await page.click('#plus-btn'); await sleep(800);
+  await optTap(page, '#plus-btn'); await sleep(800);
   const saved = await state();
   note(saved.count === 25, `+ after the sketch left ${saved.count} drawings, wanted 25`);
-  await page.click('#plus-btn'); await sleep(800);
+  await optTap(page, '#plus-btn'); await sleep(800);
   // A blank canvas is a canvas (Dex, 2026-10-08): + always makes one, named in turn.
   const blank = await state();
   note(blank.count === 26 && blank.title === 'Untitled 2', `a + on a blank canvas left ${blank.count} drawings titled "${blank.title}", wanted 26 and Untitled 2 (1 was renamed, so it is reused)`);
@@ -218,12 +220,12 @@ try {
   });
   const galleryCount = async () => {
     await page.bringToFront();               // a background tab renders no frames, and a click waits for one
-    await page.click('#grid-btn'); await sleep(400);
+    await optTap(page, '#grid-btn'); await sleep(400);
     const n = await page.evaluate(() => document.querySelectorAll('#g-rows .g-item').length);
     await page.click('#g-back'); await sleep(200);
     return n;
   };
-  await page.click('#plus-btn'); await sleep(800);
+  await optTap(page, '#plus-btn'); await sleep(800);
   for (let i = 0; i < 3; i++) await stroke();
   await sleep(1000);
   await page.reload({ waitUntil: 'networkidle2' }); await ready(); await sleep(600);
@@ -246,9 +248,9 @@ try {
   // Leaving a canvas keeps its last strokes; opening it again brings them.
   await page.evaluate(async () => { const b = document.getElementById('redo-btn'); while (!b.disabled) { b.click(); await new Promise(r => setTimeout(r, 150)); } });
   await page.type('#title-input', 'Kept history');
-  await page.click('#plus-btn'); await sleep(1200);
+  await optTap(page, '#plus-btn'); await sleep(1200);
   await stroke();                                          // a different canvas
-  await page.click('#grid-btn'); await sleep(400);
+  await optTap(page, '#grid-btn'); await sleep(400);
   await page.evaluate(() => [...document.querySelectorAll('#g-rows .g-item')].find(el => el.textContent.includes('Kept history')).click());
   await sleep(1200);
   const reopened = await undoDepth();
@@ -256,7 +258,7 @@ try {
   const kept = await db();
   note(kept.hists.length >= 1, `no canvas kept its undo history (kept: ${kept.hists.length})`);
   // Deleting it takes its history with it.
-  await page.click('#grid-btn'); await sleep(400);
+  await optTap(page, '#grid-btn'); await sleep(400);
   await page.evaluate(() => [...document.querySelectorAll('#g-rows .g-item')].find(el => el.textContent.includes('Kept history')).querySelector('.g-del').click());
   await sleep(300); await page.click('#m-del'); await sleep(1500);
   await page.click('#g-back'); await sleep(200);
@@ -281,14 +283,14 @@ try {
   // Signing out: none of them, and something new made signed out stays there.
   await page.bringToFront();
   await page.bringToFront();
-  await page.click('#grid-btn'); await sleep(300);
+  await optTap(page, '#grid-btn'); await sleep(300);
   await page.click('#g-account'); await sleep(300);
   await page.click('#a-signout'); await sleep(1500);
   await page.click('#g-back'); await sleep(200);
   note(await galleryCount() === 1, 'signed out, the account\'s canvases still show (wanted only the fresh blank one)');
   await stroke();
   await page.type('#title-input', 'Made signed out');
-  await page.click('#plus-btn'); await sleep(1200);
+  await optTap(page, '#plus-btn'); await sleep(1200);
   note(await galleryCount() === 2, 'a canvas made signed out is not in the signed-out gallery');
   // The same account again (not a first sign-in): its own, not the new one.
   await other.evaluate(() => localStorage.setItem('sketchSession', JSON.stringify({ handle: 'artist_a', token: 'x.y' })));
@@ -310,7 +312,7 @@ try {
 
   // ---- 6b. the two colour controls, the eyedropper, the bars (Dex, 2026-10-08)
   await page.bringToFront();
-  await page.click('#plus-btn'); await sleep(900);
+  await optTap(page, '#plus-btn'); await sleep(900);
   const px = () => page.evaluate(() => {           // the canvas's top-left pixel: the background
     const c = document.getElementById('pad'), d = c.getContext('2d').getImageData(4, 4, 1, 1).data;
     return `rgb(${d[0]}, ${d[1]}, ${d[2]})`;
@@ -354,7 +356,7 @@ try {
     const r = id => document.getElementById(id).getBoundingClientRect();
     const tb = r('toolbar'), t = r('tool-toggle'), title = r('title-input'), lock = r('top-lock');
     return { off: Math.abs((t.left + t.right) / 2 - (tb.left + tb.right) / 2),
-             order: ['plus-btn', 'ed-btn', 'tool-toggle', 'color-btn', 'sym-btn', 'grid-btn'].map(id => [id, r(id).left]).sort((a, b) => a[1] - b[1]).map(x => x[0]).join(','),
+             order: ['opt-btn', 'ed-btn', 'tool-toggle', 'color-btn', 'sym-btn'].map(id => [id, r(id).left]).sort((a, b) => a[1] - b[1]).map(x => x[0]).join(','),
              lockRight: lock.left > title.left && Math.abs(lock.top + lock.height / 2 - (title.top + title.height / 2)) < 8,
              install: !!document.getElementById('install-btn'),
              // The size bar is the toolbar's box, with undo, the scrub bar and redo on one centre line.
@@ -362,14 +364,14 @@ try {
                return { h: sb.height, tbH: tb.height, skew: Math.max(Math.abs(c(u) - c(sl)), Math.abs(c(rd) - c(sl))), label: !!document.querySelector('#size-bar #size-v') }; })() };
   });
   note(bars.off < 2, `the draw/erase toggle is ${bars.off.toFixed(1)}px off the toolbar's centre`);
-  note(bars.order === 'plus-btn,ed-btn,tool-toggle,color-btn,sym-btn,grid-btn', `the toolbar reads ${bars.order}`);
+  note(bars.order === 'opt-btn,ed-btn,tool-toggle,color-btn,sym-btn', `the toolbar reads ${bars.order}`);
   note(Math.abs(bars.sizeBar.h - bars.sizeBar.tbH) < 0.5 && bars.sizeBar.skew < 1 && !bars.sizeBar.label, `the size bar: ${JSON.stringify(bars.sizeBar)}`);
   // A new canvas is SEEN to happen: the old one wiped away on a diagonal over the new one, then gone.
   {
     await page.evaluate(() => { window.__wipe = null; new MutationObserver((ms, o) => { const sn = document.querySelector('.pad-snap.go');
       if (sn){ window.__wipe = { mask: getComputedStyle(sn).maskImage || getComputedStyle(sn).webkitMaskImage, inFrame: sn.parentNode.id }; o.disconnect(); } })
       .observe(document.getElementById('canvas-frame'), { subtree: true, childList: true, attributes: true }); });
-    await page.click('#plus-btn'); await sleep(900);
+    await optTap(page, '#plus-btn'); await sleep(900);
     const wipe = await page.evaluate(() => ({ seen: window.__wipe, left: document.querySelectorAll('.pad-snap').length,
       pic: /^url\(/.test(document.getElementById('grid-pic').style.backgroundImage) }));
     note(wipe.seen && /135deg/.test(wipe.seen.mask) && wipe.seen.inFrame === 'canvas-frame' && wipe.left === 0 && wipe.pic,
@@ -388,9 +390,63 @@ try {
     steps.push(await where());                                                           // a canvas opened from it
     await page.goBack(); await sleep(300); steps.push(await where());                    // back to the gallery, the last stop
     await page.click('#g-back'); await sleep(300); steps.push(await where());            // the arrow from there: the canvas
-    await page.click('#grid-btn'); await sleep(300); steps.push(await where());          // gallery from the canvas
+    await optTap(page, '#grid-btn'); await sleep(300); steps.push(await where());          // gallery from the canvas
     await page.goBack(); await sleep(300); steps.push(await where());                    // back to that canvas, the last stop
     note(steps.join(' ') === 'mine|last canvas mine|last canvas mine canvas|last', `back steps: ${steps.join(' ')}`);
+  }
+  // Batch 7: the canvas above every panel, the big tool centred, options, clear, the H/S/B tip, the symmetry tick.
+  {
+    const gapTo = async sel => page.evaluate(sel => { const c = document.getElementById('pad').getBoundingClientRect(), p = document.querySelector(sel).getBoundingClientRect(); return Math.round((p.top - c.bottom) * 10) / 10; }, sel);
+    const gaps = { size: await gapTo('#size-bar') };
+    await page.click('#color-btn'); await sleep(250); gaps.hsb = await gapTo('#hsb-bar');
+    // The tip: a press on S names it, centred above the panel.
+    const sr = await page.evaluate(() => { const b = document.getElementById('sat').getBoundingClientRect(); return { x: b.left + b.width * 0.3, y: b.top + b.height / 2 }; });
+    await page.mouse.click(sr.x, sr.y); await sleep(150);
+    const tip = await page.evaluate(() => { const t = document.querySelector('#hsb-bar .hsb-tip'), tr = t.getBoundingClientRect(), br = document.getElementById('hsb-bar').getBoundingClientRect();
+      return { text: t.hidden ? '' : t.textContent, off: Math.abs((tr.left + tr.right) / 2 - (br.left + br.right) / 2), above: tr.bottom <= br.top }; });
+    // Options closes the sliders and takes the size bar's place.
+    await page.click('#opt-btn'); await sleep(250); gaps.opt = await gapTo('#opt-bar');
+    const opt = await page.evaluate(() => ({ hsb: getComputedStyle(document.getElementById('hsb-bar')).display, size: getComputedStyle(document.getElementById('size-bar')).display,
+      order: [...document.querySelectorAll('#opt-bar button')].map(b => b.id).join(','), h: document.getElementById('opt-bar').offsetHeight, tb: document.getElementById('toolbar').offsetHeight }));
+    await page.click('#opt-btn'); await sleep(200);
+    await page.click('#canvas-swatch'); await sleep(300); gaps.pop = await gapTo('#brush-pop');
+    await page.click('#pop-x'); await sleep(200);
+    // A phone whose page is taller than what shows (the browser's own bar): main put the canvas 62px under the bars here.
+    await page.evaluate(() => { const st = document.createElement('style'); st.id = 'tall'; st.textContent = 'html,body{height:calc(100dvh + 70px) !important}'; document.head.appendChild(st); dispatchEvent(new Event('resize')); });
+    await sleep(300); gaps.tallPage = await gapTo('#size-bar');
+    await page.evaluate(() => { document.getElementById('tall').remove(); dispatchEvent(new Event('resize')); }); await sleep(200);
+    note(Object.values(gaps).every(g => Math.abs(g - 8) < 1.1), `the canvas sits 8px above each panel: ${JSON.stringify(gaps)}`);
+    note(/^Saturation \d+%$/.test(tip.text) && tip.off < 1 && tip.above, `the S tip: ${JSON.stringify(tip)}`);
+    note(opt.hsb === 'none' && opt.size === 'none' && opt.order === 'prof-btn,grid-btn,plus-btn,clear-btn' && Math.abs(opt.h - opt.tb) < 0.5, `the options bar: ${JSON.stringify(opt)}`);
+    // The big tool icon dead centre, either way round.
+    const centre = () => page.evaluate(() => { const t = document.getElementById('tool-toggle').getBoundingClientRect(), b = document.querySelector('#tool-toggle .tool-ico.big').getBoundingClientRect();
+      return Math.max(Math.abs((b.left + b.right) / 2 - (t.left + t.right) / 2), Math.abs((b.top + b.bottom) / 2 - (t.top + t.bottom) / 2)); });
+    const c1 = await centre(); await page.click('#tool-toggle'); await sleep(600); const c2 = await centre(); await page.click('#tool-toggle'); await sleep(600);
+    note(c1 < 0.6 && c2 < 0.6, `the big tool icon is ${c1.toFixed(1)} / ${c2.toFixed(1)}px off the button's centre`);
+    // Clear: asks; back is Cancel; Clear clears; undo brings it back.
+    await page.evaluate(() => { for (const [id, v] of [['hue', 0], ['sat', 100], ['bri', 100]]) { const el = document.getElementById(id); el.value = v; el.dispatchEvent(new Event('input')); } });
+    await stroke();
+    const inked = await ink();
+    await optTap(page, '#clear-btn'); await sleep(200);
+    const asked = await page.evaluate(() => ({ open: document.getElementById('modal').classList.contains('open'), title: document.getElementById('m-title').textContent, ok: document.getElementById('m-del').textContent,
+      order: document.getElementById('m-cancel').getBoundingClientRect().left < document.getElementById('m-del').getBoundingClientRect().left }));
+    await page.goBack(); await sleep(300);
+    const cancelled = { open: await page.evaluate(() => document.getElementById('modal').classList.contains('open')), ink: await ink(), inko: await page.evaluate(() => location.pathname) };
+    await optTap(page, '#clear-btn'); await sleep(200); await page.click('#m-del'); await sleep(300);
+    const cleared = await ink();
+    await page.click('#undo-btn'); await sleep(400);
+    const back = await ink();
+    note(inked > 50 && asked.open && asked.title === 'Clear this canvas?' && asked.ok === 'Clear' && asked.order && !cancelled.open && cancelled.ink === inked && cancelled.inko === '/inko/' && cleared === 0 && back === inked,
+      `clear: ink ${inked}, asked ${JSON.stringify(asked)}, back-as-cancel ${JSON.stringify(cancelled)}, cleared ${cleared}, undo ${back}`);
+    // Symmetry: a tick at the top centre, poking above the canvas, no line through it.
+    await page.click('#sym-btn'); await sleep(200);
+    const tick = await page.evaluate(() => { const t = document.getElementById('sym-tick'), tr = t.getBoundingClientRect(), fr = document.getElementById('canvas-frame').getBoundingClientRect();
+      const c = document.getElementById('pad'), d = c.getContext('2d').getImageData(Math.floor(c.width / 2) - 1, Math.floor(c.height * 0.3), 3, 1).data;
+      return { shown: !t.hidden && tr.height > 0, off: Math.abs((tr.left + tr.right) / 2 - (fr.left + fr.right) / 2), above: fr.top - tr.top, into: tr.bottom - fr.top, w: tr.width,
+               line: [0, 4, 8].some(i => Math.abs(d[i] - d[i + 1]) < 30 && d[i] > 100 && d[i] < 160) }; });
+    await page.click('#sym-btn'); await sleep(150);
+    const gone = await page.evaluate(() => document.getElementById('sym-tick').hidden);
+    note(tick.shown && tick.off < 1 && tick.above > 3 && tick.into > 5 && tick.into < 14 && tick.w <= 3 && !tick.line && gone, `the symmetry tick: ${JSON.stringify(tick)}, hidden again ${gone}`);
   }
   note(bars.lockRight && !bars.install, `the top row: lock at the right ${bars.lockRight}, install button ${bars.install}`);
   console.log(`colours: canvas ${bg0} -> ${bg1} from its own window, brush sliders left it alone, eyedropper picked ${picked}; toggle ${bars.off.toFixed(1)}px off centre`);

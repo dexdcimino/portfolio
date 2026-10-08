@@ -21,12 +21,13 @@
 </div>
 
 <div id="stage">
+  <div id="sym-tick" hidden></div>
   <div id="canvas-frame">
     <canvas id="pad"></canvas>
   </div>
 </div>
 
-<div id="bottom-bars"><div id="hsb-bar" style="display:none;">
+<div id="bottom-bars"><div id="hsb-bar" style="display:none;"><div class="hsb-tip" hidden></div>
   <div class="hsb-row"><span class="hsb-lbl">H</span><input type="range" id="hue" min="0" max="360" value="4"></div>
   <div class="hsb-row"><span class="hsb-lbl">S</span><input type="range" id="sat" min="0" max="100" value="100"></div>
   <div class="hsb-row"><span class="hsb-lbl">B</span><input type="range" id="bri" min="0" max="100" value="100"></div>
@@ -41,11 +42,26 @@
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 14 L4 9 L9 4"/><path d="M4 9 H14 A6 6 0 0 1 14 21 H9"/></svg>
   </button>
 </div>
+<div id="opt-bar" hidden>
+  <!-- Profile, gallery, new canvas, clear canvas: each happens at once, and
+       then the size bar comes back. Only clear asks first. -->
+  <button id="prof-btn" class="tbtn" aria-label="Your profile"><span id="grid-pic" class="avatar"></span></button>
+  <button id="grid-btn" class="tbtn" aria-label="Gallery">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="7.5" y="2.5" width="14" height="14" rx="3.2"/><path d="M16.5 21.5H6A3.5 3.5 0 0 1 2.5 18V7.5"/><path d="M7.8 13.6l3.6-3.6 2.8 2.8 1.9-1.9 5 5"/><circle cx="16.6" cy="7.4" r="1.5" fill="currentColor" stroke="none"/></svg>
+  </button>
+  <button id="plus-btn" class="tbtn" aria-label="New canvas">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+  </button>
+  <button id="clear-btn" class="tbtn" aria-label="Clear canvas">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
+  </button>
+</div>
 
 <div id="toolbar">
   <div class="tb-side">
-    <button id="plus-btn" class="tbtn" aria-label="New canvas">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+    <!-- Options (Dex, 2026-10-08): swaps the size bar for the options bar. -->
+    <button id="opt-btn" class="tbtn" aria-label="Options" aria-pressed="false">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3.5" y="3.5" width="7" height="7" rx="2"/><rect x="13.5" y="3.5" width="7" height="7" rx="2"/><rect x="3.5" y="13.5" width="7" height="7" rx="2"/><circle cx="17" cy="17" r="3.6" fill="currentColor" stroke="none"/></svg>
     </button>
     <button id="ed-btn" class="tbtn" aria-label="Eyedropper">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15.3 3.9a2.7 2.7 0 0 1 3.8 0l1 1a2.7 2.7 0 0 1 0 3.8l-2.4 2.4-4.8-4.8z" fill="currentColor"/><path d="M11.3 6.7l6 6"/><path d="M13.4 8.8l-7.9 7.9-.9 3.3-1.1 1.3 1.3-1.1 3.3-.9 7.9-7.9"/><path d="M6.2 17.8l2.1-2.1" opacity=".55"/></svg>
@@ -75,8 +91,6 @@
     <button id="sym-btn" class="tbtn" aria-label="Mirror" aria-pressed="false">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.5v19" stroke-dasharray="1.6 2.8"/><path d="M9 5.5 L3 18 H9 Z" fill="currentColor"/><path d="M15 5.5 L21 18 H15 Z"/></svg>
     </button>
-    <!-- The gallery is your profile (Dex, 2026-10-08): its button is your picture. -->
-    <button id="grid-btn" class="tbtn" aria-label="Gallery"><span id="grid-pic" class="avatar"></span></button>
   </div>
 </div>
 
@@ -85,6 +99,7 @@
      bar, so getElementById found the brush bar's, the window's own sliders
      did nothing, and the brush sliders went on painting the canvas. -->
 <div id="brush-pop">
+  <div class="hsb-tip" hidden></div>
   <div id="bp-head">
     <span id="bp-title">Canvas color</span>
     <button id="pop-x" aria-label="Close">✕</button>

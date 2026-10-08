@@ -118,6 +118,8 @@ const shot = (p, name) => p.screenshot({ path: join(SHOTS, `sketch-${name}.png`)
 const fail = [];
 let pass = 0;
 const note = (ok, why) => { if (ok) pass++; else fail.push(why); };
+// + and the gallery live in the options bar (Dex, 2026-10-08): open it first.
+const optTap = async (p, sel) => { await p.evaluate(() => { if (document.getElementById('opt-bar').hidden) document.getElementById('opt-btn').click(); }); return p.click(sel); };
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const post = async (body) => {
   const r = await fetch(BASE + '/api/sketch', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
@@ -229,8 +231,8 @@ try {
   await strokeOn(A);
   await A.evaluate(() => { document.getElementById('title-input').value = ''; });   // a new canvas is pre-named Untitled N
   await A.type('#title-input', 'Dragon');
-  await A.click('#plus-btn'); await sleep(900);
-  await A.click('#grid-btn'); await sleep(500);
+  await optTap(A, '#plus-btn'); await sleep(900);
+  await optTap(A, '#grid-btn'); await sleep(500);
   // The lock on the card: tapping it signed out opens the account sheet.
   await A.click('.g-item .g-pub'); await sleep(300);
   note(await A.evaluate(() => document.getElementById('account').classList.contains('open')), 'making a drawing public signed out did not ask to sign in');
@@ -245,7 +247,7 @@ try {
   await sleep(600); await shot(A, '2-mine-public');
 
   // B signs up from the Public tab and sees A's drawing, with its picture.
-  await B.click('#grid-btn'); await sleep(300);
+  await optTap(B, '#grid-btn'); await sleep(300);
   await B.click('#g-tab-public');
   await B.waitForFunction(() => document.querySelector('.g-item[data-post] img'), { timeout: 10000 }).catch(() => {});
   await B.waitForFunction(() => { const i = document.querySelector('.g-item[data-post] img'); return i && i.complete && i.naturalWidth > 0; }, { timeout: 10000 }).catch(() => {});
@@ -315,7 +317,7 @@ try {
   note(!afterBack.viewer && afterBack.gallery && !afterSwipe.viewer && afterSwipe.gallery && !afterButton.viewer && afterButton.gallery
     && afterBack2.gallery && /mode-mine/.test(afterBack2.mode) && afterBack2.inko === '/inko/',
     `leaving the viewer: back gesture ${JSON.stringify(afterBack)}, swipe ${JSON.stringify(afterSwipe)}, button ${JSON.stringify(afterButton)}; back again ${JSON.stringify(afterBack2)}`);
-  await B.click('#grid-btn'); await sleep(300);
+  await optTap(B, '#grid-btn'); await sleep(300);
   if (await B.evaluate(() => document.getElementById('g-tab-public').textContent.trim() === 'Public')) { await B.click('#g-tab-public'); await sleep(400); }
   await B.click('.g-item[data-post] .g-thumb img'); await sleep(400);
   await B.click('#v-more'); await sleep(150);
@@ -355,13 +357,13 @@ try {
       await p.bringToFront();
       await p.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));   // back to the foreground: a sync
       await sleep(2500);
-      await p.click('#grid-btn'); await sleep(500);
+      await optTap(p, '#grid-btn'); await sleep(500);
     };
     await one.bringToFront();
     await strokeOn(one);
     await one.evaluate(() => { document.getElementById('title-input').value = ''; });   // a new canvas is pre-named Untitled N
     await one.type('#title-input', 'Both phones');
-    await one.click('#plus-btn'); await sleep(2500);
+    await optTap(one, '#plus-btn'); await sleep(2500);
     await openGallery(two);
     const onTwo = await titles(two);
     const thumbOk = await two.evaluate(() => { const i = [...document.querySelectorAll('#g-rows .g-item')].find(el => el.textContent.includes('Both phones'))?.querySelector('img'); return !!i && i.complete && i.naturalWidth > 0; });
@@ -377,7 +379,7 @@ try {
     });
     note(inkTwo > 100, `the canvas opened on the second device has ${inkTwo} sampled stroke pixels`);
     // Deleted on the second device: gone from the first.
-    await two.click('#grid-btn'); await sleep(400);
+    await optTap(two, '#grid-btn'); await sleep(400);
     await two.evaluate(() => [...document.querySelectorAll('#g-rows .g-item')].find(el => el.textContent.includes('Both phones')).querySelector('.g-del').click());
     await sleep(300); await two.click('#m-del'); await sleep(1500);
     await one.click('#g-back').catch(() => {});
@@ -398,7 +400,7 @@ try {
     const cErrors = [];
     C.on('pageerror', e => cErrors.push(e.message));
     await C.goto(`${BASE}/inko/`, { waitUntil: 'networkidle2' });
-    await C.click('#grid-btn'); await sleep(300);
+    await optTap(C, '#grid-btn'); await sleep(300);
     await C.click('#g-account'); await sleep(300);
     const sheet = await C.evaluate(() => {
       const css = id => getComputedStyle(document.getElementById(id));
@@ -427,7 +429,7 @@ try {
     // Signed out and back in with Google: straight in, no name to pick.
     await C.evaluate(() => { localStorage.removeItem('sketchSession'); });
     await C.goto(`${BASE}/inko/`, { waitUntil: 'networkidle2' });
-    await C.click('#grid-btn'); await sleep(200); await C.click('#g-account'); await sleep(200);
+    await optTap(C, '#grid-btn'); await sleep(200); await C.click('#g-account'); await sleep(200);
     await Promise.all([C.waitForNavigation({ waitUntil: 'networkidle2' }), C.click('#a-google')]);
     await sleep(600);
     const again = await C.evaluate(() => ({ who: document.getElementById('g-account').textContent, claim: !document.getElementById('a-claim').hidden, hash: location.hash }));
@@ -447,13 +449,13 @@ try {
     }
     await C.evaluate(() => { document.getElementById('title-input').value = ''; });   // a new canvas is pre-named Untitled N
     await C.type('#title-input', 'Sunset');
-    await C.click('#plus-btn'); await sleep(900);
-    await C.click('#grid-btn'); await sleep(400);
+    await optTap(C, '#plus-btn'); await sleep(900);
+    await optTap(C, '#grid-btn'); await sleep(400);
     await C.evaluate(() => [...document.querySelectorAll('#g-rows .g-item')].find(el => el.textContent.includes('Sunset')).querySelector('.g-pub').click());
     await sleep(300);
     await Promise.all([C.waitForNavigation({ waitUntil: 'networkidle2' }), C.click('#a-google')]);
     await sleep(1500);
-    await C.click('#grid-btn');
+    await optTap(C, '#grid-btn');
     await C.waitForFunction(() => document.querySelector('.g-item .g-pub.on'), { timeout: 15000 }).catch(() => {});
     const pending = await C.evaluate(() => ({ who: document.getElementById('g-account').textContent,
       pub: [...document.querySelectorAll('#g-rows .g-item')].filter(el => el.querySelector('.g-pub.on')).map(el => el.querySelector('.g-title').textContent) }));
@@ -465,7 +467,7 @@ try {
     // Hidden as an artist on this device, your OWN drawings still show to you.
     await C.evaluate(() => localStorage.setItem('sketchBlocked', JSON.stringify(['dexcimino'])));
     await C.goto(`${BASE}/inko/`, { waitUntil: 'networkidle2' });
-    await C.click('#grid-btn'); await sleep(300); await C.click('#g-tab-public');
+    await optTap(C, '#grid-btn'); await sleep(300); await C.click('#g-tab-public');
     await C.waitForFunction(() => document.querySelector('.g-item[data-post]'), { timeout: 8000 }).catch(() => {});
     note(await C.evaluate(() => [...document.querySelectorAll('.g-item[data-post] img')].some(t => t.alt === 'Sunset')),
       'having once hidden yourself hides your own drawings from your Public tab');
@@ -475,7 +477,7 @@ try {
     // Discord, a different person: a reserved name refused, their own taken.
     await C.evaluate(() => { localStorage.removeItem('sketchSession'); });
     await C.goto(`${BASE}/inko/`, { waitUntil: 'networkidle2' });
-    await C.click('#grid-btn'); await sleep(200); await C.click('#g-account'); await sleep(200);
+    await optTap(C, '#grid-btn'); await sleep(200); await C.click('#g-account'); await sleep(200);
     await Promise.all([C.waitForNavigation({ waitUntil: 'networkidle2' }), C.click('#a-discord')]);
     await C.waitForFunction(() => !document.getElementById('a-claim').hidden, { timeout: 10000 }).catch(() => {});
     note(await C.evaluate(() => document.getElementById('a-claim-handle').value) === 'discord_fan', 'Discord did not suggest discord_fan');
@@ -584,7 +586,7 @@ try {
     await D.goto(`${BASE}/inko/`, { waitUntil: 'networkidle2' });
     await strokeOn(D);
     // Sign up from the profile's own Sign in.
-    await D.click('#grid-btn'); await sleep(400);
+    await optTap(D, '#grid-btn'); await sleep(400);
     const bar = await D.evaluate(() => {
       const r = id => { const q = document.getElementById(id).getBoundingClientRect(); return { left: q.left, right: q.right, width: q.width, height: q.height }; };
       const b = r('g-back'), p = r('g-tab-public'), m = r('g-tab-mine');
@@ -653,7 +655,7 @@ try {
     note(undone1 !== after && undone2 === before && redone === after, `undo did not walk the canvas colour back: ${before} -> ${after}; undo ${undone1}, ${undone2}; redo ${redone}`);
 
     // Search from the top, into someone's profile, and back out to Public.
-    await D.click('#grid-btn'); await sleep(400);
+    await optTap(D, '#grid-btn'); await sleep(400);
     await D.type('#g-search', 'face'); await sleep(900);
     const results = await D.evaluate(() => [...document.querySelectorAll('.g-user')].map(b => b.dataset.handle));
     note(results.includes('face_b') && results.includes('face_a'), `searching "face" found ${JSON.stringify(results)}`);

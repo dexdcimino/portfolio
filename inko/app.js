@@ -198,28 +198,42 @@ let fitK = 1;
    2026-10-08): the stage's margin is whatever the bars -- and the canvas
    colour window, when it is open -- take up right now, so opening the
    sliders lifts the canvas instead of covering it. */
+/* Measured from the panels' own boxes, not from innerHeight: on a phone the
+   fixed bars sit on the VISIBLE bottom while 100dvh, innerHeight and the
+   flow can each disagree with it by the browser's own bar, and the canvas
+   ended up under the size bar and the sliders (Dex, 2026-10-08). The stage
+   is fixed too, so it shares the bars' coordinates exactly. */
+const GAP = 8;
 function fit(){
-  const topbar = $('topbar').offsetHeight;
-  let bottomBars = $('bottom-bars') ? $('bottom-bars').offsetHeight : 140;
-  if (brushPop.classList.contains('open')) bottomBars = Math.max(bottomBars, window.innerHeight - brushPop.getBoundingClientRect().top);
-  $('stage').style.marginBottom = bottomBars + 'px';
+  const bb = $('bottom-bars').getBoundingClientRect();
+  let panelsTop = bb.top;
+  if (brushPop.classList.contains('open')) panelsTop = Math.min(panelsTop, brushPop.getBoundingClientRect().top);
+  const top = $('topbar').getBoundingClientRect().bottom;
+  const st = $('stage').style;
+  st.top = top + 'px';
+  st.bottom = Math.max(0, bb.bottom - panelsTop) + 'px';
   const availW = Math.min(window.innerWidth*0.94, 460);
-  const availH = window.innerHeight - topbar - bottomBars - 14 - 6;
+  const availH = panelsTop - GAP - top - 6;
   const k = Math.max(0.2, Math.min(availW/W, availH/H));
   fitK = k;
   canvas.style.width = (W*k)+'px'; canvas.style.height = (H*k)+'px';
+  placeSymTick();
+}
+/* Symmetry on (Dex, 2026-10-08): a short tick across the top centre of the
+   canvas -- 6px above it, 10px into it -- instead of a dashed line through
+   the whole drawing. Placed from the frame's box, so it follows fit(). */
+function placeSymTick(){
+  const t = $('sym-tick');
+  t.hidden = !mirrorOn;
+  if (!mirrorOn) return;
+  const st = $('stage').getBoundingClientRect(), fr = $('canvas-frame').getBoundingClientRect();
+  t.style.left = (fr.left + fr.width / 2 - st.left) + 'px';
+  t.style.top = (fr.top - st.top - 6) + 'px';
 }
 function render(){
   ctx.clearRect(0,0,W,H);
   ctx.fillStyle = bgCss(); ctx.fillRect(0,0,W,H);
   ctx.drawImage(sLayer, 0,0,W,H);
-  if (mirrorOn){
-    ctx.save();
-    ctx.strokeStyle = 'rgba(120,130,150,.4)'; ctx.lineWidth = 2;
-    ctx.setLineDash([9,9]); ctx.beginPath();
-    ctx.moveTo(W/2, 0); ctx.lineTo(W/2, H); ctx.stroke();
-    ctx.restore();
-  }
 }
 function clearCanvas(){
   sctx.clearRect(0,0,W,H);
@@ -505,7 +519,7 @@ function syncToolSel(){
    small icon swings out right and down as it grows into the middle; the big
    one dips down and left before it rises into the corner, shrinking. Each
    keyframe is a point on its arc. The resting places are the CSS classes. */
-const TOOL_BIG = 'translate(2px,2px) scale(1)', TOOL_SMALL = 'translate(-16px,-14px) scale(.46)';
+const TOOL_BIG = 'translate(0px,0px) scale(1)', TOOL_SMALL = 'translate(-16px,-14px) scale(.46)';
 function swapTools(){
   const grow = tool === 'brush' ? $('toggle-brush-icon') : $('toggle-eraser-icon');
   const shrink = grow === $('toggle-brush-icon') ? $('toggle-eraser-icon') : $('toggle-brush-icon');
@@ -540,7 +554,7 @@ $('sym-btn').addEventListener('click', () => {
   mirrorOn = !mirrorOn;
   $('sym-btn').classList.toggle('on', mirrorOn);
   $('sym-btn').setAttribute('aria-pressed', mirrorOn);
-  render();
+  placeSymTick();
 });
 /* THE CANVAS ON SCREEN IS ALWAYS A CARD in the gallery (Dex, 2026-10-08):
    a new one is saved the moment it is made, blank or not, named Untitled 1,
@@ -600,13 +614,14 @@ $('plus-btn').addEventListener('click', async () => {
   const wipe = snapPad();
   await startBlank();
   wipe();
+  setOptions(false);
   toast(titleInput.value);
 });
 
 /* ---------- brush popover ---------- */
 function placePop(){
   const tb = $('toolbar').getBoundingClientRect();
-  brushPop.style.bottom = Math.max(8, window.innerHeight - tb.top + 12) + 'px';
+  brushPop.style.bottom = Math.max(8, $('bottom-bars').getBoundingClientRect().bottom - tb.top + 12) + 'px';
 }
 function closePop(){ const was = brushPop.classList.contains('open'); popMode = null; brushPop.classList.remove('open'); if (was) fit(); }
 $('pop-x').addEventListener('click', e => { e.stopPropagation(); closePop(); });
@@ -797,11 +812,47 @@ $('canvas-swatch').addEventListener('click', e => {
 let colorMode = false;
 function setColorMode(on){
   colorMode = on;
-  $('size-bar').style.display = on ? 'none' : 'flex';
-  $('hsb-bar').style.display = on ? 'flex' : 'none';
+  if (on && optionsOn) setOptions(false, true);
+  showBars();
   $('color-btn').classList.toggle('on', on);
   if(on) syncHSBInputs();
   fit();
+}
+/* Options (Dex, 2026-10-08): the size bar's place becomes the options bar --
+   profile, gallery, new canvas, clear -- and anything else open closes. */
+let optionsOn = false;
+function showBars(){
+  $('size-bar').style.display = colorMode || optionsOn ? 'none' : 'flex';
+  $('hsb-bar').style.display = colorMode ? 'flex' : 'none';
+  $('opt-bar').hidden = !optionsOn;
+}
+function setOptions(on, quiet){
+  optionsOn = on;
+  if (on){ closePop(); if (eyedropperOn) setEyedropper(false); if (colorMode){ colorMode = false; $('color-btn').classList.remove('on'); } }
+  $('opt-btn').classList.toggle('on', on);
+  $('opt-btn').setAttribute('aria-pressed', String(on));
+  if (!quiet){ showBars(); fit(); }
+}
+$('opt-btn').addEventListener('click', e => { e.stopPropagation(); setOptions(!optionsOn); });
+/* H, S or B named while you touch it, centred above its panel. */
+{
+  const NAMES = { hue: ['Hue', '°'], sat: ['Saturation', '%'], bri: ['Brightness', '%'] };
+  const timers = new WeakMap();
+  const showTip = input => {
+    const kind = input.id.replace('cv-', ''), [name, unit] = NAMES[kind];
+    const tip = input.closest('#hsb-bar, #brush-pop').querySelector('.hsb-tip');
+    tip.textContent = `${name} ${Math.round(+input.value)}${unit}`;
+    tip.hidden = false;
+    clearTimeout(timers.get(tip));
+    timers.set(tip, setTimeout(() => { tip.hidden = true; }, 1200));
+  };
+  for (const id of ['hue', 'sat', 'bri', 'cv-hue', 'cv-sat', 'cv-bri']){
+    const input = $(id);
+    for (const ev of ['pointerdown', 'input']) input.addEventListener(ev, () => showTip(input));
+    // The letter too.
+    const lbl = input.parentNode.querySelector('.hsb-lbl');
+    if (lbl) lbl.addEventListener('pointerdown', () => showTip(input));
+  }
 }
 function syncHSBInputs(){
   refreshPanelUI();
@@ -970,9 +1021,21 @@ $('grid-btn').addEventListener('click', async () => {
   // The card for the canvas on screen shows what is on it now.
   if (dirty) await saveCurrent().catch(() => {});
   // Someone else's profile is a stop on the way, not a place to come back to.
-  // The button is your picture: it opens your own gallery.
-  setGalleryTab('mine');
+  setGalleryTab(galleryTab === 'user' ? 'public' : galleryTab);
+  setOptions(false);
   openGallery();
+});
+// Your picture opens your profile.
+$('prof-btn').addEventListener('click', async () => {
+  closePop();
+  if (dirty) await saveCurrent().catch(() => {});
+  setGalleryTab('mine');
+  setOptions(false);
+  openGallery();
+});
+// Clear asks first; undo brings it back (clearCanvas is one history step).
+$('clear-btn').addEventListener('click', () => {
+  openModal('Clear this canvas?', 'Undo brings it back.', 'Clear', () => { clearCanvas(); setOptions(false); });
 });
 /* Back: out of a search, out of picking a picture, from an artist back to
    Public -- and otherwise to the canvas. */
@@ -1529,6 +1592,9 @@ function bounce(dir){
    nothing is pushed until the first touch, because Chrome skips entries a
    page added before anyone touched it. */
 const NO_HISTORY = EMBED || window.top !== window;
+// An open sheet is one more step: back closes it (and counts as Cancel).
+const SHEETS = ['crop', 'account', 'modal'];
+if (window.MutationObserver) for (const id of SHEETS) new MutationObserver(() => syncHistory()).observe($(id), { attributes: true, attributeFilter: ['class'] });
 let trail = ['mine', 'canvas'], navDepth = 0, skipPops = 0, restoring = false, touched = false;
 const placeNow = () => !$('gallery').classList.contains('open') ? 'canvas' : galleryTab === 'user' ? 'user:' + viewingUser : galleryTab;
 function visit(place){
@@ -1541,7 +1607,8 @@ function visit(place){
 }
 function syncHistory(){
   if (NO_HISTORY || !touched) return;
-  const want = trail.length - 1 + ($('viewer').classList.contains('open') ? 1 : 0);
+  const want = trail.length - 1 + ($('viewer').classList.contains('open') ? 1 : 0)
+    + (SHEETS.some(id => $(id).classList.contains('open')) ? 1 : 0);
   try {
     while (navDepth < want){ window.history.pushState({ inko: navDepth + 1 }, ''); navDepth++; }
     if (navDepth > want){ const n = navDepth - want; navDepth = want; skipPops++; window.history.go(-n); }
@@ -1571,8 +1638,8 @@ const canStepBack = () => !NO_HISTORY && touched && trail.length > 1 && navDepth
 window.addEventListener('popstate', () => {
   if (skipPops > 0){ skipPops--; return; }
   navDepth = Math.max(0, navDepth - 1);
-  // A sheet is closed first, and its step put back.
-  const sheet = ['crop', 'account', 'modal'].find(id => $(id).classList.contains('open'));
+  // A sheet is closed first: that was its step.
+  const sheet = SHEETS.find(id => $(id).classList.contains('open'));
   if (sheet){ $(sheet).classList.remove('open'); if (sheet === 'account') afterSignIn = null; syncHistory(); return; }
   if ($('viewer').classList.contains('open')){ closeViewer(); return; }
   if (trail.length > 1){ trail.pop(); showPlace(trail[trail.length - 1]); }
@@ -2054,6 +2121,10 @@ async function init(){
   setupCanvas();
   bindHSB(); refreshPanelUI(); syncToolSel(); syncUndoRedo();
   window.addEventListener('resize', fit);
+  // The bars change height on their own (sliders, the options bar, a font
+  // or a picture arriving late): the canvas follows whatever they do.
+  if (window.ResizeObserver) new ResizeObserver(() => fit()).observe($('bottom-bars'));
+  if (window.visualViewport) window.visualViewport.addEventListener('resize', fit);
   window.addEventListener('orientationchange', () => setTimeout(fit, 120));
   render();
   try { await migrateLocalStorage(); } catch (e) { console.warn('inko: migration', e); }
