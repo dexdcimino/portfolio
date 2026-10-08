@@ -1241,7 +1241,9 @@ html.dex-cursor button.app-art-view{cursor:zoom-in}
 .fv-item.is-playing:not(:hover):not(:has(:focus-visible)) .fv-bar>*:not(.fv-mute){opacity:0}
 .fv-item.is-playing:not(.is-muted):not(:hover):not(:has(:focus-visible)) .fv-mute{opacity:0}
 /* Before a source exists there is nothing to scrub. */
-.fv-has-video:not([data-src^="https"]) .fv-bar{display:none}
+.fv-has-video:not([data-src^="https"]) :is(.fv-bar,.fv-play){display:none}
+/* No blue flash on a phone tap: the slot draws its own pressed and focus states. */
+.fv-item,.fv-item *{-webkit-tap-highlight-color:transparent}
 .fv-has-video:not([data-src^="https"]) .card-meta{bottom:18px}
 .fv-has-video:not([data-src^="https"]) .fv-actions{bottom:18px}
 /* The eye's tip carries a picture of what it opens. */
