@@ -607,7 +607,7 @@ async function ensureCurrent(){
   scheduleDraft();
   refreshPanelUI();
 }
-$('plus-btn').addEventListener('click', async () => {
+async function newCanvas(){
   closePop();
   if (dirty){ try { await saveCurrent(); } catch (e) { return; } }
   await keepCanvasHistory();
@@ -615,6 +615,12 @@ $('plus-btn').addEventListener('click', async () => {
   await startBlank();
   wipe();
   setOptions(false);
+}
+$('plus-btn').addEventListener('click', async () => { await newCanvas(); toast('New canvas created'); });
+// From the gallery: straight into it, ready to draw.
+$('g-new').addEventListener('click', async () => {
+  await newCanvas();
+  closeGallery();
   toast('New canvas created');
 });
 
@@ -981,6 +987,12 @@ async function deleteCanvas(it){
   if (editingId === it.id) await startBlank();
   return true;
 }
+/* One card's buttons out at a time. */
+function setTileOpts(div, on){
+  if (on) for (const o of $('g-rows').querySelectorAll('.g-item.opts')) if (o !== div) setTileOpts(o, false);
+  div.classList.toggle('opts', on);
+  const b = div.querySelector('.g-opt'); if (b) b.setAttribute('aria-expanded', String(on));
+}
 function makeItem(it, isLive){
   const div = document.createElement('div'); div.className = 'g-item' + (!isLive && it.id === editingId ? ' current' : '') + (selected.has(it.id) ? ' sel' : '');
   if (!isLive) div.dataset.id = it.id;
@@ -1013,6 +1025,7 @@ function makeItem(it, isLive){
     else if (it.png) thumbBlob(it.png, it.bg).then(b => { it.thumb = b; img.src = blobUrl(b); idbPut('canvases', it).catch(() => {}); });
     div.addEventListener('click', () => {
       if (holdFired){ holdFired = false; return; }
+      if (div.classList.contains('opts')){ setTileOpts(div, false); return; }   // a tap off its buttons folds them
       if (selecting){ toggleSel(it.id); return; }
       picking ? openCrop(it) : openCanvas(it.id);
     });
@@ -1023,6 +1036,12 @@ function makeItem(it, isLive){
     paintPubButton(pub, it);
     pub.addEventListener('click', e => { e.stopPropagation(); toggleVisibility(it, pub); });
     th.appendChild(pub);
+    // The one button on the card; the others come out of it (see .g-opt).
+    const opt = document.createElement('button'); opt.className = 'g-opt';
+    opt.setAttribute('aria-label', 'Canvas options'); opt.setAttribute('aria-expanded', 'false');
+    opt.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3.5" y="3.5" width="7" height="7" rx="2"/><rect x="13.5" y="3.5" width="7" height="7" rx="2"/><rect x="3.5" y="13.5" width="7" height="7" rx="2"/><circle cx="17" cy="17" r="3.6" fill="currentColor" stroke="none"/></svg>';
+    opt.addEventListener('click', e => { e.stopPropagation(); setTileOpts(div, !div.classList.contains('opts')); });
+    th.appendChild(opt);
   }
   th.appendChild(dl); th.appendChild(del);
   const cap = document.createElement('div'); cap.className = 'g-title';
@@ -1873,6 +1892,10 @@ $('a-delete').addEventListener('click', () => {
 $('g-account').addEventListener('click', () => openAccount());
 
 /* ---- where the gallery is: yours, Public, or one artist's ---- */
+// Named at the top, so you always know which page this is.
+function paintPage(){
+  $('g-page').textContent = searching() ? 'Search' : galleryTab === 'public' ? 'Public' : galleryTab === 'user' ? '@' + (viewingUser || '') : 'Your gallery';
+}
 function setGalleryTab(tab){
   if (tab !== 'mine') setPicking(false);
   exitSelect();
@@ -1881,9 +1904,12 @@ function setGalleryTab(tab){
   const g = $('gallery');
   for (const m of ['mine', 'public', 'user']) g.classList.toggle('mode-' + m, tab === m);
   $('g-tab-mine').classList.toggle('on', tab === 'mine');
-  // One button, Public <-> Mine: it says where it takes you.
-  $('g-tab-public').textContent = tab === 'public' ? 'Mine' : 'Public';
+  // One square, Public <-> yours: it shows where it takes you -- the globe
+  // out to Public, the gallery icon back to your own (Dex, 2026-10-08).
+  $('g-tab-public').innerHTML = tab === 'public' ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="7.5" y="2.5" width="14" height="14" rx="3.2"/><path d="M16.5 21.5H6A3.5 3.5 0 0 1 2.5 18V7.5"/><path d="M7.8 13.6l3.6-3.6 2.8 2.8 1.9-1.9 5 5"/><circle cx="16.6" cy="7.4" r="1.5" fill="currentColor" stroke="none"/></svg>' : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg>';
+  $('g-tab-public').dataset.go = tab === 'public' ? 'mine' : 'public';
   $('g-tab-public').setAttribute('aria-label', tab === 'public' ? 'Your drawings' : 'Public drawings');
+  paintPage();
   $('g-account').hidden = tab !== 'mine';
   $('g-user-name').hidden = tab !== 'user';
   $('g-rows').innerHTML = '';
@@ -2102,6 +2128,7 @@ async function openUser(handle){
   viewingUser = handle;
   if ($('gallery').classList.contains('open')) visit('user:' + handle);
   $('g-user-name').textContent = '@' + handle;
+  paintPage();
   $('g-avatar').style.backgroundImage = `url("${avatarSrc(handle, feedAvatars[handle])}")`;
   $('g-avatar').setAttribute('aria-label', '@' + handle);
   $('g-count').textContent = 'Loading…';
@@ -2135,6 +2162,7 @@ function openSearch(){
   if (picking) setPicking(false);
   $('gallery').classList.add('searching');
   $('g-search-btn').classList.add('on');
+  paintPage();
   // Focused inside the tap, or a phone will not bring up its keyboard.
   $('g-search').focus();
   placeFind();
@@ -2146,6 +2174,7 @@ function clearSearch(quiet){
   $('g-search').blur();
   $('g-search-btn').classList.remove('on');
   $('gallery').classList.remove('searching');
+  paintPage();
   if (!quiet) setGalleryTab(galleryTab === 'user' ? 'public' : galleryTab);
 }
 function placeFind(){

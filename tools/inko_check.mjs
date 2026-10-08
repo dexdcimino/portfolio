@@ -521,10 +521,11 @@ try {
     // The gallery bar is the toolbar's pill; search lives on it.
     await optTap(page, '#grid-btn'); await sleep(400);
     if (await page.evaluate(() => !/mode-mine/.test(document.getElementById('gallery').className))) { await page.click('#g-tab-public'); await sleep(400); }
-    const gb = await page.evaluate(() => { const r = id => document.getElementById(id).getBoundingClientRect(), b = r('g-back'), s = r('g-search-btn'), p = r('g-tab-public'), m = r('g-tab-mine');
-      return { h: Math.round(r('g-bar').height), tb: Math.round(r('toolbar').height), order: b.right <= s.left && s.right <= p.left && p.right <= m.left,
+    const gb = await page.evaluate(() => { const r = id => document.getElementById(id).getBoundingClientRect(), b = r('g-back'), s = r('g-search-btn'), p = r('g-tab-public'), m = r('g-tab-mine'), n = r('g-new');
+      return { h: Math.round(r('g-bar').height), tb: Math.round(r('toolbar').height), order: b.right <= p.left && p.right <= n.left && n.right <= s.left && s.right <= m.left,
+               page: document.getElementById('g-page').textContent, centred: Math.abs((n.left + n.right) / 2 - innerWidth / 2) < 1.5,
                topSearch: getComputedStyle(document.getElementById('g-find')).display }; });
-    note(gb.h === gb.tb && gb.order && gb.topSearch === 'none', `the gallery bar: ${JSON.stringify(gb)}`);
+    note(gb.h === gb.tb && gb.order && gb.centred && gb.page === 'Your gallery' && gb.topSearch === 'none', `the gallery bar (back, globe | + | search, you) and the page named: ${JSON.stringify(gb)}`);
     await page.click('#g-search-btn'); await sleep(250);
     await page.keyboard.type('thumb'); await sleep(700);
     const sr = await page.evaluate(() => ({ focus: document.activeElement.id, secs: [...document.querySelectorAll('#g-rows .g-sec')].map(e => e.textContent),
@@ -546,7 +547,7 @@ try {
     const s1 = await page.evaluate(() => { const items = [...document.querySelectorAll('#g-rows .g-item')], p = document.getElementById('g-sel').getBoundingClientRect();
       return { on: document.getElementById('gallery').classList.contains('selecting'), sel: items.filter(e => e.classList.contains('sel')).length,
                title: document.getElementById('g-sel-title').textContent, cardTitle: items[items.length - 3].querySelector('.g-title').textContent,
-               left: Math.round(p.left), top: Math.round(p.top), cardButtons: getComputedStyle(items[0].querySelector('.g-del')).display }; });
+               left: Math.round(p.left), top: Math.round(p.top), cardButtons: getComputedStyle(items[0].querySelector('.g-opt')).display }; });
     note(s1.on && s1.sel === 1 && s1.title === s1.cardTitle && s1.left < 30 && s1.top < 200 && s1.cardButtons === 'none', `a hold enters select mode: ${JSON.stringify(s1)}`);
     await page.touchscreen.tap(c2.x, c2.y); await sleep(200);
     const t2 = await page.evaluate(() => document.getElementById('g-sel-title').textContent);
@@ -589,6 +590,45 @@ try {
     await page.click('#g-sel-x'); await sleep(200);
     const xd = await page.evaluate(() => ({ selecting: document.getElementById('gallery').classList.contains('selecting'), panel: getComputedStyle(document.getElementById('g-sel')).display }));
     note(!xd.selecting && xd.panel === 'none', `the X ends select mode: ${JSON.stringify(xd)}`);
+
+    // Batch 10: one options button per card; its buttons fly out to their corners and fold back.
+    const tile = i => page.evaluate(i => { const it = document.querySelectorAll('#g-rows .g-item')[i], t = it.querySelector('.g-thumb').getBoundingClientRect();
+      const box = c => { const r = it.querySelector(c).getBoundingClientRect(), cs = getComputedStyle(it.querySelector(c));
+        return { dl: Math.round(r.left - t.left), dt: Math.round(r.top - t.top), dr: Math.round(t.right - r.right), db: Math.round(t.bottom - r.bottom), op: +cs.opacity, pe: cs.pointerEvents }; };
+      return { opt: box('.g-opt'), pub: box('.g-pub'), dl: box('.g-dl'), del: box('.g-del'), open: it.classList.contains('opts') }; }, i);
+    const shut0 = await tile(0);
+    note(shut0.opt.dl <= 6 && shut0.opt.dt <= 6 && shut0.opt.op === 1 && [shut0.pub, shut0.dl, shut0.del].every(x => x.op === 0 && x.pe === 'none' && x.dl <= 16 && x.dt <= 16)   /* scaled down in the corner */,
+      `a card shows only its options button, tight top left: ${JSON.stringify(shut0)}`);
+    const ob = await page.evaluate(() => { const r = document.querySelector('#g-rows .g-item .g-opt').getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; });
+    await page.touchscreen.tap(ob.x, ob.y); await sleep(80);
+    const mid = await tile(0);
+    await sleep(400);
+    const out = await tile(0);
+    const hitPub = await page.evaluate(() => { const b = document.querySelector('#g-rows .g-item .g-pub'), r = b.getBoundingClientRect(); return document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2)?.closest('.g-pub') === b; });
+    note(out.open && out.pub.dr <= 6 && out.pub.dt <= 6 && out.dl.dr <= 6 && out.dl.db <= 6 && out.del.dl <= 6 && out.del.db <= 6 && [out.pub, out.dl, out.del].every(x => x.op === 1) && hitPub,
+      `the buttons out at their corners (public top right, download bottom right, delete bottom left): ${JSON.stringify(out)}, public pressable ${hitPub}`);
+    note(mid.pub.dl > shut0.pub.dl && mid.pub.dl < out.pub.dl, `they travel out of the corner rather than appearing: public at ${mid.pub.dl}px on the way from ${shut0.pub.dl} to ${out.pub.dl}`);
+    // Another card's button folds this one; its own button again folds it.
+    await page.evaluate(() => document.querySelectorAll('#g-rows .g-item')[1].querySelector('.g-opt').click()); await sleep(350);
+    const one = await page.evaluate(() => [...document.querySelectorAll('#g-rows .g-item')].map(e => e.classList.contains('opts') ? 1 : 0).join(''));
+    const ob1 = await page.evaluate(() => { const r = document.querySelectorAll('#g-rows .g-item')[1].querySelector('.g-opt').getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; });
+    await page.touchscreen.tap(ob1.x, ob1.y); await sleep(400);
+    const back1 = await tile(1);
+    note(one.startsWith('01') && !one.slice(2).includes('1') && !back1.open && back1.pub.op === 0 && back1.pub.dl <= 16, `one card open at a time (${one}), and its button folds it back: ${JSON.stringify(back1.pub)}`);
+    // The page is named, and the square toggles globe <-> your gallery.
+    await page.click('#g-tab-public'); await sleep(500);
+    const pg = await page.evaluate(() => ({ page: document.getElementById('g-page').textContent, go: document.getElementById('g-tab-public').dataset.go }));
+    await page.click('#g-tab-public'); await sleep(400);
+    const pg2 = await page.evaluate(() => ({ page: document.getElementById('g-page').textContent, go: document.getElementById('g-tab-public').dataset.go }));
+    note(pg.page === 'Public' && pg.go === 'mine' && pg2.page === 'Your gallery' && pg2.go === 'public', `the page named and the toggle: ${JSON.stringify(pg)} then ${JSON.stringify(pg2)}`);
+    // + in the gallery: a new canvas, and straight into it.
+    const nBefore = await page.evaluate(() => document.querySelectorAll('#g-rows .g-item').length);
+    await page.click('#g-new'); await sleep(700);
+    const nw = await page.evaluate(() => ({ gallery: document.getElementById('gallery').classList.contains('open'), toast: document.getElementById('toast').textContent, title: document.getElementById('title-input').value }));
+    await optTap(page, '#grid-btn'); await sleep(400);
+    const nAfter = await page.evaluate(() => { const items = [...document.querySelectorAll('#g-rows .g-item')]; return { n: items.length, lastCurrent: items[items.length - 1].classList.contains('current') }; });
+    note(!nw.gallery && nw.toast === 'New canvas created' && /^Untitled \d+$/.test(nw.title) && nAfter.n === nBefore + 1 && nAfter.lastCurrent,
+      `+ from the gallery: ${JSON.stringify(nw)}, ${nBefore} -> ${JSON.stringify(nAfter)}`);
     await page.click('#g-back'); await sleep(300);
   }
   note(bars.lockRight && !bars.install, `the top row: lock at the right ${bars.lockRight}, install button ${bars.install}`);
