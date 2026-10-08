@@ -988,12 +988,14 @@ await page.waitForFunction(
       title: strong.textContent.trim(),
       strongPx: parseFloat(getComputedStyle(strong).fontSize),
       onTitle: hitOf(strong, 0.1, 0.5),
-      onDownload: hitOf(item.querySelector('.fv-dl'), 0.5, 0.5),
+      // Mobius 3D's slot has the AI Lab pair (.fv-get, .fv-eye) in place of the
+      // placeholder's .fv-dl; either is "the download button".
+      onDownload: hitOf(item.querySelector('.fv-dl, .fv-get'), 0.5, 0.5),
     };
   });
   console.log(`video card: "${card.title}" at ${card.strongPx}px; ` +
               `over the title ${card.onTitle}, over the download ${card.onDownload}`);
-  note(card.title === 'TITLE COMING!', `the video card reads "${card.title}"`);
+  note(card.title === 'Mobius 3D', `the video card reads "${card.title}"`);
   note(card.strongPx < 42 && card.strongPx > 24,
        `the caption is ${card.strongPx}px; it was 47.6 and came down a fifth`);
   note(!card.onTitle.includes('card-shade'), 'the fade is painted over the caption');
@@ -1018,6 +1020,9 @@ await page.waitForFunction(
       opacity: +getComputedStyle(d).opacity,
       rightOfIcon: Math.round(db.left - ib.right),
       offCentre: Math.round((db.top + db.bottom) / 2 - (ib.top + ib.bottom) / 2),
+      // A real description wraps; then it is level with the icon's TOP, not its middle.
+      wraps: db.height > ib.height + 4,
+      offTop: Math.round(db.top - ib.top),
       onTape: tape.some(t => hits(db, t.getBoundingClientRect())),
       widthShare: Math.round(db.width / item.getBoundingClientRect().width * 100),
       texts: [...document.querySelectorAll('.fv-desc')].map(p => p.textContent.trim()),
@@ -1028,58 +1033,49 @@ await page.waitForFunction(
   note(desc.open && desc.opacity > 0.9, 'hovering the info icon did not raise the description');
   note(desc.rightOfIcon >= 0 && desc.rightOfIcon < 30,
        `the description starts ${desc.rightOfIcon}px from the icon`);
-  note(Math.abs(desc.offCentre) <= 3,
-       `the description is ${desc.offCentre}px off the icon's centre line`);
+  note(desc.wraps ? Math.abs(desc.offTop) <= 3 : Math.abs(desc.offCentre) <= 3,
+       desc.wraps ? `the wrapped description starts ${desc.offTop}px off the icon's top`
+                  : `the description is ${desc.offCentre}px off the icon's centre line`);
   note(!desc.onTape, 'the description is printed over the UNDER CONSTRUCTION strip');
   note(desc.widthShare < 70, `the description spans ${desc.widthShare}% of the frame`);
-  note(new Set(desc.texts).size === 1 && desc.texts.length === 3,
-       `the three slots say ${new Set(desc.texts).size} different things, expected one`);
+  // Mobius 3D (the first) says why it exists; the two placeholders still agree.
+  note(desc.texts.length === 3 && /Windows 3D Viewer/.test(desc.texts[0]),
+       `the Mobius slot's description reads "${desc.texts[0]}"`);
+  note(new Set(desc.texts.slice(1)).size === 1,
+       `the two placeholder slots say ${new Set(desc.texts.slice(1)).size} different things, expected one`);
 }
 
-/* ---- 13. the loud tooltip ------------------------------------------------
-   FALSELY PASSES IF: the attribute were read rather than the bubble hovered.
-   Three separate things have to be true at once and none is visible in markup:
-   the bubble must be ABOVE the button (the default is below, which for a
-   control in the bottom-right corner of a card falls off the window), the two
-   lines must be coloured differently, and the click answer must hand the
-   button back the tip it had rather than the hard-coded "Download" it used to
-   restore -- which would silently flatten this into one plain line. */
+/* ---- 13. the eye's thumbnail tooltip -------------------------------------
+   FALSELY PASSES IF: the attribute were read rather than the bubble hovered,
+   or the picture were found but never loaded. The placeholder's loud
+   download tip this section used to measure went with the placeholder; what
+   replaced it is the Mobius slot's eye, whose tip carries a clone of the
+   first Mobius gallery <picture>. Three things have to be true at once: the
+   bubble is ABOVE the eye (below falls off the card at the bottom right), it
+   is centred on it, and the picture in it actually decoded -- a clone whose
+   `sizes` or `loading` was left wrong is an empty box with a label under it. */
 {
-  await page.hover('.fv-item.is-on .fv-dl');
-  await new Promise(r => setTimeout(r, 400));
+  await page.hover('.fv-item.is-on .fv-eye');
+  await new Promise(r => setTimeout(r, 900));
   const tip = await page.evaluate(() => {
     const t = document.getElementById('tip');
-    const b = document.querySelector('.fv-item.is-on .fv-dl');
+    const b = document.querySelector('.fv-item.is-on .fv-eye');
     const tb = t.getBoundingClientRect(), r = b.getBoundingClientRect();
-    const lead = t.querySelector('.tip-lead'), sub = t.querySelector('.tip-sub');
-    return { on: t.classList.contains('is-on'), loud: t.classList.contains('is-loud'),
-             lead: lead && lead.textContent, sub: sub && sub.textContent,
-             leadColor: lead && getComputedStyle(lead).color,
-             subColor: sub && getComputedStyle(sub).color,
+    const img = t.querySelector('.tip-thumb img');
+    return { on: t.classList.contains('is-on'), thumb: t.classList.contains('has-thumb'),
+             text: t.textContent.trim(), loaded: !!img && img.complete && img.naturalWidth > 0,
+             width: img ? Math.round(img.getBoundingClientRect().width) : 0,
              gap: Math.round(r.top - tb.bottom),
              offCentre: Math.round((tb.left + tb.right) / 2 - (r.left + r.right) / 2) };
   });
-  console.log(`tip: "${tip.lead}" / "${tip.sub}", ${tip.gap}px above, ` +
-              `${tip.offCentre}px off centre, lead ${tip.leadColor}`);
-  note(tip.on && tip.loud, 'the download button did not raise the loud tooltip');
-  note(!!tip.lead && !!tip.sub, 'the tooltip did not split into two lines');
-  note(tip.leadColor !== tip.subColor, 'both tooltip lines are the same colour');
-  note(tip.gap >= 0 && tip.gap < 40, `the bubble sits ${tip.gap}px above the button`);
+  console.log(`eye tip: "${tip.text}", picture ${tip.loaded ? tip.width + 'px, loaded' : 'NOT loaded'}, ` +
+              `${tip.gap}px above, ${tip.offCentre}px off centre`);
+  note(tip.on && tip.thumb, 'the eye did not raise a tooltip with a picture');
+  note(tip.loaded && tip.width > 200, 'the tooltip picture did not load');
+  note(tip.text === 'Functional preview', `the tooltip reads "${tip.text}"`);
+  note(tip.gap >= 0 && tip.gap < 40, `the bubble sits ${tip.gap}px above the eye`);
   note(Math.abs(tip.offCentre) <= 2, `the bubble is ${tip.offCentre}px off centre`);
-
-  // The click answer, and what it gives back afterwards.
-  await page.click('.fv-item.is-on .fv-dl');
-  await new Promise(r => setTimeout(r, 250));
-  const during = await page.evaluate(() => document.querySelector('.fv-item.is-on .fv-dl').dataset.tip);
-  await new Promise(r => setTimeout(r, 2400));
-  const after = await page.evaluate(() => {
-    const b = document.querySelector('.fv-item.is-on .fv-dl');
-    return { tip: b.dataset.tip, kind: b.dataset.tipKind };
-  });
-  console.log(`after the click: "${during}" -> "${after.tip}" (${after.kind})`);
-  note(during === 'Build coming soon', `the click answered "${during}"`);
-  note(after.tip.includes('\n') && after.kind === 'loud',
-       `the button came back with "${after.tip}" (${after.kind}), not the tip it had`);
+  await page.mouse.move(5, 5);
 }
 
 /* ---- 14. the fifth game is a placeholder in every field ------------------

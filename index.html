@@ -382,33 +382,71 @@
              a worse placeholder than none, and the real one is the AI Lab
              player, to be shared rather than copied when the clips land. -->
         <div class="fv" id="featVideo">
-          <article class="fv-item is-on" data-video="0">
+          <!-- MOBIUS 3D, the first video and so the one on screen at load.
+               About a minute of the real viewer being used, recorded by the
+               mobius-3d repo's tools/video.mjs on a virtual clock. It streams
+               from bunny.net like the AI Lab's clips (CLAUDE.md: no video on
+               this host); data-src is the play_720p.mp4 URL, and until it is
+               set the poster stands in and the play button says so.
+               Muted autoplay, because that is the only autoplay a browser
+               allows. data-audio marks an upload with a soundtrack and brings
+               the mute button; without it there is no sound to offer.
+               The bar runs along the bottom edge, and everything else that
+               sits low -- the caption, the eye, the download -- sits ABOVE it,
+               so nothing ever covers the scrubber. -->
+          <article class="fv-item fv-has-video is-on" data-video="0" data-src="">
             <span class="fv-matte" aria-hidden="true"></span>
-            <!-- The Collab section's hazard strip, reused rather than redrawn:
-                 these are slots with no video in them yet, and a play button
-                 that does nothing is a worse answer than saying so. -->
-            <div class="fv-soon" aria-hidden="true">
-              <span class="collab-soon-tape"></span>
-              <strong>UNDER CONSTRUCTION</strong>
-              <span class="collab-soon-tape"></span>
-            </div>
+            <!-- img src="assets/featured/mobius-3d.png" slot="clip-poster" alt="" picture-class="fv-poster" -->
+            <picture class="fv-poster">
+              <source type="image/avif" srcset="assets/derived/featured/mobius-3d-1280.avif?v=65ed5cfa 1280w,
+                                                assets/derived/featured/mobius-3d-900.avif?v=65ed5cfa 900w,
+                                                assets/derived/featured/mobius-3d-600.avif?v=65ed5cfa 600w,
+                                                assets/derived/featured/mobius-3d-400.avif?v=65ed5cfa 400w,
+                                                assets/derived/featured/mobius-3d-240.avif?v=65ed5cfa 240w"
+                      sizes="(max-width:1100px) 92vw, min(56vw, 900px)">
+              <source type="image/webp" srcset="assets/derived/featured/mobius-3d-1280.webp?v=65ed5cfa 1280w,
+                                                assets/derived/featured/mobius-3d-900.webp?v=65ed5cfa 900w,
+                                                assets/derived/featured/mobius-3d-600.webp?v=65ed5cfa 600w,
+                                                assets/derived/featured/mobius-3d-400.webp?v=65ed5cfa 400w,
+                                                assets/derived/featured/mobius-3d-240.webp?v=65ed5cfa 240w"
+                      sizes="(max-width:1100px) 92vw, min(56vw, 900px)">
+              <img src="assets/featured/mobius-3d.png" alt="" width="1280" height="800" loading="lazy" decoding="async">
+            </picture>
+            <!-- /img -->
+            <video class="fv-video" muted playsinline loop preload="none"
+                   aria-label="Mobius 3D in use: a green trefoil knot animating, changing accent colour, orbiting and being reshaped with a blend shape"></video>
             <button class="fv-info" type="button" aria-expanded="false"
-                    aria-label="About TITLE COMING!"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 10.6v5.6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><circle cx="12" cy="7.4" r="1.35" fill="currentColor"/></svg></button>
-            <p class="fv-desc" hidden>Placeholder for this item&#8217;s future description.</p>
-            <button class="fv-play" type="button" aria-label="Play TITLE COMING!">
+                    aria-label="About Mobius 3D"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 10.6v5.6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><circle cx="12" cy="7.4" r="1.35" fill="currentColor"/></svg></button>
+            <p class="fv-desc" hidden>Windows 3D Viewer sucks, so I made my own: a viewer for the desktop and the web that opens GLB, FBX, OBJ, STL, USDZ and more, plays a model&#8217;s animations and blend shapes, and keeps getting new features.</p>
+            <button class="fv-play" type="button" aria-label="Play Mobius 3D">
               <span class="fv-disc"><span class="icon" data-icon="play" aria-hidden="true"></span></span>
             </button>
             <span class="card-shade"></span>
-            <span class="card-meta"><small>Current Game Project</small><strong>TITLE COMING!</strong></span>
-            <!-- The wallpaper download button at its large size. A
-                 <button>, not an <a>: an href makes the browser print the
-                 whole asset URL in its status bubble on every hover, and
-                 that bubble is chrome no page can style. -->
-            <button class="wp-dl wp-dl-lg fv-dl" type="button"
-                    aria-label="Download the game" data-tip="Download the Game&#10;Placeholder"
-                    data-tip-pos="above" data-tip-kind="loud">
-              <span class="icon" data-icon="download" aria-hidden="true"></span>
-            </button>
+            <span class="card-meta"><small>Desktop + Web App</small><strong>Mobius 3D</strong></span>
+            <!-- The AI Lab card's two buttons, in the same order: the
+                 download left of the eye. The eye does what the card's does,
+                 by pressing it: down to the AI Lab, then the preview opens.
+                 Its tip carries the first Apps-gallery shot, cloned from the
+                 page rather than built as a URL (CLAUDE.md, image pipeline). -->
+            <div class="fv-actions">
+              <a class="fv-act fv-get" href="https://github.com/dexdcimino/mobius-3d/releases/latest"
+                 target="_blank" rel="noopener" data-tip="Download Mobius 3D" data-tip-pos="above"
+                 aria-label="Download the Mobius 3D desktop app">
+                <span class="icon" data-icon="download" aria-hidden="true"></span>
+              </a>
+              <button class="fv-act fv-eye" type="button" data-open-app="mobiusCard"
+                      data-tip="Functional preview" data-tip-pos="above"
+                      data-tip-thumb='figure.gal-item[data-game="mobius"] picture'
+                      aria-label="Open a functional preview of Mobius 3D">
+                <span class="icon" data-icon="eye" aria-hidden="true"></span>
+              </button>
+            </div>
+            <div class="fv-bar">
+              <button class="cl-btn cl-play fv-toggle" type="button" aria-label="Pause"><span class="icon" data-icon="pause" aria-hidden="true"></span></button>
+              <input class="cl-scrub fv-scrub" type="range" min="0" max="1000" value="0" step="1" aria-label="Seek">
+              <span class="cl-time fv-time">0:00 / 0:00</span>
+              <button class="cl-btn fv-mute" type="button" aria-label="Unmute" hidden><span class="icon" data-icon="volume-off" aria-hidden="true"></span></button>
+            </div>
           </article>
           <article class="fv-item" data-video="1">
             <span class="fv-matte" aria-hidden="true"></span>

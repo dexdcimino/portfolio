@@ -104,7 +104,17 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
   ONLY in the card: a filmstrip thumb has to look like the piece it opens.
   Inside a `.fv-item` the fade is put BACK under everything at `z-index:1` --
   there the frames are the items themselves, and 4 landed it on top of the
-  caption and the download button), one `initTabs()`
+  caption and the download button. A `.fv-has-video` item (Mobius 3D, the
+  first) is a real video: `initFeaturedVideo()` attaches its `data-src` (a
+  bunny.net URL, never this host) on first play, plays it MUTED while the
+  item is the one showing and at least 35% on screen, and pauses it
+  otherwise; the carousel's advance skips a video that is playing. It is
+  `object-fit:contain` on the viewer's own background, because a cover crop
+  of the wide layout's near-square frame cut off the app's controls; its bar
+  (the AI Lab player's `.cl-*` controls, shared) is always up, and the
+  caption and the eye/download pair sit above it. The eye presses the AI
+  Lab card's own eye once the scroll there has ended, and its tip clones the
+  first Mobius gallery `<picture>` via `data-tip-thumb`), one `initTabs()`
   behind four tablists, `initGallery({id, root, panel})` — ONE carousel +
   lightbox, self-building from `.wp-item` figures, instantiated TWICE:
   Wallpapers (`wp`) and Concepts (`cn`). The ids are a prefix and the arrows
