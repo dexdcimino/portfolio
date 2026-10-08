@@ -1,4 +1,10 @@
 {
+  "crons": [
+    {
+      "path": "/api/sketch?cron=backup",
+      "schedule": "17 4 * * *"
+    }
+  ],
   "redirects": [
     {
       "source": "/ai/apps/mindsplit/:path*",

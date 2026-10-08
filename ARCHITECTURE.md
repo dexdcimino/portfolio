@@ -915,6 +915,15 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
   as two people publishing, reacting, viewing, hiding and unpublishing, then
   profiles: a picture cut from a canvas and following it, @-search into an
   artist and back, and a rename that carries the canvases, picture and posts.
+  BACKUPS are `lib/sketch-backup.js` (runbook: `docs/BACKUPS.md`): a canvas
+  save, delete, rename or account deletion never removes bytes -- the old
+  version is RETIRED in the index's `~meta` ledger with the window it was
+  live in, a daily snapshot of each active account goes to
+  `sketch-backup/<handle>/` (7 daily, 4 weekly, 4 monthly kept), and deleted or
+  renamed-away accounts wait 30 days in `sketch/trash.json` for the daily
+  cron (`vercel.json` crons -> `/api/sketch?cron=backup`) to purge. Restores
+  are admin actions on the same endpoint, driven by `tools/inko_restore.mjs`;
+  `tools/backup_check.mjs` breaks things and puts them back on a fake clock.
 - `mobius/` — the **Mobius 3D** viewer, opened by its AI Lab card's eyeball
   into the app overlay (`data-app-shape="wide"`, the window shape at 1240x875
   rather than ThemeDock's 960x875) on `?sample=knot`. Left of the eye,
