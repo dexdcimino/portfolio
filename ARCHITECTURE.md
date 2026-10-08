@@ -704,12 +704,87 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
     `meta` `deletes:<scope>`. Syncs run on sign-in, launch, foreground,
     `online`, and after a save, delete or visibility change. Drafts stay on
     the device. Signed out, nothing leaves it.
-  - **The gallery is your profile.** Search across the top (@artists, always);
-    a profile header over the cards; and a bottom bar of three: a square back
-    arrow, a wide Public, and a square of your own picture that opens your
-    profile (your canvases under your picture and your @tag, with its edit
-    button, or Sign in). Tapping a name on a card or in the viewer opens that
-    artist's profile (`?profile=`), and back from there goes to Public.
+  - **The bottom bars are one box size** (`--bar-h`): the size bar is
+    only redo, the scrub bar and undo on one centre line (the pixel size
+    shows while dragging, in `#size-preview`). The toolbar is options,
+    eyedropper | brush/eraser | swatch, symmetry. Options swaps the size bar
+    for the options bar (gallery, canvas, +, download, clear) and closes the
+    sliders, the eyedropper and the canvas colour window. Its canvas swatch
+    opens the canvas window with the title and public/private as well as
+    the colour (`popMode` 'canvas-opts'); the top-left swatch opens it with
+    the colour only. Each swatch toggles its own window. Clear asks first,
+    is one undo step, and re-stamps the canvas's `created`, so it moves to
+    the newest place in the gallery.
+  - **Your gallery runs oldest top left to newest bottom right.** Rows are
+    cut from the newest end, so the last row is full and a short row sits
+    on top, right-aligned. Toasts sit centred under the title (low again
+    over the gallery), with an optional second line.
+  - **The canvas stands on whichever panel is up**, 8px above it. `fit()`
+    reads the panels' and the topbar's own boxes and sets the FIXED stage's
+    top and bottom from them -- never innerHeight or the flow, which on a
+    phone disagree with the fixed bars by the browser's own bar (that put
+    the canvas under them). A ResizeObserver on the bars re-fits.
+  - **Symmetry shows as a tick** across the top centre of the canvas
+    (`#sym-tick`, placed by fit), not a line drawn into the picture. H, S
+    and B name themselves in a tip above their panel while touched.
+  - **A canvas change is seen.** + and opening a canvas lay a copy of the
+    pad over it (`snapPad`), make the change underneath, then wipe the copy
+    away on a diagonal mask (top left to bottom right, 0.36s) while the new
+    canvas fades in. Off under reduced motion.
+  - **The gallery is your profile.** The page's name at the top left
+    (`#g-page`: Your gallery, Public, @handle or Search), a profile header
+    over the cards, and one bar at the foot built as the canvas toolbar's
+    own pill (`--bar-h`): back and a square toggle | + (a new canvas, and
+    straight into it) | search and a square of your own picture that opens
+    your profile (your canvases under your picture and your @tag, with its
+    edit button, or Sign in). Tapping a name on a card or in the viewer opens that
+    artist's profile (`?profile=`), and back goes where you came from.
+    The toggle shows where it goes: a globe out to Public, the gallery
+    icon back to yours (`data-go`).
+  - **A card of yours has one button**, the options square tight in its top
+    left (`.g-opt`). A tap sends public/private, download and delete out of
+    it to the top right, bottom right and bottom left (`left`/`top`
+    transitions, so the corners follow the card's size) and a second tap,
+    or a tap on the card, folds them back; one card is open at a time
+    (`setTileOpts`).
+  - **Search is a pill on the keyboard.** The bar's search button opens
+    `#g-find` -- All / Artists / Canvases chips over the pill -- placed by
+    `placeFind()` from `visualViewport`, so it rides the keyboard and rests
+    above the bar when the keyboard goes. Artists come from `?users=`;
+    canvas titles are matched on the device, over your own gallery and the
+    feed already fetched (contains, prefix first) -- no server search. The
+    chips keep the keyboard up (pointerdown is cancelled).
+  - **Select mode** (your gallery): hold a card `HOLD_MS` (450) to start it.
+    A tap picks or drops a card; a drag that sets off SIDEWAYS from a card
+    sweeps the run of cards between it and the finger and scrolls at the
+    grid's edges -- the grid is `touch-action:pan-y`, so up and down is
+    still a scroll. The phone's own image menu is off (`touch-callout`, and
+    the card images take no pointer events). `#g-sel` floats top left, moves
+    by its head, is titled with the canvas's title or "N selected", and has
+    download, copy (one only), share (Web Share files) and delete, which
+    asks "Delete N canvases?". `deleteCanvas(it)` is the one delete path.
+    Search and select mode are sheets for back, like the account sheet.
+  - **Undo and redo go with the bar that is up**: `showBars()` moves the same
+    two buttons into the brush colour bar in colour mode (redo | H/S/B |
+    undo, level with S) and back into the size bar after. Picking a brush
+    colour with the eraser on switches to the brush.
+  - **A public tile is only the drawing**, two across: the artist's face and
+    @tag along its foot (ellipsis when long) and the fire count in a corner.
+    No title and no poop on the grid; rating happens in the viewer.
+  - **The viewer is an overlay over the grid it came from** and holds that
+    grid's list: the title at the top, nothing to press in the top half, and
+    a bar at the foot -- back, a split poop|fire pill, and a menu (report,
+    hide). The pill is grey until you rate, then only the one you chose shows
+    in colour with its count. Swipe up/down steps through the list; right to
+    left goes back to the grid.
+  - **Back follows the way you came, two places deep.** `trail` holds the
+    last two of canvas / mine / public / user:<h>; back goes to the one
+    before, and with one left it leaves the app. The app opens as if from
+    your gallery. Revisiting the canvas moves it last; revisiting the
+    previous gallery page is a step back. The viewer and sheets are extra
+    steps on top. `syncHistory` keeps one history entry per step (pushed
+    only after the first touch, which Chrome requires); the gallery's back
+    arrow walks the same trail. Off inside any frame. See DECISIONS.md.
   - **Your picture is one of your canvases, kept live.** Tapping it offers a
     pick of your canvases and then a square crop; the 256px JPEG is kept in
     `meta` `avatar:<scope>` with which canvas and which square, and every
