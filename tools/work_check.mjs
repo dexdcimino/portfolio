@@ -1228,7 +1228,7 @@ await page.waitForFunction(
    THE ASK (Dex, 2026-10-07): Mobius 3D second in the AI Lab list, above Inko,
    with an eye that opens a functional preview in the rounded app overlay.
    What is under /mobius/ is a BUILT copy of the mobius-3d repo's dist/, and
-   that repo drives the viewer itself in depth (verification/check.mjs, 41
+   that repo drives the viewer itself in depth (verification/check.mjs, 49
    checks, under this site's CSP). This section checks the half that lives
    HERE: the order, the overlay it opens, the sandbox it opens with, and that
    the copy on disk actually starts.
@@ -1263,23 +1263,37 @@ await page.waitForFunction(
              radius: getComputedStyle(d).borderRadius, title: document.getElementById('app-dialog-title').textContent };
   });
   note(opened.open, 'the Mobius eye did not open the app overlay');
-  note(opened.shape === 'window', `the Mobius overlay is "${opened.shape}"-shaped — a desktop app wants the window shape`);
+  note(opened.shape === 'wide', `the Mobius overlay is "${opened.shape}"-shaped — the viewer wants the wide window`);
+  /* WIDER THAN IT IS TALL (Dex, 2026-10-08): a stubby rectangle, not the
+     near-square ThemeDock window. Measured off the frame, not the attribute. */
+  const box = await page.evaluate(() => { const r = document.querySelector('#appModal .app-phone').getBoundingClientRect(); return { w: Math.round(r.width), h: Math.round(r.height) }; });
+  note(box.w / box.h > 1.3 && box.w / box.h < 1.6, `the Mobius frame is ${box.w}x${box.h} — it should be a stubby landscape rectangle`);
+  // The download sits left of the eye and leads to an installer or Releases.
+  const dl = await page.evaluate(() => {
+    const a = document.getElementById('mobiusDownload'), eye = document.querySelector('#mobiusCard .ai-card-eye');
+    return { href: a?.href || '', left: a && a.getBoundingClientRect().right <= eye.getBoundingClientRect().left + 6 };
+  });
+  note(/github\.com\/dexdcimino\/mobius-3d\/releases\/latest/.test(dl.href) && dl.left, `the Mobius download: ${JSON.stringify(dl)}`);
   note(opened.src === '/mobius/?sample=knot&embed=1', `the frame was pointed at "${opened.src}"`);
   note(/\ballow-downloads\b/.test(opened.sandbox), 'the Mobius frame cannot download — its Save screenshot would do nothing');
   note(opened.title === 'Mobius 3D', `the overlay is titled "${opened.title}"`);
   const viewer = await page.waitForFunction(() => {
-    const doc = document.getElementById('appFrame').contentDocument;
-    const s = doc && doc.getElementById('stats');
-    return s && /triangles/.test(s.textContent) ? s.textContent : false;
+    const s = document.getElementById('appFrame').contentWindow?.mobiusDebug?.statsText;
+    return s && /triangles/.test(s) ? s : false;
   }, { timeout: 30000 }).then(h => h.jsonValue()).catch(() => '');
-  note(/768,000 triangles/.test(viewer), `the viewer in the overlay reports "${viewer}" — it did not start on the sample`);
-  console.log(`mobius: order ${order.slice(0, 3).join(' / ')}, ${opened.shape} overlay, "${viewer.split('·')[0].trim()}", sandbox ${opened.sandbox.includes('allow-downloads') ? '+downloads' : 'no downloads'}`);
+  note(/28,800 triangles/.test(viewer), `the viewer in the overlay reports "${viewer}" — it did not start on the sample`);
+  console.log(`mobius: order ${order.slice(0, 3).join(' / ')}, ${opened.shape} overlay ${box.w}x${box.h}, "${viewer.split('·')[0].trim()}", sandbox ${opened.sandbox.includes('allow-downloads') ? '+downloads' : 'no downloads'}`);
 
   // Escape from INSIDE the frame closes the overlay, through the site's own
   // deferred rule: the viewer has nothing open, so it claims nothing.
   // A REAL click into the frame first: a scripted focus() across an iframe
   // boundary does not move the browser's focus (CLAUDE.md, the ones that lie),
   // and the Escape would then go to this document instead of the viewer's.
+  /* The site binds its Escape rule on the frame's LOAD. The sample is built
+     during the viewer's own script now, so the triangle count can be on
+     screen a beat before load fires -- and an Escape in that beat has no
+     listener to reach. Waited for, not slept. */
+  await page.waitForFunction(() => document.getElementById('appFrame').contentDocument?.readyState === 'complete', { timeout: 5000 }).catch(() => {});
   const inside = await page.evaluate(() => {
     const r = document.getElementById('appFrame').getBoundingClientRect();
     return { x: r.left + r.width * 0.25, y: r.top + r.height * 0.8 };
