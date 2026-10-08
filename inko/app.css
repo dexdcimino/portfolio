@@ -43,11 +43,13 @@ body{
 
 /* Canvas stage */
 /* The canvas sits ON the bars: one gap (--gap, the same 8px as between the
-   size bar and the toolbar) under it, and fit() sets the margin to whatever
-   the bars are tall right now, so opening the colour sliders lifts it. */
+   size bar and the toolbar) under it. The stage is fixed and fit() sets its
+   top and bottom from the topbar's and the panels' own boxes, so opening the
+   sliders, the options or the canvas colour window lifts it. */
 #stage{
-  --gap:8px;
-  margin-bottom:150px; flex:1; display:flex; align-items:flex-end; justify-content:center; width:100%; min-height:0;
+  --gap:8px;   /* GAP in app.js */
+  position:fixed; left:0; right:0; top:60px; bottom:150px; box-sizing:border-box;
+  display:flex; align-items:flex-end; justify-content:center; width:100%; min-height:0;
   padding:6px 0 var(--gap); touch-action:none; overscroll-behavior:none;}
 #canvas-frame{
   border-radius:20px; overflow:hidden; border:none;
@@ -67,7 +69,7 @@ body{
   80%{opacity:.85}
   to{-webkit-mask-position:0 0; mask-position:0 0; opacity:0}
 }
-#grid-pic{width:32px; height:32px; border-radius:30%;}
+#grid-pic{width:40px; height:40px; border-radius:30%;}
 /* Bottom toolbar pill */
 
 /* Permanent size bar above toolbar */
@@ -114,6 +116,27 @@ body{
      only while dragging, in #size-preview. */
   box-sizing:border-box; height:var(--bar-h); padding:0 14px; margin-bottom:8px;
 }
+/* The options bar takes the size bar's place, in the same box. */
+#opt-bar{
+  flex-shrink:0; display:flex; align-items:center; justify-content:space-evenly;
+  width:calc(100vw - 20px); max-width:600px;
+  background:var(--panel); backdrop-filter:blur(18px); -webkit-backdrop-filter:blur(18px);
+  border:1px solid var(--border); border-radius:26px;
+  box-sizing:border-box; height:var(--bar-h); padding:0 14px; margin-bottom:8px;
+}
+#opt-bar[hidden]{display:none;}
+/* H/S/B named while you touch them: centred above the panel, in its fill. */
+#hsb-bar{position:relative;}
+.hsb-tip{position:absolute; left:50%; bottom:calc(100% + 8px); transform:translateX(-50%);
+  background:var(--panel); backdrop-filter:blur(18px); -webkit-backdrop-filter:blur(18px);
+  border:1px solid var(--border); border-radius:12px; padding:7px 14px;
+  font-size:15px; font-weight:700; color:var(--text); white-space:nowrap; pointer-events:none;
+  font-variant-numeric:tabular-nums;}
+.hsb-tip[hidden]{display:none;}
+/* Symmetry on: a short tick across the top centre of the canvas, not a line through it. */
+#sym-tick{position:absolute; width:3px; height:16px; margin-left:-1.5px; border-radius:2px; z-index:2;
+  background:#fff; box-shadow:0 0 0 1px rgba(0,0,0,.35), 0 0 8px rgba(241,47,198,.6); pointer-events:none;}
+#sym-tick[hidden]{display:none;}
 #size-bar .ctl{margin:0; flex:1; min-width:0; display:flex; align-items:center;}
 #size-bar .tbtn{flex:0 0 auto;}
 #size-bar .mrow{display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;}
@@ -156,7 +179,9 @@ body{
    small in the top-left corner. swapTools() flies them between the two. */
 #tool-toggle{position:relative; width:52px; height:48px;}
 #tool-toggle .tool-ico{position:absolute; left:50%; top:50%; width:26px; height:26px; margin:-13px 0 0 -13px; transform-origin:50% 50%;}
-#tool-toggle .tool-ico.big{transform:translate(2px,2px) scale(1);}
+/* The big one dead centre (Dex, 2026-10-08). To revert to the old nudge
+   down-right, use translate(2px,2px) here and in TOOL_BIG in app.js. */
+#tool-toggle .tool-ico.big{transform:translate(0px,0px) scale(1);}
 #tool-toggle .tool-ico.small{transform:translate(-16px,-14px) scale(.46); opacity:.7;}
 
 #plus-btn svg{width:24px; height:24px;}

@@ -704,10 +704,21 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
     `meta` `deletes:<scope>`. Syncs run on sign-in, launch, foreground,
     `online`, and after a save, delete or visibility change. Drafts stay on
     the device. Signed out, nothing leaves it.
-  - **The two bottom bars are one box size** (`--bar-h`): the size bar is
+  - **The bottom bars are one box size** (`--bar-h`): the size bar is
     only redo, the scrub bar and undo on one centre line (the pixel size
-    shows while dragging, in `#size-preview`). The toolbar starts with +
-    and ends with the gallery, drawn as your profile picture.
+    shows while dragging, in `#size-preview`). The toolbar is options,
+    eyedropper | brush/eraser | swatch, symmetry. Options swaps the size bar
+    for the options bar (your profile, gallery, +, clear) and closes the
+    sliders, the eyedropper and the canvas colour window; clear asks first
+    and is one undo step.
+  - **The canvas stands on whichever panel is up**, 8px above it. `fit()`
+    reads the panels' and the topbar's own boxes and sets the FIXED stage's
+    top and bottom from them -- never innerHeight or the flow, which on a
+    phone disagree with the fixed bars by the browser's own bar (that put
+    the canvas under them). A ResizeObserver on the bars re-fits.
+  - **Symmetry shows as a tick** across the top centre of the canvas
+    (`#sym-tick`, placed by fit), not a line drawn into the picture. H, S
+    and B name themselves in a tip above their panel while touched.
   - **A canvas change is seen.** + and opening a canvas lay a copy of the
     pad over it (`snapPad`), make the change underneath, then wipe the copy
     away on a diagonal mask (top left to bottom right, 0.36s) while the new
