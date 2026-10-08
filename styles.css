@@ -214,20 +214,14 @@ img{max-width:100%}
    it over the mascot (-3) but still under every in-flow section. */
 .bg-front{position:absolute;inset:0;overflow:hidden;z-index:-3;pointer-events:none}
 .bg svg,.bg-front svg{position:absolute;inset:0;width:100%;height:100%;display:block;isolation:isolate}
-/* Every lime stop in both layers. One declaration = one crossfade, same as the
-   mask-and-background-color trick used everywhere else. */
+/* Every accent stop in both layers. One declaration = one crossfade, same as
+   the mask-and-background-color trick used everywhere else. The grade runs
+   --accent -> --accent-deep; the middle stop is mixed in OKLCH because SVG
+   interpolates stops in sRGB, and an sRGB midpoint between two saturated
+   colours of different hue goes muddy. */
 .accent-stop{stop-color:var(--accent);transition:stop-color var(--accent-ease)}
-/* Darker variant for gradients: 35% darker, follows accent changes */
-.accent-stop-dark{stop-color:color-mix(in srgb, var(--accent), black 35%);transition:stop-color var(--accent-ease)}
-/* Rich color grade: darker but MORE saturated (not dull). Uses OKLCH to boost chroma 40% while dropping lightness 45%. */
-.accent-stop-rich{stop-color:color-mix(in srgb, var(--accent), black 25%);transition:stop-color var(--accent-ease)}
-/* Per-accent fine-tuning for the top-right gradient (Dex 2026-10-06) */
-/* Red: too saturated, bring down */
-/* Yellow: too much red shift, move hue toward yellow-green */
-/* Lime: hue closer to original, slightly less intense */
-/* Blue: saturation too intense, dial back */
-/* White: too dark/aggressive, lighten with barely-blue tint */
-/* Cyan and Purple: leave as base (Dex approved) */
+.accent-stop-mid{stop-color:color-mix(in oklch,var(--accent),var(--accent-deep) 45%);transition:stop-color var(--accent-ease)}
+.accent-stop-deep{stop-color:var(--accent-deep);transition:stop-color var(--accent-ease)}
 /* Was a style="mix-blend-mode:screen" attribute on both sheen polygons. Inline
    style attributes are blocked under style-src 'self', so the declaration lives
    here instead — the alternative was weakening the policy for two polygons. */
@@ -7518,24 +7512,42 @@ body:has(> .music-remote.at-tr:not([hidden])) .accent-picker.compact{display:non
 }
 .codes-keypad-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
-/* Accent colors - clean sRGB base */
-:root{--accent:#9EE02B}
-:root[data-accent='red']{--accent:#FF3B30}
-:root[data-accent='yellow']{--accent:#FFCC00}
-:root[data-accent='lime']{--accent:#9EE02B}
-:root[data-accent='cyan']{--accent:#22D3EE}
-:root[data-accent='blue']{--accent:#0A84FF}
-:root[data-accent='purple']{--accent:#A78BFA}
-:root[data-accent='white']{--accent:#FFFFFF}
-/* P3 wide-gamut - desktop P3 displays only, never mobile */
-@media (color-gamut:p3) and (hover:hover) and (pointer:fine){
-:root[data-accent='red']{--accent:color-mix(in display-p3, color(display-p3 0.868 0.267 0.135), gray 3%)}
-:root[data-accent='yellow']{--accent:color-mix(in display-p3, color(display-p3 1.000 0.672 0.098), gray 3%)}
-:root[data-accent='lime']{--accent:color-mix(in display-p3, color(display-p3 0.624 0.896 0.151), gray 3%)}
-:root[data-accent='cyan']{--accent:color-mix(in display-p3, color(display-p3 0.153 0.791 0.985), gray 3%)}
-:root[data-accent='blue']{--accent:color-mix(in display-p3, color(display-p3 0.181 0.354 0.972), gray 3%)}
-:root[data-accent='purple']{--accent:color-mix(in display-p3, color(display-p3 0.659 0.346 0.976), gray 3%)}
-:root[data-accent='white']{--accent:color(display-p3 0.913 0.922 0.926)}
+/* ==========================================================================
+   ACCENTS: one colour, two gamuts, and its own shadow
+   --accent is the colour every accent pixel uses. The sRGB value is the hex in
+   ACCENTS (script.js), which is the colour the mascot renders were painted in,
+   so the hero's background and the art agree on every screen.
+   A wide-gamut (P3) screen gets the SAME colour, richer: the same OKLCH
+   lightness and hue, with chroma moved HALFWAY from the sRGB hex to the edge of
+   P3. Halfway is the point: the old values were the sRGB numbers reinterpreted
+   as P3 coordinates, which pins every accent to the edge of the gamut and
+   drifts its hue, so it glowed past the sRGB artwork beside it (then a 3% grey
+   was mixed in to calm it, which only dulled it). Written as explicit
+   color(display-p3 ...) rather than oklch() so no browser has to gamut-map it.
+   Phones are P3 too and get the same treatment; there is no pointer gate.
+   --accent-deep is the far end of the hero's diagonal grade, top right: darker,
+   and turned toward the hue its shadow would take (lime to emerald, yellow to
+   amber, blue to indigo...) rather than the accent with black mixed in, which
+   is what made the old grade nearly invisible on some accents. In sRGB gamut
+   on purpose, so one value serves every screen.
+   Retune an accent: change the hex in script.js AND here, then re-derive its P3
+   value (oklch of the hex, chroma + half the gap to P3's edge).
+   ========================================================================== */
+:root,:root[data-accent='lime']{--accent:#9EE02B;--accent-deep:#0B8B47}
+:root[data-accent='red']{--accent:#D94727;--accent-deep:#991425}
+:root[data-accent='yellow']{--accent:#FAAA1E;--accent-deep:#CF630B}
+:root[data-accent='cyan']{--accent:#2CC7F6;--accent-deep:#1774B5}
+:root[data-accent='blue']{--accent:#335DF3;--accent-deep:#3C26A5}
+:root[data-accent='purple']{--accent:#A85CF5;--accent-deep:#771F89}
+:root[data-accent='white']{--accent:#E9EBEC;--accent-deep:#8A9AAE}
+@media (color-gamut:p3){
+  :root,:root[data-accent='lime']{--accent:color(display-p3 0.662 0.879 0.219)}  /* oklch(.832 .232 128.7) */
+  :root[data-accent='red']{--accent:color(display-p3 0.823 0.273 0.136)}         /* oklch(.600 .216 33.8) */
+  :root[data-accent='yellow']{--accent:color(display-p3 0.952 0.672 0.181)}      /* oklch(.796 .178 73.8) */
+  :root[data-accent='cyan']{--accent:color(display-p3 0.324 0.774 0.973)}        /* oklch(.774 .153 224.4) */
+  :root[data-accent='blue']{--accent:color(display-p3 0.222 0.342 0.959)}        /* oklch(.546 .249 266.4) */
+  :root[data-accent='purple']{--accent:color(display-p3 0.627 0.348 0.965)}      /* oklch(.634 .242 303.5) */
+  /* white has no chroma to widen: the hex is already the whole colour */
 }
 
 

@@ -62,12 +62,14 @@
         <linearGradient id="bgSheen" x1="1460" y1="748.7" x2="1929.1" y2="24.6" gradientUnits="userSpaceOnUse">
           <stop offset="0" stop-color="#0e1217" stop-opacity="0"/><stop offset=".6315" stop-color="#25303d"/><stop offset=".8611" stop-color="#232d39"/><stop offset="1" stop-color="#1f2833"/>
         </linearGradient>
-        <!-- back wedge: transparent below the cut line, solid accent above it -->
+        <!-- the accent grade, shared by both wedges: --accent bottom left to
+             --accent-deep top right. The front wedge fills with this same
+             gradient, so where the two overlap the colour cannot disagree. -->
         <linearGradient id="bgWedge" x1="1231.5" y1="1374.1" x2="1631.3" y2="-42.1" gradientUnits="userSpaceOnUse">
-          <stop class="accent-stop" offset="0" stop-opacity="1"/>
-          <stop class="accent-stop" offset=".5" stop-opacity="1"/>
-          <stop class="accent-stop-rich" offset=".8" stop-opacity="1"/>
-          <stop class="accent-stop-rich" offset="1" stop-opacity="1"/>
+          <stop class="accent-stop" offset="0"/>
+          <stop class="accent-stop" offset=".38"/>
+          <stop class="accent-stop-mid" offset=".66"/>
+          <stop class="accent-stop-deep" offset=".96"/>
         </linearGradient>
         <linearGradient id="bgCorner" x1="-9.7" y1="171.2" x2="491.2" y2="-158.4" gradientUnits="userSpaceOnUse">
           <stop offset="0" stop-color="#0e1217"/><stop offset=".8112" stop-color="#25303d"/>
@@ -91,25 +93,29 @@
   </div>
 
   <!-- Front wedge: the only layer that sits OVER the mascot, exactly as in the
-       source art. Its alpha ramps 0 -> 1 up the page, so the mascot's legs read
-       through the translucent lower half and the top-right stays solid. -->
+       source art. It is painted with the back wedge's own grade (#bgWedge) and
+       FADED by a mask that runs ALONG the band, bottom left to top right:
+       clear over the mascot's lower left, half-there across his chest, solid
+       by the top right corner. The fade used to run nearly straight up the
+       page and reach full strength at the hero's bottom edge, so almost all of
+       it happened below the fold and the band sat solid over his legs. -->
   <div class="bg-front" aria-hidden="true">
     <svg viewBox="0 0 1920 1080" preserveAspectRatio="none">
       <defs>
-        <linearGradient id="bgFront" x1="1361.7" y1="1355.8" x2="1752.8" y2="-29.3" gradientUnits="userSpaceOnUse">
-          <stop class="accent-stop" offset=".0942" stop-opacity="0"/>
-          <stop class="accent-stop" offset=".1736" stop-opacity=".05"/>
-          <stop class="accent-stop" offset=".2365" stop-opacity=".15"/>
-          <stop class="accent-stop" offset=".2937" stop-opacity=".3"/>
-          <stop class="accent-stop" offset=".3476" stop-opacity=".5"/>
-          <stop class="accent-stop" offset=".3992" stop-opacity=".7"/>
-          <stop class="accent-stop" offset=".449" stop-opacity=".85"/>
-          <stop class="accent-stop" offset=".55" stop-opacity="1"/>
-          <stop class="accent-stop-rich" offset=".8" stop-opacity="1"/>
-          <stop class="accent-stop-rich" offset="1" stop-opacity="1"/>
+        <linearGradient id="bgFrontFade" x1="1010" y1="680" x2="1900" y2="150" gradientUnits="userSpaceOnUse">
+          <stop offset="0" stop-color="#fff" stop-opacity="0"/>
+          <stop offset=".18" stop-color="#fff" stop-opacity=".04"/>
+          <stop offset=".36" stop-color="#fff" stop-opacity=".16"/>
+          <stop offset=".52" stop-color="#fff" stop-opacity=".36"/>
+          <stop offset=".68" stop-color="#fff" stop-opacity=".62"/>
+          <stop offset=".84" stop-color="#fff" stop-opacity=".86"/>
+          <stop offset="1" stop-color="#fff" stop-opacity="1"/>
         </linearGradient>
+        <mask id="bgFrontMask" maskUnits="userSpaceOnUse" x="0" y="0" width="1920" height="1080">
+          <rect width="1920" height="1080" fill="url(#bgFrontFade)"/>
+        </mask>
       </defs>
-      <polygon points="2244,0 211.9,1080 1288.1,1080 2972.1,0" fill="url(#bgFront)"/>
+      <polygon points="2244,0 211.9,1080 1288.1,1080 2972.1,0" fill="url(#bgWedge)" mask="url(#bgFrontMask)"/>
     </svg>
   </div>
 
@@ -927,19 +933,19 @@
           <article class="ai-card" id="mobiusCard"
              data-app-modal="/mobius/?sample=knot" data-app-title="Mobius 3D" data-app-shape="wide" data-app-downloads
              data-gallery="mobius" data-kind="DESKTOP + WEB" data-stack="THREE.JS"
-             data-desc-lead="A 3D model viewer for the desktop and the web, built from one codebase."
-             data-desc-body="Drop in a GLB, FBX, OBJ, STL, USDZ and more, compressed glTF included, and inspect its materials, normals and vertex colours. Big files load off the main thread, and nothing leaves your machine. On the desktop it is an Open with app too."
+             data-desc-lead="Windows 3D Viewer sucks and I couldn't find one I liked, so I made my own."
+             data-desc-body="A 3D model viewer for the desktop and the web, from one codebase. Drop in a GLB, FBX, OBJ, STL, USDZ and more, play its animations and blend shapes, and inspect its materials and normals. Big files load off the main thread, nothing leaves your machine, and on the desktop it is an Open with app too."
              data-desc-link="https://github.com/dexdcimino/mobius-3d"
              data-desc-link-label="GITHUB"><a class="ai-card-link" href="https://github.com/dexdcimino/mobius-3d" target="_blank" rel="noopener noreferrer"><strong>Mobius 3D</strong><span>3D model viewer<span class="icon inline-arrow" data-icon="arrow-ne" aria-hidden="true"></span></span></a>
             <!-- img src="assets/icons/apps/mobius.png" slot="ai-icon" alt="" class="ai-card-icon" picture-class="ai-card-iconwrap" -->
             <picture class="ai-card-iconwrap">
-              <source type="image/avif" srcset="assets/derived/icons/apps/mobius-420.avif?v=17c0738d 420w,
-                                                assets/derived/icons/apps/mobius-200.avif?v=17c0738d 200w,
-                                                assets/derived/icons/apps/mobius-84.avif?v=17c0738d 84w"
+              <source type="image/avif" srcset="assets/derived/icons/apps/mobius-420.avif?v=59c62894 420w,
+                                                assets/derived/icons/apps/mobius-200.avif?v=59c62894 200w,
+                                                assets/derived/icons/apps/mobius-84.avif?v=59c62894 84w"
                       sizes="(max-width:700px) 64px, 84px">
-              <source type="image/webp" srcset="assets/derived/icons/apps/mobius-420.webp?v=17c0738d 420w,
-                                                assets/derived/icons/apps/mobius-200.webp?v=17c0738d 200w,
-                                                assets/derived/icons/apps/mobius-84.webp?v=17c0738d 84w"
+              <source type="image/webp" srcset="assets/derived/icons/apps/mobius-420.webp?v=59c62894 420w,
+                                                assets/derived/icons/apps/mobius-200.webp?v=59c62894 200w,
+                                                assets/derived/icons/apps/mobius-84.webp?v=59c62894 84w"
                       sizes="(max-width:700px) 64px, 84px">
               <img class="ai-card-icon" src="assets/icons/apps/mobius.png" alt="" width="512" height="512" loading="lazy" decoding="async">
             </picture>
@@ -958,9 +964,9 @@
               <span class="icon" data-icon="eye" aria-hidden="true"></span>
             </button>
           </article>
-          <article class="ai-card" id="inkoCard" data-app-modal="/inko/" data-link-preview data-app-title="Inko" data-gallery="inko" data-kind="WEB APP" data-stack="PWA"
-             data-desc-lead="A quick mobile sketchpad. Draw with your finger, no account, no fuss."
-             data-desc-body="Inko is a pocket sketchbook: a full-screen canvas with a brush, an eraser, and a gallery. Built as a PWA so it installs like a native app and works offline."><a class="ai-card-link" href="/inko/" target="_blank" rel="noopener noreferrer"><strong>Inko</strong><span>Mobile sketch pad<span class="icon inline-arrow" data-icon="arrow-ne" aria-hidden="true"></span></span></a>
+          <article class="ai-card" id="inkoCard" data-app-modal="/inko/" data-link-preview data-app-title="Inko" data-gallery="inko" data-kind="SOCIAL APP" data-stack="PWA"
+             data-desc-lead="Draw with your finger, post it, and see what everyone else is sketching."
+             data-desc-body="Inko is a pocket sketchbook with a social side. Sign in with Google or Discord, make a drawing public, and trade fire, comments and follows, or share one live canvas with a friend. Installs like a native app and keeps drawing offline."><a class="ai-card-link" href="/inko/" target="_blank" rel="noopener noreferrer"><strong>Inko</strong><span>Social sketch pad<span class="icon inline-arrow" data-icon="arrow-ne" aria-hidden="true"></span></span></a>
             <picture class="ai-card-iconwrap">
               <img class="ai-card-icon" src="/inko/icon.svg" alt="" width="512" height="512" loading="lazy" decoding="async">
             </picture>
@@ -1056,6 +1062,14 @@
                  in-memory document and no token. It cannot see or touch
                  the real notes behind the passcode, and everything typed
                  into it dies with the window. -->
+            <!-- Install the DexNote phone app (Dex, 2026-10-08), left of the eye
+                 as Inko's is: /dexnote/ with ?install=1, which offers the
+                 browser's own install prompt or the Add to Home Screen steps.
+                 Shown on phones too, where the eye is hidden. -->
+            <a class="ai-card-dl" href="/dexnote/?install=1" target="_blank" rel="noopener"
+               data-tip="Install DexNote" aria-label="Install DexNote on this device">
+              <span class="icon" data-icon="download" aria-hidden="true"></span>
+            </a>
             <button class="ai-card-eye" type="button" data-notes-demo data-tip="Functional preview"
                     aria-label="Open a functional preview of the notes app">
               <span class="icon" data-icon="eye" aria-hidden="true"></span>
@@ -4142,54 +4156,128 @@
              tools/screenshots.mjs, so they cannot drift from what the eye
              opens; re-run it when the viewer's look changes. The first figure
              is also the app-info thumbnail. -->
-        <figure class="gal-item" data-game="mobius" data-title="The sample: 768,000 triangles">
-          <!-- img src="assets/gallery/mobius-knot.png" slot="game-shot" alt="Mobius 3D showing a red and orange trefoil knot of 768,000 triangles, with its surface, lighting and view controls" -->
+        <figure class="gal-item" data-game="mobius" data-title="The sample, as it opens">
+          <!-- img src="assets/gallery/mobius-knot.png" slot="game-shot" alt="Mobius 3D showing a green trefoil knot playing its Wave animation, with its surface, blend shape and view controls" -->
           <picture>
-            <source type="image/avif" srcset="assets/derived/gallery/mobius-knot-1600.avif?v=6f844347 1600w,
-                                              assets/derived/gallery/mobius-knot-1200.avif?v=6f844347 1200w,
-                                              assets/derived/gallery/mobius-knot-900.avif?v=6f844347 900w,
-                                              assets/derived/gallery/mobius-knot-600.avif?v=6f844347 600w"
+            <source type="image/avif" srcset="assets/derived/gallery/mobius-knot-1600.avif?v=4f350a48 1600w,
+                                              assets/derived/gallery/mobius-knot-1200.avif?v=4f350a48 1200w,
+                                              assets/derived/gallery/mobius-knot-900.avif?v=4f350a48 900w,
+                                              assets/derived/gallery/mobius-knot-600.avif?v=4f350a48 600w"
                     sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
-            <source type="image/webp" srcset="assets/derived/gallery/mobius-knot-1600.webp?v=6f844347 1600w,
-                                              assets/derived/gallery/mobius-knot-1200.webp?v=6f844347 1200w,
-                                              assets/derived/gallery/mobius-knot-900.webp?v=6f844347 900w,
-                                              assets/derived/gallery/mobius-knot-600.webp?v=6f844347 600w"
+            <source type="image/webp" srcset="assets/derived/gallery/mobius-knot-1600.webp?v=4f350a48 1600w,
+                                              assets/derived/gallery/mobius-knot-1200.webp?v=4f350a48 1200w,
+                                              assets/derived/gallery/mobius-knot-900.webp?v=4f350a48 900w,
+                                              assets/derived/gallery/mobius-knot-600.webp?v=4f350a48 600w"
                     sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
-            <img src="assets/gallery/mobius-knot.png" alt="Mobius 3D showing a red and orange trefoil knot of 768,000 triangles, with its surface, lighting and view controls" width="1800" height="1125" loading="lazy" decoding="async">
+            <img src="assets/gallery/mobius-knot.png" alt="Mobius 3D showing a green trefoil knot playing its Wave animation, with its surface, blend shape and view controls" width="1920" height="920" loading="lazy" decoding="async">
+          </picture>
+          <!-- /img -->
+        </figure>
+        <figure class="gal-item" data-game="mobius" data-title="Animation and blend shapes">
+          <!-- img src="assets/gallery/mobius-shapes.png" slot="game-shot" alt="The knot in orange playing its Pulse animation, with the Bulge blend shape held on its slider while it plays" -->
+          <picture>
+            <source type="image/avif" srcset="assets/derived/gallery/mobius-shapes-1600.avif?v=96b1d9ad 1600w,
+                                              assets/derived/gallery/mobius-shapes-1200.avif?v=96b1d9ad 1200w,
+                                              assets/derived/gallery/mobius-shapes-900.avif?v=96b1d9ad 900w,
+                                              assets/derived/gallery/mobius-shapes-600.avif?v=96b1d9ad 600w"
+                    sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+            <source type="image/webp" srcset="assets/derived/gallery/mobius-shapes-1600.webp?v=96b1d9ad 1600w,
+                                              assets/derived/gallery/mobius-shapes-1200.webp?v=96b1d9ad 1200w,
+                                              assets/derived/gallery/mobius-shapes-900.webp?v=96b1d9ad 900w,
+                                              assets/derived/gallery/mobius-shapes-600.webp?v=96b1d9ad 600w"
+                    sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+            <img src="assets/gallery/mobius-shapes.png" alt="The knot in orange playing its Pulse animation, with the Bulge blend shape held on its slider while it plays" width="1920" height="920" loading="lazy" decoding="async">
+          </picture>
+          <!-- /img -->
+        </figure>
+        <figure class="gal-item" data-game="mobius" data-title="Raking light">
+          <!-- img src="assets/gallery/mobius-shell.png" slot="game-shot" alt="A violet seashell under raking light, with the floor grid in the same colour" -->
+          <picture>
+            <source type="image/avif" srcset="assets/derived/gallery/mobius-shell-1600.avif?v=d57fd5d8 1600w,
+                                              assets/derived/gallery/mobius-shell-1200.avif?v=d57fd5d8 1200w,
+                                              assets/derived/gallery/mobius-shell-900.avif?v=d57fd5d8 900w,
+                                              assets/derived/gallery/mobius-shell-600.avif?v=d57fd5d8 600w"
+                    sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+            <source type="image/webp" srcset="assets/derived/gallery/mobius-shell-1600.webp?v=d57fd5d8 1600w,
+                                              assets/derived/gallery/mobius-shell-1200.webp?v=d57fd5d8 1200w,
+                                              assets/derived/gallery/mobius-shell-900.webp?v=d57fd5d8 900w,
+                                              assets/derived/gallery/mobius-shell-600.webp?v=d57fd5d8 600w"
+                    sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+            <img src="assets/gallery/mobius-shell.png" alt="A violet seashell under raking light, with the floor grid in the same colour" width="1920" height="920" loading="lazy" decoding="async">
           </picture>
           <!-- /img -->
         </figure>
         <figure class="gal-item" data-game="mobius" data-title="Surface normals">
-          <!-- img src="assets/gallery/mobius-inspect.png" slot="game-shot" alt="The same knot drawn with its surface normals as colour, viewed from the front" -->
+          <!-- img src="assets/gallery/mobius-inspect.png" slot="game-shot" alt="A Klein bottle drawn with its surface normals as colour, in blue" -->
           <picture>
-            <source type="image/avif" srcset="assets/derived/gallery/mobius-inspect-1600.avif?v=db1c69af 1600w,
-                                              assets/derived/gallery/mobius-inspect-1200.avif?v=db1c69af 1200w,
-                                              assets/derived/gallery/mobius-inspect-900.avif?v=db1c69af 900w,
-                                              assets/derived/gallery/mobius-inspect-600.avif?v=db1c69af 600w"
+            <source type="image/avif" srcset="assets/derived/gallery/mobius-inspect-1600.avif?v=055ab5e8 1600w,
+                                              assets/derived/gallery/mobius-inspect-1200.avif?v=055ab5e8 1200w,
+                                              assets/derived/gallery/mobius-inspect-900.avif?v=055ab5e8 900w,
+                                              assets/derived/gallery/mobius-inspect-600.avif?v=055ab5e8 600w"
                     sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
-            <source type="image/webp" srcset="assets/derived/gallery/mobius-inspect-1600.webp?v=db1c69af 1600w,
-                                              assets/derived/gallery/mobius-inspect-1200.webp?v=db1c69af 1200w,
-                                              assets/derived/gallery/mobius-inspect-900.webp?v=db1c69af 900w,
-                                              assets/derived/gallery/mobius-inspect-600.webp?v=db1c69af 600w"
+            <source type="image/webp" srcset="assets/derived/gallery/mobius-inspect-1600.webp?v=055ab5e8 1600w,
+                                              assets/derived/gallery/mobius-inspect-1200.webp?v=055ab5e8 1200w,
+                                              assets/derived/gallery/mobius-inspect-900.webp?v=055ab5e8 900w,
+                                              assets/derived/gallery/mobius-inspect-600.webp?v=055ab5e8 600w"
                     sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
-            <img src="assets/gallery/mobius-inspect.png" alt="The same knot drawn with its surface normals as colour, viewed from the front" width="1800" height="1125" loading="lazy" decoding="async">
+            <img src="assets/gallery/mobius-inspect.png" alt="A Klein bottle drawn with its surface normals as colour, in blue" width="1920" height="920" loading="lazy" decoding="async">
           </picture>
           <!-- /img -->
         </figure>
-        <figure class="gal-item" data-game="mobius" data-title="A file it cannot read, and what to do">
-          <!-- img src="assets/gallery/mobius-error.png" slot="game-shot" alt="An error card reading: Blender files can't be opened directly. In Blender: File, Export, glTF 2.0 or FBX" -->
+        <!-- Inko. Staged rather than captured from use: every drawing was
+             painted stroke by stroke through the REAL app at a phone's size
+             (390x844, pixel ratio 2), the other artists are scratch accounts
+             on the real /api/sketch handler, and each master is three of
+             those screens framed as phones on the stage's own background.
+             The first figure is also the app-info thumbnail. -->
+        <figure class="gal-item" data-game="inko" data-title="Three drawings">
+          <!-- img src="assets/gallery/inko-drawings.png" slot="game-shot" alt="Three Inko canvases on phones: an orange cat called larry, a frog wizard with the brush colour sliders open, and a sunset with the options bar open" -->
           <picture>
-            <source type="image/avif" srcset="assets/derived/gallery/mobius-error-1600.avif?v=aa892b74 1600w,
-                                              assets/derived/gallery/mobius-error-1200.avif?v=aa892b74 1200w,
-                                              assets/derived/gallery/mobius-error-900.avif?v=aa892b74 900w,
-                                              assets/derived/gallery/mobius-error-600.avif?v=aa892b74 600w"
+            <source type="image/avif" srcset="assets/derived/gallery/inko-drawings-1600.avif?v=0f6be61a 1600w,
+                                              assets/derived/gallery/inko-drawings-1200.avif?v=0f6be61a 1200w,
+                                              assets/derived/gallery/inko-drawings-900.avif?v=0f6be61a 900w,
+                                              assets/derived/gallery/inko-drawings-600.avif?v=0f6be61a 600w"
                     sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
-            <source type="image/webp" srcset="assets/derived/gallery/mobius-error-1600.webp?v=aa892b74 1600w,
-                                              assets/derived/gallery/mobius-error-1200.webp?v=aa892b74 1200w,
-                                              assets/derived/gallery/mobius-error-900.webp?v=aa892b74 900w,
-                                              assets/derived/gallery/mobius-error-600.webp?v=aa892b74 600w"
+            <source type="image/webp" srcset="assets/derived/gallery/inko-drawings-1600.webp?v=0f6be61a 1600w,
+                                              assets/derived/gallery/inko-drawings-1200.webp?v=0f6be61a 1200w,
+                                              assets/derived/gallery/inko-drawings-900.webp?v=0f6be61a 900w,
+                                              assets/derived/gallery/inko-drawings-600.webp?v=0f6be61a 600w"
                     sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
-            <img src="assets/gallery/mobius-error.png" alt="An error card reading: Blender files can't be opened directly. In Blender: File, Export, glTF 2.0 or FBX" width="1800" height="1125" loading="lazy" decoding="async">
+            <img src="assets/gallery/inko-drawings.png" alt="Three Inko canvases on phones: an orange cat called larry, a frog wizard with the brush colour sliders open, and a sunset with the options bar open" width="1920" height="1080" loading="lazy" decoding="async">
+          </picture>
+          <!-- /img -->
+        </figure>
+        <figure class="gal-item" data-game="inko" data-title="Canvas colour, symmetry and the eyedropper">
+          <!-- img src="assets/gallery/inko-tools.png" slot="game-shot" alt="Inko's tools on three phones: a pizza with sunglasses under the canvas colour sliders, a butterfly drawn with symmetry on, and the eyedropper picking green off a snake" -->
+          <picture>
+            <source type="image/avif" srcset="assets/derived/gallery/inko-tools-1600.avif?v=a1f6f3d5 1600w,
+                                              assets/derived/gallery/inko-tools-1200.avif?v=a1f6f3d5 1200w,
+                                              assets/derived/gallery/inko-tools-900.avif?v=a1f6f3d5 900w,
+                                              assets/derived/gallery/inko-tools-600.avif?v=a1f6f3d5 600w"
+                    sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+            <source type="image/webp" srcset="assets/derived/gallery/inko-tools-1600.webp?v=a1f6f3d5 1600w,
+                                              assets/derived/gallery/inko-tools-1200.webp?v=a1f6f3d5 1200w,
+                                              assets/derived/gallery/inko-tools-900.webp?v=a1f6f3d5 900w,
+                                              assets/derived/gallery/inko-tools-600.webp?v=a1f6f3d5 600w"
+                    sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+            <img src="assets/gallery/inko-tools.png" alt="Inko's tools on three phones: a pizza with sunglasses under the canvas colour sliders, a butterfly drawn with symmetry on, and the eyedropper picking green off a snake" width="1920" height="1080" loading="lazy" decoding="async">
+          </picture>
+          <!-- /img -->
+        </figure>
+        <figure class="gal-item" data-game="inko" data-title="Gallery, Public and comments">
+          <!-- img src="assets/gallery/inko-social.png" slot="game-shot" alt="Inko's gallery with a profile picture and six canvases, the Public feed of other artists' drawings with fire counts, and the frog wizard open with its comments" -->
+          <picture>
+            <source type="image/avif" srcset="assets/derived/gallery/inko-social-1600.avif?v=d74487ef 1600w,
+                                              assets/derived/gallery/inko-social-1200.avif?v=d74487ef 1200w,
+                                              assets/derived/gallery/inko-social-900.avif?v=d74487ef 900w,
+                                              assets/derived/gallery/inko-social-600.avif?v=d74487ef 600w"
+                    sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+            <source type="image/webp" srcset="assets/derived/gallery/inko-social-1600.webp?v=d74487ef 1600w,
+                                              assets/derived/gallery/inko-social-1200.webp?v=d74487ef 1200w,
+                                              assets/derived/gallery/inko-social-900.webp?v=d74487ef 900w,
+                                              assets/derived/gallery/inko-social-600.webp?v=d74487ef 600w"
+                    sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+            <img src="assets/gallery/inko-social.png" alt="Inko's gallery with a profile picture and six canvases, the Public feed of other artists' drawings with fire counts, and the frog wizard open with its comments" width="1920" height="1080" loading="lazy" decoding="async">
           </picture>
           <!-- /img -->
         </figure>

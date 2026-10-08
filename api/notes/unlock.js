@@ -1,7 +1,7 @@
 /* Universal JWT verification (DexAuth).
    Verifies JWTs signed by /api/auth/unlock using AUTH_SECRET.
    Returns true if valid and tier is admin (or editor, for future). */
-import { createHmac, timingSafeEqual } from 'crypto';
+const { createHmac, timingSafeEqual } = require('crypto');
 function verifyUniversalJWT(token) {
   const secret = process.env.AUTH_SECRET;
   if (!token || !secret) return false;
@@ -41,6 +41,7 @@ function verifyUniversalJWT(token) {
 'use strict';
 
 const store = require('../../lib/notes-store.js');
+const identity = require('../../lib/site-identity.js');
 
 module.exports = async function handler(req, res) {
   // The keypad is on dexcimino.com and this is same-origin. No CORS headers on
@@ -78,8 +79,28 @@ module.exports = async function handler(req, res) {
    */
   /* THREE WAYS IN: password (legacy), session token (legacy), or universal
      JWT from DexAuth. The JWT is preferred for new clients. */
+  /* AND A FOURTH: the site account. A Firebase ID token for Dex's own Google
+     account (identity.isOwner) opens the SAME store the keypad does -- the
+     DexNote phone app and /dexnote/ signed in as Dex are the DEXDC notes, not
+     a copy of them -- so there is one document and the rev check that already
+     merges two devices covers this one too. Any other account is refused
+     with 403, which the client reads as "this account keeps its own notes in
+     Firebase"; a token that does not verify is a 401 like every other wrong
+     answer here. */
   let storeId = null;
-  if (body && typeof body.jwt === 'string' && body.jwt) {
+  if (body && typeof body.idToken === 'string' && body.idToken) {
+    let who = null;
+    try { who = identity.person(await identity.verify(body.idToken)); }
+    catch (err) {
+      if (!(err instanceof identity.Invalid)) {
+        console.error('notes/unlock: could not verify the sign-in', err);
+        return res.status(502).json({ error: 'could not verify the sign-in' });
+      }
+    }
+    if (!who) return res.status(401).json({ error: 'wrong' });
+    if (!identity.isOwner(who)) return res.status(403).json({ error: 'not linked' });
+    storeId = 'private';
+  } else if (body && typeof body.jwt === 'string' && body.jwt) {
     if (verifyUniversalJWT(body.jwt)) storeId = 'private';
   } else if (body && typeof body.password === 'string') {
     storeId = await store.whichStore(body.password);

@@ -48,22 +48,22 @@
   </button>
 </div>
 <div id="opt-bar" hidden>
-  <!-- Symmetry, the canvas (colour, title, public), new, download, clear
-       (Dex, 2026-10-08). Clear and download ask first. The gallery moved
-       to the toolbar's left end: it is the app's main way around. -->
-  <button id="sym-btn" class="tbtn" aria-label="Mirror" aria-pressed="false">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.5v19" stroke-dasharray="1.6 2.8"/><path d="M9 5.5 L3 18 H9 Z" fill="currentColor"/><path d="M15 5.5 L21 18 H15 Z"/></svg>
-  </button>
-  <button id="copt-btn" class="tbtn" aria-label="Canvas: colour, title, public" aria-pressed="false"><span id="copt-dot"></span></button>
-  <button id="plus-btn" class="tbtn" aria-label="New canvas">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+  <!-- Trash, download, new, symmetry, the canvas (colour, title, public)
+       (Dex, 2026-10-08). Trash and download ask first. Picking any of them
+       closes this bar again. -->
+  <button id="clear-btn" class="tbtn" aria-label="Clear canvas">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16"/><path d="M9.5 7V4.5h5V7"/><path d="M6 7l1 13h10l1-13"/><path d="M10 11v5.5M14 11v5.5"/></svg>
   </button>
   <button id="dl-btn" class="tbtn" aria-label="Download this canvas">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11"/><path d="M7 10.5l5 5 5-5"/><path d="M5 19.5h14"/></svg>
   </button>
-  <button id="clear-btn" class="tbtn" aria-label="Clear canvas">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16"/><path d="M9.5 7V4.5h5V7"/><path d="M6 7l1 13h10l1-13"/><path d="M10 11v5.5M14 11v5.5"/></svg>
+  <button id="plus-btn" class="tbtn" aria-label="New canvas">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
   </button>
+  <button id="sym-btn" class="tbtn" aria-label="Mirror" aria-pressed="false">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.5v19" stroke-dasharray="1.6 2.8"/><path d="M9 5.5 L3 18 H9 Z" fill="currentColor"/><path d="M15 5.5 L21 18 H15 Z"/></svg>
+  </button>
+  <button id="copt-btn" class="tbtn" aria-label="Canvas: colour, title, public" aria-pressed="false"><span id="copt-dot"></span></button>
 </div>
 <!-- The canvas window (Dex, 2026-10-08): a panel in the bars, the width of
      the toolbar, and the only one up while it is open. Its sliders sit
@@ -71,8 +71,12 @@
 <div id="brush-pop" role="group" aria-label="Canvas">
   <div class="hsb-tip" hidden></div>
   <div id="cp-more" hidden>
-    <input id="cp-title" type="text" maxlength="60" aria-label="Title" placeholder="Untitled" autocomplete="off" spellcheck="false">
+    <!-- The lock over the redo column, the title over the H/S/B block, X over undo (Dex, 2026-10-08). -->
     <button id="cp-lock" class="cp-lock" aria-label="Private — make public"></button>
+    <input id="cp-title" type="text" maxlength="60" aria-label="Title" placeholder="Untitled" autocomplete="off" spellcheck="false">
+    <button id="cp-close" class="cp-lock" aria-label="Close">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+    </button>
   </div>
   <div id="cp-sliders"><div class="hsb-rows">
     <div class="hsb-row"><span class="hsb-lbl">H</span><input type="range" id="cv-hue" min="0" max="360" value="210"></div>
@@ -134,7 +138,7 @@
      Search opens a pill above the keyboard. -->
 <div id="gallery">
   <div id="g-head">
-    <span id="g-page" aria-live="polite">Your gallery</span>
+    <span id="g-page" aria-live="polite">My gallery</span>
     <span id="g-build" aria-label="Build"></span>
   </div>
   <div id="g-pick" hidden><span>Tap a canvas to make it your picture</span><button id="g-pick-smiley" class="v-link">Use the smiley</button><button id="g-pick-cancel" class="v-link">Cancel</button></div>
@@ -236,6 +240,13 @@
       <input id="a-pass" class="a-field" type="password" placeholder="Password (8+ characters)" autocomplete="current-password">
       <div class="mrow"><button id="a-signup" class="mbtn">Create account</button><button id="a-login" class="mbtn primary">Sign in</button></div>
     </div>
+  </div>
+  <div id="a-busy" hidden aria-live="polite">
+    <div class="a-spin" id="a-spin" aria-hidden="true"></div>
+    <div class="a-title a-center" id="a-busy-t">Signing in…</div>
+    <div class="a-text a-center" id="a-busy-sub"></div>
+    <div id="a-busy-msg" class="a-msg a-center" role="alert"></div>
+    <div class="mrow" id="a-busy-row" hidden><button id="a-busy-back" class="mbtn" type="button">Back</button><button id="a-busy-retry" class="mbtn primary" type="button">Try again</button></div>
   </div>
   <div id="a-claim" hidden>
     <div class="a-title a-center">Pick your name</div>

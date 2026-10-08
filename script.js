@@ -61,13 +61,18 @@ const parallaxEls = [...document.querySelectorAll('[data-parallax]')];
 // resume document is lighter (#1b1f24 / #23282f) and red, blue and purple do
 // not clear AA there; --cv-accent in styles.css lifts those three for that
 // subtree only. Retune a colour here and check that override still holds.
+//
+// `p3` is the same colour for a wide-gamut screen: the hex's OKLCH lightness
+// and hue, chroma moved halfway to the edge of P3. It has to match the
+// @media (color-gamut:p3) block under ACCENTS in styles.css, which is what
+// actually paints --accent; this copy only colours the picker's swatches.
 const ACCENTS = [
-  { name:'red',    color:'#D94727', p3:'color(display-p3 0.868 0.267 0.135)', mascot:'red' },
-  { name:'yellow', color:'#FAAA1E', p3:'color(display-p3 1.000 0.672 0.098)', mascot:'yellow' },
-  { name:'lime',   color:'#9EE02B', p3:'color(display-p3 0.624 0.896 0.151)', mascot:'limegreen' },
-  { name:'cyan',   color:'#2CC7F6', p3:'color(display-p3 0.153 0.791 0.985)', mascot:'cyan' },
-  { name:'blue',   color:'#335DF3', p3:'color(display-p3 0.181 0.354 0.972)', mascot:'blue' },
-  { name:'purple', color:'#A85CF5', p3:'color(display-p3 0.659 0.346 0.976)', mascot:'purple' },
+  { name:'red',    color:'#D94727', p3:'color(display-p3 0.823 0.273 0.136)', mascot:'red' },
+  { name:'yellow', color:'#FAAA1E', p3:'color(display-p3 0.952 0.672 0.181)', mascot:'yellow' },
+  { name:'lime',   color:'#9EE02B', p3:'color(display-p3 0.662 0.879 0.219)', mascot:'limegreen' },
+  { name:'cyan',   color:'#2CC7F6', p3:'color(display-p3 0.324 0.774 0.973)', mascot:'cyan' },
+  { name:'blue',   color:'#335DF3', p3:'color(display-p3 0.222 0.342 0.959)', mascot:'blue' },
+  { name:'purple', color:'#A85CF5', p3:'color(display-p3 0.627 0.348 0.965)', mascot:'purple' },
   { name:'white',  color:'#E9EBEC', p3:'color(display-p3 0.913 0.922 0.926)', mascot:'white' }
 ];
 const useP3 = window.matchMedia('(color-gamut: p3)').matches;
@@ -2375,6 +2380,7 @@ if (workModal) {
        presses Sign in. */
     let source = null;            // 'vault' | 'guest' | 'account', what is mounted
     let acctBtn = null;
+    let ownerAcct = false;        // the account mounted is Dex's, i.e. the DEXDC notes
     const acctMod = () => import('/dexnote/account.js');
 
     /* Shared by every store. With no backend the app talks to the password
@@ -2429,6 +2435,7 @@ if (workModal) {
       const [acct, state] = await Promise.all([acctMod(), import('/notes/state.js')]);
       const { backend, stored } = await acct.openGuest();
       source = 'guest';
+      ownerAcct = false;
       await mountApp(asPayload(stored, state.demoDoc()), null, backend);
     }
 
@@ -2437,8 +2444,11 @@ if (workModal) {
       editor.hidden = false;
       setSave('OPENING YOUR NOTES…', 'saving');
       try {
-        const { backend, stored, moved } = await acct.openAccount(u, (text) => setSave(text.toUpperCase(), 'saving'));
+        const { backend, stored, moved, owner } = await acct.openAccount(u, (text) => setSave(text.toUpperCase(), 'saving'));
         source = 'account';
+        // Dex's own Google opens the DEXDC document itself (account.js), so
+        // there is nothing to bring in and no second copy to switch to.
+        ownerAcct = !!owner;
         await mountApp(asPayload(stored, state.emptyDoc()), null, backend);
         if (moved) ui.toast('The notes from this device are now in your account.');
       } catch (error) {
@@ -2453,6 +2463,7 @@ if (workModal) {
       token = data.token;
       store.set(TOKEN_KEY, token);
       source = 'vault';
+      ownerAcct = false;
       await mountApp(data, token);
       return true;
     }
@@ -2464,8 +2475,8 @@ if (workModal) {
         { label: u.email || u.displayName || 'Signed in', disabled: true, run() {} },
         null,
         source !== 'account' ? { label: 'Open my account notes', run: () => swap(() => mountAccount(u)) } : null,
-        source === 'account' && token ? { label: 'Open the password notes', run: () => swap(mountVault) } : null,
-        { label: 'Bring in the password notes…', run: bringInVault },
+        source === 'account' && token && !ownerAcct ? { label: 'Open the password notes', run: () => swap(mountVault) } : null,
+        ownerAcct ? null : { label: 'Bring in the password notes…', run: bringInVault },
         { label: 'Sign out', danger: true, run: signOutHere },
       ].filter((item, i) => item || i === 1) : [
         { label: source === 'vault' ? 'Password notes' : 'Guest · saved on this device', disabled: true, run() {} },
@@ -2524,9 +2535,11 @@ if (workModal) {
        now the real app on this browser's guest notes (Dex, 2026-10-08) --
        the same notes /dexnote/ keeps for a guest -- or on the account's once
        someone is signed in here. A first open shows the tour document, and
-       nothing is written until it is edited. It can never reach the password
-       notes: no token goes with it, and that store answers nothing without
-       one.
+       nothing is written until it is edited. It never reaches the password
+       notes with a token: no token goes with it, and that store answers
+       nothing without one. The one way it opens them is Dex signed in on his
+       own Google, which the SERVER recognises (api/notes/unlock.js, idToken)
+       -- his account and the DEXDC notes are one document.
 
        No `#notes` in the address: this is not the password notes, and a link
        someone shares must land on the portfolio rather than on a password
@@ -2725,6 +2738,7 @@ if (workModal) {
       }
       source = null;
       acctBtn = null;
+      ownerAcct = false;
       if (label) label.textContent = 'PRIVATE';
       if (padlock) padlock.dataset.icon = 'lock';
       editor.hidden = true;
