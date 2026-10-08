@@ -157,8 +157,9 @@ let gallery = [];                   // the canvases of the scope on screen
    and the drawing on screen move INTO it and stop showing signed out. After
    that, signing out shows only what was made signed out since.
 
-   This is a split on the device, not a sync: a private drawing still never
-   leaves it (privacy.html). */
+   SIGNED IN, the account's canvases are also kept on the server, so the
+   same gallery is on every device the account signs in on (see "the
+   account's canvases, everywhere"). Signed out, nothing leaves the device. */
 let scope = 'local';
 const scopeOf = s => (s && s.handle ? 'u:' + s.handle : 'local');
 const ownerOf = it => it.owner || 'local';
@@ -469,6 +470,7 @@ function saveCurrent(){
     try { await idbPut('canvases', item); }
     catch (e) { toast('Could not save — storage refused it.'); throw e; }
     if (owner === scope) gallery = [item, ...gallery.filter(g => g.id !== item.id)];
+    if (owner !== 'local') syncSoon();
     editingId = item.id;
     dirty = false;
     republishIfPublic(item);
@@ -820,6 +822,11 @@ function makeItem(it, isLive){
         catch (err) { toast('Could not delete it.'); return; }
         // Its kept undo history goes with it.
         idbDel('meta', 'hist:' + it.id).then(gcSteps).catch(() => {});
+        // And the account's copy, on every device (later, if offline).
+        if (scope !== 'local'){
+          const sc = scope, ts = Date.now();
+          api('canvas-delete', { id: it.id, ts }).catch(() => queueDelete(sc, it.id, ts));
+        }
         gallery = gallery.filter(g => g.id !== it.id);
         if (editingId === it.id) editingId = null;
         toast('Canvas deleted'); renderGallery();
@@ -960,7 +967,96 @@ async function enterScope(next){
   scope = next;
   await showScope(false);
   if (moved) toast(moved + (moved === 1 ? ' canvas' : ' canvases') + ' moved into @' + next.slice(2));
+  syncSoon();
 }
+
+/* ---- the account's canvases, everywhere (Dex, 2026-10-08) ----
+   The device keeps its copy in IndexedDB as before (so the app works
+   offline and opens instantly); the server holds the account's own copy
+   (/api/sketch canvases, canvas-put, canvas-delete, canvas-img). A sync
+   compares the two by each canvas's `ts` -- when it was last saved,
+   wherever -- and the newer wins in both directions. Deletions travel as
+   tombstones; one made offline waits in meta `deletes:<scope>`. A sync runs
+   on sign-in, on launch, on coming back to the foreground, on going online,
+   and shortly after any save, delete or change of visibility. Drafts (the
+   drawing in progress) stay on the device: a canvas syncs once it is saved,
+   which + and leaving it for another do. */
+let syncing = null, syncAgain = false, syncT = null, syncWarned = false;
+function syncSoon(){ clearTimeout(syncT); syncT = setTimeout(syncAccount, 400); }
+async function canvasImg(c, thumb){
+  const r = await fetch(API, { method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ action: 'canvas-img', token: session && session.token, id: c.id, v: c.v, thumb }) });
+  if (r.status === 401) setSession(null);
+  if (!r.ok) throw new Error('canvas image ' + r.status);
+  return r.blob();
+}
+async function uploadCanvas(it){
+  if (!it.png) return;
+  if (!it.thumb) it.thumb = await thumbBlob(it.png, it.bg);
+  await api('canvas-put', { id: it.id, title: it.title, bg: it.bg, created: it.created, ts: it.ts, visibility: it.visibility,
+                            png: await blobToDataUrl(it.png), thumb: await blobToDataUrl(it.thumb) });
+}
+async function queueDelete(sc, id, ts){
+  const key = 'deletes:' + sc;
+  const rec = (await idbGet('meta', key).catch(() => null)) || { key, ids: {} };
+  rec.ids[id] = ts;
+  await idbPut('meta', rec).catch(() => {});
+}
+function syncAccount(){
+  if (!session || scope === 'local' || !navigator.onLine) return Promise.resolve();
+  if (syncing){ syncAgain = true; return syncing; }
+  const sc = scope;
+  syncing = (async () => {
+    // Deletions made while offline go first, so they are not undone below.
+    const key = 'deletes:' + sc;
+    const pend = await idbGet('meta', key).catch(() => null);
+    if (pend && Object.keys(pend.ids).length){
+      for (const [id, ts] of Object.entries(pend.ids)){ await api('canvas-delete', { id, ts }); delete pend.ids[id]; }
+      await idbPut('meta', pend);
+    }
+    const { canvases = [] } = await api('canvases');
+    if (scope !== sc) return;
+    const server = new Map(canvases.map(c => [c.id, c]));
+    const local = new Map((await idbAll('canvases')).filter(it => ownerOf(it) === sc).map(it => [it.id, it]));
+    let changed = false;
+    for (const c of server.values()){
+      const it = local.get(c.id);
+      if (c.deleted){
+        if (it && it.ts <= c.ts){
+          await idbDel('canvases', c.id); idbDel('meta', 'hist:' + c.id).catch(() => {});
+          local.delete(c.id); changed = true;
+          if (editingId === c.id) editingId = null;
+        }
+        continue;
+      }
+      if (it && it.ts >= c.ts) continue;
+      const rec = { id: c.id, title: c.title, bg: c.bg, png: await canvasImg(c, false), thumb: await canvasImg(c, true),
+                    created: c.created, ts: c.ts, visibility: c.visibility, owner: sc };
+      if (scope !== sc) return;
+      await idbPut('canvases', rec);
+      local.set(c.id, rec); changed = true;
+    }
+    for (const it of local.values()){
+      const c = server.get(it.id);
+      if (c && it.ts <= c.ts) continue;
+      try { await uploadCanvas(it); }
+      catch (e){
+        if (e.status === 413 && !syncWarned){ syncWarned = true; toast('"' + it.title + '" is too large to keep on the account — it stays on this device'); }
+        else if (e.status === 401) return;
+      }
+    }
+    if (changed && scope === sc){
+      gallery = (await idbAll('canvases')).filter(it => ownerOf(it) === sc);
+      if ($('gallery').classList.contains('open') && galleryTab === 'mine') renderGallery();
+    }
+  })().catch(e => console.warn('inko: sync', e)).finally(() => {
+    syncing = null;
+    if (syncAgain){ syncAgain = false; syncSoon(); }
+  });
+  return syncing;
+}
+document.addEventListener('visibilitychange', () => { if (!document.hidden) syncSoon(); });
+window.addEventListener('online', syncSoon);
 /* Put the scope's gallery and its draft on screen (a blank canvas if it has
    none). COLD is a launch after the app was closed: the undo stack comes
    back cut to KEEP_STEPS rather than whole. */
@@ -1016,14 +1112,16 @@ async function publishItem(it){
   const image = await blobToDataUrl(await publishImage(it));
   const thumb = await blobToDataUrl(it.thumb);
   const r = await api('publish', { id: it.id, title: it.title, image, thumb });
-  it.visibility = 'public';
+  it.visibility = 'public'; it.ts = Date.now();
   await idbPut('canvases', it);
+  syncSoon();
   if (r && r.post) mineLately.set(it.id, { post: r.post, at: Date.now() });
 }
 async function unpublishItem(it){
   await api('unpublish', { id: it.id });
-  it.visibility = 'private';
+  it.visibility = 'private'; it.ts = Date.now();
   await idbPut('canvases', it);
+  syncSoon();
   mineLately.set(it.id, { gone: true, at: Date.now() });
 }
 /* A drawing someone tried to make public while signed out goes public once
@@ -1324,7 +1422,7 @@ $('a-signout').addEventListener('click', () => { setSession(null); closeAccount(
 $('a-delete').addEventListener('click', () => {
   const pw = $('a-pass2').value;
   if (!pw && !(session && session.sso)){ $('a-msg2').textContent = 'Enter your password to delete the account.'; return; }
-  openModal('Delete your account?', 'Every drawing you made public is removed from the shared gallery. Drawings on this device stay.', 'Delete', async () => {
+  openModal('Delete your account?', 'Every drawing you made public is removed from the shared gallery, and the account\'s saved canvases from every other device. The ones on this device stay, signed out.', 'Delete', async () => {
     try {
       await api('delete-account', { password: pw });
       // Its canvases stay on this device, private, back with the signed-out ones.
@@ -1365,6 +1463,7 @@ async function init(){
   scope = scopeOf(session);
   await showScope(cold);
   gcSteps().catch(() => {});
+  syncSoon();
   // Ask the browser not to evict the drawings under storage pressure.
   try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch (e) {}
   try {

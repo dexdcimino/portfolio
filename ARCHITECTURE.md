@@ -680,7 +680,15 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
     `draft:u:<handle>` otherwise) and the undo stack all belong to the scope
     on screen, and a sign-in or sign-out swaps all three. An account's FIRST
     sign-in on the device (no `meta` `seen:u:<handle>`) adopts every signed-out
-    canvas and the signed-out draft. A split on the device, not a sync.
+    canvas and the signed-out draft.
+  - **A signed-in account's canvases are on every device.** The server keeps
+    each account's gallery (`sketch/canvases/<handle>/`: one `index.json`,
+    then `<id>-<v>.png` strokes and `-t.jpg` thumbnails), and `syncAccount`
+    compares it with IndexedDB by each canvas's `ts`; the newer wins both
+    ways, a deletion is a tombstone (90 days), and one made offline waits in
+    `meta` `deletes:<scope>`. Syncs run on sign-in, launch, foreground,
+    `online`, and after a save, delete or visibility change. Drafts stay on
+    the device. Signed out, nothing leaves it.
   `tools/inko_check.mjs` drives all of it under the real `/inko/` policy read
   out of `vercel.json`. The pre-rebuild app at inko.dexcimino.com (repo
   dexdcimino/inko) now redirects here.
@@ -690,11 +698,12 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
   Blob store under `sketch/`. NAMED "sketch", NOT "inko": the app is being
   renamed, and an API path or a storage prefix is the one name that cannot
   change once real data sits under it. The invariants:
-  - **Private means on the device.** A drawing is never uploaded until its
-    owner taps the lock on its card; then a flattened WebP (880x1170) and the
-    JPEG thumbnail go up and it joins `sketch/feed.json`. Tapping the globe
-    deletes both. The server never holds a private drawing, so it cannot leak
-    one.
+  - **Private means nobody else sees it.** Signed out, a drawing never
+    leaves the device; signed in, the account's own copy (above) is readable
+    only with its token, through `canvas-img`, never the public image route.
+    Tapping the lock on a card uploads a flattened WebP (880x1170) and the
+    JPEG thumbnail and it joins `sketch/feed.json`; tapping the globe deletes
+    both.
   - **Accounts are a name with Google, Discord, or a password behind it.**
     Google and Discord go through `api/sketch-auth/<provider>`
     (`lib/sketch-oauth.js`): a signed state bound to a short-lived cookie, the

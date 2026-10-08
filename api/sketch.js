@@ -12,6 +12,10 @@
  *   vote             { token, id, kind: fire|poop|null } -> { fire, poop, mine }
  *   votes            { token, ids: [...] }           -> { votes: { id: kind } }
  *   report           { token, id }                   -> { hidden }
+ *   canvases         { token }                       -> { canvases: [entry | tombstone] }   the account's own gallery
+ *   canvas-put       { token, id, title, bg, created, ts, visibility, png, thumb } -> { canvas, stale? }
+ *   canvas-delete    { token, id, ts }               -> { deleted }
+ *   canvas-img       { token, id, v, thumb }         -> the PNG (or JPEG thumbnail) bytes
  *   delete-account   { token, password }
  *   moderate         { admin, id, op: hide|restore|delete }   admin = Dex's universal JWT
  */
@@ -66,6 +70,15 @@ module.exports = async function handler(req, res) {
     if (action === 'vote') return res.status(200).json(await store.vote(handle, body.id, body.kind === undefined ? null : body.kind));
     if (action === 'votes') return res.status(200).json({ votes: await store.myVotes(handle, body.ids) });
     if (action === 'report') return res.status(200).json(await store.report(handle, body.id));
+    if (action === 'canvases') return res.status(200).json({ canvases: await store.listCanvases(handle) });
+    if (action === 'canvas-put') return res.status(200).json(await store.putCanvas(handle, body));
+    if (action === 'canvas-delete') return res.status(200).json(await store.deleteCanvas(handle, body.id, body.ts));
+    if (action === 'canvas-img') {
+      const found = await store.canvasImage(handle, body.id, body.v, !!body.thumb);
+      if (!found) return res.status(404).json({ error: 'No such canvas' });
+      res.setHeader('Content-Type', found.type);
+      return res.status(200).send(found.buf);
+    }
     if (action === 'delete-account') return res.status(200).json(await store.deleteAccount(handle, body.password));
     return res.status(400).json({ error: 'no such action' });
   } catch (err) {

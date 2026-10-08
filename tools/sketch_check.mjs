@@ -175,6 +175,37 @@ try {
   note(!(await store.image('sketch/img/abc123-1.webp')), 'the deleted account\'s image is still stored');
   console.log(`api: refusals held, 3 reports hid it, account deletion took ${gone.body.posts} post(s)`);
 
+  // ---- 1b. an account's own canvases, kept for every device ---------------
+  {
+    const T = Date.now();   // tombstones older than 90 days are pruned, so real times
+    const PNG = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFBQIAX8jx0gAAAABJRU5ErkJggg==';
+    const me = (await post({ action: 'signup', handle: 'keeper', password: 'correct horse' })).body;
+    const other = (await post({ action: 'signup', handle: 'snoop', password: 'correct horse' })).body;
+    const put1 = await post({ action: 'canvas-put', token: me.token, id: 'cv1', title: 'Kept', bg: { h: 10, s: 20, b: 30 }, created: T, ts: T + 2000, visibility: 'private', png: PNG, thumb: real.jpeg });
+    note(put1.status === 200 && put1.body.canvas.v === 1, `canvas-put answered ${put1.status} ${JSON.stringify(put1.body).slice(0, 80)}`);
+    const stale = await post({ action: 'canvas-put', token: me.token, id: 'cv1', title: 'Older', ts: T + 1500, png: PNG, thumb: real.jpeg });
+    note(stale.body.stale === true && stale.body.canvas.title === 'Kept', `an older save overwrote a newer one: ${JSON.stringify(stale.body).slice(0, 80)}`);
+    const notPng = await post({ action: 'canvas-put', token: me.token, id: 'cv2', title: 'x', ts: T + 3000, png: real.jpeg, thumb: real.jpeg });
+    note(notPng.status === 400, `a JPEG as the canvas answered ${notPng.status}`);
+    const mine = (await post({ action: 'canvases', token: me.token })).body.canvases;
+    const theirs = (await post({ action: 'canvases', token: other.token })).body.canvases;
+    note(mine.length === 1 && mine[0].title === 'Kept' && theirs.length === 0, `the lists: mine ${JSON.stringify(mine)}, theirs ${JSON.stringify(theirs)}`);
+    const back = await fetch(BASE + '/api/sketch', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ action: 'canvas-img', token: me.token, id: 'cv1', v: 1 }) });
+    const snooped = await fetch(BASE + '/api/sketch', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ action: 'canvas-img', token: other.token, id: 'cv1', v: 1 }) });
+    const anon = await fetch(`${BASE}/api/sketch?img=${encodeURIComponent('sketch/canvases/keeper/cv1-1.png')}`);
+    note(back.status === 200 && back.headers.get('content-type') === 'image/png' && snooped.status === 404 && anon.status === 404,
+      `a canvas image: owner ${back.status}, another account ${snooped.status}, the public route ${anon.status}`);
+    await post({ action: 'canvas-delete', token: me.token, id: 'cv1', ts: T + 4000 });
+    const tomb = (await post({ action: 'canvases', token: me.token })).body.canvases;
+    note(tomb.length === 1 && tomb[0].deleted === true, `a deletion is not a tombstone: ${JSON.stringify(tomb)}`);
+    const revive = await post({ action: 'canvas-put', token: me.token, id: 'cv1', title: 'Late', ts: T + 3500, png: PNG, thumb: real.jpeg });
+    note(revive.body.stale === true, 'a save older than the deletion brought the canvas back');
+    await post({ action: 'canvas-put', token: me.token, id: 'cv3', title: 'Last', ts: T + 5000, png: PNG, thumb: real.jpeg });
+    await post({ action: 'delete-account', token: me.token, password: 'correct horse' });
+    note(!(await store.canvasImage('keeper', 'cv3', 1, false)), 'deleting the account left its saved canvases');
+    console.log('canvases: kept per account, older saves refused, private to the account, deletions as tombstones, gone with the account');
+  }
+
   // ---- 2. two people, two browsers --------------------------------------
   const ctxA = await browser.createBrowserContext(), ctxB = await browser.createBrowserContext();
   const A = await ctxA.newPage(), B = await ctxB.newPage();
@@ -199,7 +230,7 @@ try {
   await A.click('.g-item .g-pub'); await sleep(300);
   note(await A.evaluate(() => document.getElementById('account').classList.contains('open')), 'making a drawing public signed out did not ask to sign in');
   await shot(A, '1-account');
-  await A.click('#a-more');
+  await A.click('#a-more'); await sleep(150);    // the sheet focuses the name field 50 ms later; typing before that split the name
   await A.type('#a-handle', 'artist_a');
   await A.type('#a-pass', 'correct horse');
   await A.click('#a-signup');
@@ -221,7 +252,7 @@ try {
   note(seen && seen.title === 'Dragon' && seen.by === '@artist_a' && seen.w > 0, `B's Public tab shows ${JSON.stringify(seen)}`);
   // Reacting signed out asks to sign in first, then lands the reaction.
   await B.click('.g-item[data-post] .g-rx[data-kind="fire"]'); await sleep(300);
-  await B.click('#a-more'); await B.type('#a-handle', 'fan_b'); await B.type('#a-pass', 'correct horse'); await B.click('#a-signup');
+  await B.click('#a-more'); await sleep(150); await B.type('#a-handle', 'fan_b'); await B.type('#a-pass', 'correct horse'); await B.click('#a-signup');
   await B.waitForFunction(() => document.querySelector('.g-item[data-post] .g-rx[data-kind="fire"] b')?.textContent === '1', { timeout: 10000 }).catch(() => {});
   const fire = await B.evaluate(() => document.querySelector('.g-item[data-post] .g-rx[data-kind="fire"]').outerHTML);
   note(/on/.test(fire) && />1</.test(fire), `after B's fire: ${fire}`);
@@ -258,6 +289,62 @@ try {
   console.log(`people: A published "Dragon", B saw it at ${seen && seen.w}px, reacted 🔥 then 💩, viewed it at ${big.w}px, hid the artist; A took it back`);
   note(errors.length === 0, `console/page errors: ${errors.join(' | ')}`);
   await ctxA.close(); await ctxB.close();
+
+  // ---- 2b. one account on two devices (Dex, 2026-10-08) ------------------
+  // Two browser contexts are two phones. A canvas saved on one is on the
+  // other; deleted on the other, it leaves the first; signed out, neither
+  // shows the account's canvases.
+  {
+    const acct = (await post({ action: 'signup', handle: 'two_phones', password: 'correct horse' })).body;
+    const devices = [];
+    for (let i = 0; i < 2; i++) {
+      const ctx = await browser.createBrowserContext();
+      const p = await ctx.newPage();
+      await p.setViewport({ width: 420, height: 860, isMobile: true });
+      await p.goto(`${BASE}/inko/manifest.webmanifest`);
+      await p.evaluate((sess) => localStorage.setItem('sketchSession', JSON.stringify(sess)), { handle: acct.handle, token: acct.token });
+      await p.goto(`${BASE}/inko/`, { waitUntil: 'networkidle2' });
+      devices.push({ ctx, p });
+    }
+    const [one, two] = devices.map(d => d.p);
+    const titles = (p) => p.evaluate(() => [...document.querySelectorAll('#g-rows .g-item .g-title')].map(t => t.textContent));
+    const openGallery = async (p) => {
+      await p.bringToFront();
+      await p.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));   // back to the foreground: a sync
+      await sleep(2500);
+      await p.click('#grid-btn'); await sleep(500);
+    };
+    await one.bringToFront();
+    await strokeOn(one);
+    await one.type('#title-input', 'Both phones');
+    await one.click('#plus-btn'); await sleep(2500);
+    await openGallery(two);
+    const onTwo = await titles(two);
+    const thumbOk = await two.evaluate(() => { const i = [...document.querySelectorAll('#g-rows .g-item')].find(el => el.textContent.includes('Both phones'))?.querySelector('img'); return !!i && i.complete && i.naturalWidth > 0; });
+    note(onTwo.includes('Both phones') && thumbOk, `the second device's gallery after a save on the first: ${JSON.stringify(onTwo)}, thumbnail loaded ${thumbOk}`);
+    // Opening it there draws the real strokes, not just the thumbnail.
+    await two.evaluate(() => [...document.querySelectorAll('#g-rows .g-item')].find(el => el.textContent.includes('Both phones')).click());
+    await sleep(1200);
+    const inkTwo = await two.evaluate(() => {
+      const c = document.getElementById('pad'), x = c.getContext('2d');
+      const d = x.getImageData(0, 0, c.width, c.height).data, bg = [d[0], d[1], d[2]];
+      let n = 0; for (let i = 0; i < d.length; i += 64) if (Math.abs(d[i] - bg[0]) + Math.abs(d[i + 1] - bg[1]) + Math.abs(d[i + 2] - bg[2]) > 60) n++;
+      return n;
+    });
+    note(inkTwo > 100, `the canvas opened on the second device has ${inkTwo} sampled stroke pixels`);
+    // Deleted on the second device: gone from the first.
+    await two.click('#grid-btn'); await sleep(400);
+    await two.evaluate(() => [...document.querySelectorAll('#g-rows .g-item')].find(el => el.textContent.includes('Both phones')).querySelector('.g-del').click());
+    await sleep(300); await two.click('#m-del'); await sleep(1500);
+    await one.click('#g-back').catch(() => {});
+    await openGallery(one);
+    note(!(await titles(one)).includes('Both phones'), 'a canvas deleted on one device is still on the other');
+    // Signed out on the first device: the account's canvases are not there.
+    await one.click('#g-account'); await sleep(300); await one.click('#a-signout'); await sleep(1500);
+    note((await titles(one)).length === 0, `signed out, the gallery shows ${JSON.stringify(await titles(one))}`);
+    console.log(`two devices: "Both phones" saved on one appeared on the other (${inkTwo} stroke pixels), deleted there left both, signed out shows none`);
+    for (const d of devices) await d.ctx.close();
+  }
 
   // ---- 3. Google and Discord, through the real sign-in sheet --------------
   {
