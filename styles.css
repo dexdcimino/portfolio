@@ -7412,9 +7412,9 @@ body:has(.sidebar:is(:hover,:has(:focus-visible))) > .music-remote.at-bl{
    column under the title rather than spanning the panel. */
 .signin-provider{
   display:inline-flex;align-items:center;justify-content:flex-start;gap:10px;
-  min-height:38px;width:150px;padding:0 16px;
+  min-height:46px;width:195px;padding:0 18px;gap:12px;font-size:1.3rem;
 }
-.signin-mark{width:18px;height:18px}
+.signin-mark{width:24px;height:24px}
 .signin-error{margin:0;color:#ff8a80;font-size:.9rem}
 .signin-foot{display:flex;justify-content:center;gap:10px;margin-top:10px}
 .signin-foot .signin-btn{min-width:110px}
