@@ -1797,13 +1797,13 @@ await page.waitForFunction(
     thumbs: document.querySelectorAll('#workStrip .work-thumb').length,
   }));
   note(pi.open, 'the Proto Isles card did not open the gallery');
-  note(JSON.stringify(pi.tabs) === JSON.stringify(['VIDEO0', 'CHARACTERS5', 'ENVIRONMENT5', 'ITEMS5', 'PETS5', 'UI5', 'FEATURED2']),
+  note(JSON.stringify(pi.tabs) === JSON.stringify(['VIDEO0', 'CHARACTERS5', 'ENVIRONMENT5', 'ITEMS5', 'PETS5', 'UI5', 'FEATURED3']),
        `Proto Isles tabs are ${JSON.stringify(pi.tabs)}`);
   note(pi.on === 'CHARACTERS5', `Proto Isles opened on ${pi.on}, not on its first tab with shots`);
   note(/proto-isles/.test(pi.hero) && pi.w > 0, `the Proto Isles hero is ${pi.hero} (${pi.w}px)`);
   note(pi.thumbs === 5, `the Proto Isles strip has ${pi.thumbs} thumbs, not 5`);
   const masters = await page.evaluate(() => [...document.querySelectorAll('.pi-data figure img')].map(i => i.getAttribute('src')));
-  note(masters.length === 27 && new Set(masters).size === masters.length,
+  note(masters.length === 28 && new Set(masters).size === masters.length,
        `Proto Isles names ${masters.length} shots, ${new Set(masters).size} of them different`);
 
   /* THE CATEGORY BUTTONS over the arrows (Dex, 2026-10-09): each wears the
