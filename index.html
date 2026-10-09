@@ -462,24 +462,395 @@
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
             </button>
           </article>
-          <article class="fv-item" data-video="1">
+          <!-- PROTO ISLES, the game Dex is building now. Not a video: the
+               thumbnail is the whole card, and a click anywhere on it opens
+               the WORK OVERLAY on this game's own tabs (initProtoIsles in
+               script.js reads them out of .pi-data below). The download is
+               always up, bottom right, and opens the code keypad saying
+               DOWNLOAD LOCKED until the launcher exists. -->
+          <article class="fv-item fv-gallery" data-video="1" data-work-set="proto-isles">
             <span class="fv-matte" aria-hidden="true"></span>
-            <!-- The Collab section's hazard strip, reused rather than redrawn:
-                 these are slots with no video in them yet, and a play button
-                 that does nothing is a worse answer than saying so. -->
-            <div class="fv-soon" aria-hidden="true">
-              <span class="collab-soon-tape"></span>
-              <strong>UNDER CONSTRUCTION</strong>
-              <span class="collab-soon-tape"></span>
-            </div>
+            <!-- img src="assets/featured/proto-isles.png" slot="clip-poster" alt="" picture-class="fv-poster" -->
+            <picture class="fv-poster">
+              <source type="image/avif" srcset="assets/derived/featured/proto-isles-1920.avif?v=1c1d2808 1920w,
+                                                assets/derived/featured/proto-isles-1280.avif?v=1c1d2808 1280w,
+                                                assets/derived/featured/proto-isles-900.avif?v=1c1d2808 900w,
+                                                assets/derived/featured/proto-isles-600.avif?v=1c1d2808 600w,
+                                                assets/derived/featured/proto-isles-400.avif?v=1c1d2808 400w,
+                                                assets/derived/featured/proto-isles-240.avif?v=1c1d2808 240w"
+                      sizes="(max-width:1100px) 92vw, min(56vw, 900px)">
+              <source type="image/webp" srcset="assets/derived/featured/proto-isles-1920.webp?v=1c1d2808 1920w,
+                                                assets/derived/featured/proto-isles-1280.webp?v=1c1d2808 1280w,
+                                                assets/derived/featured/proto-isles-900.webp?v=1c1d2808 900w,
+                                                assets/derived/featured/proto-isles-600.webp?v=1c1d2808 600w,
+                                                assets/derived/featured/proto-isles-400.webp?v=1c1d2808 400w,
+                                                assets/derived/featured/proto-isles-240.webp?v=1c1d2808 240w"
+                      sizes="(max-width:1100px) 92vw, min(56vw, 900px)">
+              <img src="assets/featured/proto-isles.png" alt="" width="1920" height="1200" loading="lazy" decoding="async">
+            </picture>
+            <!-- /img -->
+            <button class="fv-open" type="button" aria-label="Open the Proto Isles gallery"></button>
             <button class="fv-info" type="button" aria-expanded="false"
-                    aria-label="About CHARACTER EDITOR"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 10.6v5.6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><circle cx="12" cy="7.4" r="1.35" fill="currentColor"/></svg></button>
-            <p class="fv-desc" hidden>Placeholder for this item&#8217;s future description.</p>
-            <button class="fv-play" type="button" aria-label="Play CHARACTER EDITOR">
-              <span class="fv-disc"><span class="icon" data-icon="play" aria-hidden="true"></span></span>
-            </button>
+                    aria-label="About Proto Isles"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 10.6v5.6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><circle cx="12" cy="7.4" r="1.35" fill="currentColor"/></svg></button>
+            <p class="fv-desc" hidden>The game I am building now: a bright low-poly world of islands, with a character editor full of hats, hair and faces to mix.</p>
             <span class="card-shade"></span>
-            <span class="card-meta"><small>In-Game Tool</small><strong>CHARACTER EDITOR</strong></span>
+            <span class="card-meta"><small>Current Game Project</small><strong>Proto Isles</strong></span>
+            <div class="fv-actions">
+              <button class="fv-act fv-lock" type="button" data-code-lock="DOWNLOAD LOCKED"
+                      data-tip="Download Proto Isles&#10;Locked for now" data-tip-pos="above" data-tip-big data-tip-pos-max="right"
+                      aria-label="Download Proto Isles (locked)">
+                <span class="icon" data-icon="download" aria-hidden="true"></span>
+              </button>
+            </div>
+            <!-- THE GALLERY'S DATA. Each figure is one shot; data-pi-cat is
+                 the tab it goes under, and the tabs themselves, in order, are
+                 data-tabs. A tab with no figures yet shows SHOTS COMING. The
+                 shots are 1920x920 like the Mobius gallery's and baked on the
+                 game-shot slot like every other gallery picture; hidden, so
+                 nothing here loads until the overlay paints it. -->
+            <div class="pi-data" hidden
+                 data-tabs='[["characters","CHARACTERS"],["environment","ENVIRONMENT"],["items","ITEMS"],["pets","PETS"],["ui","USER INTERFACE"]]'>
+              <figure data-pi-cat="characters" data-title="Playful cosmetics, in town">
+                <!-- img src="assets/gallery/proto-isles/cosmetics-playful-v1.png" slot="game-shot" alt="Five Proto Isles characters lined up in a low-poly town at sunset: an afro with sunglasses, a frog hood with its tongue out, a VR headset with a brain on top, a blue cowboy hat with heart glasses, and a traffic cone hat" -->
+                <picture>
+                  <source type="image/avif" srcset="assets/derived/gallery/proto-isles/cosmetics-playful-v1-1600.avif?v=93d77154 1600w,
+                                                    assets/derived/gallery/proto-isles/cosmetics-playful-v1-1200.avif?v=93d77154 1200w,
+                                                    assets/derived/gallery/proto-isles/cosmetics-playful-v1-900.avif?v=93d77154 900w,
+                                                    assets/derived/gallery/proto-isles/cosmetics-playful-v1-600.avif?v=93d77154 600w"
+                          sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+                  <source type="image/webp" srcset="assets/derived/gallery/proto-isles/cosmetics-playful-v1-1600.webp?v=93d77154 1600w,
+                                                    assets/derived/gallery/proto-isles/cosmetics-playful-v1-1200.webp?v=93d77154 1200w,
+                                                    assets/derived/gallery/proto-isles/cosmetics-playful-v1-900.webp?v=93d77154 900w,
+                                                    assets/derived/gallery/proto-isles/cosmetics-playful-v1-600.webp?v=93d77154 600w"
+                          sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+                  <img src="assets/gallery/proto-isles/cosmetics-playful-v1.png" alt="Five Proto Isles characters lined up in a low-poly town at sunset: an afro with sunglasses, a frog hood with its tongue out, a VR headset with a brain on top, a blue cowboy hat with heart glasses, and a traffic cone hat" width="1920" height="920" loading="lazy" decoding="async">
+                </picture>
+                <!-- /img -->
+              </figure>
+              <figure data-pi-cat="characters" data-title="Playful cosmetics, by the lake">
+                <!-- img src="assets/gallery/proto-isles/cosmetics-playful-v2.png" slot="game-shot" alt="The same five playful Proto Isles characters standing at a lake under a cloudy sky, pine trees and a tall rock behind them" -->
+                <picture>
+                  <source type="image/avif" srcset="assets/derived/gallery/proto-isles/cosmetics-playful-v2-1600.avif?v=3d3cca6e 1600w,
+                                                    assets/derived/gallery/proto-isles/cosmetics-playful-v2-1200.avif?v=3d3cca6e 1200w,
+                                                    assets/derived/gallery/proto-isles/cosmetics-playful-v2-900.avif?v=3d3cca6e 900w,
+                                                    assets/derived/gallery/proto-isles/cosmetics-playful-v2-600.avif?v=3d3cca6e 600w"
+                          sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+                  <source type="image/webp" srcset="assets/derived/gallery/proto-isles/cosmetics-playful-v2-1600.webp?v=3d3cca6e 1600w,
+                                                    assets/derived/gallery/proto-isles/cosmetics-playful-v2-1200.webp?v=3d3cca6e 1200w,
+                                                    assets/derived/gallery/proto-isles/cosmetics-playful-v2-900.webp?v=3d3cca6e 900w,
+                                                    assets/derived/gallery/proto-isles/cosmetics-playful-v2-600.webp?v=3d3cca6e 600w"
+                          sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+                  <img src="assets/gallery/proto-isles/cosmetics-playful-v2.png" alt="The same five playful Proto Isles characters standing at a lake under a cloudy sky, pine trees and a tall rock behind them" width="1920" height="920" loading="lazy" decoding="async">
+                </picture>
+                <!-- /img -->
+              </figure>
+              <figure data-pi-cat="characters" data-title="Expressive cosmetics, in town">
+                <!-- img src="assets/gallery/proto-isles/cosmetics-expressive-v1.png" slot="game-shot" alt="Five Proto Isles characters in town: a viking helmet and red beard, a plunger hat blowing gum, long purple hair with a rose, a braided ponytail with glowing eyes, and an orange face with an eyepatch and a blue crest" -->
+                <picture>
+                  <source type="image/avif" srcset="assets/derived/gallery/proto-isles/cosmetics-expressive-v1-1600.avif?v=385b317d 1600w,
+                                                    assets/derived/gallery/proto-isles/cosmetics-expressive-v1-1200.avif?v=385b317d 1200w,
+                                                    assets/derived/gallery/proto-isles/cosmetics-expressive-v1-900.avif?v=385b317d 900w,
+                                                    assets/derived/gallery/proto-isles/cosmetics-expressive-v1-600.avif?v=385b317d 600w"
+                          sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+                  <source type="image/webp" srcset="assets/derived/gallery/proto-isles/cosmetics-expressive-v1-1600.webp?v=385b317d 1600w,
+                                                    assets/derived/gallery/proto-isles/cosmetics-expressive-v1-1200.webp?v=385b317d 1200w,
+                                                    assets/derived/gallery/proto-isles/cosmetics-expressive-v1-900.webp?v=385b317d 900w,
+                                                    assets/derived/gallery/proto-isles/cosmetics-expressive-v1-600.webp?v=385b317d 600w"
+                          sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+                  <img src="assets/gallery/proto-isles/cosmetics-expressive-v1.png" alt="Five Proto Isles characters in town: a viking helmet and red beard, a plunger hat blowing gum, long purple hair with a rose, a braided ponytail with glowing eyes, and an orange face with an eyepatch and a blue crest" width="1920" height="920" loading="lazy" decoding="async">
+                </picture>
+                <!-- /img -->
+              </figure>
+              <figure data-pi-cat="characters" data-title="Expressive cosmetics, by the lake">
+                <!-- img src="assets/gallery/proto-isles/cosmetics-expressive-v2.png" slot="game-shot" alt="The same five expressive Proto Isles characters at the lake" -->
+                <picture>
+                  <source type="image/avif" srcset="assets/derived/gallery/proto-isles/cosmetics-expressive-v2-1600.avif?v=cc451d56 1600w,
+                                                    assets/derived/gallery/proto-isles/cosmetics-expressive-v2-1200.avif?v=cc451d56 1200w,
+                                                    assets/derived/gallery/proto-isles/cosmetics-expressive-v2-900.avif?v=cc451d56 900w,
+                                                    assets/derived/gallery/proto-isles/cosmetics-expressive-v2-600.avif?v=cc451d56 600w"
+                          sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+                  <source type="image/webp" srcset="assets/derived/gallery/proto-isles/cosmetics-expressive-v2-1600.webp?v=cc451d56 1600w,
+                                                    assets/derived/gallery/proto-isles/cosmetics-expressive-v2-1200.webp?v=cc451d56 1200w,
+                                                    assets/derived/gallery/proto-isles/cosmetics-expressive-v2-900.webp?v=cc451d56 900w,
+                                                    assets/derived/gallery/proto-isles/cosmetics-expressive-v2-600.webp?v=cc451d56 600w"
+                          sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+                  <img src="assets/gallery/proto-isles/cosmetics-expressive-v2.png" alt="The same five expressive Proto Isles characters at the lake" width="1920" height="920" loading="lazy" decoding="async">
+                </picture>
+                <!-- /img -->
+              </figure>
+              <figure data-pi-cat="characters" data-title="Fantasy cosmetics, in town">
+                <!-- img src="assets/gallery/proto-isles/cosmetics-fantasy-v1.png" slot="game-shot" alt="Five Proto Isles characters in town: wild white hair and green goggles, black horns with glowing eyes, a top hat and ski goggles, a flowered sun hat and moustache, and a wizard hat and long beard" -->
+                <picture>
+                  <source type="image/avif" srcset="assets/derived/gallery/proto-isles/cosmetics-fantasy-v1-1600.avif?v=e753a337 1600w,
+                                                    assets/derived/gallery/proto-isles/cosmetics-fantasy-v1-1200.avif?v=e753a337 1200w,
+                                                    assets/derived/gallery/proto-isles/cosmetics-fantasy-v1-900.avif?v=e753a337 900w,
+                                                    assets/derived/gallery/proto-isles/cosmetics-fantasy-v1-600.avif?v=e753a337 600w"
+                          sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+                  <source type="image/webp" srcset="assets/derived/gallery/proto-isles/cosmetics-fantasy-v1-1600.webp?v=e753a337 1600w,
+                                                    assets/derived/gallery/proto-isles/cosmetics-fantasy-v1-1200.webp?v=e753a337 1200w,
+                                                    assets/derived/gallery/proto-isles/cosmetics-fantasy-v1-900.webp?v=e753a337 900w,
+                                                    assets/derived/gallery/proto-isles/cosmetics-fantasy-v1-600.webp?v=e753a337 600w"
+                          sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+                  <img src="assets/gallery/proto-isles/cosmetics-fantasy-v1.png" alt="Five Proto Isles characters in town: wild white hair and green goggles, black horns with glowing eyes, a top hat and ski goggles, a flowered sun hat and moustache, and a wizard hat and long beard" width="1920" height="920" loading="lazy" decoding="async">
+                </picture>
+                <!-- /img -->
+              </figure>
+              <figure data-pi-cat="characters" data-title="Fantasy cosmetics, by the lake">
+                <!-- img src="assets/gallery/proto-isles/cosmetics-fantasy-v2.png" slot="game-shot" alt="The same five fantasy Proto Isles characters at the lake" -->
+                <picture>
+                  <source type="image/avif" srcset="assets/derived/gallery/proto-isles/cosmetics-fantasy-v2-1600.avif?v=5398c7e2 1600w,
+                                                    assets/derived/gallery/proto-isles/cosmetics-fantasy-v2-1200.avif?v=5398c7e2 1200w,
+                                                    assets/derived/gallery/proto-isles/cosmetics-fantasy-v2-900.avif?v=5398c7e2 900w,
+                                                    assets/derived/gallery/proto-isles/cosmetics-fantasy-v2-600.avif?v=5398c7e2 600w"
+                          sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+                  <source type="image/webp" srcset="assets/derived/gallery/proto-isles/cosmetics-fantasy-v2-1600.webp?v=5398c7e2 1600w,
+                                                    assets/derived/gallery/proto-isles/cosmetics-fantasy-v2-1200.webp?v=5398c7e2 1200w,
+                                                    assets/derived/gallery/proto-isles/cosmetics-fantasy-v2-900.webp?v=5398c7e2 900w,
+                                                    assets/derived/gallery/proto-isles/cosmetics-fantasy-v2-600.webp?v=5398c7e2 600w"
+                          sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+                  <img src="assets/gallery/proto-isles/cosmetics-fantasy-v2.png" alt="The same five fantasy Proto Isles characters at the lake" width="1920" height="920" loading="lazy" decoding="async">
+                </picture>
+                <!-- /img -->
+              </figure>
+              <figure data-pi-cat="characters" data-title="The wizard and the scientist">
+                <!-- img src="assets/gallery/proto-isles/wizard-scientist-showcase-v1.png" slot="game-shot" alt="Two full-length Proto Isles characters in the town square: a wizard in a purple hat and checked robe, and a scientist with green goggles and a white lab coat, glowing portal doors behind them" -->
+                <picture>
+                  <source type="image/avif" srcset="assets/derived/gallery/proto-isles/wizard-scientist-showcase-v1-1600.avif?v=e415a1fd 1600w,
+                                                    assets/derived/gallery/proto-isles/wizard-scientist-showcase-v1-1200.avif?v=e415a1fd 1200w,
+                                                    assets/derived/gallery/proto-isles/wizard-scientist-showcase-v1-900.avif?v=e415a1fd 900w,
+                                                    assets/derived/gallery/proto-isles/wizard-scientist-showcase-v1-600.avif?v=e415a1fd 600w"
+                          sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+                  <source type="image/webp" srcset="assets/derived/gallery/proto-isles/wizard-scientist-showcase-v1-1600.webp?v=e415a1fd 1600w,
+                                                    assets/derived/gallery/proto-isles/wizard-scientist-showcase-v1-1200.webp?v=e415a1fd 1200w,
+                                                    assets/derived/gallery/proto-isles/wizard-scientist-showcase-v1-900.webp?v=e415a1fd 900w,
+                                                    assets/derived/gallery/proto-isles/wizard-scientist-showcase-v1-600.webp?v=e415a1fd 600w"
+                          sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+                  <img src="assets/gallery/proto-isles/wizard-scientist-showcase-v1.png" alt="Two full-length Proto Isles characters in the town square: a wizard in a purple hat and checked robe, and a scientist with green goggles and a white lab coat, glowing portal doors behind them" width="1920" height="920" loading="lazy" decoding="async">
+                </picture>
+                <!-- /img -->
+              </figure>
+              <figure data-pi-cat="characters" data-title="The wizard and the scientist, closer">
+                <!-- img src="assets/gallery/proto-isles/wizard-scientist-showcase-v2.png" slot="game-shot" alt="The Proto Isles wizard and scientist side by side in the town square, portal doors glowing behind them" -->
+                <picture>
+                  <source type="image/avif" srcset="assets/derived/gallery/proto-isles/wizard-scientist-showcase-v2-1600.avif?v=b36592e8 1600w,
+                                                    assets/derived/gallery/proto-isles/wizard-scientist-showcase-v2-1200.avif?v=b36592e8 1200w,
+                                                    assets/derived/gallery/proto-isles/wizard-scientist-showcase-v2-900.avif?v=b36592e8 900w,
+                                                    assets/derived/gallery/proto-isles/wizard-scientist-showcase-v2-600.avif?v=b36592e8 600w"
+                          sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+                  <source type="image/webp" srcset="assets/derived/gallery/proto-isles/wizard-scientist-showcase-v2-1600.webp?v=b36592e8 1600w,
+                                                    assets/derived/gallery/proto-isles/wizard-scientist-showcase-v2-1200.webp?v=b36592e8 1200w,
+                                                    assets/derived/gallery/proto-isles/wizard-scientist-showcase-v2-900.webp?v=b36592e8 900w,
+                                                    assets/derived/gallery/proto-isles/wizard-scientist-showcase-v2-600.webp?v=b36592e8 600w"
+                          sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+                  <img src="assets/gallery/proto-isles/wizard-scientist-showcase-v2.png" alt="The Proto Isles wizard and scientist side by side in the town square, portal doors glowing behind them" width="1920" height="920" loading="lazy" decoding="async">
+                </picture>
+                <!-- /img -->
+              </figure>
+              <figure data-pi-cat="characters" data-title="Blend shapes: the skeleton and the droplet">
+                <!-- img src="assets/gallery/proto-isles/skeleton-blend-shape-v1.png" slot="game-shot" alt="A cartoon skeleton and a smooth blue droplet-headed body standing by a lake, two body shapes from the character editor" -->
+                <picture>
+                  <source type="image/avif" srcset="assets/derived/gallery/proto-isles/skeleton-blend-shape-v1-1600.avif?v=17b48f75 1600w,
+                                                    assets/derived/gallery/proto-isles/skeleton-blend-shape-v1-1200.avif?v=17b48f75 1200w,
+                                                    assets/derived/gallery/proto-isles/skeleton-blend-shape-v1-900.avif?v=17b48f75 900w,
+                                                    assets/derived/gallery/proto-isles/skeleton-blend-shape-v1-600.avif?v=17b48f75 600w"
+                          sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+                  <source type="image/webp" srcset="assets/derived/gallery/proto-isles/skeleton-blend-shape-v1-1600.webp?v=17b48f75 1600w,
+                                                    assets/derived/gallery/proto-isles/skeleton-blend-shape-v1-1200.webp?v=17b48f75 1200w,
+                                                    assets/derived/gallery/proto-isles/skeleton-blend-shape-v1-900.webp?v=17b48f75 900w,
+                                                    assets/derived/gallery/proto-isles/skeleton-blend-shape-v1-600.webp?v=17b48f75 600w"
+                          sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+                  <img src="assets/gallery/proto-isles/skeleton-blend-shape-v1.png" alt="A cartoon skeleton and a smooth blue droplet-headed body standing by a lake, two body shapes from the character editor" width="1920" height="920" loading="lazy" decoding="async">
+                </picture>
+                <!-- /img -->
+              </figure>
+              <figure data-pi-cat="environment" data-title="The molten moon gate">
+                <!-- img src="assets/gallery/proto-isles/molten-moon-gate-v1.png" slot="game-shot" alt="A huge stone ring framing a molten red moon at sunset, over a dark hill dotted with pine trees" -->
+                <picture>
+                  <source type="image/avif" srcset="assets/derived/gallery/proto-isles/molten-moon-gate-v1-1600.avif?v=f5d53f92 1600w,
+                                                    assets/derived/gallery/proto-isles/molten-moon-gate-v1-1200.avif?v=f5d53f92 1200w,
+                                                    assets/derived/gallery/proto-isles/molten-moon-gate-v1-900.avif?v=f5d53f92 900w,
+                                                    assets/derived/gallery/proto-isles/molten-moon-gate-v1-600.avif?v=f5d53f92 600w"
+                          sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+                  <source type="image/webp" srcset="assets/derived/gallery/proto-isles/molten-moon-gate-v1-1600.webp?v=f5d53f92 1600w,
+                                                    assets/derived/gallery/proto-isles/molten-moon-gate-v1-1200.webp?v=f5d53f92 1200w,
+                                                    assets/derived/gallery/proto-isles/molten-moon-gate-v1-900.webp?v=f5d53f92 900w,
+                                                    assets/derived/gallery/proto-isles/molten-moon-gate-v1-600.webp?v=f5d53f92 600w"
+                          sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+                  <img src="assets/gallery/proto-isles/molten-moon-gate-v1.png" alt="A huge stone ring framing a molten red moon at sunset, over a dark hill dotted with pine trees" width="1920" height="920" loading="lazy" decoding="async">
+                </picture>
+                <!-- /img -->
+              </figure>
+              <figure data-pi-cat="environment" data-title="Lakeside, morning">
+                <!-- img src="assets/gallery/proto-isles/lakeside-morning-v1.png" slot="game-shot" alt="A blue lake under a bright cloudy sky, low-poly pines and a tall standing stone on the far shore" -->
+                <picture>
+                  <source type="image/avif" srcset="assets/derived/gallery/proto-isles/lakeside-morning-v1-1600.avif?v=0882e3d9 1600w,
+                                                    assets/derived/gallery/proto-isles/lakeside-morning-v1-1200.avif?v=0882e3d9 1200w,
+                                                    assets/derived/gallery/proto-isles/lakeside-morning-v1-900.avif?v=0882e3d9 900w,
+                                                    assets/derived/gallery/proto-isles/lakeside-morning-v1-600.avif?v=0882e3d9 600w"
+                          sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+                  <source type="image/webp" srcset="assets/derived/gallery/proto-isles/lakeside-morning-v1-1600.webp?v=0882e3d9 1600w,
+                                                    assets/derived/gallery/proto-isles/lakeside-morning-v1-1200.webp?v=0882e3d9 1200w,
+                                                    assets/derived/gallery/proto-isles/lakeside-morning-v1-900.webp?v=0882e3d9 900w,
+                                                    assets/derived/gallery/proto-isles/lakeside-morning-v1-600.webp?v=0882e3d9 600w"
+                          sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+                  <img src="assets/gallery/proto-isles/lakeside-morning-v1.png" alt="A blue lake under a bright cloudy sky, low-poly pines and a tall standing stone on the far shore" width="1920" height="920" loading="lazy" decoding="async">
+                </picture>
+                <!-- /img -->
+              </figure>
+              <figure data-pi-cat="environment" data-title="The meadow at midday">
+                <!-- img src="assets/gallery/proto-isles/lake-midday-v1.png" slot="game-shot" alt="A grassy meadow with grey low-poly boulders, round shrubs and a pine tree under a midday sky" -->
+                <picture>
+                  <source type="image/avif" srcset="assets/derived/gallery/proto-isles/lake-midday-v1-1600.avif?v=8bef2ba0 1600w,
+                                                    assets/derived/gallery/proto-isles/lake-midday-v1-1200.avif?v=8bef2ba0 1200w,
+                                                    assets/derived/gallery/proto-isles/lake-midday-v1-900.avif?v=8bef2ba0 900w,
+                                                    assets/derived/gallery/proto-isles/lake-midday-v1-600.avif?v=8bef2ba0 600w"
+                          sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+                  <source type="image/webp" srcset="assets/derived/gallery/proto-isles/lake-midday-v1-1600.webp?v=8bef2ba0 1600w,
+                                                    assets/derived/gallery/proto-isles/lake-midday-v1-1200.webp?v=8bef2ba0 1200w,
+                                                    assets/derived/gallery/proto-isles/lake-midday-v1-900.webp?v=8bef2ba0 900w,
+                                                    assets/derived/gallery/proto-isles/lake-midday-v1-600.webp?v=8bef2ba0 600w"
+                          sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+                  <img src="assets/gallery/proto-isles/lake-midday-v1.png" alt="A grassy meadow with grey low-poly boulders, round shrubs and a pine tree under a midday sky" width="1920" height="920" loading="lazy" decoding="async">
+                </picture>
+                <!-- /img -->
+              </figure>
+              <figure data-pi-cat="environment" data-title="The lily pond">
+                <!-- img src="assets/gallery/proto-isles/pond-lily-pads-v1.png" slot="game-shot" alt="A lily-pad pond with a wooden jetty inside a stone castle wall, the sky orange at sunset" -->
+                <picture>
+                  <source type="image/avif" srcset="assets/derived/gallery/proto-isles/pond-lily-pads-v1-1600.avif?v=fab1ddcd 1600w,
+                                                    assets/derived/gallery/proto-isles/pond-lily-pads-v1-1200.avif?v=fab1ddcd 1200w,
+                                                    assets/derived/gallery/proto-isles/pond-lily-pads-v1-900.avif?v=fab1ddcd 900w,
+                                                    assets/derived/gallery/proto-isles/pond-lily-pads-v1-600.avif?v=fab1ddcd 600w"
+                          sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+                  <source type="image/webp" srcset="assets/derived/gallery/proto-isles/pond-lily-pads-v1-1600.webp?v=fab1ddcd 1600w,
+                                                    assets/derived/gallery/proto-isles/pond-lily-pads-v1-1200.webp?v=fab1ddcd 1200w,
+                                                    assets/derived/gallery/proto-isles/pond-lily-pads-v1-900.webp?v=fab1ddcd 900w,
+                                                    assets/derived/gallery/proto-isles/pond-lily-pads-v1-600.webp?v=fab1ddcd 600w"
+                          sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+                  <img src="assets/gallery/proto-isles/pond-lily-pads-v1.png" alt="A lily-pad pond with a wooden jetty inside a stone castle wall, the sky orange at sunset" width="1920" height="920" loading="lazy" decoding="async">
+                </picture>
+                <!-- /img -->
+              </figure>
+              <figure data-pi-cat="environment" data-title="The commons plaza at dusk">
+                <!-- img src="assets/gallery/proto-isles/commons-plaza-dusk-v1.png" slot="game-shot" alt="The town plaza at dusk: a round stone square with glowing portal doors, lamps and rocks, hills and pines behind" -->
+                <picture>
+                  <source type="image/avif" srcset="assets/derived/gallery/proto-isles/commons-plaza-dusk-v1-1600.avif?v=ca354be3 1600w,
+                                                    assets/derived/gallery/proto-isles/commons-plaza-dusk-v1-1200.avif?v=ca354be3 1200w,
+                                                    assets/derived/gallery/proto-isles/commons-plaza-dusk-v1-900.avif?v=ca354be3 900w,
+                                                    assets/derived/gallery/proto-isles/commons-plaza-dusk-v1-600.avif?v=ca354be3 600w"
+                          sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+                  <source type="image/webp" srcset="assets/derived/gallery/proto-isles/commons-plaza-dusk-v1-1600.webp?v=ca354be3 1600w,
+                                                    assets/derived/gallery/proto-isles/commons-plaza-dusk-v1-1200.webp?v=ca354be3 1200w,
+                                                    assets/derived/gallery/proto-isles/commons-plaza-dusk-v1-900.webp?v=ca354be3 900w,
+                                                    assets/derived/gallery/proto-isles/commons-plaza-dusk-v1-600.webp?v=ca354be3 600w"
+                          sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+                  <img src="assets/gallery/proto-isles/commons-plaza-dusk-v1.png" alt="The town plaza at dusk: a round stone square with glowing portal doors, lamps and rocks, hills and pines behind" width="1920" height="920" loading="lazy" decoding="async">
+                </picture>
+                <!-- /img -->
+              </figure>
+              <figure data-pi-cat="items" data-title="Frog grapple">
+                <!-- img src="assets/gallery/proto-isles/frog-grapple-v1.png" slot="game-shot" alt="A teal Proto Isles character holding a frog-shaped grappling gun in the town" -->
+                <picture>
+                  <source type="image/avif" srcset="assets/derived/gallery/proto-isles/frog-grapple-v1-1600.avif?v=1d6d106f 1600w,
+                                                    assets/derived/gallery/proto-isles/frog-grapple-v1-1200.avif?v=1d6d106f 1200w,
+                                                    assets/derived/gallery/proto-isles/frog-grapple-v1-900.avif?v=1d6d106f 900w,
+                                                    assets/derived/gallery/proto-isles/frog-grapple-v1-600.avif?v=1d6d106f 600w"
+                          sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+                  <source type="image/webp" srcset="assets/derived/gallery/proto-isles/frog-grapple-v1-1600.webp?v=1d6d106f 1600w,
+                                                    assets/derived/gallery/proto-isles/frog-grapple-v1-1200.webp?v=1d6d106f 1200w,
+                                                    assets/derived/gallery/proto-isles/frog-grapple-v1-900.webp?v=1d6d106f 900w,
+                                                    assets/derived/gallery/proto-isles/frog-grapple-v1-600.webp?v=1d6d106f 600w"
+                          sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+                  <img src="assets/gallery/proto-isles/frog-grapple-v1.png" alt="A teal Proto Isles character holding a frog-shaped grappling gun in the town" width="1920" height="920" loading="lazy" decoding="async">
+                </picture>
+                <!-- /img -->
+              </figure>
+              <figure data-pi-cat="items" data-title="Sniper">
+                <!-- img src="assets/gallery/proto-isles/sniper-v1.png" slot="game-shot" alt="A teal Proto Isles character holding a chunky blue and gold sniper rifle" -->
+                <picture>
+                  <source type="image/avif" srcset="assets/derived/gallery/proto-isles/sniper-v1-1600.avif?v=eff34d6f 1600w,
+                                                    assets/derived/gallery/proto-isles/sniper-v1-1200.avif?v=eff34d6f 1200w,
+                                                    assets/derived/gallery/proto-isles/sniper-v1-900.avif?v=eff34d6f 900w,
+                                                    assets/derived/gallery/proto-isles/sniper-v1-600.avif?v=eff34d6f 600w"
+                          sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+                  <source type="image/webp" srcset="assets/derived/gallery/proto-isles/sniper-v1-1600.webp?v=eff34d6f 1600w,
+                                                    assets/derived/gallery/proto-isles/sniper-v1-1200.webp?v=eff34d6f 1200w,
+                                                    assets/derived/gallery/proto-isles/sniper-v1-900.webp?v=eff34d6f 900w,
+                                                    assets/derived/gallery/proto-isles/sniper-v1-600.webp?v=eff34d6f 600w"
+                          sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+                  <img src="assets/gallery/proto-isles/sniper-v1.png" alt="A teal Proto Isles character holding a chunky blue and gold sniper rifle" width="1920" height="920" loading="lazy" decoding="async">
+                </picture>
+                <!-- /img -->
+              </figure>
+              <figure data-pi-cat="items" data-title="Submachine gun">
+                <!-- img src="assets/gallery/proto-isles/submachine-gun-v1.png" slot="game-shot" alt="A teal Proto Isles character holding a red and black submachine gun" -->
+                <picture>
+                  <source type="image/avif" srcset="assets/derived/gallery/proto-isles/submachine-gun-v1-1600.avif?v=559858f3 1600w,
+                                                    assets/derived/gallery/proto-isles/submachine-gun-v1-1200.avif?v=559858f3 1200w,
+                                                    assets/derived/gallery/proto-isles/submachine-gun-v1-900.avif?v=559858f3 900w,
+                                                    assets/derived/gallery/proto-isles/submachine-gun-v1-600.avif?v=559858f3 600w"
+                          sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+                  <source type="image/webp" srcset="assets/derived/gallery/proto-isles/submachine-gun-v1-1600.webp?v=559858f3 1600w,
+                                                    assets/derived/gallery/proto-isles/submachine-gun-v1-1200.webp?v=559858f3 1200w,
+                                                    assets/derived/gallery/proto-isles/submachine-gun-v1-900.webp?v=559858f3 900w,
+                                                    assets/derived/gallery/proto-isles/submachine-gun-v1-600.webp?v=559858f3 600w"
+                          sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+                  <img src="assets/gallery/proto-isles/submachine-gun-v1.png" alt="A teal Proto Isles character holding a red and black submachine gun" width="1920" height="920" loading="lazy" decoding="async">
+                </picture>
+                <!-- /img -->
+              </figure>
+              <figure data-pi-cat="items" data-title="Bow and arrow">
+                <!-- img src="assets/gallery/proto-isles/bow-and-arrow-v1.png" slot="game-shot" alt="A teal Proto Isles character holding a blue and gold bow" -->
+                <picture>
+                  <source type="image/avif" srcset="assets/derived/gallery/proto-isles/bow-and-arrow-v1-1600.avif?v=592d6624 1600w,
+                                                    assets/derived/gallery/proto-isles/bow-and-arrow-v1-1200.avif?v=592d6624 1200w,
+                                                    assets/derived/gallery/proto-isles/bow-and-arrow-v1-900.avif?v=592d6624 900w,
+                                                    assets/derived/gallery/proto-isles/bow-and-arrow-v1-600.avif?v=592d6624 600w"
+                          sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+                  <source type="image/webp" srcset="assets/derived/gallery/proto-isles/bow-and-arrow-v1-1600.webp?v=592d6624 1600w,
+                                                    assets/derived/gallery/proto-isles/bow-and-arrow-v1-1200.webp?v=592d6624 1200w,
+                                                    assets/derived/gallery/proto-isles/bow-and-arrow-v1-900.webp?v=592d6624 900w,
+                                                    assets/derived/gallery/proto-isles/bow-and-arrow-v1-600.webp?v=592d6624 600w"
+                          sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+                  <img src="assets/gallery/proto-isles/bow-and-arrow-v1.png" alt="A teal Proto Isles character holding a blue and gold bow" width="1920" height="920" loading="lazy" decoding="async">
+                </picture>
+                <!-- /img -->
+              </figure>
+              <figure data-pi-cat="items" data-title="Backpack">
+                <!-- img src="assets/gallery/proto-isles/backpack-v1.png" slot="game-shot" alt="A teal Proto Isles character seen from behind wearing a navy backpack with a glowing face" -->
+                <picture>
+                  <source type="image/avif" srcset="assets/derived/gallery/proto-isles/backpack-v1-1600.avif?v=539130d2 1600w,
+                                                    assets/derived/gallery/proto-isles/backpack-v1-1200.avif?v=539130d2 1200w,
+                                                    assets/derived/gallery/proto-isles/backpack-v1-900.avif?v=539130d2 900w,
+                                                    assets/derived/gallery/proto-isles/backpack-v1-600.avif?v=539130d2 600w"
+                          sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+                  <source type="image/webp" srcset="assets/derived/gallery/proto-isles/backpack-v1-1600.webp?v=539130d2 1600w,
+                                                    assets/derived/gallery/proto-isles/backpack-v1-1200.webp?v=539130d2 1200w,
+                                                    assets/derived/gallery/proto-isles/backpack-v1-900.webp?v=539130d2 900w,
+                                                    assets/derived/gallery/proto-isles/backpack-v1-600.webp?v=539130d2 600w"
+                          sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+                  <img src="assets/gallery/proto-isles/backpack-v1.png" alt="A teal Proto Isles character seen from behind wearing a navy backpack with a glowing face" width="1920" height="920" loading="lazy" decoding="async">
+                </picture>
+                <!-- /img -->
+              </figure>
+              <figure data-pi-cat="pets" data-title="Green dragon">
+                <!-- img src="assets/gallery/proto-isles/green-dragon-v1.png" slot="game-shot" alt="A small lime-green dragon pet with bat wings flying over the grass in the town" -->
+                <picture>
+                  <source type="image/avif" srcset="assets/derived/gallery/proto-isles/green-dragon-v1-1600.avif?v=9f83c4c7 1600w,
+                                                    assets/derived/gallery/proto-isles/green-dragon-v1-1200.avif?v=9f83c4c7 1200w,
+                                                    assets/derived/gallery/proto-isles/green-dragon-v1-900.avif?v=9f83c4c7 900w,
+                                                    assets/derived/gallery/proto-isles/green-dragon-v1-600.avif?v=9f83c4c7 600w"
+                          sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+                  <source type="image/webp" srcset="assets/derived/gallery/proto-isles/green-dragon-v1-1600.webp?v=9f83c4c7 1600w,
+                                                    assets/derived/gallery/proto-isles/green-dragon-v1-1200.webp?v=9f83c4c7 1200w,
+                                                    assets/derived/gallery/proto-isles/green-dragon-v1-900.webp?v=9f83c4c7 900w,
+                                                    assets/derived/gallery/proto-isles/green-dragon-v1-600.webp?v=9f83c4c7 600w"
+                          sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+                  <img src="assets/gallery/proto-isles/green-dragon-v1.png" alt="A small lime-green dragon pet with bat wings flying over the grass in the town" width="1920" height="920" loading="lazy" decoding="async">
+                </picture>
+                <!-- /img -->
+              </figure>
+            </div>
           </article>
         </div>
 
