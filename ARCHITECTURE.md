@@ -114,7 +114,10 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
   (the AI Lab player's `.cl-*` controls, shared) hides under a playing
   video until the frame is hovered, with the unmute (`data-audio`) staying
   up while the sound is off, and the caption and the eye/download pair sit
-  above it. A click anywhere on the frame pauses or plays it. The eye presses the AI
+  above it. A click anywhere on the frame pauses or plays it. Muted, the
+  speaker is the grey struck-through `volume-slash`; right of it `.fv-full`
+  puts the whole slot full screen (the video's own player on an iPhone, which
+  has no element full screen), where only the bar comes along. The eye presses the AI
   Lab card's own eye once the scroll there has ended, and its tip clones the
   first Mobius gallery `<picture>` via `data-tip-thumb`), one `initTabs()`
   behind four tablists, `initGallery({id, root, panel})` — ONE carousel +
