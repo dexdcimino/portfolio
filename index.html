@@ -422,9 +422,15 @@
             <!-- /img -->
             <video class="fv-video" muted playsinline loop preload="none"
                    aria-label="Mobius 3D in use: a violet trefoil knot animating, changing accent colour, orbiting and being reshaped with a blend shape, to a chillstep soundtrack"></video>
-            <button class="fv-info" type="button" aria-expanded="false"
-                    aria-label="About Mobius 3D"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 10.6v5.6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><circle cx="12" cy="7.4" r="1.35" fill="currentColor"/></svg></button>
-            <p class="fv-desc" hidden>Windows 3D Viewer sucks, so I made my own: a viewer for the desktop and the web that opens GLB, FBX, OBJ, STL, USDZ and more, plays a model&#8217;s animations and blend shapes, and keeps getting new features.</p>
+            <!-- NO INFO ICON ON THIS SLOT (Dex, 2026-10-09). Its description is
+                 always up instead, and only in the ENLARGED video: a portrait
+                 panel in the dead space to its right, centred under the eye,
+                 the X and the download. The words are the AI Lab card's own
+                 (#mobiusCard's data-desc-lead and data-desc-body, read by
+                 initFeaturedVideo), so the two can never say different things. -->
+            <aside class="fv-about" data-about="mobiusCard" aria-label="About Mobius 3D">
+              <strong class="fv-about-head">The pitch</strong>
+            </aside>
             <button class="fv-play" type="button" aria-label="Play Mobius 3D">
               <span class="fv-disc"><span class="icon" data-icon="play" aria-hidden="true"></span></span>
             </button>

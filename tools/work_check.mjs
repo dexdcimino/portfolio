@@ -1034,6 +1034,15 @@ await page.waitForFunction(
      TAPE, not against .fv-soon's box: that box is 44% of the frame tall and
      mostly empty at the top, so a box-to-box test calls a clean layout a
      collision. What the complaint was about is ink on ink. */
+  /* Mobius 3D has no info icon any more (Dex, 2026-10-09): its words are the
+     pitch beside the ENLARGED video, section 12b. The icon is Proto Isles'
+     now, so the popover is measured there and the stage goes back after. */
+  const mobiusIcons = await page.evaluate(() =>
+    document.querySelectorAll('.fv-has-video .fv-info, .fv-has-video .fv-desc').length);
+  note(mobiusIcons === 0, `the Mobius slot still has ${mobiusIcons} info icon/description element(s)`);
+  await page.evaluate(() => document.querySelector('[data-fv="1"]').click());
+  await page.waitForFunction(() => document.querySelector('.fv-gallery')?.classList.contains('is-on'), { timeout: 5000 });
+  await new Promise(r => setTimeout(r, 600));
   await page.hover('.fv-item.is-on .fv-info');
   await new Promise(r => setTimeout(r, 420));
   const desc = await page.evaluate(() => {
@@ -1067,11 +1076,86 @@ await page.waitForFunction(
                   : `the description is ${desc.offCentre}px off the icon's centre line`);
   note(!desc.onTape, 'the description is printed over the UNDER CONSTRUCTION strip');
   note(desc.widthShare < 70, `the description spans ${desc.widthShare}% of the frame`);
-  // Mobius 3D (the first) says why it exists; the one placeholder still agrees.
-  note(desc.texts.length === 2 && /Windows 3D Viewer/.test(desc.texts[0]),
-       `the Mobius slot's description reads "${desc.texts[0]}"`);
-  note(new Set(desc.texts.slice(1)).size === 1,
-       `the placeholder slots say ${new Set(desc.texts.slice(1)).size} different things, expected one`);
+  // One description left on the small cards: Proto Isles'.
+  note(desc.texts.length === 1 && /game I am building/.test(desc.texts[0]),
+       `the small cards' descriptions read ${JSON.stringify(desc.texts)}`);
+  await page.mouse.move(5, 5);
+  await page.evaluate(() => document.querySelector('[data-fv="-1"]').click());
+  await page.waitForFunction(() => document.querySelector('.fv-has-video')?.classList.contains('is-on'), { timeout: 5000 });
+  await new Promise(r => setTimeout(r, 600));
+}
+
+/* ---- 12b. the enlarged Mobius video: the pitch, and its sound -----------
+   FALSELY PASSES IF: the panel were found in the DOM but never shown (it is
+   display:none until placeAbout() says it fits), shown but inside the video,
+   or shown with no words because #mobiusCard's data-desc-* were not read.
+   The sound half: enlarging unmutes it, and a visitor who mutes by hand is
+   not unmuted by the NEXT enlarge -- driven with a real double click on the
+   picture and a real click on the button, not by calling the function. */
+{
+  const vp = page.viewport();
+  await page.setViewport({ width: 1440, height: 900 });
+  await page.evaluate(() => { try { localStorage.removeItem('fv-sound-by-hand'); } catch {} });
+  await page.$eval('#featVideo', el => el.scrollIntoView({ block: 'center', behavior: 'instant' }));
+  await new Promise(r => setTimeout(r, 500));
+  const mid = await page.$eval('.fv-has-video', el => { const r = el.getBoundingClientRect();
+    return { x: r.left + r.width * .3, y: r.top + r.height * .4 }; });
+  await page.mouse.click(mid.x, mid.y, { count: 2 });   // a real double click: two clicks, then dblclick
+  await page.waitForFunction(() => document.querySelector('.fv-has-video')?.matches(':popover-open'), { timeout: 5000 });
+  await new Promise(r => setTimeout(r, 400));
+  const big = await page.evaluate(() => {
+    const item = document.querySelector('.fv-has-video');
+    const a = item.querySelector('.fv-about'), head = a.querySelector('.fv-about-head');
+    const lead = a.querySelector('.fv-about-lead');
+    const ab = a.getBoundingClientRect(), vb = item.getBoundingClientRect();
+    const dl = item.querySelector('.fv-get').getBoundingClientRect();
+    const px = el => parseFloat(getComputedStyle(el).fontSize);
+    return {
+      shown: getComputedStyle(a).display !== 'none' && ab.width > 0,
+      outside: ab.left >= vb.right, below: Math.round(ab.top - dl.bottom),
+      offCentre: Math.round((ab.left + ab.right) / 2 - (dl.left + dl.right) / 2),
+      portrait: ab.height > ab.width, inView: ab.bottom <= innerHeight && ab.right <= innerWidth,
+      head: head.textContent.trim(), headPx: px(head), textPx: px(lead),
+      headWeight: +getComputedStyle(head).fontWeight,
+      headAccent: (() => { const p = document.createElement('i'); p.style.color = 'var(--accent)';
+        document.body.append(p); const c = getComputedStyle(p).color; p.remove();
+        return getComputedStyle(head).color === c; })(),
+      lead: lead?.textContent.trim() || '',
+      card: document.getElementById('mobiusCard').dataset.descLead,
+      muted: item.querySelector('.fv-video').muted,
+    };
+  });
+  console.log(`enlarged: the pitch ${big.shown ? 'shown' : 'NOT shown'}, ${big.below}px under the download, ` +
+              `${big.offCentre}px off its centre, head "${big.head}" ${big.headPx}px over ${big.textPx}px; muted=${big.muted}`);
+  note(big.shown, 'the enlarged video shows no pitch at 1440x900');
+  note(big.outside, 'the pitch is inside the video');
+  note(big.below > 0 && big.below < 60, `the pitch is ${big.below}px under the download`);
+  note(Math.abs(big.offCentre) <= 2, `the pitch is ${big.offCentre}px off the column's centre`);
+  note(big.portrait && big.inView, 'the pitch is not a portrait card on screen');
+  note(big.head.length > 0 && big.head.split(/\s+/).length <= 3, `the pitch's head reads "${big.head}"`);
+  note(big.headPx - big.textPx === 2 && big.headWeight >= 700 && big.headAccent,
+       `the head is ${big.headPx}px/${big.headWeight} over ${big.textPx}px text, accent=${big.headAccent}`);
+  note(big.lead === big.card, `the pitch reads "${big.lead}", the AI Lab card "${big.card}"`);
+  note(big.muted === false, 'enlarging the video left it muted');
+
+  // Muted by hand, shrunk, enlarged again by the button: stays muted.
+  await page.evaluate(() => { const m = document.querySelector('.fv-has-video .fv-mute'); m.hidden = false; });
+  await page.$eval('.fv-has-video .fv-mute', el => el.click());
+  const handMuted = await page.$eval('.fv-has-video .fv-video', v => v.muted);
+  await page.keyboard.press('Escape');
+  await page.waitForFunction(() => !document.querySelector('.fv-has-video')?.matches(':popover-open'), { timeout: 5000 });
+  const aboutGone = await page.$eval('.fv-has-video .fv-about', a => getComputedStyle(a).display === 'none');
+  await page.$eval('.fv-has-video .fv-full', el => el.click());
+  await page.waitForFunction(() => document.querySelector('.fv-has-video')?.matches(':popover-open'), { timeout: 5000 });
+  const again = await page.$eval('.fv-has-video .fv-video', v => v.muted);
+  console.log(`muted by hand=${handMuted}, then enlarged again by the button: muted=${again}`);
+  note(handMuted, 'the mute button did not mute');
+  note(aboutGone, 'the pitch is still up on the small card');
+  note(again === true, 'a visitor who muted by hand was unmuted by the next enlarge');
+  await page.keyboard.press('Escape');
+  await page.evaluate(() => { try { localStorage.removeItem('fv-sound-by-hand'); } catch {} });
+  await page.setViewport(vp);
+  await new Promise(r => setTimeout(r, 300));
 }
 
 /* ---- 13. the eye's thumbnail tooltip -------------------------------------
