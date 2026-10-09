@@ -1,7 +1,7 @@
 {
   "id": "/dexnote/",
-  "name": "DexNote",
-  "short_name": "DexNote",
+  "name": "dexnote",
+  "short_name": "dexnote",
   "start_url": "/dexnote/",
   "scope": "/dexnote/",
   "display": "standalone",
