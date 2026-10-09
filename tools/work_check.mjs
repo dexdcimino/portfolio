@@ -1256,6 +1256,43 @@ await page.waitForFunction(
     [...document.querySelectorAll('#aiApps .ai-card strong')].map(s => s.textContent.trim()));
   note(order[1] === 'Mobius 3D' && order[2] === 'Inko',
        `the AI Lab order is ${order.slice(0, 4).join(' / ')} — Mobius 3D belongs second, above Inko`);
+  /* EVERY AI Lab eye and download raises its tip ABOVE itself, centred on it
+     (Dex, 2026-10-09) -- the page default is below. A REAL pointer onto each
+     visible one, hit-tested first; the bubble is measured, not the attribute,
+     and the count is asserted so an empty walk cannot pass. */
+  {
+    const marks = await page.evaluate(() => [...document.querySelectorAll('#aiApps .ai-card-eye[data-tip], #aiApps .ai-card-dl[data-tip]')]
+      .filter(b => b.getClientRects().length && getComputedStyle(b).visibility !== 'hidden').length);
+    note(marks >= 9, `only ${marks} AI Lab eyes and downloads carry a tip, expected at least 9`);
+    let above = 0;
+    for (let i = 0; i < marks; i++) {
+      const at = await page.evaluate((i) => {
+        const b = [...document.querySelectorAll('#aiApps .ai-card-eye[data-tip], #aiApps .ai-card-dl[data-tip]')]
+          .filter(b => b.getClientRects().length && getComputedStyle(b).visibility !== 'hidden')[i];
+        b.scrollIntoView({ block: 'center', behavior: 'instant' });
+        const r = b.getBoundingClientRect();
+        return { x: r.left + r.width / 2, y: r.top + r.height / 2, tip: b.dataset.tip };
+      }, i);
+      await page.mouse.move(5, 5);
+      await new Promise(r => setTimeout(r, 150));
+      await page.mouse.move(at.x, at.y, { steps: 4 });
+      await new Promise(r => setTimeout(r, 400));
+      const m = await page.evaluate((x, y) => {
+        const b = document.elementFromPoint(x, y)?.closest('.ai-card-eye, .ai-card-dl');
+        const t = document.getElementById('tip');
+        if (!b) return { hit: false };
+        const tb = t.getBoundingClientRect(), r = b.getBoundingClientRect();
+        return { hit: true, on: t.classList.contains('is-on'), text: t.textContent.trim(),
+                 gap: Math.round(r.top - tb.bottom), off: Math.round((tb.left + tb.right) / 2 - (r.left + r.right) / 2) };
+      }, at.x, at.y);
+      const ok = m.hit && m.on && m.text === at.tip && m.gap >= 0 && m.gap < 30 && Math.abs(m.off) <= 2;
+      if (ok) above++;
+      else note(false, `the "${at.tip}" tip in the AI Lab: ${JSON.stringify(m)} -- it belongs centred ABOVE the button`);
+    }
+    note(above === marks, `${above} of ${marks} AI Lab tips sit centred above their button`);
+    console.log(`ai lab tips: ${above} of ${marks} centred above their button`);
+    await page.mouse.move(5, 5);
+  }
   /* A REAL click on the eye: the overlay is opened by the button's own
      handler, and the sandbox is decided there. Measured and hit-tested first,
      because a click on stale coordinates lands on whatever is there instead. */
