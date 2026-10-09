@@ -5747,8 +5747,16 @@ body.modal-open{overflow:hidden}
 .app-modal[open]{display:grid;place-items:center}
 .app-modal::backdrop{background:rgba(4,6,8,.78);backdrop-filter:blur(4px)}
 .app-shell{position:relative;display:grid;justify-items:center;gap:8px}
-/* Outside the phone, not on it — that rectangle belongs to the app. */
-.app-close{position:absolute;top:-6px;right:-52px;z-index:3}
+/* Outside the frame, not on it — that rectangle belongs to the app. The
+   enlarged Mobius video's X (Dex, 2026-10-09): 52px, centred both ways in the
+   empty space right of the frame, whatever that frame's width. The shell is
+   the frame's width and centred, so the gap is (100vw - 100%) / 2 and its
+   middle sits a quarter of that past the frame's edge. The 11px is half the
+   hint row under the frame, so the X is level with the frame's middle. */
+.app-close{position:absolute;z-index:3;width:52px;height:52px;border-radius:14px;
+  background:rgba(8,11,15,.72);color:#c9d0d6;
+  top:calc(50% - 11px - 26px);right:calc((100% - 100vw) / 4 - 26px)}
+.app-close svg{width:22px;height:22px}
 .app-phone{
   /* Sized from HEIGHT so the phone grows with the window. The 880px cap this
      replaces was the reason a tall monitor showed a small phone floating in a
@@ -5809,7 +5817,8 @@ body.modal-open{overflow:hidden}
 /* Narrow desktop windows: the close button has nowhere to sit beside the frame,
    so it moves over the backdrop above it rather than onto the app. */
 @media (max-width:900px){
-  .app-close{top:-46px;right:0}
+  .app-close{top:-46px;right:0;width:36px;height:36px;border-radius:10px}
+  .app-close svg{width:17px;height:17px}
   .app-phone{max-width:calc(100vw - 32px)}
   .app-modal[data-shape="window"] .app-phone{
     width:min(960px,calc(100vw - 32px),calc(86dvh * 960 / 875));
