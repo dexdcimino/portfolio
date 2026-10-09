@@ -2735,8 +2735,8 @@ if (workModal) {
        the X goes back inside the corner with the other two left out. */
     const acts = item.querySelector('.fv-actions');
     /* THE PITCH (Dex, 2026-10-09): the description, always up, in that same
-       dead space under the column -- portrait, centred on it, never inside the
-       video. Its words are the AI Lab card's lead and body. Where the gap is
+       dead space under the column -- portrait, centred on it, its bottom on
+       the video's bottom edge, never inside the video. Its words are the AI Lab card's lead and body. Where the gap is
        too short for both it keeps the lead, and where it cannot hold even
        that it is not shown at all rather than clipped. */
     const about = item.querySelector('.fv-about');
@@ -2749,6 +2749,65 @@ if (workModal) {
         p.textContent = aboutCard.dataset[key];
         about.append(p);
       }
+    }
+    /* THE PITCH ON THE CARD (Dex, 2026-10-09): an info button just right of
+       the title, on its bottom line. Hovering it swaps it for a wide copy of
+       the pitch that grows up and right from where the button was, across the
+       gap to the download; it stays while the pointer is on it or the button
+       and folds back into the button when the pointer leaves both. A tap or a
+       key press toggles it, a tap elsewhere or Escape folds it. */
+    const pitchBtn = item.querySelector('.fv-pitch-btn');
+    if (pitchBtn && about) {
+      const pop = about.cloneNode(true);
+      pop.className = 'fv-pitch-pop';
+      pop.removeAttribute('data-about');
+      pop.hidden = true;
+      item.append(pop);
+      let shutAt = 0;
+      const place = () => {
+        const ir = item.getBoundingClientRect(), br = pitchBtn.getBoundingClientRect();
+        const ar = item.querySelector('.fv-actions')?.getBoundingClientRect();
+        const end = (ar && ar.width ? ar.left : ir.right) - ir.left - 16;
+        let left = br.left - ir.left, bottom = ir.bottom - br.bottom;
+        /* Too little gap beside the title for the words: it stands on the
+           title instead, from the caption's left edge to the download. */
+        if (end - left < 260) {
+          const mr = pitchBtn.closest('.card-meta').getBoundingClientRect();
+          left = mr.left - ir.left;
+          bottom = ir.bottom - mr.top + 8;
+        }
+        const width = Math.max(200, Math.min(460, end - left));
+        left = Math.max(14, Math.min(left, end - width));
+        pop.style.cssText = `left:${left}px;bottom:${bottom}px;width:${width}px;max-height:${ir.height - bottom - 14}px`;
+        pop.style.transformOrigin = `${br.left - ir.left - left + br.width / 2}px 100%`;
+        pop.classList.remove('is-short');
+        if (pop.scrollHeight > pop.clientHeight + 1) pop.classList.add('is-short');
+      };
+      const set = open => {
+        clearTimeout(shutAt);
+        if (open === (pitchBtn.getAttribute('aria-expanded') === 'true')) return;
+        if (open) { pop.hidden = false; place(); }
+        pitchBtn.setAttribute('aria-expanded', String(open));
+        item.classList.toggle('is-pitched', open);
+        if (!open) shutAt = setTimeout(() => { pop.hidden = true; }, 260);
+      };
+      const later = () => { clearTimeout(shutAt); shutAt = setTimeout(() => set(false), 220); };
+      for (const el of [pitchBtn, pop]) {
+        el.addEventListener('pointerenter', e => { if (e.pointerType === 'mouse') set(true); });
+        el.addEventListener('pointerleave', e => { if (e.pointerType === 'mouse') later(); });
+      }
+      pitchBtn.addEventListener('click', e => {
+        e.stopPropagation();
+        set(pitchBtn.getAttribute('aria-expanded') !== 'true');
+      });
+      document.addEventListener('pointerdown', e => {
+        if (pitchBtn.getAttribute('aria-expanded') === 'true' && !pop.contains(e.target) && !pitchBtn.contains(e.target)) set(false);
+      });
+      document.addEventListener('keydown', e => {
+        if (e.key !== 'Escape' || pitchBtn.getAttribute('aria-expanded') !== 'true') return;
+        e.stopPropagation(); set(false);
+      }, true);
+      window.addEventListener('resize', () => { if (!pop.hidden) place(); });
     }
     /* Sized first, placed second: how tall it is decides whether the column
        has to rise to make room for it. Narrower than 200px it keeps only the
@@ -2782,16 +2841,20 @@ if (workModal) {
       }
       /* The column stays centred on the video unless the pitch under it would
          run off the bottom; then the two rise together, never above 14px. */
+      /* The pitch's bottom edge is the video's bottom edge (Dex). The column
+         stays centred on the video unless the card would reach it; then the
+         column rises, never above 14px. */
       const tall = acts ? acts.offsetHeight : size, sep = 28;
-      const panel = sizeAbout(gap, innerHeight - 28 - tall - sep);
+      const floor = item.offsetTop + item.offsetHeight;
+      const panel = sizeAbout(gap, floor - 14 - tall - sep);
       let top = cy - tall / 2;
-      if (panel) top = Math.max(14, Math.min(top, innerHeight - 14 - panel - sep - tall));
+      if (panel) top = Math.max(14, Math.min(top, floor - panel - sep - tall));
       close.style.left = (cx - size / 2) + 'px';
       close.style.top = (top + tall / 2 - size / 2) + 'px';
       if (acts) acts.style.cssText = `left:${cx - size / 2}px;top:${top}px;right:auto;bottom:auto`;
       if (panel) {
         about.style.left = (cx - about.offsetWidth / 2) + 'px';
-        about.style.top = (top + tall + sep) + 'px';
+        about.style.top = (floor - panel) + 'px';
       }
     }
     window.addEventListener('resize', placeClose);
@@ -2813,7 +2876,7 @@ if (workModal) {
     close?.addEventListener('click', shrink);
     // A double click on the picture enlarges it (Dex), and in the overlay shrinks it.
     item.addEventListener('dblclick', e => {
-      if (e.target.closest('.fv-bar, .fv-actions, .fv-info, .fv-desc, .fv-about, .fv-close')) return;
+      if (e.target.closest('.fv-bar, .fv-actions, .fv-info, .fv-desc, .fv-about, .fv-pitch-pop, .fv-close')) return;
       clearTimeout(flipLater);
       isMax() ? shrink() : enlarge();
     });

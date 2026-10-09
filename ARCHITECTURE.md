@@ -178,11 +178,16 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
   into the popover with them. Under that column, in the same gap, a portrait
   `.fv-about` card ("The pitch", the accent, bold, 2px over its 14px text)
   holds `#mobiusCard`'s `data-desc-lead` and `data-desc-body`, copied in at
-  init so the two never disagree; `placeAbout`/`sizeAbout` keep only the lead
+  init so the two never disagree, its bottom edge on the video's bottom edge; `placeClose`/`sizeAbout` keep only the lead
   under 200px wide, hide it where even that will not fit, and raise the column
   rather than let it run off the bottom. A slot with a `.fv-about` keeps 200px
   either side when enlarged (from 900px wide) so a 1440x900 laptop has room.
-  The Mobius slot has no info icon: this card is its description. Enlarging,
+  On the small card the info button sits in the title (`.fv-pitch-btn`, on
+  its bottom line, hover-only like Proto Isles'); hovering it swaps it for
+  `.fv-pitch-pop`, a wider clone of the pitch grown up and right from the
+  button to the download (or stood on the caption when that gap is under
+  260px), kept while the pointer is on either and folded 220ms after it
+  leaves both; a tap toggles it, a tap elsewhere or Escape folds it. Enlarging,
   by either route, UNMUTES it (`soundUp()`) until the visitor sets the sound
   by hand (the card's speaker, its volume or the floating mute), which is
   kept in `localStorage` `fv-sound-by-hand`; the music muting it through
