@@ -114,7 +114,7 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
   (the AI Lab player's `.cl-*` controls, shared) hides under a playing
   video until the frame is hovered, and the caption and the eye/download pair
   sit above it. Hover and the bar slides up into its strip, pushing the
-  caption and the pair up with it, all on one slow ease (`--fv-t`, .75s);
+  caption and the pair up with it, all on one slow ease (`--fv-t`, .5s);
   unhovered they sit on the bottom row. Nothing moves sideways. With a mouse
   the unmute (`data-audio`) shows on hover only, muted or not, and never
   leaves the bar's corner; on touch a muted one stays in that corner and the

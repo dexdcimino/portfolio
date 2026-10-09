@@ -1242,17 +1242,19 @@ html.dex-cursor button.app-art-view{cursor:zoom-in}
 .fv-bar .cl-btn[hidden]{display:none}
 /* Playing, the bar keeps out of the picture until the pointer is over the
    frame (or focus is in it): a click anywhere pauses, and paused it is up for
-   good. One slow ease (--fv-t, Dex: three times the old .25s, so hovering on
+   good. One slow ease (--fv-t, Dex: twice the old .25s, so hovering on
    and off does not flail) moves everything together: the bar slides up into
    its strip and pushes the caption and the download/preview pair up with it.
    Nothing moves sideways. With a mouse the speaker shows on hover only,
    muted or not, and never leaves its corner; on touch, where there is no
    hover, a muted speaker stays in the corner and the rest stays put. */
-.fv-item{--fv-t:.75s cubic-bezier(.33,0,.2,1)}
-.fv-bar>*{transition:opacity var(--fv-t),transform var(--fv-t)}
+.fv-item{--fv-t:.5s cubic-bezier(.33,0,.2,1)}
+/* Two classes deep, or .cl-btn's own transition (later in the sheet, same
+   weight) wins and play, enlarge and the speaker pop in while the rest eases. */
+.fv-item .fv-bar>*{transition:opacity var(--fv-t),transform var(--fv-t),color var(--accent-ease),background var(--accent-ease)}
 .fv-item.is-playing:not(:hover):not(:has(:focus-visible)) .fv-bar::before{opacity:0}
 .fv-item.is-playing:not(:hover):not(:has(:focus-visible)) .fv-bar>*:not(.fv-vol){opacity:0;transform:translateY(22px)}
-.fv-mute{transition:opacity var(--fv-t),color var(--accent-ease),background .2s ease}
+.fv-item .fv-mute{transition:opacity var(--fv-t),color var(--accent-ease),background .2s ease}
 .fv-item.is-playing:not(.is-muted):not(:hover):not(:has(:focus-visible)) .fv-mute{opacity:0}
 @media (hover:hover){
   .fv-item.is-playing:not(:hover):not(:has(:focus-visible)) .fv-mute{opacity:0}
@@ -1353,7 +1355,7 @@ html.fv-maxed .fv-item:popover-open{pointer-events:auto}
 .fv-item.is-side:popover-open .fv-actions{display:flex;position:fixed;flex-direction:column;gap:80px;
   z-index:5;opacity:1;pointer-events:auto;transition:none}
 .fv-item.is-side:popover-open .fv-eye{order:-1;display:grid}
-@media(prefers-reduced-motion:reduce){.fv-item:popover-open{animation:none}.fv-vol-pop,.fv-has-video .card-meta,.fv-actions,.fv-mute,.fv-bar>*,.fv-bar::before{transition:none}}
+@media(prefers-reduced-motion:reduce){.fv-item:popover-open{animation:none}.fv-vol-pop,.fv-has-video .card-meta,.fv-actions,.fv-item .fv-mute,.fv-item .fv-bar>*,.fv-bar::before{transition:none}}
 /* Before a source exists there is nothing to scrub. */
 .fv-has-video:not([data-src^="https"]) :is(.fv-bar,.fv-play){display:none}
 /* No blue flash on a phone tap: the slot draws its own pressed and focus states. */
