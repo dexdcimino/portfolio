@@ -125,7 +125,11 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
   centred at the video's own aspect (`--fv-ar`, so no side bars) over a dimmed
   page, closed by its `.fv-close` X, a click outside or Escape (the video's
   own player where there is no popover). Only the bar comes along. Both buttons'
-  tips carry `data-tip-big`. The eye presses the AI
+  tips carry `data-tip-big`. With the sound on it keeps playing when it
+  scrolls out of view, and a `.fv-float` copy of the mute flies (a FLIP
+  transform) from the card to just under `#accentSwatches`, re-placed every
+  frame so it follows the picker open and shut; muted from there it keeps
+  playing until the card is back, when the copy flies home. The eye presses the AI
   Lab card's own eye once the scroll there has ended, and its tip clones the
   first Mobius gallery `<picture>` via `data-tip-thumb`), one `initTabs()`
   behind four tablists, `initGallery({id, root, panel})` — ONE carousel +

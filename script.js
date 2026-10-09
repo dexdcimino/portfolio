@@ -2070,14 +2070,85 @@ if (workModal) {
         icon(mute, video.muted ? 'volume-slash' : 'volume');
         mute.setAttribute('aria-label', video.muted ? 'Unmute' : 'Mute');
       }
+      floatPaint();
+      floatUpdate();
     }
     function start() {
       if (!video.src) { video.src = src; video.preload = 'auto'; }
       video.play().catch(() => {});   // a refused autoplay leaves the poster and the disc up
     }
+    /* Sound on, the video keeps playing when it scrolls away (Dex), and a copy
+       of the mute flies from the card to just under the accent picker, so it
+       can be silenced from anywhere on the page. Muted from there it stays,
+       still playing, until the card is back in view; muted the ordinary way
+       it pauses off screen as it always did. */
+    let floatHeld = false;
+    const audible = () => !video.muted || floatHeld;
     function sync() {
-      if (wanted && seen && item.classList.contains('is-on') && !document.hidden) start();
+      if (wanted && (seen || audible()) && item.classList.contains('is-on') && !document.hidden) start();
       else video.pause();
+      floatUpdate();
+    }
+    let floatBtn = null, floatOn = false, floatRaf = 0;
+    const still = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+    function floatSpot() {
+      const sw = document.getElementById('accentSwatches'), size = floatBtn.offsetWidth || 40;
+      const r = sw?.getBoundingClientRect();
+      // Under the picker's open panel too, which hangs 10px below its swatches.
+      if (!r || !r.width) return { left: innerWidth - 14 - size, top: 14 };
+      return { left: r.left + r.width / 2 - size / 2, top: r.bottom + 18 };
+    }
+    function floatTrack() {
+      const at = floatSpot();
+      floatBtn.style.left = at.left + 'px';
+      floatBtn.style.top = at.top + 'px';
+      floatRaf = requestAnimationFrame(floatTrack);
+    }
+    function floatFly(fromCard) {
+      const card = mute.getBoundingClientRect(), at = floatSpot();
+      if (still() || !card.width) return null;
+      const off = `translate(${card.left - at.left}px,${card.top - at.top}px)`;
+      return floatBtn.animate(fromCard ? [{ transform: off }, { transform: 'none' }] : [{ transform: 'none' }, { transform: off }],
+        { duration: 520, easing: 'cubic-bezier(.22,.61,.36,1)' });
+    }
+    function floatUpdate() {
+      if (!mute) return;
+      const want = !seen && !video.paused && item.classList.contains('is-on') && audible();
+      if (want === floatOn) return;
+      floatOn = want;
+      if (want) {
+        if (!floatBtn) {
+          floatBtn = document.createElement('button');
+          floatBtn.type = 'button';
+          floatBtn.className = 'fv-float';
+          floatBtn.dataset.tip = 'Mute Mobius 3D';
+          floatBtn.innerHTML = '<span class="icon" data-icon="volume" aria-hidden="true"></span>';
+          floatBtn.addEventListener('click', () => {
+            video.muted = !video.muted;
+            if (!video.muted && video.volume === 0) video.volume = .5;
+            floatHeld = true;
+            paint(); fillLevel();
+          });
+          document.body.append(floatBtn);
+        }
+        floatBtn.getAnimations().forEach(a => a.cancel());
+        floatBtn.hidden = false;
+        floatPaint();
+        cancelAnimationFrame(floatRaf);
+        floatTrack();
+        floatFly(true);
+      } else if (floatBtn) {
+        const back = seen ? floatFly(false) : null;
+        const done = () => { if (floatOn) return; floatBtn.hidden = true; cancelAnimationFrame(floatRaf); };
+        if (back) back.onfinish = done; else done();
+      }
+    }
+    function floatPaint() {
+      if (!floatBtn) return;
+      icon(floatBtn, video.muted ? 'volume-slash' : 'volume');
+      floatBtn.classList.toggle('is-muted', video.muted);
+      floatBtn.setAttribute('aria-label', video.muted ? 'Unmute Mobius 3D' : 'Mute Mobius 3D');
+      floatBtn.dataset.tip = video.muted ? 'Unmute Mobius 3D' : 'Mute Mobius 3D';
     }
 
     video.addEventListener('playing', () => { item.classList.add('is-live'); paint(); });
@@ -2178,7 +2249,11 @@ if (workModal) {
       else { document.removeEventListener('keydown', escape, true); item.removeAttribute('popover'); }
     });
 
-    new IntersectionObserver(entries => { seen = entries[entries.length - 1].isIntersecting; sync(); }, { threshold: .2 })
+    new IntersectionObserver(entries => {
+      seen = entries[entries.length - 1].isIntersecting;
+      if (seen) floatHeld = false;
+      sync();
+    }, { threshold: .2 })
       .observe(item);
     new MutationObserver(sync).observe(item, { attributes: true, attributeFilter: ['class'] });
     document.addEventListener('visibilitychange', sync);
