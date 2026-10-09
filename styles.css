@@ -1400,6 +1400,27 @@ html.fv-maxed .fv-item:popover-open{pointer-events:auto}
 .fv-item.is-side:popover-open .fv-actions{display:flex;position:fixed;flex-direction:column;gap:80px;
   z-index:5;opacity:1;pointer-events:auto;transition:none}
 .fv-item.is-side:popover-open .fv-eye{order:-1;display:grid}
+/* THE PITCH (Dex, 2026-10-09): the description, always up while the video is
+   enlarged, as a portrait card under that column -- outside the video, centred
+   on the download above it. placeAbout() sets where and how wide, and adds
+   .is-on only when it fits; .is-short drops the body and keeps the lead. The
+   head is the accent, bold, 2px over the text. On the small card it is not
+   there at all: the slot has no info icon, and this is where the words went. */
+.fv-about{display:none}
+.fv-item:popover-open .fv-about.is-on{display:block;position:fixed;z-index:5;margin:0;overflow:hidden;
+  padding:16px 16px 18px;border-radius:14px;border:var(--stroke) solid rgba(255,255,255,.14);
+  background:rgba(8,11,15,.72);backdrop-filter:blur(5px);color:#d7dee8;font-size:14px;line-height:1.5;
+  text-align:left;animation:fv-about-in .3s ease both}
+.fv-about-head{display:block;margin:0 0 8px;font-size:16px;font-weight:800;line-height:1.25;
+  color:var(--accent);transition:color var(--accent-ease)}
+.fv-about p{margin:0}
+.fv-about p+p{margin-top:10px;color:#aeb8c4}
+.fv-about.is-short .fv-about-body{display:none}
+@keyframes fv-about-in{from{opacity:0;transform:translateY(6px)}}
+/* Room for it: at least 200px each side of a slot that has one, so a 1440x900
+   laptop gets the card rather than a gap 40px too narrow to hold it. */
+@media(min-width:900px){.fv-item:has(.fv-about):popover-open{width:min(94vw,calc(100vw - 400px),calc((100dvh - 56px) * var(--fv-ar,4/3)))}}
+@media(prefers-reduced-motion:reduce){.fv-item:popover-open .fv-about.is-on{animation:none}}
 @media(prefers-reduced-motion:reduce){.fv-item:popover-open{animation:none}.fv-vol-pop,.fv-has-video .card-meta,.fv-actions,.fv-item .fv-mute,.fv-item .fv-bar>*,.fv-bar::before{transition:none}}
 /* Before a source exists there is nothing to scrub. */
 .fv-has-video:not([data-src^="https"]) :is(.fv-bar,.fv-play){display:none}

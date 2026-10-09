@@ -2298,6 +2298,24 @@ if (workModal) {
     let wanted = true;          // false once the visitor pauses it; a scroll never overrides that
     let seen = false, scrubbing = false;
 
+    /* SOUND ON WHEN IT GOES BIG (Dex, 2026-10-09): enlarging the video, by
+       double click or by the button, unmutes it -- until the visitor sets the
+       sound themselves. From then on what they chose is what they get, on
+       this visit and the next, so a visitor who muted it is never shouted at
+       again. Only a hand on a control counts: the music muting it through
+       MediaBus is not the visitor's choice. */
+    const HAND = 'fv-sound-by-hand';
+    const byHand = () => { try { localStorage.setItem(HAND, video.muted ? 'muted' : 'on'); } catch {} };
+    const handMuted = () => { try { return localStorage.getItem(HAND) === 'muted'; } catch { return false; } };
+    function soundUp() {
+      if (handMuted() || !mute || !item.hasAttribute('data-audio')) return;
+      if (video.volume === 0) video.volume = .5;
+      video.muted = false;
+      fillLevel();
+      wanted = true;
+      start();
+      paint();
+    }
     function paint() {
       const playing = !video.paused && !video.ended;
       // The bar hides under a playing video until it is hovered; paused, or
@@ -2383,6 +2401,7 @@ if (workModal) {
             video.muted = !video.muted;
             if (!video.muted && video.volume === 0) video.volume = .5;
             floatHeld = true;
+            byHand();
             paint(); fillLevel();
           });
           document.body.append(floatBtn);
@@ -2447,6 +2466,7 @@ if (workModal) {
     mute?.addEventListener('click', () => {
       video.muted = !video.muted;
       if (!video.muted && video.volume === 0) video.volume = .5;
+      byHand();
       paint(); fillLevel();
     });
     /* The volume pops up above the speaker on hover. Dragging it to the
@@ -2455,6 +2475,7 @@ if (workModal) {
       const v = Number(level.value) / 100;
       if (v > 0) video.volume = v;
       video.muted = v === 0;
+      byHand();
       level.style.setProperty('--fill', level.value + '%');
       paint();
     });
@@ -2504,19 +2525,64 @@ if (workModal) {
        both ways -- Functional Preview, the X, Download. Too narrow a gap and
        the X goes back inside the corner with the other two left out. */
     const acts = item.querySelector('.fv-actions');
+    /* THE PITCH (Dex, 2026-10-09): the description, always up, in that same
+       dead space under the column -- portrait, centred on it, never inside the
+       video. Its words are the AI Lab card's lead and body. Where the gap is
+       too short for both it keeps the lead, and where it cannot hold even
+       that it is not shown at all rather than clipped. */
+    const about = item.querySelector('.fv-about');
+    const aboutCard = about && document.getElementById(about.dataset.about);
+    if (about && aboutCard) {
+      for (const [key, cls] of [['descLead', 'fv-about-lead'], ['descBody', 'fv-about-body']]) {
+        if (!aboutCard.dataset[key]) continue;
+        const p = document.createElement('p');
+        p.className = cls;
+        p.textContent = aboutCard.dataset[key];
+        about.append(p);
+      }
+    }
+    /* Sized first, placed second: how tall it is decides whether the column
+       has to rise to make room for it. Narrower than 200px it keeps only the
+       lead; with no room even for that, it is not shown. */
+    function sizeAbout(gap, room) {
+      if (!about) return 0;
+      about.classList.remove('is-on', 'is-short');
+      about.style.cssText = '';
+      const width = Math.min(260, gap - 40);
+      if (!isMax() || width < 120 || room < 80) return 0;
+      about.style.width = width + 'px';
+      about.classList.add('is-on');
+      if (width < 200 || about.offsetHeight > room) about.classList.add('is-short');
+      if (about.offsetHeight <= room) return about.offsetHeight;
+      about.classList.remove('is-on', 'is-short');
+      return 0;
+    }
     function placeClose() {
       if (!close) return;
-      if (!isMax()) { if (acts) acts.style.cssText = ''; item.classList.remove('is-side'); return; }
-      const size = 52, step = size + 14, right = item.offsetLeft + item.offsetWidth;
+      if (!isMax()) { if (acts) acts.style.cssText = ''; item.classList.remove('is-side'); sizeAbout(0, 0); return; }
+      const size = 52, right = item.offsetLeft + item.offsetWidth;
       const gap = document.documentElement.clientWidth - right;
       const inside = gap < size + 24;
       item.classList.toggle('is-side', !inside);
       const cx = right + gap / 2, cy = item.offsetTop + item.offsetHeight / 2;
-      close.style.left = (inside ? right - 14 - size : cx - size / 2) + 'px';
-      close.style.top = (inside ? item.offsetTop + 14 : cy - size / 2) + 'px';
-      if (acts && !inside) {
-        const tall = acts.offsetHeight;
-        acts.style.cssText = `left:${cx - size / 2}px;top:${cy - tall / 2}px;right:auto;bottom:auto`;
+      if (inside) {
+        sizeAbout(0, 0);
+        close.style.left = (right - 14 - size) + 'px';
+        close.style.top = (item.offsetTop + 14) + 'px';
+        return;
+      }
+      /* The column stays centred on the video unless the pitch under it would
+         run off the bottom; then the two rise together, never above 14px. */
+      const tall = acts ? acts.offsetHeight : size, sep = 28;
+      const panel = sizeAbout(gap, innerHeight - 28 - tall - sep);
+      let top = cy - tall / 2;
+      if (panel) top = Math.max(14, Math.min(top, innerHeight - 14 - panel - sep - tall));
+      close.style.left = (cx - size / 2) + 'px';
+      close.style.top = (top + tall / 2 - size / 2) + 'px';
+      if (acts) acts.style.cssText = `left:${cx - size / 2}px;top:${top}px;right:auto;bottom:auto`;
+      if (panel) {
+        about.style.left = (cx - about.offsetWidth / 2) + 'px';
+        about.style.top = (top + tall + sep) + 'px';
       }
     }
     window.addEventListener('resize', placeClose);
@@ -2524,7 +2590,7 @@ if (workModal) {
     const shrink = () => { if (isMax()) item.hidePopover(); };
     const enlarge = () => {
       if (isMax()) return;
-      if (!item.showPopover) { video.webkitEnterFullscreen?.(); return; }
+      if (!item.showPopover) { video.webkitEnterFullscreen?.(); soundUp(); return; }
       /* MANUAL, not auto: an auto popover's light dismiss closes it and then
          lets the same click land on whatever was under it -- another
          featured thumbnail the visitor cannot even see. Instead the page
@@ -2532,12 +2598,13 @@ if (workModal) {
          reaches only the document, and that click closes it and nothing else. */
       item.setAttribute('popover', 'manual');
       item.showPopover();
+      soundUp();
     };
     full?.addEventListener('click', () => (isMax() ? shrink() : enlarge()));
     close?.addEventListener('click', shrink);
     // A double click on the picture enlarges it (Dex), and in the overlay shrinks it.
     item.addEventListener('dblclick', e => {
-      if (e.target.closest('.fv-bar, .fv-actions, .fv-info, .fv-desc, .fv-close')) return;
+      if (e.target.closest('.fv-bar, .fv-actions, .fv-info, .fv-desc, .fv-about, .fv-close')) return;
       clearTimeout(flipLater);
       isMax() ? shrink() : enlarge();
     });

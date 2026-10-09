@@ -138,12 +138,23 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
   the video's right `placeClose()` stands the eye, the X and the download in
   one fixed column centred both ways (`.is-side`; a gap too narrow puts the X
   back in the corner), their tips going beside them (`data-tip-pos-max`) and
-  into the popover with them. Where there is no popover it is the video's own
+  into the popover with them. Under that column, in the same gap, a portrait
+  `.fv-about` card ("The pitch", the accent, bold, 2px over its 14px text)
+  holds `#mobiusCard`'s `data-desc-lead` and `data-desc-body`, copied in at
+  init so the two never disagree; `placeAbout`/`sizeAbout` keep only the lead
+  under 200px wide, hide it where even that will not fit, and raise the column
+  rather than let it run off the bottom. A slot with a `.fv-about` keeps 200px
+  either side when enlarged (from 900px wide) so a 1440x900 laptop has room.
+  The Mobius slot has no info icon: this card is its description. Enlarging,
+  by either route, UNMUTES it (`soundUp()`) until the visitor sets the sound
+  by hand (the card's speaker, its volume or the floating mute), which is
+  kept in `localStorage` `fv-sound-by-hand`; the music muting it through
+  MediaBus does not count. Where there is no popover it is the video's own
   player. Only the bar comes along. Both buttons'
   tips carry `data-tip-big`. The download copies `#mobiusDownload`'s href
   and target at click time, so it starts the same per-system installer
-  (`initMobiusDownload`). The info button shows only while the card is
-  hovered, on a device with hover. With the sound on it keeps playing when it
+  (`initMobiusDownload`). Proto Isles' info button shows only while the card
+  is hovered, on a device with hover. With the sound on it keeps playing when it
   scrolls out of view, and a `.fv-float` copy of the mute flies from the
   card to just under `#accentSwatches`, re-placed every frame so it follows
   the picker open and shut (the flight too is worked out per frame between
