@@ -169,8 +169,7 @@ body{
 /* In the app's gradient, magenta down to blue (Dex, 2026-10-08). */
 #sym-tick{position:absolute; width:4px; height:18px; margin-left:-2px; border-radius:2px; z-index:2;
   background:linear-gradient(180deg,#f12fc6 0%,#8a32f4 55%,#3458f5 100%);
-  box-shadow:-2px -2px 0 #fff, 2px 2px 0 #000, 0 0 10px rgba(241,47,198,.55); pointer-events:none;}
-/* Rim light (white, up-left 2px) + drop shadow (black, down-right 2px) behind the tick (Dex, 2026-10-08) */
+  box-shadow:0 0 0 1px rgba(0,0,0,.3), 0 0 10px rgba(241,47,198,.55); pointer-events:none;}
 #sym-tick[hidden]{display:none;}
 #size-bar .ctl{margin:0; flex:1; min-width:0; display:flex; align-items:center;}
 #size-bar .tbtn{flex:0 0 auto;}
