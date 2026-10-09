@@ -2110,6 +2110,10 @@ if (workModal) {
       return { left: r.left + r.width / 2 - size / 2, top: r.bottom + 18 };
     }
     function floatTrack() {
+      /* Into the overlay on top, if there is one: a modal makes everything
+         outside it inert, so on the page it would be painted and dead. */
+      const host = [...document.querySelectorAll('dialog[open]')].filter(d => !d.classList.contains('is-docked')).pop() || document.body;
+      if (floatBtn.parentNode !== host) host.append(floatBtn);
       const at = floatSpot();
       floatBtn.style.left = at.left + 'px';
       floatBtn.style.top = at.top + 'px';
@@ -2150,7 +2154,11 @@ if (workModal) {
         floatFly(true);
       } else if (floatBtn) {
         const back = seen ? floatFly(false) : null;
-        const done = () => { if (floatOn) return; floatBtn.hidden = true; cancelAnimationFrame(floatRaf); };
+        const done = () => {
+          if (floatOn) return;
+          floatBtn.hidden = true; cancelAnimationFrame(floatRaf);
+          if (floatBtn.parentNode !== document.body) document.body.append(floatBtn);
+        };
         if (back) back.onfinish = done; else done();
       }
     }
@@ -2216,6 +2224,17 @@ if (workModal) {
       if (video.videoWidth && video.videoHeight) item.style.setProperty('--fv-ar', video.videoWidth / video.videoHeight);
     });
     const close = item.querySelector('.fv-close');
+    /* offset*, not getBoundingClientRect: the opening animation scales the
+       slot, and the X is placed against where it lands, not where it starts. */
+    function placeClose() {
+      if (!close || !isMax()) return;
+      const size = 46, right = item.offsetLeft + item.offsetWidth;
+      const gap = document.documentElement.clientWidth - right;
+      const inside = gap < size + 16;
+      close.style.left = (inside ? right - 14 - size : right + gap / 2 - size / 2) + 'px';
+      close.style.top = (item.offsetTop + (inside ? 14 : 0)) + 'px';
+    }
+    window.addEventListener('resize', placeClose);
     const isMax = () => item.matches(':popover-open');
     const shrink = () => { if (isMax()) item.hidePopover(); };
     const enlarge = () => {
@@ -2250,6 +2269,7 @@ if (workModal) {
       const on = e.newState === 'open';
       item.classList.toggle('is-max', on);
       document.documentElement.classList.toggle('fv-maxed', on);
+      placeClose();
       icon(full, on ? 'fullscreen-exit' : 'fullscreen');
       full?.setAttribute('aria-label', on ? 'Shrink video' : 'Enlarge video');
       for (const type of ['pointerdown', 'mousedown', 'click', 'dblclick']) {
