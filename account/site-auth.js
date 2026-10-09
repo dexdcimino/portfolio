@@ -23,6 +23,7 @@ import { initializeApp, getApps } from '/dexnote/vendor/firebase/firebase-app.js
 import {
   getAuth, onAuthStateChanged, signInWithPopup, signOut as fbSignOut,
   GoogleAuthProvider, GithubAuthProvider, OAuthProvider,
+  signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail,
 } from '/dexnote/vendor/firebase/firebase-auth.js';
 
 /* Public identifiers, not secrets; the same object as dexnote/cloud.js. */
@@ -78,6 +79,15 @@ export function signIn(which) { return signInWithPopup(init(), provider(which));
 
 export function signOut() { return fbSignOut(init()); }
 
+/* An account of your own, with an email and a password, for someone who
+   would rather not sign in through Google, GitHub or Discord. MindSplit was
+   the first to offer it (2026-10). It needs Email/Password switched on under
+   Authentication > Sign-in method in the dexnote-d7047 console; until it is,
+   Firebase answers auth/operation-not-allowed and errorText() says so. */
+export function signInEmail(email, password) { return signInWithEmailAndPassword(init(), String(email).trim(), password); }
+export function createEmail(email, password) { return createUserWithEmailAndPassword(init(), String(email).trim(), password); }
+export function resetPassword(email) { return sendPasswordResetEmail(init(), String(email).trim()); }
+
 /* What a server is shown to prove who this is (lib/site-identity.js). */
 export async function idToken() {
   const u = await currentUser();
@@ -91,6 +101,14 @@ export function errorText(err) {
   if (code === 'auth/unauthorized-domain') return 'This address is not allowed to sign in yet.';
   if (code === 'auth/popup-blocked') return 'The sign-in window was blocked. Allow pop-ups for this site and try again.';
   if (code === 'auth/account-exists-with-different-credential') return 'That email already signs in with a different provider. Use the one you used before.';
+  if (code === 'auth/operation-not-allowed') return 'Email accounts are not switched on yet. Use Google, GitHub or Discord for now.';
+  if (code === 'auth/invalid-email') return 'That does not look like an email address.';
+  if (code === 'auth/missing-password') return 'Type a password.';
+  if (code === 'auth/weak-password') return 'Use a password of at least 6 characters.';
+  if (code === 'auth/email-already-in-use') return 'There is already an account with that email. Sign in instead.';
+  if (code === 'auth/invalid-credential' || code === 'auth/wrong-password' || code === 'auth/user-not-found') return 'That email and password do not match an account.';
+  if (code === 'auth/too-many-requests') return 'Too many tries. Wait a minute and try again.';
+  if (code === 'auth/network-request-failed') return 'No connection. Check your internet and try again.';
   return `Sign-in did not work (${code || (err && err.message) || 'unknown error'}). Try again.`;
 }
 

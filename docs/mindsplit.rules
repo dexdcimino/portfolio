@@ -1,0 +1,114 @@
+    // ── MindSplit — shared polls and votes (dexcimino.com/mindsplit) ──────────
+    //   Source of truth: github.com/dexdcimino/portfolio ai/apps/mindsplit/public/cloud.js.
+    //   Paste this block into the dexnote-d7047 Firestore rules, ABOVE the
+    //   final "Deny everything else" match, beside the inkoRooms block. It is
+    //   self-contained: every helper is prefixed ms and defined here.
+    //
+    //   A vote is one batch: msVotes/<poll>_<uid> AND the poll's count in
+    //   msCounts move together, and each side refuses to move alone. That is
+    //   what holds one vote per account per poll. Signed-out phones vote as an
+    //   anonymous Firebase user; asking a question needs a real account.
+
+    function msSigned() { return request.auth != null; }
+    function msAccount() {
+      return request.auth != null && request.auth.token.firebase.sign_in_provider != 'anonymous';
+    }
+    function msDex() {
+      return request.auth != null && request.auth.token.firebase.sign_in_provider == 'google.com'
+        && request.auth.token.email_verified == true && request.auth.token.email == 'dexdcimino@gmail.com';
+    }
+    function msPollId(p) { return p.matches('[a-z]{3,8}-[0-9]{1,3}') || p.matches('u[A-Za-z0-9]{12,30}'); }
+    function msPath(c, id) { return /databases/$(database)/documents/$(c)/$(id); }
+
+    match /msCounts/{pid} {
+      function vote() { return msPath('msVotes', pid + '_' + request.auth.uid); }
+      function moved(c, d) {
+        let k = 'c' + string(c);
+        let before = resource == null ? {} : resource.data;
+        return request.resource.data.keys().hasOnly(['c0', 'c1', 'c2', 'c3', 'n'])
+          && request.resource.data.diff(before).affectedKeys().hasOnly([k, 'n'])
+          && request.resource.data[k] == before.get(k, 0) + d
+          && request.resource.data.n == before.get('n', 0) + d;
+      }
+      allow read: if true;
+      allow create, update: if msSigned() && msPollId(pid) && (
+        (!exists(vote()) && existsAfter(vote()) && moved(getAfter(vote()).data.c, 1))
+        || (exists(vote()) && !existsAfter(vote()) && moved(get(vote()).data.c, -1)));
+      allow delete: if false;
+    }
+
+    match /msVotes/{vid} {
+      function counts(p) { return msPath('msCounts', p); }
+      allow get, list: if msSigned() && resource.data.u == request.auth.uid;
+      allow create: if msSigned()
+        && request.resource.data.keys().hasOnly(['p', 'u', 'c'])
+        && request.resource.data.u == request.auth.uid
+        && request.resource.data.p is string && msPollId(request.resource.data.p)
+        && vid == request.resource.data.p + '_' + request.auth.uid
+        && request.resource.data.c is int && request.resource.data.c >= 0 && request.resource.data.c <= 3
+        && getAfter(counts(request.resource.data.p)).data.n
+           == (exists(counts(request.resource.data.p)) ? get(counts(request.resource.data.p)).data.n : 0) + 1;
+      allow update: if false;
+      allow delete: if msSigned() && resource.data.u == request.auth.uid
+        && getAfter(counts(resource.data.p)).data.n == get(counts(resource.data.p)).data.n - 1;
+    }
+
+    match /msPolls/{id} {
+      function me() { return msPath('msUsers', request.auth.uid); }
+      function answer(o, i) { return o.size() <= i || (o[i] is string && o[i].size() >= 1 && o[i].size() <= 32); }
+      function report() { return msPath('msReports', id + '_' + request.auth.uid); }
+      allow get: if true;
+      allow list: if request.query.limit <= 200;
+      allow create: if msAccount() && id.matches('u[A-Za-z0-9]{12,30}')
+        && request.resource.data.keys().hasOnly(['q', 'o', 'cat', 'uid', 'by', 'at', 'rep'])
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.q is string && request.resource.data.q.size() >= 4 && request.resource.data.q.size() <= 101
+        && request.resource.data.o is list && request.resource.data.o.size() >= 2 && request.resource.data.o.size() <= 4
+        && answer(request.resource.data.o, 0) && answer(request.resource.data.o, 1)
+        && answer(request.resource.data.o, 2) && answer(request.resource.data.o, 3)
+        && request.resource.data.cat in ['food', 'tech', 'life', 'money', 'games', 'culture', 'music', 'sports', 'love', 'work', 'travel', 'weird', 'takes']
+        && request.resource.data.at == request.time && request.resource.data.rep == 0
+        && (request.resource.data.by == null || (exists(me()) && request.resource.data.by == get(me()).data.handle))
+        // One question a minute: the same batch stamps msUsers.posted.
+        && getAfter(me()).data.posted == request.time
+        && (!exists(me()) || get(me()).data.get('posted', null) == null
+            || get(me()).data.posted < request.time - duration.value(60, 's'));
+      allow update: if msSigned()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['rep'])
+        && request.resource.data.rep == resource.data.rep + 1
+        && !exists(report()) && existsAfter(report());
+      allow delete: if msAccount() && (resource.data.uid == request.auth.uid || msDex());
+    }
+
+    match /msReports/{rid} {
+      allow read: if msDex();
+      allow create: if msSigned()
+        && request.resource.data.keys().hasOnly(['p', 'u', 'why', 'at'])
+        && request.resource.data.u == request.auth.uid
+        && request.resource.data.p is string && msPollId(request.resource.data.p)
+        && rid == request.resource.data.p + '_' + request.auth.uid
+        && request.resource.data.why is string && request.resource.data.why.size() <= 40
+        && request.resource.data.at == request.time;
+    }
+
+    match /msUsers/{uid} {
+      function name(h) { return msPath('msHandles', h); }
+      allow get: if true;
+      allow create, update: if msAccount() && uid == request.auth.uid
+        && request.resource.data.keys().hasOnly(['handle', 'posted'])
+        && request.resource.data.handle is string
+        && getAfter(name(request.resource.data.handle)).data.uid == request.auth.uid
+        && (request.resource.data.get('posted', null) == null
+            || request.resource.data.posted == request.time
+            || (resource != null && request.resource.data.posted == resource.data.get('posted', null)));
+    }
+
+    match /msHandles/{h} {
+      allow get: if true;
+      allow create: if msAccount() && h.matches('[a-z0-9_]{3,20}')
+        && request.resource.data.keys().hasOnly(['uid']) && request.resource.data.uid == request.auth.uid
+        && getAfter(msPath('msUsers', request.auth.uid)).data.handle == h
+        && (msDex() || !(h.matches('dex.*') || h in ['admin', 'mindsplit', 'moderator', 'support', 'official']));
+      allow delete: if msAccount() && resource.data.uid == request.auth.uid
+        && getAfter(msPath('msUsers', request.auth.uid)).data.handle != h;
+    }

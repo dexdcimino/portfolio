@@ -1012,8 +1012,8 @@
                navigating. Drop the attribute when the app has a public home
                and the link will simply follow its href again. -->
           <article class="ai-card" id="mindsplitCard" data-app-modal="/mindsplit/" data-link-preview data-app-title="MindSplit" data-gallery="mindsplit" data-kind="WEB APP" data-stack="REACT"
-             data-desc-lead="Swipe-to-vote polls, one question at a time."
-             data-desc-body="A phone-shaped voting app: swipe a card to answer, and the next question slides straight in."><a class="ai-card-link" href="/mindsplit/" target="_blank" rel="noopener noreferrer"><strong>MindSplit</strong><span>Swipe-to-vote polls<span class="icon inline-arrow" data-icon="arrow-ne" aria-hidden="true"></span></span></a>
+             data-desc-lead="Swipe through questions, pick a side, see how everyone split."
+             data-desc-body="A phone app of quick polls: tap an answer and the live split opens up under it. Sign in with Google, Discord, GitHub or an email to ask questions of your own."><a class="ai-card-link" href="/mindsplit/" target="_blank" rel="noopener noreferrer"><strong>MindSplit</strong><span>Swipe-to-vote polls<span class="icon inline-arrow" data-icon="arrow-ne" aria-hidden="true"></span></span></a>
             <!-- img src="assets/icons/apps/mindsplit.png" slot="ai-icon" alt="" class="ai-card-icon" picture-class="ai-card-iconwrap" -->
             <picture class="ai-card-iconwrap">
               <source type="image/avif" srcset="assets/derived/icons/apps/mindsplit-420.avif?v=b403ad3c 420w,
@@ -1027,6 +1027,14 @@
               <img class="ai-card-icon" src="assets/icons/apps/mindsplit.png" alt="" width="512" height="512" loading="lazy" decoding="async">
             </picture>
             <!-- /img -->
+            <!-- Install MindSplit on a phone (Dex, 2026-10), left of the eye as
+                 Inko's and DexNote's are: /mindsplit/ with ?install=1, which
+                 offers the browser's own install prompt or the Add to Home
+                 Screen steps. Shown on phones too, where the eye is hidden. -->
+            <a class="ai-card-dl" href="/mindsplit/?install=1" target="_blank" rel="noopener"
+               data-tip="Install MindSplit" aria-label="Install MindSplit on this device">
+              <span class="icon" data-icon="download" aria-hidden="true"></span>
+            </a>
             <button class="ai-card-eye" type="button" data-tip="Functional preview"
                     aria-label="Open a functional preview of MindSplit">
               <span class="icon" data-icon="eye" aria-hidden="true"></span>
@@ -3636,7 +3644,7 @@
              takes away the one thing a compromised frame would reach for first —
              navigating the page around it to somewhere else. -->
         <iframe class="app-frame" id="appFrame" title="MindSplit" src="about:blank"
-                allow="clipboard-write" referrerpolicy="same-origin"></iframe>
+                allow="clipboard-write; web-share" referrerpolicy="same-origin"></iframe>
       </div>
       <p class="app-hint">Esc or click outside to close</p>
     </div>
