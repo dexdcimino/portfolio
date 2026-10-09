@@ -882,9 +882,9 @@
              so initAppInfo hides this grid whenever that panel is hidden,
              exactly as #wpThumbs follows Wallpapers. -->
         <div class="ai-grid ai-grid-side" id="aiApps">
-          <!-- Order is DOM order — there is no sort key. ThemeDock leads (it
-               also seeds the description panel via initAppInfo), then
-               MindSplit, DexNote, NodeBlast, dexddc. The icon block in each
+          <!-- Order is DOM order — there is no sort key. After the placeholder:
+               Mobius 3D, Inko, dexnote, MindSplit, ThemeDock, NodeBlast,
+               dexddc (dexnote and ThemeDock swapped, Dex 2026-10-09). The icon block in each
                card is generated from the one-line directive by
                tools/bake_markup.py; never typed. -->
           <!-- PLACEHOLDER, and the only card with nowhere to go: no
@@ -972,66 +972,9 @@
               <span class="icon" data-icon="eye" aria-hidden="true"></span>
             </button>
           </article>
-          <!-- Shipped: dexcimino.themedock on the VS Code Marketplace. The
-               title link is the LISTING, not the demo — it is also the phone
-               path, and a mock VS Code window is not something to hand a
-               phone. The eyeball opens the demo in the app overlay (window
-               shape) on desktop; initAppModal declines below 768px and CSS
-               hides the eyeball there. data-desc-link keeps the listing one
-               click away in the description panel. -->
-          <article class="ai-card"
-             data-app-modal="/themedock/" data-app-title="ThemeDock" data-app-shape="window"
-             data-gallery="themedock" data-kind="VS Code Extension" data-stack="VS CODE"
-             data-desc-lead="Tell your VS Code windows apart at a glance."
-             data-desc-body="Colour each VS Code window from a swatch grid, so a dozen open projects stop looking identical."
-             data-desc-link="https://marketplace.visualstudio.com/items?itemName=dexcimino.themedock"
-             data-desc-link-label="MARKETPLACE"><a class="ai-card-link" href="https://marketplace.visualstudio.com/items?itemName=dexcimino.themedock" target="_blank" rel="noopener noreferrer"><strong>ThemeDock</strong><span>VS Code extension<span class="icon inline-arrow" data-icon="arrow-ne" aria-hidden="true"></span></span></a>
-            <!-- img src="assets/icons/apps/themedock.png" slot="ai-icon" alt="" class="ai-card-icon" picture-class="ai-card-iconwrap" -->
-            <picture class="ai-card-iconwrap">
-              <source type="image/avif" srcset="assets/derived/icons/apps/themedock-420.avif?v=470938ce 420w,
-                                                assets/derived/icons/apps/themedock-200.avif?v=470938ce 200w,
-                                                assets/derived/icons/apps/themedock-84.avif?v=470938ce 84w"
-                      sizes="(max-width:700px) 64px, 84px">
-              <source type="image/webp" srcset="assets/derived/icons/apps/themedock-420.webp?v=470938ce 420w,
-                                                assets/derived/icons/apps/themedock-200.webp?v=470938ce 200w,
-                                                assets/derived/icons/apps/themedock-84.webp?v=470938ce 84w"
-                      sizes="(max-width:700px) 64px, 84px">
-              <img class="ai-card-icon" src="assets/icons/apps/themedock.png" alt="" width="512" height="512" loading="lazy" decoding="async">
-            </picture>
-            <!-- /img -->
-            <button class="ai-card-eye" type="button" data-tip="Functional preview"
-                    aria-label="Open a functional preview of ThemeDock">
-              <span class="icon" data-icon="eye" aria-hidden="true"></span>
-            </button>
-          </article>
-          <!-- data-link-preview: until MindSplit is live somewhere real, its title
-               link opens the same on-site overlay the eyeball does instead of
-               navigating. Drop the attribute when the app has a public home
-               and the link will simply follow its href again. -->
-          <article class="ai-card" id="mindsplitCard" data-app-modal="/mindsplit/" data-link-preview data-app-title="MindSplit" data-gallery="mindsplit" data-kind="WEB APP" data-stack="REACT"
-             data-desc-lead="Swipe-to-vote polls, one question at a time."
-             data-desc-body="A phone-shaped voting app: swipe a card to answer, and the next question slides straight in."><a class="ai-card-link" href="/mindsplit/" target="_blank" rel="noopener noreferrer"><strong>MindSplit</strong><span>Swipe-to-vote polls<span class="icon inline-arrow" data-icon="arrow-ne" aria-hidden="true"></span></span></a>
-            <!-- img src="assets/icons/apps/mindsplit.png" slot="ai-icon" alt="" class="ai-card-icon" picture-class="ai-card-iconwrap" -->
-            <picture class="ai-card-iconwrap">
-              <source type="image/avif" srcset="assets/derived/icons/apps/mindsplit-420.avif?v=b403ad3c 420w,
-                                                assets/derived/icons/apps/mindsplit-200.avif?v=b403ad3c 200w,
-                                                assets/derived/icons/apps/mindsplit-84.avif?v=b403ad3c 84w"
-                      sizes="(max-width:700px) 64px, 84px">
-              <source type="image/webp" srcset="assets/derived/icons/apps/mindsplit-420.webp?v=b403ad3c 420w,
-                                                assets/derived/icons/apps/mindsplit-200.webp?v=b403ad3c 200w,
-                                                assets/derived/icons/apps/mindsplit-84.webp?v=b403ad3c 84w"
-                      sizes="(max-width:700px) 64px, 84px">
-              <img class="ai-card-icon" src="assets/icons/apps/mindsplit.png" alt="" width="512" height="512" loading="lazy" decoding="async">
-            </picture>
-            <!-- /img -->
-            <button class="ai-card-eye" type="button" data-tip="Functional preview"
-                    aria-label="Open a functional preview of MindSplit">
-              <span class="icon" data-icon="eye" aria-hidden="true"></span>
-            </button>
-          </article>
           <article class="ai-card" data-gallery="dexnote" data-kind="WEB APP" data-stack="PLATFORM"
              data-desc-lead="AI-assisted notes, built as a working product rather than a demo."
-             data-desc-body="Notes that summarise, link and resurface themselves. The largest of these, and the one with users."><a class="ai-card-link" href="https://dexnote.dev" target="_blank" rel="noopener noreferrer"><strong>dexnote.dev</strong><span>AI-assisted notes platform<span class="icon inline-arrow" data-icon="arrow-ne" aria-hidden="true"></span></span></a>
+             data-desc-body="Notes that summarise, link and resurface themselves. The largest of these, and the one with users."><a class="ai-card-link" href="/dexnote/" target="_blank" rel="noopener noreferrer"><strong>dexnote</strong><span>AI-assisted notes platform<span class="icon inline-arrow" data-icon="arrow-ne" aria-hidden="true"></span></span></a>
             <!-- img src="assets/icons/apps/dexnote.png" slot="ai-icon" alt="" class="ai-card-icon" picture-class="ai-card-iconwrap" -->
             <picture class="ai-card-iconwrap">
               <source type="image/avif" srcset="assets/derived/icons/apps/dexnote-420.avif?v=6a2d0169 420w,
@@ -1061,6 +1004,63 @@
             </a>
             <button class="ai-card-eye" type="button" data-notes-demo data-tip="Functional preview"
                     aria-label="Open a functional preview of the notes app">
+              <span class="icon" data-icon="eye" aria-hidden="true"></span>
+            </button>
+          </article>
+          <!-- data-link-preview: until MindSplit is live somewhere real, its title
+               link opens the same on-site overlay the eyeball does instead of
+               navigating. Drop the attribute when the app has a public home
+               and the link will simply follow its href again. -->
+          <article class="ai-card" id="mindsplitCard" data-app-modal="/mindsplit/" data-link-preview data-app-title="MindSplit" data-gallery="mindsplit" data-kind="WEB APP" data-stack="REACT"
+             data-desc-lead="Swipe-to-vote polls, one question at a time."
+             data-desc-body="A phone-shaped voting app: swipe a card to answer, and the next question slides straight in."><a class="ai-card-link" href="/mindsplit/" target="_blank" rel="noopener noreferrer"><strong>MindSplit</strong><span>Swipe-to-vote polls<span class="icon inline-arrow" data-icon="arrow-ne" aria-hidden="true"></span></span></a>
+            <!-- img src="assets/icons/apps/mindsplit.png" slot="ai-icon" alt="" class="ai-card-icon" picture-class="ai-card-iconwrap" -->
+            <picture class="ai-card-iconwrap">
+              <source type="image/avif" srcset="assets/derived/icons/apps/mindsplit-420.avif?v=b403ad3c 420w,
+                                                assets/derived/icons/apps/mindsplit-200.avif?v=b403ad3c 200w,
+                                                assets/derived/icons/apps/mindsplit-84.avif?v=b403ad3c 84w"
+                      sizes="(max-width:700px) 64px, 84px">
+              <source type="image/webp" srcset="assets/derived/icons/apps/mindsplit-420.webp?v=b403ad3c 420w,
+                                                assets/derived/icons/apps/mindsplit-200.webp?v=b403ad3c 200w,
+                                                assets/derived/icons/apps/mindsplit-84.webp?v=b403ad3c 84w"
+                      sizes="(max-width:700px) 64px, 84px">
+              <img class="ai-card-icon" src="assets/icons/apps/mindsplit.png" alt="" width="512" height="512" loading="lazy" decoding="async">
+            </picture>
+            <!-- /img -->
+            <button class="ai-card-eye" type="button" data-tip="Functional preview"
+                    aria-label="Open a functional preview of MindSplit">
+              <span class="icon" data-icon="eye" aria-hidden="true"></span>
+            </button>
+          </article>
+          <!-- Shipped: dexcimino.themedock on the VS Code Marketplace. The
+               title link is the LISTING, not the demo — it is also the phone
+               path, and a mock VS Code window is not something to hand a
+               phone. The eyeball opens the demo in the app overlay (window
+               shape) on desktop; initAppModal declines below 768px and CSS
+               hides the eyeball there. data-desc-link keeps the listing one
+               click away in the description panel. -->
+          <article class="ai-card"
+             data-app-modal="/themedock/" data-app-title="ThemeDock" data-app-shape="window"
+             data-gallery="themedock" data-kind="VS Code Extension" data-stack="VS CODE"
+             data-desc-lead="Tell your VS Code windows apart at a glance."
+             data-desc-body="Colour each VS Code window from a swatch grid, so a dozen open projects stop looking identical."
+             data-desc-link="https://marketplace.visualstudio.com/items?itemName=dexcimino.themedock"
+             data-desc-link-label="MARKETPLACE"><a class="ai-card-link" href="https://marketplace.visualstudio.com/items?itemName=dexcimino.themedock" target="_blank" rel="noopener noreferrer"><strong>ThemeDock</strong><span>VS Code extension<span class="icon inline-arrow" data-icon="arrow-ne" aria-hidden="true"></span></span></a>
+            <!-- img src="assets/icons/apps/themedock.png" slot="ai-icon" alt="" class="ai-card-icon" picture-class="ai-card-iconwrap" -->
+            <picture class="ai-card-iconwrap">
+              <source type="image/avif" srcset="assets/derived/icons/apps/themedock-420.avif?v=470938ce 420w,
+                                                assets/derived/icons/apps/themedock-200.avif?v=470938ce 200w,
+                                                assets/derived/icons/apps/themedock-84.avif?v=470938ce 84w"
+                      sizes="(max-width:700px) 64px, 84px">
+              <source type="image/webp" srcset="assets/derived/icons/apps/themedock-420.webp?v=470938ce 420w,
+                                                assets/derived/icons/apps/themedock-200.webp?v=470938ce 200w,
+                                                assets/derived/icons/apps/themedock-84.webp?v=470938ce 84w"
+                      sizes="(max-width:700px) 64px, 84px">
+              <img class="ai-card-icon" src="assets/icons/apps/themedock.png" alt="" width="512" height="512" loading="lazy" decoding="async">
+            </picture>
+            <!-- /img -->
+            <button class="ai-card-eye" type="button" data-tip="Functional preview"
+                    aria-label="Open a functional preview of ThemeDock">
               <span class="icon" data-icon="eye" aria-hidden="true"></span>
             </button>
           </article>
