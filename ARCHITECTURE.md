@@ -199,7 +199,8 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
   keeps playing in another tab or app until it is paused or muted (`sync()`;
   muted, a hidden tab still pauses it), and when it
   scrolls out of view, and a `.fv-float` copy of the mute flies from the
-  card to just under `#accentSwatches`, re-placed every frame so it follows
+  card to just under the profile hexagon (`#profileButton`), centred on it and
+  below the docked stack when that is open, re-placed every frame so it follows
   the picker open and shut (the flight too is worked out per frame between
   where the card's speaker and that spot are NOW, so a scroll mid-flight
   cannot send it to a stale spot), and moved into the top open
@@ -4263,6 +4264,9 @@ account's away; its own account menu marks its moves with `ownMove` so they
 are not done twice. `dexnote/account.js` `whoIsHere()` reads the site's
 `site:signedIn` flag too, since a sign-in from the panel is the same Firebase
 account. Nothing is sent to a server for the code itself.
+
+Each provider button centres its NAME (`.signin-label`); the mark hangs 12px
+off the name's left, absolutely placed, so it never pushes the name off centre.
 
 The panel's fourth button, **Email or name**, swaps the provider column for one
 box (an email or an Inko name) and a password, with Sign in and Create account.

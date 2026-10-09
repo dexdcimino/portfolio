@@ -7542,10 +7542,14 @@ body:has(.sidebar:is(:hover,:has(:focus-visible))) > .music-remote.at-bl{
 /* Shorter and only as long as the widest name, so the three line up as one
    column under the title rather than spanning the panel. */
 .signin-provider{
-  display:inline-flex;align-items:center;justify-content:flex-start;gap:10px;
-  min-height:46px;width:225px;padding:0 18px;gap:12px;font-size:1.3rem;
+  display:inline-flex;align-items:center;justify-content:center;
+  min-height:46px;width:225px;padding:0 18px;font-size:1.3rem;
 }
+/* The NAME is centred and the mark hangs 12px off its left, out of flow, so
+   it never pushes the name off centre (Dex, 2026-10-09). */
+.signin-label{position:relative}
 .signin-mark{width:24px;height:24px}
+.signin-label>.signin-mark{position:absolute;right:calc(100% + 12px);top:50%;translate:0 -50%}
 /* The fourth way in opens the form; it is a way, not the default, so quieter. */
 .signin-provider.is-quiet{background:transparent;border-color:#323848}
 .signin-provider.is-quiet:hover{background:#252a37}
