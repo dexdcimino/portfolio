@@ -1147,7 +1147,9 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
   rather than ThemeDock's 960x875) on `?sample=knot`. Left of the eye,
   `#mobiusDownload` links the desktop app: `initMobiusDownload` in `script.js`
   points it at this system's installer under `releases/latest/download/`
-  (the release names carry no version), and a phone keeps the Releases page.
+  (the release names carry no version), Windows at the Microsoft Store listing
+  (signed, so no SmartScreen warning; its tip says so and carries no size), and a
+  phone keeps the Releases page.
   Its tip (and the featured video's download) carries that installer's size,
   read at load from GitHub's release API (`connect-src https://api.github.com`
   on the site's CSP) and left out if GitHub does not answer. The card's title
