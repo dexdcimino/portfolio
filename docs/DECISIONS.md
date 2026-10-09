@@ -50,6 +50,24 @@ change**, so the reasoning cannot drift away from the diff it explains.
 
 ---
 
+## 2026-10-09 — The hero's front fade breathes between two reaches
+
+**Decided:** `#bgFrontFade` fades along the band (top right solid, gone toward the bottom
+left) and moves by SMIL between two reaches over a 14s loop. One reach is about half
+way down the mascot, the other just a little of him. It holds at each end and eases
+between them. Under reduced motion `script.js` pauses it on the first reach.
+
+**Replaced:** the original up-the-page ramp restored earlier the same day, and the
+temporary 1-2-3-4 picker (`fade-picker.js`/`.css`), now deleted. Dex picked 3 and 4:
+"slowly pulsate between three and four ... pretty slow and not super noticeable."
+
+**Why:** Dex liked both, and a slow swing shows both without choosing.
+
+**Reverse it if:** the motion reads as distracting. In that case, freeze it on either
+end by deleting the four `<animate>` elements.
+
+---
+
 ## 2026-10-09 — The hero's diagonal fade is the original one again
 
 **Decided:** the front band over the mascot fades exactly as it did before 2026-10-08

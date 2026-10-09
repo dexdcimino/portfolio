@@ -11963,3 +11963,20 @@ const PORTRAIT_LABEL = {
     }
   });
 })();
+
+/* ==========================================================================
+   The hero's front fade breathes between two reaches by SMIL (index.html,
+   #bgFrontFade). SMIL does not read prefers-reduced-motion, so stop it here:
+   with the preference on, the fade holds where it starts.
+   ========================================================================== */
+(() => {
+  const svg = document.querySelector('.bg-front svg');
+  if (!svg || !svg.pauseAnimations) return;
+  const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
+  const sync = () => {
+    if (mq.matches) { svg.pauseAnimations(); svg.setCurrentTime(0); }
+    else svg.unpauseAnimations();
+  };
+  sync();
+  mq.addEventListener('change', sync);
+})();

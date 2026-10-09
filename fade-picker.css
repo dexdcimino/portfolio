@@ -1,4 +1,0 @@
-/* TEMPORARY: the fade picker (fade-picker.js). Remove with it. */
-.fade-picker{position:fixed;top:12px;left:50%;transform:translateX(-50%);z-index:2147483000;display:flex;gap:6px;padding:6px;border-radius:999px;background:rgba(10,12,16,.82);border:1px solid rgba(255,255,255,.18)}
-.fade-picker button{width:34px;height:34px;border-radius:50%;border:1px solid rgba(255,255,255,.3);background:transparent;color:#fff;font:600 14px/1 system-ui,sans-serif;cursor:pointer}
-.fade-picker button[aria-pressed="true"]{background:var(--accent);color:#0b0d12;border-color:var(--accent)}
