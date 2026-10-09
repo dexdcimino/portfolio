@@ -93,6 +93,16 @@ await page.createCDPSession().then(s =>
   s.send('Browser.setDownloadBehavior', { behavior: 'deny' }).catch(() => {}));
 await page.setViewport({ width: 1600, height: 1000 });
 page.on('pageerror', e => fail.push(`pageerror: ${e.message}`));
+/* The featured video streams from Bunny, which this harness must not need: a
+   sandbox with no route out logs a refused fetch per range request and fails
+   the run on the network, not the page. Bunny is answered here with an empty
+   body, so the slot behaves as a video that has not arrived yet. */
+await page.setRequestInterception(true);
+let bunny = 0;
+page.on('request', r => {
+  if (new URL(r.url()).hostname.endsWith('.b-cdn.net')) { bunny++; r.respond({ status: 204, body: '' }); }
+  else r.continue();
+});
 /* The browser logs every refused fetch as a console error with no way for the
    page to silence it; the notes-password 401 above is the one this harness
    answers ON PURPOSE, and is matched by its URL, so nothing else can hide. */
@@ -103,6 +113,9 @@ page.on('console', m => {
 });
 
 await page.goto(`${BASE}/index.html`, { waitUntil: 'networkidle2', timeout: 60000 });
+// The Mobius slot has its link now, so its first range request is how we know it is wired.
+note(bunny > 0, `the featured video asked Bunny for nothing (${bunny} requests)`);
+console.log(`bunny: ${bunny} request(s) answered locally`);
 await page.$eval('#work', el => el.scrollIntoView({ block: 'center', behavior: 'instant' }));
 await page.waitForFunction(
   () => document.querySelectorAll('.work-card .card-dots').length === 8, { timeout: 20000 });
