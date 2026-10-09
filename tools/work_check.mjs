@@ -1232,6 +1232,10 @@ await page.waitForFunction(
       await page.waitForFunction(() => document.querySelector('.fv-gallery')?.classList.contains('is-on'), { timeout: 5000 });
       await new Promise(r => setTimeout(r, 900));
     }
+    await page.mouse.move(5, 5);
+    await new Promise(r => setTimeout(r, 500));
+    const restOp = await page.$eval(sel, el => +getComputedStyle(el.querySelector('.fv-pitch-btn')).opacity);
+    note(restOp < 0.05, `${name}'s info button is at opacity ${restOp} with no pointer on the thumbnail`);
     const c = await page.$eval(sel, el => { const r = el.getBoundingClientRect();
       return { x: r.left + r.width / 2, y: r.top + r.height / 3 }; });
     await page.mouse.move(c.x, c.y);
@@ -1245,11 +1249,12 @@ await page.waitForFunction(
                gap: Math.round(nr.left - br.right), dy: Math.round(nr.top - br.top),
                same: cs.backgroundColor === ns.backgroundColor && cs.borderRadius === ns.borderRadius
                      && cs.borderTopColor === ns.borderTopColor,
-               outline: ics.borderTopColor, olds: el.querySelectorAll('.fv-info, .fv-desc').length,
+               op: +cs.opacity, outline: ics.borderTopColor, olds: el.querySelectorAll('.fv-info, .fv-desc').length,
                x: br.left + br.width / 2, y: br.top + br.height / 2 }; });
     console.log(`${name} info: ${row.w}x${row.h} beside a ${row.nw}x${row.nh}, ${row.gap}px gap, hover edge ${row.outline}`);
     note(row.inRow && row.dy === 0 && row.gap === 10 && row.olds === 0,
          `${name}'s info button is not in the action row 10px left of the download (gap ${row.gap}, dy ${row.dy})`);
+    note(row.op > 0.9, `${name}'s info button is at opacity ${row.op} on a hovered thumbnail`);
     note(row.w === row.nw && row.h === row.nh && row.same,
          `${name}'s info button is ${row.w}x${row.h}, not the download's ${row.nw}x${row.nh} and style`);
     note(/rgba\(\d+, \d+, \d+, 0\)|transparent/.test(row.outline), `${name}'s thumbnail draws a ${row.outline} edge under a hover`);

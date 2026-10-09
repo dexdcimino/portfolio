@@ -1452,6 +1452,15 @@ html.fv-maxed .fv-item:popover-open{pointer-events:auto}
    (placed by initPitch), the button fades as it takes its place, and the X
    on the head's row folds it. */
 .fv-act>svg{width:28px;height:28px;display:block}
+/* Only while the thumbnail is hovered (Dex, 2026-10-09). A touch screen
+   (coarse pointer) keeps it up, or there would be no way to the words. Keyed
+   on pointer:coarse rather than hover:hover so a headless harness, which
+   reports neither, gets the desktop rule. Its slot stays, so the download
+   does not move. */
+.fv-pitch-btn{transition:opacity .2s ease,background var(--accent-ease),color var(--accent-ease)}
+@media not (pointer:coarse){
+  .fv-item:not(:hover):not(:has(:focus-visible)) .fv-pitch-btn{opacity:0;pointer-events:none}
+}
 .fv-item.is-pitched .fv-pitch-btn{opacity:0;pointer-events:none}
 .fv-pitch-pop{position:absolute;z-index:6;margin:0;overflow:hidden;box-sizing:border-box;
   padding:16px 18px 18px;border-radius:14px;border:var(--stroke) solid rgba(255,255,255,.14);

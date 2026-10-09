@@ -195,7 +195,8 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
   either side when enlarged (from 900px wide) so a 1440x900 laptop has room.
   On BOTH big thumbnails (Mobius and Proto Isles) the info button is a third
   `.fv-act` in `.fv-actions`, left of the download, the same 52px box
-  (`.fv-pitch-btn`); `initPitch()` runs after `initFeaturedVideo` and swaps it
+  (`.fv-pitch-btn`), shown only while the thumbnail is hovered (always on a
+  coarse pointer); `initPitch()` runs after `initFeaturedVideo` and swaps it
   on hover for `.fv-pitch-pop`, Mobius' a clone of the filled `.fv-about` and
   Proto Isles' built from the button's `data-pitch`, its bottom right corner
   on the button's, up to 460px wide, with an X (`.fv-pitch-x`) on the head's
