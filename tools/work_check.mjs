@@ -1088,7 +1088,7 @@ await page.waitForFunction(
               `${tip.gap}px above, ${tip.offCentre}px off centre`);
   note(tip.on && tip.thumb, 'the eye did not raise a tooltip with a picture');
   note(tip.loaded && tip.width > 200, 'the tooltip picture did not load');
-  note(tip.text === 'Functional preview', `the tooltip reads "${tip.text}"`);
+  note(tip.text === 'Functional Preview', `the tooltip reads "${tip.text}"`);
   note(tip.gap >= 0 && tip.gap < 40, `the bubble sits ${tip.gap}px above the eye`);
   note(Math.abs(tip.offCentre) <= 2, `the bubble is ${tip.offCentre}px off centre`);
   await page.mouse.move(5, 5);
