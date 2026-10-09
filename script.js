@@ -10829,23 +10829,12 @@ let openReader = () => {};
 /* The card's download goes straight to THIS system's installer. Release file
    names carry no version (the mobius-3d repo's desktop/builder.cjs), so
    releases/latest/download/<name> is always the newest build. Anything else --
-   a phone, a system with no build -- keeps the Releases page in the markup.
-   WINDOWS goes to the Microsoft Store listing instead (Dex, 2026-10-08): the
-   Store signs what it publishes, so it installs with no "Windows protected
-   your PC" warning. That page opens in a new tab, as the Releases page does. */
-const MOBIUS_STORE = 'https://apps.microsoft.com/detail/9NBX324THQ1V';
+   a phone, a system with no build -- keeps the Releases page in the markup. */
 (function initMobiusDownload() {
   const link = document.getElementById('mobiusDownload');
   if (!link) return;
   const ua = navigator.userAgent, phone = /Android|iPhone|iPad|iPod/i.test(ua);
-  if (!phone && /Windows/i.test(ua)) {
-    link.href = MOBIUS_STORE;
-    document.querySelectorAll('#mobiusDownload, .fv-get').forEach(btn => {
-      btn.dataset.tip = 'Get Mobius 3D\nfrom the Microsoft Store';
-    });
-    return;
-  }
-  const file = phone ? null
+  const file = phone ? null : /Windows/i.test(ua) ? 'Mobius-3D-Setup-x64.exe'
     : /Mac OS X|Macintosh/i.test(ua) ? 'Mobius-3D-mac.dmg' : /Linux/i.test(ua) ? 'Mobius-3D-x86_64.AppImage' : null;
   if (!file) return;
   link.href = `https://github.com/dexdcimino/mobius-3d/releases/latest/download/${file}`;

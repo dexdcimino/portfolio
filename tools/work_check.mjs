@@ -1569,7 +1569,9 @@ await page.waitForFunction(
       .map(a => ({ name: a.querySelector('strong').textContent.trim(), href: a.getAttribute('href') })));
     const toGh = links.filter(l => /github\.com/.test(l.href));
     note(links.length >= 7 && !toGh.length, `${links.length} AI Lab titles, ${toGh.length} still going to GitHub: ${toGh.map(l => l.name).join(', ')}`);
-    note(links.find(l => l.name === 'Mobius 3D')?.href === '/mobius/', `the Mobius 3D title goes to ${links.find(l => l.name === 'Mobius 3D')?.href}, not the app`);
+    /* Mobius's title is its Microsoft Store listing (Dex, 2026-10-09); its
+       download button stays the installer, asserted further down. */
+    note(links.find(l => l.name === 'Mobius 3D')?.href === 'https://apps.microsoft.com/detail/9NBX324THQ1V', `the Mobius 3D title goes to ${links.find(l => l.name === 'Mobius 3D')?.href}, not its Store listing`);
     const rows = await page.evaluate(() => [...document.querySelectorAll('#aiApps .ai-card')]
       .map((c, i) => ({ i, gh: c.querySelector('.ai-card-gh')?.href || '' })).filter(r => r.gh));
     note(rows.length === 6, `${rows.length} AI Lab rows carry a GitHub chip, expected 6`);

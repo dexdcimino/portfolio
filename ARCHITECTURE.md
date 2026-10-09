@@ -1142,14 +1142,12 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
   rather than ThemeDock's 960x875) on `?sample=knot`. Left of the eye,
   `#mobiusDownload` links the desktop app: `initMobiusDownload` in `script.js`
   points it at this system's installer under `releases/latest/download/`
-  (the release names carry no version), Windows at the Microsoft Store listing
-  (signed, so no SmartScreen warning; its tip says so and carries no size), and a
-  phone keeps the Releases page.
+  (the release names carry no version), and a phone keeps the Releases page.
   Its tip (and the featured video's download) carries that installer's size,
   read at load from GitHub's release API (`connect-src https://api.github.com`
   on the site's CSP) and left out if GitHub does not answer. The card's title
-  goes to `/mobius/`, not the repo: every AI Lab title goes to the app or its
-  store, and a row whose code is public carries `.ai-card-gh`, a GitHub badge
+  goes to its Microsoft Store listing (Dex, 2026-10-09), not the repo: every AI
+  Lab title goes to the app or its store, and a row whose code is public carries `.ai-card-gh`, a GitHub badge
   on the icon's corner that shows on hover. The PWA install tips state a size
   that `work_check` re-measures from what each app's service worker caches. It is a
   BUILT COPY of `dist/` from its own repository, github.com/dexdcimino/mobius-3d,
