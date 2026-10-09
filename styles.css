@@ -7922,7 +7922,7 @@ body:has(> .music-remote.at-tr:not([hidden])) .profile-btn{display:none}
 :root[data-accent='red']{--accent:#D94727;--accent-deep:#961114}
 :root[data-accent='yellow']{--accent:#FAAA1E;--accent-deep:#CF630B}
 :root[data-accent='cyan']{--accent:#2CC7F6;--accent-deep:#1774B5}
-:root[data-accent='blue']{--accent:#335DF3;--accent-deep:#2223A6}
+:root[data-accent='blue']{--accent:#335DF3;--accent-deep:#2223A6;--accent-ink:#ffffff}  /* ink before script.js's accentInk() runs; blue is the one white label */
 :root[data-accent='purple']{--accent:#A85CF5;--accent-deep:#5F1D9E}
 :root[data-accent='white']{--accent:#E9EBEC;--accent-deep:#6484A3}
 @media (color-gamut:p3){
