@@ -1382,7 +1382,8 @@ html.fv-maxed .fv-item:popover-open{pointer-events:auto}
 .fv-info{
   position:absolute;top:14px;left:14px;z-index:4;
   width:38px;height:38px;display:grid;place-items:center;padding:0;cursor:pointer;
-  border:var(--stroke) solid rgba(255,255,255,.16);border-radius:11px;
+  /* Accent edge at rest too (Dex: grey on grey, it vanished into the picture). */
+  border:var(--stroke) solid var(--accent);border-radius:11px;
   background:rgba(8,11,15,.74);backdrop-filter:blur(5px);color:#e6ebf2;
   transition:color var(--accent-ease),border-color var(--accent-ease),background .2s ease;
 }
