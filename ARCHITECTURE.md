@@ -58,6 +58,9 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
   real pointer is never true — pointerenter has already opened it — so the
   click fell through to re-picking the accent already on and then closing:
   the dropdown shut in your face and would not reopen under the cursor.
+  Picking another accent while docked leaves it open (Dex, 2026-10-09): the
+  old accent slides back into its row and focus moves to whatever now sits
+  where the pick was.
   Escape is a document listener for the same reason (the hover path leaves
   focus on `<body>`, where a listener bound to the swatches never hears
   it), and the arrow keys open the stack before walking it, because a
@@ -110,8 +113,9 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
   caption and the download button. A `.fv-has-video` item (Mobius 3D, the
   first) is a real video: `initFeaturedVideo()` attaches its `data-src` (a
   bunny.net URL, never this host) on first play, plays it MUTED while the
-  item is the one showing and at least 20% on screen, and pauses it
-  otherwise; the carousel's advance skips a video that is playing. It is
+  item is the one showing and on screen, and pauses it otherwise ("on
+  screen" leaves once half of it is off and comes back at 40%, judged by
+  the direction the ratio moves so the band between cannot flap); the carousel's advance skips a video that is playing. It is
   `object-fit:contain` on the viewer's own background, because a cover crop
   of the wide layout's near-square frame cut off the app's controls; its bar
   (the AI Lab player's `.cl-*` controls, shared) hides under a playing
@@ -168,7 +172,9 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
   `<dialog>` (the Functional Preview's included) so a modal never leaves it
   inert; muted from there it keeps
   playing until the card is back, when the copy flies home, fading out over
-  the last 40% of the way so it is gone as it lands. Its sound and
+  the last 40% of the way so it is gone as it lands. Each flight is 650ms,
+  eased in and out. The copy is filled with the accent, and red (`#d6423f`,
+  dexnote's dictation ring) while muted. Its sound and
   the music are one at a time: the slot registers with `MediaBus` (a tick
   late, past the bus's temporal dead zone) as a player that is "playing" only
   while audible, so music starting mutes it (taking the float away) and its
