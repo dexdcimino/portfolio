@@ -1210,10 +1210,22 @@ async function openSiteSignIn(opener) {
     } finally { busy(false); }
   };
 
+  /* The provider's own mark beside its name, one colour like the rest of the
+     panel (Dex, 2026-10-09: "just have the logo and then Google"). */
+  const provider = (which, name, cls) => {
+    const b = button(name, `signin-provider ${cls || ''}`, signIn(which));
+    const mark = document.createElement('span');
+    mark.className = 'icon signin-mark';
+    mark.dataset.icon = which;
+    mark.setAttribute('aria-hidden', 'true');
+    b.prepend(mark);
+    b.setAttribute('aria-label', `Sign in with ${name}`);
+    return b;
+  };
   providers.append(
-    button('Continue with Google', 'is-primary', signIn('google')),
-    button('Continue with GitHub', '', signIn('github')),
-    button('Continue with Discord', '', signIn('discord')));
+    provider('google', 'Google', 'is-primary'),
+    provider('github', 'GitHub'),
+    provider('discord', 'Discord'));
   const signOutBtn = button('Sign out', 'is-danger', signOut);
   signOutBtn.hidden = true;
   foot.append(signOutBtn, button('Not now', '', () => closeModal(dialog)));
