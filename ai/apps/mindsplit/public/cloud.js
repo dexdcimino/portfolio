@@ -41,7 +41,10 @@ let ready = null;             // resolves once the first onUser has fired
 function plain(u) {
   if (!u) return null;
   const via = (u.providerData && u.providerData[0] && u.providerData[0].providerId) || 'password';
-  return { uid: u.uid, name: u.displayName || '', email: u.email || '', photo: u.photoURL || '', provider: via };
+  // An Inko name-and-password account signs in with an address the site made
+  // up for it (lib/sketch-store.js siteBridge); its name is who it is.
+  const made = /@accounts\.dexcimino\.com$/i.test(u.email || '');
+  return { uid: u.uid, name: u.displayName || '', email: made ? '' : (u.email || ''), photo: u.photoURL || '', provider: via };
 }
 
 /* Every change of who is signed in, starting with the current one. */

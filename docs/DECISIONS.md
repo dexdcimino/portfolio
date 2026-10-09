@@ -50,6 +50,33 @@ change**, so the reasoning cannot drift away from the diff it explains.
 
 ---
 
+## 2026-10-09 — An Inko name and password is a site account too
+
+**Decided:** the site sign-in (`openSiteSignIn`) takes an email OR an Inko name
+with a password. An email is a Firebase email-and-password account. A name is
+checked by Inko's own server (`/api/sketch` action `site-password`), which then
+gives that Inko account a Firebase email-and-password user of its own
+(`siteBridge` in `lib/sketch-store.js`): a random address under
+`accounts.dexcimino.com`, a password derived from that address and the server's
+secret, made through Firebase's REST API with the public web key, and its uid
+linked to the name as `firebase-<uid>`. The browser signs in to Firebase with
+what the server hands back.
+
+**Replaced:** Inko's name-and-password accounts living only on Inko's server,
+with no Firebase uid, so DexNote and MindSplit could not see them.
+
+**Why:** Dex, 2026-10-09: "if they created that sign in in the INKO app ...
+same sign in for everything". Minting Firebase custom tokens needs a service
+account key nobody has configured; this needs no new secret. The address is
+random so nobody can register it before the owner does, and the password is
+never stored.
+
+**Reverse it if:** a Firebase service account is configured (then mint custom
+tokens and drop the made-up address), or Inko moves its accounts onto Firebase
+outright.
+
+---
+
 ## 2026-10-09 — The sign-in window says dexcimino.com, not dexnote-d7047
 
 **Decided:** on dexcimino.com the Firebase `authDomain` is the site, and

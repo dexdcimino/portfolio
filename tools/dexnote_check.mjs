@@ -30,7 +30,7 @@ const CHROME = [
   'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',
 ].find(p => p && existsSync(p));
 if (!CHROME) throw new Error('no Chrome or Edge found — set CHROME=<path to the exe>');
-const EXPECTED = 55;
+const EXPECTED = 61;
 
 const FAKE_CLOUD = `// Stand-in for dexnote/cloud.js: same exports, the "server" is a localStorage key.
 import { keyFor } from '/dexnote/local.js';
@@ -79,6 +79,7 @@ export const currentUser = async () => cloud._current();
 export const signIn = (which) => cloud.signIn(which);
 export const signOut = () => cloud.signOut();
 export const idToken = async () => null;
+export const errorText = (e) => String((e && e.code) || e);
 `;
 const b = await puppeteer.launch({ executablePath: CHROME, headless: 'new', args: ['--no-first-run', '--no-default-browser-check'] });
 const p = await b.newPage();
@@ -287,7 +288,7 @@ const tilde = async (word) => {
 const panel = () => p.evaluate(() => {
   const d = document.querySelector('#signinModal');
   if (!d || !d.open) return null;
-  const visible = (b) => b && !b.hidden;
+  const visible = (b) => !!b && b.getClientRects().length > 0;
   const btn = (t) => [...d.querySelectorAll('button')].find((x) => x.textContent.trim() === t);
   return {
     text: d.textContent, logo: d.querySelector('.signin-logo')?.getAttribute('src') || '',
@@ -305,16 +306,59 @@ let sp = await panel();
 ok(sp && sp.google && sp.github && sp.discord && !sp.signOut && /^data:image\/svg\+xml/.test(sp.logo) && !/DexNote/i.test(sp.text) && /dexcimino\.com/.test(sp.text),
   `~dexdc signed out opens the SITE sign-in: its own mark, three providers, no Sign out, no DexNote: ${JSON.stringify(sp && { ...sp, logo: sp.logo.slice(0, 30), text: sp.text.slice(0, 80) })}`);
 ok(sp && !sp.notesOpen && !(await p.evaluate(() => !!document.querySelector('#notesEditor .nt-app'))), 'and the notes did not open');
+// The fourth way in: one box for an email or an Inko name, in the same column.
+await panelPress('Email or name');
+const form = await p.evaluate(() => {
+  const d = document.querySelector('#signinModal');
+  const f = d.querySelector('.signin-form');
+  return { form: !!f && !f.hidden && getComputedStyle(f).display !== 'none', providers: !d.querySelector('.signin-providers').hidden,
+    inputs: [...d.querySelectorAll('.signin-form input')].map((i) => i.type + ':' + i.placeholder), focused: document.activeElement && document.activeElement.placeholder };
+});
+ok(form.form && !form.providers && form.inputs.join() === 'text:Email or Inko name,password:Password' && form.focused === 'Email or Inko name',
+  `Email or name swaps the buttons for an email-or-name box and a password, with the caret in it: ${JSON.stringify(form)}`);
+await panelPress('Other ways to sign in');
+ok(await p.evaluate(() => { const d = document.querySelector('#signinModal'); return !d.querySelector('.signin-providers').hidden && d.querySelector('.signin-form').hidden; }),
+  'and Other ways to sign in puts the buttons back');
+const profileState = () => p.evaluate(() => { const b = document.querySelector('#profileButton'); return b && { on: b.classList.contains('is-signed-in'), label: b.getAttribute('aria-label') }; });
 ok(await panelPress('Google'), 'Google pressed on the site panel');
 ok(await panelShut() && await signedInAs() === 'dex-google' && !(await p.evaluate(() => !!document.querySelector('#notesModal[open]'))),
   'the sign-in closes the panel, signs in, and still opens no notes');
+await p.waitForFunction(() => document.querySelector('#profileButton')?.classList.contains('is-signed-in'), { timeout: 5000 }).catch(() => {});
+ok(JSON.stringify(await profileState()) === JSON.stringify({ on: true, label: 'Your account' }), `the profile button at the top right fills in once signed in: ${JSON.stringify(await profileState())}`);
 await tilde('dexdc');
 await p.waitForSelector('#signinModal[open]', { timeout: 10000 }).catch(() => {});
 await p.waitForFunction(() => /Signed in as/.test(document.querySelector('#signinModal')?.textContent || ''), { timeout: 10000 }).catch(() => {});
 sp = await panel();
-ok(sp && /Signed in as dex-google@example\.com/.test(sp.text) && sp.google && sp.signOut, `~dexdc signed in shows the same panel with who and a Sign out: "${sp && sp.text.slice(0, 90)}"`);
+ok(sp && /Your account/.test(sp.text) && /Signed in as dex-google@example\.com/.test(sp.text) && !sp.google && !sp.github && sp.signOut,
+  `~dexdc signed in is the account's own menu: who, a Sign out, and no sign-in buttons: "${sp && sp.text.slice(0, 90)}"`);
 ok(await panelPress('Sign out'), 'Sign out pressed on that panel');
 ok(await panelShut() && await signedInAs() === null, 'and it signs out and closes');
+await p.waitForFunction(() => !document.querySelector('#profileButton')?.classList.contains('is-signed-in'), { timeout: 5000 }).catch(() => {});
+ok(JSON.stringify(await profileState()) === JSON.stringify({ on: false, label: 'Sign in' }), `and the profile button goes back to Sign in: ${JSON.stringify(await profileState())}`);
+// The button itself opens the same panel, and docked it is the top of the swatch stack.
+await p.evaluate(() => { document.documentElement.style.scrollBehavior = 'auto'; window.scrollTo(0, 1600); });
+await p.waitForFunction(() => document.querySelector('#accentPicker')?.classList.contains('compact'), { timeout: 5000 }).catch(() => {});
+await sleep(400);
+const docked = await p.evaluate(() => {
+  const r = document.querySelector('#profileButton').getBoundingClientRect();
+  const act = document.querySelector('#accentSwatches .swatch.active');
+  const hit = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
+  return { right: Math.round(innerWidth - r.right), top: Math.round(r.top), w: Math.round(r.width), hit: !!hit && !!hit.closest('#profileButton'), activeShown: getComputedStyle(act).opacity };
+});
+ok(docked.right < 40 && docked.top < 30 && docked.w >= 36 && docked.hit && docked.activeShown === '0',
+  `scrolled, the profile button stays at the top right in place of the active swatch: ${JSON.stringify(docked)}`);
+// Headless Chrome has no hover, so this is the TOUCH path: the first tap opens
+// the swatches (there is no hover to do it), the second opens the panel.
+await p.click('#profileButton');
+await sleep(400);
+const firstTap = await p.evaluate(() => [document.querySelector('#accentPicker').classList.contains('open'), !!document.querySelector('#signinModal[open]')]);
+await p.click('#profileButton');
+await p.waitForSelector('#signinModal[open]', { timeout: 5000 }).catch(() => {});
+sp = await panel();
+ok(firstTap[0] && !firstTap[1] && sp && sp.google && !sp.signOut, `a first tap drops the swatches, a second opens the site sign-in (${JSON.stringify(firstTap)})`);
+await panelPress('Not now');
+await panelShut();
+await p.evaluate(() => window.scrollTo(0, 0));
 
 // Over an open overlay: the AI Lab's notes (a guest, signed out).
 await pressLab();

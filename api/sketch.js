@@ -125,6 +125,16 @@ module.exports = async function handler(req, res) {
 
     if (action === 'signup') { await limit('ip-account', ip); return res.status(200).json(await store.signup(body.handle, body.password)); }
     if (action === 'login') { await limit('ip-login', ip); return res.status(200).json(await store.login(body.handle, body.password)); }
+    // A name and password typed into the SITE's sign-in (script.js
+    // openSiteSignIn): checked, or made, exactly as Inko does it, then given
+    // the Firebase sign-in that account owns (store.siteBridge).
+    if (action === 'site-password') {
+      await limit(body.create ? 'ip-account' : 'ip-login', ip);
+      const name = String(body.handle || '').trim().replace(/^@/, '');
+      const r = body.create ? await store.signup(name, body.password) : await store.login(name, body.password);
+      const b = await store.siteBridge(r.handle);
+      return res.status(200).json({ handle: r.handle, email: b.email, password: b.password });
+    }
     // After a first Google or Discord sign-in: the ticket says who, this picks the name.
     if (action === 'claim') { await limit('ip-account', ip); return res.status(200).json(await store.claim(body.ticket, body.handle)); }
     // Signed in to the SITE account (/account/site-auth.js): its Firebase ID

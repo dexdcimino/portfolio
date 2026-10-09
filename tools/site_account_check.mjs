@@ -55,6 +55,43 @@ const certs = createServer((req, res) => {
 await new Promise((r) => certs.listen(0, '127.0.0.1', r));
 process.env.SITE_AUTH_CERTS_URL = `http://127.0.0.1:${certs.address().port}/certs`;
 
+/* A stand-in for Firebase's sign-in API (SITE_AUTH_IDP_URL), for the
+   name-and-password bridge: users by email, as Firebase keeps them. */
+const idpUsers = new Map();
+let idpHits = 0, idpRefuse = '';
+const idp = createServer((req, res) => {
+  let raw = '';
+  req.on('data', (c) => { raw += c; });
+  req.on('end', () => {
+    idpHits++;
+    const body = JSON.parse(raw || '{}');
+    const method = (/accounts:(\w+)/.exec(req.url) || [])[1];
+    const say = (code, o) => { res.writeHead(code, { 'content-type': 'application/json' }); res.end(JSON.stringify(o)); };
+    const no = (m) => say(400, { error: { code: 400, message: m } });
+    if (idpRefuse) return no(idpRefuse);
+    if (method === 'signUp') {
+      if (idpUsers.has(body.email)) return no('EMAIL_EXISTS');
+      const u = { localId: `fb-${idpUsers.size + 1}`, email: body.email, password: body.password, displayName: '' };
+      idpUsers.set(body.email, u);
+      return say(200, { localId: u.localId, idToken: `tok:${body.email}` });
+    }
+    if (method === 'signInWithPassword') {
+      const u = idpUsers.get(body.email);
+      if (!u || u.password !== body.password) return no('INVALID_LOGIN_CREDENTIALS');
+      return say(200, { localId: u.localId, idToken: `tok:${body.email}` });
+    }
+    if (method === 'update') {
+      const u = idpUsers.get(String(body.idToken).replace(/^tok:/, ''));
+      if (!u) return no('INVALID_ID_TOKEN');
+      u.displayName = body.displayName;
+      return say(200, { localId: u.localId });
+    }
+    return no('UNKNOWN');
+  });
+});
+await new Promise((r) => idp.listen(0, '127.0.0.1', r));
+process.env.SITE_AUTH_IDP_URL = `http://127.0.0.1:${idp.address().port}/v1`;
+
 const site = require(join(ROOT, 'lib', 'site-identity.js'));
 const store = require(join(ROOT, 'lib', 'sketch-store.js'));
 const handler = require(join(ROOT, 'api', 'sketch.js'));
@@ -208,6 +245,44 @@ try {
   const me = await call({ action: 'me', token: okr.body.token });
   ok(me.status === 200 && me.body.handle === 'oldtimer', 'the token it hands back works on the rest of the API');
 
+  console.log('3b. a name and password typed into the SITE sign-in');
+  /* Dex, 2026-10-09: an Inko name and password "same sign in for
+     everything". The site-password action checks them as Inko does and
+     answers with the Firebase sign-in that account owns. */
+  const pw = await call({ action: 'site-password', handle: 'pw_fresh', password: 'correct horse' });
+  const fbUser = pw.body && idpUsers.get(pw.body.email);
+  ok(pw.status === 200 && /^inko-[0-9a-f]{24}@accounts\.dexcimino\.com$/.test(pw.body.email || '') && fbUser && fbUser.password === pw.body.password && fbUser.displayName === 'pw_fresh',
+    `an Inko name and password get a Firebase sign-in of their own, named after the account (${pw.status}, ${pw.body && pw.body.email})`);
+  const viaUid = await store.identifySite({ uid: fbUser && fbUser.localId, linked: [], provider: 'password' });
+  ok(viaUid.handle === 'pw_fresh', `and that sign-in opens the SAME Inko account (${viaUid.handle || 'a ticket'})`);
+  const usersBefore = idpUsers.size;
+  const pw2 = await call({ action: 'site-password', handle: '@PW_Fresh', password: 'correct horse' });
+  ok(pw2.status === 200 && pw2.body.email === pw.body.email && pw2.body.password === pw.body.password && idpUsers.size === usersBefore,
+    'signing in again (as @PW_Fresh) is the same Firebase user, not a second one');
+  const hitsBefore = idpHits;
+  const wrong = await call({ action: 'site-password', handle: 'pw_fresh', password: 'wrong horse' });
+  ok(wrong.status === 401 && !wrong.body.email && idpHits === hitsBefore, `a wrong password is a 401 and never reaches Firebase (${wrong.status})`);
+  const gOnly = await call({ action: 'site-password', handle: 'oldtimer', password: 'anything at all' });
+  ok(gOnly.status === 401 && /Google or Discord/.test(gOnly.body.error || ''), `an account with no password says how it signs in (${gOnly.body.error})`);
+  const made = await call({ action: 'site-password', handle: 'site_made', password: 'a long password', create: true });
+  const madeUser = made.body && idpUsers.get(made.body.email);
+  ok(made.status === 200 && madeUser && madeUser.email !== pw.body.email && (await store.login('site_made', 'a long password')).handle === 'site_made',
+    'Create account makes the Inko account AND its Firebase sign-in, at a different address');
+  ok((await store.identifySite({ uid: madeUser && madeUser.localId, linked: [], provider: 'password' })).handle === 'site_made', 'and that sign-in opens it in Inko');
+  const taken = await call({ action: 'site-password', handle: 'site_made', password: 'another password', create: true });
+  ok(taken.status === 409 && idpUsers.size === usersBefore + 1, `creating a name that is taken is refused and makes nothing (${taken.status})`);
+  const rawRecord = JSON.stringify(await store.io.readJson('sketch/users/pw_fresh.json'));
+  ok(rawRecord.includes(pw.body.email) && !rawRecord.includes(pw.body.password), 'the record keeps the address but never the password that signs in to it');
+  const moved = await store.rename('pw_fresh', 'pw_moved');
+  const afterMove = await call({ action: 'site-password', handle: 'pw_moved', password: 'correct horse' });
+  ok(moved.handle === 'pw_moved' && afterMove.status === 200 && afterMove.body.email === pw.body.email && fbUser.displayName === 'pw_moved'
+    && (await store.identifySite({ uid: fbUser.localId, linked: [], provider: 'password' })).handle === 'pw_moved',
+    'a rename keeps the same Firebase sign-in, renames it, and it opens the renamed account');
+  idpRefuse = 'OPERATION_NOT_ALLOWED';
+  const off = await call({ action: 'site-password', handle: 'pw_moved', password: 'correct horse' });
+  idpRefuse = '';
+  ok(off.status === 503 && /not switched on/.test(off.body.error || ''), `Firebase refusing password accounts says so (${off.status})`);
+
   console.log('4. the DEXDC notes, opened by Dex\u2019s account');
   process.env.NOTES_PASSWORD = 'check-password';
   const notesStore = require(join(ROOT, 'lib', 'notes-store.js'));
@@ -253,10 +328,11 @@ try {
   ok(still.rev === first.rev + 1 && still.content.sessions[0].title === 'edited on the phone', 'and the DEXDC notes are exactly as the one real save left them');
 } finally {
   certs.close();
+  idp.close();
   await rm(SCRATCH, { recursive: true, force: true });
 }
 
-const EXPECT = 60;
+const EXPECT = 71;
 ok(passed + failed === EXPECT, `ran ${passed + failed} checks, expected ${EXPECT}`);
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);
