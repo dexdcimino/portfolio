@@ -1345,7 +1345,14 @@ async function openSiteSignIn(opener) {
     glyph.className = 'icon signin-mark';
     glyph.dataset.icon = which;
     glyph.setAttribute('aria-hidden', 'true');
-    b.prepend(glyph);
+    /* The name is centred in the button and the mark hangs off its left at
+       the same 12px (Dex, 2026-10-09: the mark was pushing the name off
+       centre). */
+    const label = document.createElement('span');
+    label.className = 'signin-label';
+    label.textContent = name;
+    label.prepend(glyph);
+    b.replaceChildren(label);
     b.setAttribute('aria-label', onclick ? name : `Sign in with ${name}`);
     return b;
   };
@@ -2542,12 +2549,19 @@ if (workModal) {
        were when it started, it landed where the card had scrolled away from). */
     let fly = null;   // { toSpot, t0, done }
     const still = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+    /* Under the profile hexagon, centred on it (Dex, 2026-10-09: at the top
+       of the page it was centred under the whole swatch row, which left it
+       hanging short of the corner whenever an overlay sent it out there).
+       Docked, the open stack drops from that hexagon, so it goes under that
+       too. */
     function floatSpot() {
-      const sw = document.getElementById('accentSwatches'), size = floatBtn.offsetWidth || 40;
-      const r = sw?.getBoundingClientRect();
-      // Under the picker's open panel too, which hangs 10px below its swatches.
+      const size = floatBtn.offsetWidth || 40;
+      const hex = document.getElementById('profileButton')?.getBoundingClientRect();
+      const sw = document.getElementById('accentSwatches')?.getBoundingClientRect();
+      const r = hex?.width ? hex : sw;
       if (!r || !r.width) return { left: innerWidth - 14 - size, top: 14 };
-      return { left: r.left + r.width / 2 - size / 2, top: r.bottom + 18 };
+      const below = Math.max(r.bottom, sw?.width && sw.right > r.left && sw.left < r.right ? sw.bottom : 0);
+      return { left: r.left + r.width / 2 - size / 2, top: below + 18 };
     }
     function floatTrack() {
       /* Into the overlay on top, if there is one: a modal makes everything
