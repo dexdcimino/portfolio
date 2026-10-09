@@ -100,9 +100,12 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
   picture, strip). `#workHero` is sized to the PICTURE's own aspect
   (`--hero-ar` on `.work-hero-area`, set when the decoded image lands) so the
   title in `.work-over` sits on the art's top-left corner; a sheet at w/h <=
-  0.75 keeps a 3:2 box and scrolls. The X is the enlarged Mobius video's 52px
-  X, centred in the right gutter. Arrows on the picture show on hover (always
-  on touch), the strip's own arrows sit either side of it, and both wrap; the
+  0.75 keeps a 3:2 box and scrolls. The frame is 80% of the column. The X is
+  the enlarged Mobius video's 52px X, fixed on the profile hexagon's spot in
+  the screen's top right corner (the floating Mobius speaker keeps its place
+  under it). The picture's arrows sit OUTSIDE the frame at fixed places so
+  they never move between pieces of different shapes, the strip's own arrows
+  sit either side of the strip, and both wrap; the
   strip is EIGHT a page on a sliding `.work-track` (fewer when eight do not
   fit, `layoutWorkStrip()`), the page following the selection, with the count
   out of flow to its right so the strip stays centred. A thumbnail hover
