@@ -119,7 +119,9 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
   speaker is the grey struck-through `volume-slash`, in the bar's corner, and
   hovering it pops a vertical `.fv-volume` up above it while the eye/download
   pair fades out and takes no clicks. Left of it `.fv-full` ENLARGES rather than
-  going full screen: the slot becomes a `popover="auto"` in the top layer,
+  going full screen (a double click on the picture does the same): the slot
+  becomes a `popover="manual"` in the top layer, with `html.fv-maxed` taking
+  the pointer off everything under it,
   centred at the video's own aspect (`--fv-ar`, so no side bars) over a dimmed
   page, closed by its `.fv-close` X, a click outside or Escape (the video's
   own player where there is no popover). Only the bar comes along. Both buttons'
