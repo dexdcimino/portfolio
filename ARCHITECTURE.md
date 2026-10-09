@@ -3009,9 +3009,11 @@ dexnote/manifest.webmanifest  standalone, scope /dexnote/, the AI Lab card's
 dexnote/sw.js        network-first for code, cache-first for fonts, the emoji
                      table, the vendored SDK and icons; never /api/
 dexnote/icons/       the PNGs rendered from assets/icons/apps/dexnote.svg (the
-                     fire mark, 2026-10-09). Cache-first means a changed icon
-                     needs a NEW NAME (the -v2 suffix), never new bytes under
-                     the old one: an installed app would keep the old icon
+                     fire mark, 2026-10-09) by tools/dexnote_icons.mjs, which
+                     also renders the AI Lab card's PNG and renames every
+                     reference. Cache-first means a changed icon needs a NEW
+                     NAME (the -v2 suffix), never new bytes under the old one:
+                     an installed app would keep the old icon
 dexnote/mobile.js    the phone shell: the header's controls re-homed
 dexnote/mobile.css   everything scoped to .nt-app.is-mobile
 ```

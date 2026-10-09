@@ -1,7 +1,10 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
   <!-- The dexnote mark (the original two paths, unchanged) in dark maroon on
        a fire gradient, red-pink at the foot to orange-yellow at the top.
-       Dex, 2026-10-09. The PNGs beside the app are rendered from this. -->
+       Dex, 2026-10-09. THE ONE SOURCE for every dexnote icon: change the
+       colours here, then `node tools/dexnote_icons.mjs v<next>` renders the
+       AI Lab card, the phone app's icons and the sign-in logo and renames
+       every reference. Its header lists where the icon is used. -->
   <defs>
     <linearGradient id="fire" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0" stop-color="#FFB648"/>
