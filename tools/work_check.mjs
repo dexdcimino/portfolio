@@ -99,8 +99,21 @@ page.on('pageerror', e => fail.push(`pageerror: ${e.message}`));
    body, so the slot behaves as a video that has not arrived yet. */
 await page.setRequestInterception(true);
 let bunny = 0;
+/* GitHub's release API, answered here with the real 0.6.2 asset sizes: the
+   Mobius download tips read the installer's size off it (initMobiusDownload),
+   and this harness must not need the network. Counted, so a tip that never
+   asked cannot pass on the markup's own words. */
+let releaseAsks = 0;
+const RELEASE = { tag_name: 'v0.6.2', assets: [
+  { name: 'Mobius-3D-Setup-x64.exe', size: 112855489 }, { name: 'Mobius-3D-mac.dmg', size: 237977695 },
+  { name: 'Mobius-3D-x86_64.AppImage', size: 127571858 }] };
 page.on('request', r => {
-  if (new URL(r.url()).hostname.endsWith('.b-cdn.net')) { bunny++; r.respond({ status: 204, body: '' }); }
+  const u = new URL(r.url());
+  if (u.hostname.endsWith('.b-cdn.net')) { bunny++; r.respond({ status: 204, body: '' }); }
+  else if (u.hostname === 'api.github.com' && u.pathname === '/repos/dexdcimino/mobius-3d/releases/latest') {
+    releaseAsks++;
+    r.respond({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify(RELEASE) });
+  }
   else r.continue();
 });
 /* The browser logs every refused fetch as a console error with no way for the
@@ -1292,6 +1305,85 @@ await page.waitForFunction(
     note(above === marks, `${above} of ${marks} AI Lab tips sit centred above their button`);
     console.log(`ai lab tips: ${above} of ${marks} centred above their button`);
     await page.mouse.move(5, 5);
+  }
+  /* TITLES GO TO THE APP, THE CODE SITS BEHIND A CHIP (Dex, 2026-10-09).
+     No title in the list leaves for GitHub any more; each row whose code is
+     public carries a small GitHub chip that is invisible at rest and comes up
+     under a REAL pointer on its row. Counted, so a list that lost its chips
+     cannot pass on an empty walk. */
+  {
+    const links = await page.evaluate(() => [...document.querySelectorAll('#aiApps .ai-card-link[href]')]
+      .map(a => ({ name: a.querySelector('strong').textContent.trim(), href: a.getAttribute('href') })));
+    const toGh = links.filter(l => /github\.com/.test(l.href));
+    note(links.length >= 7 && !toGh.length, `${links.length} AI Lab titles, ${toGh.length} still going to GitHub: ${toGh.map(l => l.name).join(', ')}`);
+    note(links.find(l => l.name === 'Mobius 3D')?.href === '/mobius/', `the Mobius 3D title goes to ${links.find(l => l.name === 'Mobius 3D')?.href}, not the app`);
+    const rows = await page.evaluate(() => [...document.querySelectorAll('#aiApps .ai-card')]
+      .map((c, i) => ({ i, gh: c.querySelector('.ai-card-gh')?.href || '' })).filter(r => r.gh));
+    note(rows.length === 6, `${rows.length} AI Lab rows carry a GitHub chip, expected 6`);
+    let shown = 0;
+    for (const row of rows) {
+      await page.mouse.move(5, 5);
+      await new Promise(r => setTimeout(r, 300));
+      const at = await page.evaluate((i) => {
+        const c = document.querySelectorAll('#aiApps .ai-card')[i];
+        c.scrollIntoView({ block: 'center', behavior: 'instant' });
+        const g = c.querySelector('.ai-card-gh'), t = c.querySelector('.ai-card-link strong').getBoundingClientRect();
+        return { rest: +getComputedStyle(g).opacity, x: t.left + 4, y: t.top + t.height / 2 };
+      }, row.i);
+      await page.mouse.move(at.x, at.y, { steps: 3 });
+      await new Promise(r => setTimeout(r, 350));
+      const on = await page.evaluate((i) => {
+        const g = document.querySelectorAll('#aiApps .ai-card')[i].querySelector('.ai-card-gh');
+        const r = g.getBoundingClientRect();
+        return { op: +getComputedStyle(g).opacity, hit: document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2)?.closest('.ai-card-gh') === g };
+      }, row.i);
+      if (at.rest === 0 && on.op === 1 && on.hit && /^https:\/\/github\.com\/dexdcimino\//.test(row.gh)) shown++;
+      else note(false, `the GitHub chip on row ${row.i}: ${at.rest} at rest, ${on.op} on hover, hit ${on.hit}, ${row.gh}`);
+    }
+    note(shown === rows.length, `${shown} of ${rows.length} GitHub chips hide at rest and come up on hover`);
+    await page.mouse.move(5, 5);
+
+    /* THE DOWNLOAD SIZE. Mobius's is read off the release (answered above);
+       this Chrome says Linux, so it is the AppImage's 127,571,858 bytes. */
+    const tips = await page.evaluate(() => [...document.querySelectorAll('#mobiusDownload, .fv-get')].map(b => b.dataset.tip));
+    note(releaseAsks >= 1 && tips.length === 2 && tips.every(t => t === 'Download Mobius 3D\n122 MB · no install, just run it'),
+         `the Mobius download tips read ${JSON.stringify(tips)} after ${releaseAsks} release request(s)`);
+    /* The installable apps' sizes are MEASURED here, not trusted: each app
+       launched in a fresh profile, its service worker left to fill its cache,
+       and every cached body summed. The tip states "Under 1 MB" or "About N
+       MB"; data-install-size carries the same figure for this comparison. */
+    const apps = await page.evaluate(() => [...document.querySelectorAll('#aiApps .ai-card-dl[data-install-size]')]
+      .map(a => ({ path: new URL(a.href).pathname, size: a.dataset.installSize, tip: a.dataset.tip })));
+    note(apps.length === 3, `${apps.length} install buttons state a size, expected 3`);
+    const before = missing.length;
+    let sized = 0;
+    for (const app of apps) {
+      const ctx = await browser.createBrowserContext();
+      const p2 = await ctx.newPage();
+      await p2.goto(`${BASE}${app.path}`, { waitUntil: 'networkidle0', timeout: 30000 }).catch(() => {});
+      await p2.evaluate(() => navigator.serviceWorker && navigator.serviceWorker.ready).catch(() => {});
+      await new Promise(r => setTimeout(r, 2500));
+      const got = await p2.evaluate(async () => {
+        let bytes = 0, files = 0;
+        for (const k of await caches.keys()) {
+          const c = await caches.open(k);
+          for (const req of await c.keys()) { bytes += (await (await c.match(req)).arrayBuffer()).byteLength; files++; }
+        }
+        return { bytes, files };
+      }).catch(() => ({ bytes: 0, files: 0 }));
+      await ctx.close();
+      const mib = got.bytes / 1048576;
+      const says = app.size === '<1' ? mib < 1 : Math.round(mib) === +app.size;
+      const words = app.size === '<1' ? /\nUnder 1 MB · installs in seconds$/.test(app.tip) : app.tip.endsWith(`\nAbout ${app.size} MB · installs in seconds`);
+      console.log(`install size ${app.path}: ${got.files} files, ${mib.toFixed(2)} MB cached; the tip says ${app.size} MB`);
+      if (got.files >= 5 && says && words) sized++;
+      else note(false, `${app.path} caches ${got.files} files, ${mib.toFixed(2)} MB, but its tip says "${app.tip}" -- re-measure and fix data-install-size and the tip`);
+    }
+    /* The apps call their own APIs on launch, which this static server does
+       not have; those 404s are the apps', not the page under test. */
+    missing.splice(before, missing.length - before, ...missing.slice(before).filter(u => !u.startsWith('/api/')));
+    note(sized === apps.length, `${sized} of ${apps.length} install sizes match what the app actually caches`);
+    console.log(`ai lab links: ${links.length} titles, ${shown}/${rows.length} GitHub chips, Mobius tip "${tips[0]?.replace('\n', ' / ')}", ${sized}/${apps.length} install sizes measured`);
   }
   /* A REAL click on the eye: the overlay is opened by the button's own
      handler, and the sandbox is decided there. Measured and hit-tested first,

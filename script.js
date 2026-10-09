@@ -10478,6 +10478,38 @@ let openReader = () => {};
   if (!file) return;
   link.href = `https://github.com/dexdcimino/mobius-3d/releases/latest/download/${file}`;
   link.removeAttribute('target');
+
+  /* THE SIZE IN THE TIP, READ OFF THE RELEASE ITSELF (Dex, 2026-10-09). The
+     installer's real byte count comes from GitHub's API for the latest
+     release, so it is never a number typed here and never a release behind.
+     If GitHub does not answer (offline, rate limited, the file renamed), the
+     tip stays as the markup wrote it: a size we could not read is left out,
+     not guessed. The install line is per system and has no number in it,
+     because install time was not measured. Kept for the tab's life in
+     sessionStorage, so hovering twice is one request. Both download buttons
+     carry it: the AI Lab card's and the featured video's. */
+  const how = { exe: 'installs in under a minute', dmg: 'drag it into Applications',
+                AppImage: 'no install, just run it' }[file.split('.').pop()];
+  const mb = bytes => `${Math.max(1, Math.round(bytes / 1048576))} MB`;
+  const label = size => {
+    const tail = [size && mb(size), how].filter(Boolean).join(' · ');
+    document.querySelectorAll('#mobiusDownload, .fv-get').forEach(btn => {
+      btn.dataset.tip = `Download Mobius 3D\n${tail}`;
+    });
+  };
+  const KEY = 'mobius-release-sizes';
+  let cached = null;
+  try { cached = JSON.parse(sessionStorage.getItem(KEY) || 'null'); } catch {}
+  if (cached) { label(cached[file]); return; }
+  fetch('https://api.github.com/repos/dexdcimino/mobius-3d/releases/latest', { headers: { Accept: 'application/vnd.github+json' } })
+    .then(r => (r.ok ? r.json() : Promise.reject(r.status)))
+    .then(release => {
+      const sizes = {};
+      (release.assets || []).forEach(a => { if (a.name && a.size > 0) sizes[a.name] = a.size; });
+      try { sessionStorage.setItem(KEY, JSON.stringify(sizes)); } catch {}
+      label(sizes[file]);
+    })
+    .catch(() => label(null));
 })();
 
 /* --- AI Lab app overlay --------------------------------------------------- */
