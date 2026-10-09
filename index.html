@@ -1206,14 +1206,24 @@
              Artwork is named for what it depicts, not for the game, so a row
              points at its file through data-art rather than by slug. -->
         <a class="game-art" id="gameArt" aria-hidden="true">
-          <!-- No picture, because there is nothing to show yet. Without a
-               shot of its own showArt() leaves the previous game's artwork
-               up, so hovering TITLE COMING! would show Surveyor. The hazard
-               strip is the featured stage's, reused rather than redrawn. -->
-          <span class="game-art-shot game-art-soon" data-art="soon-art" hidden>
-            <span class="collab-soon-tape"></span>
-            <strong>UNDER CONSTRUCTION</strong>
-            <span class="collab-soon-tape"></span>
+          <!-- Proto Isles' splash art: the same master as the shot in its
+               gallery's Featured tab, baked on this slot's own ladder. -->
+          <span class="game-art-shot" data-art="proto-isles-art" hidden>
+            <!-- img src="assets/gallery/proto-isles/splash-art.png" slot="game-art" alt="" class="game-art-img" -->
+            <picture>
+              <source type="image/avif" srcset="assets/derived/gallery/proto-isles/splash-art-1200.avif?v=a608f6a5 1200w,
+                                                assets/derived/gallery/proto-isles/splash-art-900.avif?v=a608f6a5 900w,
+                                                assets/derived/gallery/proto-isles/splash-art-600.avif?v=a608f6a5 600w,
+                                                assets/derived/gallery/proto-isles/splash-art-400.avif?v=a608f6a5 400w"
+                      sizes="(max-width:1100px) 520px, min(520px, 26vw)">
+              <source type="image/webp" srcset="assets/derived/gallery/proto-isles/splash-art-1200.webp?v=a608f6a5 1200w,
+                                                assets/derived/gallery/proto-isles/splash-art-900.webp?v=a608f6a5 900w,
+                                                assets/derived/gallery/proto-isles/splash-art-600.webp?v=a608f6a5 600w,
+                                                assets/derived/gallery/proto-isles/splash-art-400.webp?v=a608f6a5 400w"
+                      sizes="(max-width:1100px) 520px, min(520px, 26vw)">
+              <img class="game-art-img" src="assets/gallery/proto-isles/splash-art.png" alt="" width="1920" height="1200" loading="lazy" decoding="async">
+            </picture>
+            <!-- /img -->
           </span>
           <span class="game-art-shot" data-art="stickland-art" hidden>
             <!-- img src="assets/thumbnails/stickland-art.png" slot="game-art" alt="" class="game-art-img" -->
@@ -1343,20 +1353,20 @@
            data-genre="EXPLORATION" data-dim="3D" data-players="SOLO"
            data-desc-lead="One transforming craft surveys an uncharted system by land, sea, and air."
            data-desc-body="Drive over dunes, skim oceans, then climb until altitude doubles your speed and the next of six worlds is thirty seconds out. Claim geysers with colonizers and hold them against raiders. Built in Babylon.js with an x-ray survey overlay."><span>04</span><strong>SURVEYOR</strong><small>Prototype</small><span class="row-go" aria-hidden="true"><span class="icon row-arrow" data-icon="arrow-ne"></span><span class="icon row-play" data-icon="play-round"></span></span></a>
-        <!-- 05 IS A PLACEHOLDER and says so in every field rather than
-             leaving holes: TBD in all three tag slots (added to GAME_TAGS,
-             so it is a value the vocabulary knows rather than one it
-             shouts about), the hazard strip instead of artwork, and no
-             gallery key at all -- which paints GALLERY (0) and greys the
-             button through the same .is-empty path every empty game uses.
-             A <div>, not an <a>: there is nowhere to go yet, and an anchor
-             with no href is a link that does nothing. tabindex keeps it
-             reachable, because the row IS the control that shows the copy. -->
-        <div class="stack-row stack-row-soon" data-game="title-coming"
-           data-art="soon-art" tabindex="0"
-           data-genre="TBD" data-dim="TBD" data-players="TBD"
+        <!-- 05 IS PROTO ISLES, the game being built now (Dex, 2026-10-09).
+             Its artwork is the splash art, and its GALLERY button opens the
+             Proto Isles gallery -- the same work overlay and tabs as its
+             featured card -- because data-game names a [data-work-set]
+             (initGameGallery checks for one). Players stays TBD until there is
+             a number to put there. Still a <div>, not an <a>: there is no
+             build to play yet, and an anchor with no href is a link that does
+             nothing. tabindex keeps it reachable, because the row IS the
+             control that shows the copy. -->
+        <div class="stack-row stack-row-soon" data-game="proto-isles"
+           data-art="proto-isles-art" tabindex="0"
+           data-genre="SANDBOX" data-dim="3D" data-players="TBD"
            data-desc-lead="The one being built now — a multiplayer sandbox you drop into with friends."
-           data-desc-body="Placeholder. The name, the tags and the shots all land here once there is something worth showing; the two editors in the AI Lab are being built to feed it."><span>05</span><strong>TITLE COMING!</strong><small>Multiplayer Sandbox</small></div>
+           data-desc-body="A shared town plaza and islands to build on, with cosmetics, pets, items and a character editor. Still a work in progress; the gallery has the latest shots."><span>05</span><strong>PROTO ISLES (WIP)</strong><small>Multiplayer Sandbox</small></div>
         <div class="game-desc" id="gameDesc">
           <strong class="game-desc-lead"></strong>
           <p class="game-desc-body"></p>

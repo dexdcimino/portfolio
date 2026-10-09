@@ -159,7 +159,11 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
   moves, wearing the neighbouring tab's icon and walking the tabs with
   wrapping -- `paintWorkJumps()`, revealed by `nearWorkJumps()` within two
   arrow-widths, always on for a coarse pointer; the icons are masks under
-  `assets/icons/proto-isles/` plus the keypad's `snail`), and its always-visible
+  `assets/icons/proto-isles/` plus the keypad's `snail`; the games list's row
+  05, PROTO ISLES (WIP), names the same set in its `data-game`, and
+  `initGameGallery` sends its GALLERY button there -- counted with
+  `readWorkSet()` and opened with `openWork(null, 0, btn, key)` -- rather
+  than keeping a second copy of the shots), and its always-visible
   download is `[data-code-lock]`: the ` keypad, labelled DOWNLOAD LOCKED,
   until there is a launcher. Hover and the bar slides up into its strip, pushing the
   caption and the pair up with it, all on one slow ease (`--fv-t`, .5s);

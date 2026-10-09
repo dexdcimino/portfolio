@@ -1421,22 +1421,24 @@ await page.waitForFunction(
   await page.mouse.move(5, 5);
 }
 
-/* ---- 14. the fifth game is a placeholder in every field ------------------
-   FALSELY PASSES IF: the row were only found. The point of the row is that it
-   has NO HOLES -- a blank tag or a bare "GALLERY" reads as a bug rather than as
-   a slot -- and that hovering it does not leave the previous game's artwork up,
-   which is what showArt() does by design for a row with no art of its own. */
+/* ---- 14. the fifth game is PROTO ISLES (WIP) -----------------------------
+   Dex, 2026-10-09: the "title coming" placeholder became Proto Isles, wearing
+   its splash art, and its GALLERY opens the Proto Isles gallery -- the same
+   work set as the featured card, not a second copy of its shots.
+   FALSELY PASSES IF: the button were only read. Its count is computed from
+   the featured card's figures, so it could say 28 and still open the games
+   viewer on nothing; a REAL click has to land in the work overlay. */
 {
   await page.$eval('#games', el => el.scrollIntoView({ block: 'center', behavior: 'instant' }));
   await new Promise(r => setTimeout(r, 400));
-  await page.hover('.stack-row-soon');
+  await page.hover('.stack-row[data-game="proto-isles"]');
   await new Promise(r => setTimeout(r, 450));
   const row = await page.evaluate(() => {
-    const el = document.querySelector('.stack-row-soon');
-    const art = document.getElementById('gameArt');
+    const el = document.querySelector('.stack-row[data-game="proto-isles"]');
+    const shown = [...document.querySelectorAll('.game-art-shot')].filter(s => !s.hidden);
+    const avif = shown[0] && shown[0].querySelector('source[type="image/avif"]');
     return {
-      exists: !!el, tag: el && el.tagName, href: el && el.getAttribute('href'),
-      n: el && el.querySelector('span').textContent,
+      exists: !!el, n: el && el.querySelector('span').textContent,
       name: el && el.querySelector('strong').textContent,
       kind: el && el.querySelector('small').textContent,
       tags: [...document.querySelectorAll('#gameTags .game-tag')].map(t => t.textContent.trim()),
@@ -1444,23 +1446,49 @@ await page.waitForFunction(
       body: document.querySelector('.game-desc-body').textContent.trim(),
       gallery: document.getElementById('galleryOpen').textContent.trim(),
       greyed: document.getElementById('galleryOpen').classList.contains('is-empty'),
-      shot: [...document.querySelectorAll('.game-art-shot')].filter(s => !s.hidden)
-        .map(s => s.dataset.art).join(','),
-      artLinks: art.hasAttribute('href'),
+      shot: shown.map(s => s.dataset.art).join(','),
+      art: avif ? avif.getAttribute('srcset').trim().split(/\s+/)[0] : '',
     };
   });
-  console.log(`row 05: ${row.tag} "${row.name}" / ${row.kind}, tags ${row.tags.join('/')}, ` +
+  console.log(`row ${row.n}: "${row.name}" / ${row.kind}, tags ${row.tags.join('/')}, ` +
               `${row.gallery} greyed=${row.greyed}, preview ${row.shot}`);
-  note(row.exists && row.tag === 'DIV', `the placeholder row is a ${row.tag}, expected a DIV`);
-  note(!row.href, `the placeholder row links to ${row.href}`);
-  note(row.tags.every(t => t === 'TBD') && row.tags.length === 3,
-       `its tags read ${row.tags.join('/')}, expected three TBD`);
-  note(row.lead.length > 20 && row.body.length > 40, 'the placeholder row has no copy');
-  note(row.gallery === 'GALLERY (0)', `the gallery button says "${row.gallery}"`);
-  note(row.greyed, 'the empty gallery button is not greyed');
-  note(row.shot === 'soon-art',
-       `hovering the placeholder shows "${row.shot}", not its own hazard strip`);
-  note(!row.artLinks, 'the preview frame is still a link while showing a game with no page');
+  note(row.exists && row.name === 'PROTO ISLES (WIP)', `row 05 is named "${row.name}"`);
+  note(row.kind === 'Multiplayer Sandbox', `row 05's subtitle is "${row.kind}"`);
+  note(row.tags.join('/') === 'SANDBOX/3D/TBD', `its tags read ${row.tags.join('/')}`);
+  note(row.lead.length > 20 && row.body.length > 40, 'the Proto Isles row has no copy');
+  note(row.shot === 'proto-isles-art', `hovering Proto Isles shows "${row.shot}"`);
+  /* The frame is display:none under (hover:none), which headless Chrome
+     matches, so the picture never loads here. Fetch the rung it names
+     instead: a srcset pointing at a file that is not there would pass any
+     assertion on the markup alone. */
+  const artFile = row.art ? await page.evaluate(async (u) => {
+    const r = await fetch(u); return { ok: r.ok, bytes: (await r.arrayBuffer()).byteLength };
+  }, row.art) : { ok: false, bytes: 0 };
+  note(/gallery\/proto-isles\/splash-art-\d+\.avif/.test(row.art) && artFile.ok && artFile.bytes > 10000,
+       `its preview names ${row.art || 'nothing'} (${artFile.bytes} bytes)`);
+  note(row.gallery === 'GALLERY (28)', `the gallery button says "${row.gallery}"`);
+  note(!row.greyed, 'the Proto Isles gallery button is greyed');
+
+  await page.$eval('#galleryOpen', el => el.scrollIntoView({ block: 'center', behavior: 'instant' }));
+  await new Promise(r => setTimeout(r, 300));
+  const at = await page.$eval('#galleryOpen', el => { const r = el.getBoundingClientRect();
+    return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; });
+  const hit = await page.evaluate(({ x, y }) => !!document.elementFromPoint(x, y)?.closest('#galleryOpen'), at);
+  note(hit, 'the middle of the games GALLERY button is not the button');
+  await page.mouse.click(at.x, at.y);
+  await page.waitForFunction(() => document.getElementById('workModal').open
+    && /proto-isles/.test(document.getElementById('workHeroImg').currentSrc), { timeout: 8000 }).catch(() => {});
+  const opened = await page.evaluate(() => ({
+    work: document.getElementById('workModal').open,
+    games: document.getElementById('galleryModal').open,
+    on: document.querySelector('.work-tab[aria-selected="true"]')?.textContent,
+    tabs: document.querySelectorAll('.work-tab').length,
+  }));
+  console.log(`games GALLERY on Proto Isles: work overlay ${opened.work ? 'open' : 'shut'} on ${opened.on} of ${opened.tabs} tabs`);
+  note(opened.work && !opened.games, `the GALLERY button opened ${JSON.stringify(opened)}, not the Proto Isles gallery`);
+  note(opened.on === 'CHARACTERS5' && opened.tabs === 7, `it opened on ${opened.on} of ${opened.tabs} tabs`);
+  await page.keyboard.press('Escape');
+  await page.waitForFunction(() => !document.getElementById('workModal').open, { timeout: 3000 }).catch(() => {});
 }
 
 /* ---- 15. the AI Lab placeholder ------------------------------------------
