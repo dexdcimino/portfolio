@@ -1220,12 +1220,54 @@ await page.waitForFunction(
      TAPE, not against .fv-soon's box: that box is 44% of the frame tall and
      mostly empty at the top, so a box-to-box test calls a clean layout a
      collision. What the complaint was about is ink on ink. */
-  /* Mobius 3D has no info icon any more (Dex, 2026-10-09): its words are the
-     pitch beside the ENLARGED video, section 12b. The icon is Proto Isles'
-     now, so the popover is measured there and the stage goes back after. */
-  const mobiusIcons = await page.evaluate(() =>
-    document.querySelectorAll('.fv-has-video .fv-info, .fv-has-video .fv-desc').length);
-  note(mobiusIcons === 0, `the Mobius slot still has ${mobiusIcons} info icon/description element(s)`);
+  /* THE PITCH ON THE CARD (Dex, 2026-10-09): Mobius 3D's info button sits in
+     its title, on the title's bottom line, and a REAL hover on it swaps it for
+     the pitch -- the same words as the AI Lab card -- between the title and
+     the download, staying while the pointer moves onto the card and folding
+     when it leaves both. FALSELY PASSES IF: the hover were a synthetic event
+     (the handlers read pointerType), or the card were measured while still
+     scaled up from the button. Proto Isles' old-style popover follows. */
+  {
+    const c = await page.$eval('.fv-has-video', el => { const r = el.getBoundingClientRect();
+      return { x: r.left + r.width / 2, y: r.top + r.height / 3 }; });
+    await page.mouse.move(c.x, c.y);
+    await new Promise(r => setTimeout(r, 700));
+    const btn = await page.$eval('.fv-has-video .fv-pitch-btn', el => { const r = el.getBoundingClientRect();
+      const t = el.closest('strong'); const range = document.createRange(); range.selectNodeContents(t.firstChild);
+      const tr = range.getBoundingClientRect();
+      return { x: r.left + r.width / 2, y: r.top + r.height / 2, gap: Math.round(r.left - tr.right),
+               bottomOff: Math.round(r.bottom - tr.bottom), op: +getComputedStyle(el).opacity }; });
+    note(btn.op > 0.9, `the Mobius info button is at opacity ${btn.op} on a hovered card`);
+    note(btn.gap >= 0 && btn.gap < 30, `the info button is ${btn.gap}px right of "Mobius 3D"`);
+    note(Math.abs(btn.bottomOff) <= 6, `the info button's bottom is ${btn.bottomOff}px off the title's`);
+    await page.mouse.move(btn.x, btn.y);
+    await new Promise(r => setTimeout(r, 500));
+    const pop = await page.evaluate(() => {
+      const item = document.querySelector('.fv-has-video');
+      const p = item.querySelector('.fv-pitch-pop'), b = item.querySelector('.fv-pitch-btn');
+      const pr = p.getBoundingClientRect(), dl = item.querySelector('.fv-get').getBoundingClientRect();
+      return { open: item.classList.contains('is-pitched') && b.getAttribute('aria-expanded') === 'true',
+               op: +getComputedStyle(p).opacity, btnOp: +getComputedStyle(b).opacity,
+               lead: p.querySelector('.fv-about-lead')?.textContent.trim() || '',
+               head: p.querySelector('.fv-about-head')?.textContent.trim() || '',
+               card: document.getElementById('mobiusCard').dataset.descLead,
+               clearOfDownload: pr.right <= dl.left, width: Math.round(pr.width),
+               cx: pr.left + pr.width / 2, cy: pr.top + 20 };
+    });
+    console.log(`card pitch: open=${pop.open}, "${pop.head}", ${pop.width}px wide, clear of the download=${pop.clearOfDownload}`);
+    note(pop.open && pop.op > 0.9 && pop.btnOp < 0.1, 'hovering the info button did not swap it for the pitch');
+    note(pop.lead === pop.card && pop.head === 'The pitch', `the card's pitch reads "${pop.head}: ${pop.lead}"`);
+    note(pop.clearOfDownload && pop.width >= 200, `the card's pitch is ${pop.width}px wide and over the download`);
+    await page.mouse.move(pop.cx, pop.cy, { steps: 6 });
+    await new Promise(r => setTimeout(r, 500));
+    const held = await page.$eval('.fv-has-video', el => el.classList.contains('is-pitched'));
+    note(held, 'the pitch folded while the pointer was on it');
+    await page.mouse.move(5, 5);
+    await new Promise(r => setTimeout(r, 600));
+    const folded = await page.$eval('.fv-has-video', el => !el.classList.contains('is-pitched')
+      && el.querySelector('.fv-pitch-btn').getAttribute('aria-expanded') === 'false');
+    note(folded, 'the pitch stayed open after the pointer left it');
+  }
   await page.evaluate(() => document.querySelector('[data-fv="1"]').click());
   await page.waitForFunction(() => document.querySelector('.fv-gallery')?.classList.contains('is-on'), { timeout: 5000 });
   await new Promise(r => setTimeout(r, 600));
@@ -1299,6 +1341,7 @@ await page.waitForFunction(
     return {
       shown: getComputedStyle(a).display !== 'none' && ab.width > 0,
       outside: ab.left >= vb.right, below: Math.round(ab.top - dl.bottom),
+      bottomOff: Math.round(ab.bottom - vb.bottom),
       offCentre: Math.round((ab.left + ab.right) / 2 - (dl.left + dl.right) / 2),
       portrait: ab.height > ab.width, inView: ab.bottom <= innerHeight && ab.right <= innerWidth,
       head: head.textContent.trim(), headPx: px(head), textPx: px(lead),
@@ -1311,11 +1354,12 @@ await page.waitForFunction(
       muted: item.querySelector('.fv-video').muted,
     };
   });
-  console.log(`enlarged: the pitch ${big.shown ? 'shown' : 'NOT shown'}, ${big.below}px under the download, ` +
+  console.log(`enlarged: the pitch ${big.shown ? 'shown' : 'NOT shown'}, ${big.below}px under the download, bottom ${big.bottomOff}px off the video's, ` +
               `${big.offCentre}px off its centre, head "${big.head}" ${big.headPx}px over ${big.textPx}px; muted=${big.muted}`);
   note(big.shown, 'the enlarged video shows no pitch at 1440x900');
   note(big.outside, 'the pitch is inside the video');
-  note(big.below > 0 && big.below < 60, `the pitch is ${big.below}px under the download`);
+  note(big.below > 0, `the pitch is ${big.below}px under the download`);
+  note(Math.abs(big.bottomOff) <= 1, `the pitch's bottom is ${big.bottomOff}px off the video's bottom edge`);
   note(Math.abs(big.offCentre) <= 2, `the pitch is ${big.offCentre}px off the column's centre`);
   note(big.portrait && big.inView, 'the pitch is not a portrait card on screen');
   note(big.head.length > 0 && big.head.split(/\s+/).length <= 3, `the pitch's head reads "${big.head}"`);

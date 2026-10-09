@@ -181,11 +181,16 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
   into the popover with them. Under that column, in the same gap, a portrait
   `.fv-about` card ("The pitch", the accent, bold, 2px over its 14px text)
   holds `#mobiusCard`'s `data-desc-lead` and `data-desc-body`, copied in at
-  init so the two never disagree; `placeAbout`/`sizeAbout` keep only the lead
+  init so the two never disagree, its bottom edge on the video's bottom edge; `placeClose`/`sizeAbout` keep only the lead
   under 200px wide, hide it where even that will not fit, and raise the column
   rather than let it run off the bottom. A slot with a `.fv-about` keeps 200px
   either side when enlarged (from 900px wide) so a 1440x900 laptop has room.
-  The Mobius slot has no info icon: this card is its description. Enlarging,
+  On the small card the info button sits in the title (`.fv-pitch-btn`, on
+  its bottom line, hover-only like Proto Isles'); hovering it swaps it for
+  `.fv-pitch-pop`, a wider clone of the pitch grown up and right from the
+  button to the download (or stood on the caption when that gap is under
+  260px), kept while the pointer is on either and folded 220ms after it
+  leaves both; a tap toggles it, a tap elsewhere or Escape folds it. Enlarging,
   by either route, UNMUTES it (`soundUp()`) until the visitor sets the sound
   by hand (the card's speaker, its volume or the floating mute), which is
   kept in `localStorage` `fv-sound-by-hand`; the music muting it through
@@ -198,11 +203,16 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
   `backdrop-filter` (`.fv-act`, `.fv-volume`, `.fv-info`, `.fv-desc`,
   `.fv-about` are near-opaque fills): a blur over it made the compositor read
   the video back through an SDR surface, so it flickered between HDR and sRGB
-  whenever a blurred control was on top (Dex, 2026-10-09). With the sound on it
+  whenever a blurred control was on top (Dex, 2026-10-09). The `.fv-video`
+  itself carries `filter:saturate(1.1)` so Chrome never hands it straight to
+  the screen: it flipped between that direct path and the page's own while
+  fixed controls scrolled over it, and the two look different on an HDR or
+  wide-gamut display. With the sound on it
   keeps playing in another tab or app until it is paused or muted (`sync()`;
   muted, a hidden tab still pauses it), and when it
   scrolls out of view, and a `.fv-float` copy of the mute flies from the
-  card to just under `#accentSwatches`, re-placed every frame so it follows
+  card to just under the profile hexagon (`#profileButton`), centred on it and
+  below the docked stack when that is open, re-placed every frame so it follows
   the picker open and shut (the flight too is worked out per frame between
   where the card's speaker and that spot are NOW, so a scroll mid-flight
   cannot send it to a stale spot), and moved into the top open
@@ -4264,6 +4274,9 @@ account's away; its own account menu marks its moves with `ownMove` so they
 are not done twice. `dexnote/account.js` `whoIsHere()` reads the site's
 `site:signedIn` flag too, since a sign-in from the panel is the same Firebase
 account. Nothing is sent to a server for the code itself.
+
+Each provider button centres its NAME (`.signin-label`); the mark hangs 12px
+off the name's left, absolutely placed, so it never pushes the name off centre.
 
 The panel's fourth button, **Email or name**, swaps the provider column for one
 box (an email or an Inko name) and a password, with Sign in and Create account.

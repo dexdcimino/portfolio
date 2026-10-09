@@ -1259,7 +1259,15 @@ html.dex-cursor button.app-art-view{cursor:zoom-in}
    under them. */
 .fv-has-video .fv-poster img,.fv-video{object-position:50% 0}
 .fv-has-video .fv-matte{display:none}
-.fv-video{z-index:0;background:transparent;opacity:0;transition:opacity .4s ease}
+.fv-video{z-index:0;background:transparent;opacity:0;transition:opacity .4s ease;
+  /* ONE COLOUR PATH, ALWAYS (Dex, 2026-10-09: it flickered between sRGB and
+     HDR/P3 while scrolling). Chrome hands a video straight to the screen when
+     nothing overlaps or clips it, and draws it through the page otherwise;
+     the two look different on a wide-gamut or HDR display, and scrolling
+     moves the fixed controls on and off it, so it flipped. A filter keeps it
+     on the page path in every state, the enlarged one included, and the
+     slight saturation is the direct path's richer look kept on purpose. */
+  filter:saturate(1.1)}
 .fv-item.is-live .fv-video{opacity:1}
 .fv-has-video .card-shade{inset:44% 0 0;z-index:1}
 .fv-has-video .card-meta{bottom:76px;right:150px}
@@ -1433,6 +1441,26 @@ html.fv-maxed .fv-item:popover-open{pointer-events:auto}
 .fv-about p+p{margin-top:10px;color:#aeb8c4}
 .fv-about.is-short .fv-about-body{display:none}
 @keyframes fv-about-in{from{opacity:0;transform:translateY(6px)}}
+/* THE PITCH ON THE CARD: the info button sits in the title, on its bottom
+   line, and shows on hover like Proto Isles' (the rules under .fv-info). The
+   card it opens is the same panel, wider, grown up and right from the button
+   (placed by initFeaturedVideo), and the button fades as it takes its place. */
+.fv-item .card-meta strong .fv-pitch-btn{position:relative;top:auto;left:auto;display:inline-grid;
+  vertical-align:text-bottom;margin-left:.32em;width:38px;height:38px;font-size:16px}
+.fv-item.is-pitched .card-meta .fv-pitch-btn{opacity:0;pointer-events:none}
+.fv-pitch-pop{position:absolute;z-index:6;margin:0;overflow:hidden;box-sizing:border-box;
+  padding:16px 18px 18px;border-radius:14px;border:var(--stroke) solid rgba(255,255,255,.14);
+  background:rgba(6,8,11,.94);color:#d7dee8;font-size:14px;line-height:1.5;text-align:left;
+  box-shadow:0 14px 40px rgba(0,0,0,.45);cursor:default;
+  opacity:0;transform:scale(.12);pointer-events:none;
+  transition:opacity .2s ease,transform .26s cubic-bezier(.2,.8,.3,1)}
+.fv-pitch-pop[hidden]{display:block;visibility:hidden}
+.fv-item.is-pitched .fv-pitch-pop{opacity:1;transform:none;pointer-events:auto}
+.fv-pitch-pop p{margin:0}
+.fv-pitch-pop p+p{margin-top:10px;color:#aeb8c4}
+.fv-pitch-pop.is-short .fv-about-body{display:none}
+.fv-item:popover-open .fv-pitch-pop,.fv-item:popover-open .fv-pitch-btn{display:none}
+@media(prefers-reduced-motion:reduce){.fv-pitch-pop{transition:none}}
 /* Room for it: at least 200px each side of a slot that has one, so a 1440x900
    laptop gets the card rather than a gap 40px too narrow to hold it. */
 @media(min-width:900px){.fv-item:has(.fv-about):popover-open{width:min(94vw,calc(100vw - 400px),calc((100dvh - 56px) * var(--fv-ar,4/3)))}}
@@ -7542,10 +7570,14 @@ body:has(.sidebar:is(:hover,:has(:focus-visible))) > .music-remote.at-bl{
 /* Shorter and only as long as the widest name, so the three line up as one
    column under the title rather than spanning the panel. */
 .signin-provider{
-  display:inline-flex;align-items:center;justify-content:flex-start;gap:10px;
-  min-height:46px;width:225px;padding:0 18px;gap:12px;font-size:1.3rem;
+  display:inline-flex;align-items:center;justify-content:center;
+  min-height:46px;width:225px;padding:0 18px;font-size:1.3rem;
 }
+/* The NAME is centred and the mark hangs 12px off its left, out of flow, so
+   it never pushes the name off centre (Dex, 2026-10-09). */
+.signin-label{position:relative}
 .signin-mark{width:24px;height:24px}
+.signin-label>.signin-mark{position:absolute;right:calc(100% + 12px);top:50%;translate:0 -50%}
 /* The fourth way in opens the form; it is a way, not the default, so quieter. */
 .signin-provider.is-quiet{background:transparent;border-color:#323848}
 .signin-provider.is-quiet:hover{background:#252a37}
