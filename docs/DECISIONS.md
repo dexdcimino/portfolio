@@ -50,6 +50,27 @@ change**, so the reasoning cannot drift away from the diff it explains.
 
 ---
 
+## 2026-10-09 — The hero's diagonal fade is the original one again
+
+**Decided:** the front band over the mascot fades exactly as it did before 2026-10-08
+(the ramp from `02ac85e`, 0 at the bottom left to solid at the top right, along
+1361.7,1355.8 to 1752.8,-29.3), and the back wedge has no cut mask again. The new
+per-gamut accents, the darker grade and the top-right gradient (`#bgWedge`) are kept;
+the front band is filled with that grade and faded by a mask carrying the old ramp.
+
+**Replaced:** four reworks of the fade made between 2026-10-08 and 2026-10-09
+(`#bgFrontAlong`, `#bgFrontEdge` and `#bgWedgeCut`), each moving a steep fade line across
+the mascot. Dex: "the fade is going the wrong direction. It's supposed to go from the top
+right to the bottom left. Just bring back the fade of the diagonals that we had."
+
+**Why:** the original ramp is what Dex wants. The reworks answered complaints about
+specific spots and lost the overall direction.
+
+**Reverse it if:** Dex asks for a different fade again. In that case, start from this ramp,
+not from the masks it replaced.
+
+---
+
 ## 2026-10-09 — The front band reaches further down-left over the mascot
 
 **Decided:** `#bgFrontAlongFade` starts at viewBox 1040,720 and is solid by 1280,530, and
