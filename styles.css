@@ -1376,6 +1376,12 @@ html.fv-maxed .fv-item:popover-open{pointer-events:auto}
 .fv-info:hover,.fv-info:focus-visible,.fv-info[aria-expanded="true"]{
   color:var(--accent);border-color:var(--accent);background:rgba(8,11,15,.92)}
 .fv-info:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+/* Only while the card is hovered (Dex), where there is a pointer to hover
+   with; a touch screen keeps it up, or there would be no way to the text. */
+@media (hover:hover){
+  .fv-info{opacity:0;transition:opacity .2s ease,color var(--accent-ease),border-color var(--accent-ease),background .2s ease}
+  .fv-item:is(:hover,:has(:focus-visible)) .fv-info,.fv-info[aria-expanded="true"]{opacity:1}
+}
 /* BESIDE THE ICON, not under it. Full width across the top of the frame put
    it straight through the UNDER CONSTRUCTION strip -- two blocks of text on
    top of each other, and the gradient behind it dimmed the strip as well. As
@@ -1388,7 +1394,7 @@ html.fv-maxed .fv-item:popover-open{pointer-events:auto}
   width:max-content;max-width:min(calc(100% - 86px),24em);min-height:38px;
   display:flex;align-items:center;
   padding:9px 15px;border-radius:12px;
-  font-size:14px;line-height:1.45;color:#d7dee8;
+  font-size:16px;line-height:1.45;color:#d7dee8;
   background:rgba(4,6,9,.9);backdrop-filter:blur(6px);
   /* Slides in FROM the icon rather than down from the top edge, which is no
      longer where it comes from. */

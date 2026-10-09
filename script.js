@@ -2029,6 +2029,17 @@ if (workModal) {
     const mute = item.querySelector('.fv-mute');
     const full = item.querySelector('.fv-full');
     const play = item.querySelector('.fv-play');
+    /* The download is the AI Lab card's own link, read at click time, so this
+       one starts the same installer for this system (initMobiusDownload) --
+       and follows wherever that link is pointed next -- rather than keeping
+       the Releases page the markup falls back to. */
+    item.querySelector('.fv-get')?.addEventListener('click', e => {
+      const own = document.getElementById('mobiusDownload');
+      if (!own) return;
+      e.currentTarget.href = own.href;
+      if (own.hasAttribute('target')) e.currentTarget.target = own.target;
+      else e.currentTarget.removeAttribute('target');
+    });
     const eye = item.querySelector('[data-open-app]');
     if (eye) eye.addEventListener('click', () => {
       /* The AI Lab card's own eye does the opening, so the two can never

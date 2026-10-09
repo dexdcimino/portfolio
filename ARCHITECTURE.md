@@ -125,7 +125,10 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
   centred at the video's own aspect (`--fv-ar`, so no side bars) over a dimmed
   page, closed by its `.fv-close` X, a click outside or Escape (the video's
   own player where there is no popover). Only the bar comes along. Both buttons'
-  tips carry `data-tip-big`. With the sound on it keeps playing when it
+  tips carry `data-tip-big`. The download copies `#mobiusDownload`'s href
+  and target at click time, so it starts the same per-system installer
+  (`initMobiusDownload`). The info button shows only while the card is
+  hovered, on a device with hover. With the sound on it keeps playing when it
   scrolls out of view, and a `.fv-float` copy of the mute flies (a FLIP
   transform) from the card to just under `#accentSwatches`, re-placed every
   frame so it follows the picker open and shut; muted from there it keeps
