@@ -1629,6 +1629,83 @@ await page.waitForFunction(
   const masters = await page.evaluate(() => [...document.querySelectorAll('.pi-data figure img')].map(i => i.getAttribute('src')));
   note(masters.length === 27 && new Set(masters).size === masters.length,
        `Proto Isles names ${masters.length} shots, ${new Set(masters).size} of them different`);
+
+  /* THE CATEGORY BUTTONS over the arrows (Dex, 2026-10-09): each wears the
+     NEIGHBOURING tab's icon, comes up only within two arrow-widths of its
+     own arrow, never moves that arrow, and walks the tabs with wrapping.
+     FALSELY PASSES IF: the reveal were read off the class alone (it is read
+     off the computed opacity after the fade), or the jump were clicked with
+     .click() (it is a REAL press, hit-tested first, on a button that is
+     invisible until the pointer is near). */
+  const jumps = () => page.evaluate(() => {
+    const box = el => { const r = el.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2, w: r.width, top: r.top, bottom: r.bottom }; };
+    const side = (jump, arrow) => ({ ...box(jump), arrow: box(arrow), hidden: jump.hidden,
+      icon: jump.querySelector('.icon').dataset.icon, tip: jump.dataset.tip,
+      op: getComputedStyle(jump).opacity, near: jump.parentElement.classList.contains('is-near') });
+    return { on: document.querySelector('.work-tab[aria-selected="true"]')?.textContent,
+      frame: box(document.querySelector('.work-frame')),
+      prev: side(document.getElementById('workJumpPrev'), document.getElementById('workPrev')),
+      next: side(document.getElementById('workJumpNext'), document.getElementById('workNext')) };
+  });
+  // Until the fade has actually finished, not a guessed sleep: a 320ms wait
+  // read 0.92 once, Chrome stalling the transition between compositor ticks.
+  const settle = async () => {
+    await new Promise(r => setTimeout(r, 60));
+    await page.waitForFunction(() => !document.getAnimations()
+      .some(a => a.effect?.target?.classList?.contains('work-jump')), { timeout: 3000 }).catch(() => {});
+  };
+  await page.mouse.move(5, 5); await settle();
+  let j = await jumps();
+  note(!j.prev.hidden && !j.next.hidden, 'the Proto Isles category buttons are hidden');
+  note(j.prev.icon === 'pi-video' && j.next.icon === 'pi-tree',
+       `on Characters the category buttons wear ${j.prev.icon} / ${j.next.icon}, not the video and the tree`);
+  note(j.prev.op === '0' && j.next.op === '0', `with the pointer far away the category buttons are at opacity ${j.prev.op} / ${j.next.op}`);
+  const arrowAt = j.next.arrow;
+  note(Math.abs(arrowAt.y - j.frame.y) <= 1, `the next arrow is ${arrowAt.y - j.frame.y}px off the frame's middle`);
+  // 1.8 arrow-widths in from the next arrow: near it, and far from the other.
+  await page.mouse.move(arrowAt.x - arrowAt.w * 1.8, arrowAt.y, { steps: 4 }); await settle();
+  j = await jumps();
+  note(j.next.near && j.next.op === '1' && j.prev.op === '0',
+       `1.8 widths from the next arrow the buttons read prev ${j.prev.op}, next ${j.next.op}`);
+  note(Math.abs(j.next.arrow.x - arrowAt.x) < 0.5 && Math.abs(j.next.arrow.y - arrowAt.y) < 0.5,
+       'the next arrow moved when its category button came up');
+  note(Math.abs(j.next.w - j.next.arrow.w) < 0.5 && Math.abs(j.next.x - j.next.arrow.x) < 0.5 && j.next.bottom <= j.next.arrow.top - 8,
+       `the category button is not the arrow's circle sitting above it: ${JSON.stringify([j.next.w, j.next.arrow.w, j.next.bottom, j.next.arrow.top])}`);
+  await page.mouse.move(arrowAt.x - arrowAt.w * 2.6, arrowAt.y, { steps: 2 }); await settle();
+  j = await jumps();
+  note(!j.next.near && j.next.op === '0', `2.6 widths away the next category button is still up (${j.next.op})`);
+  // A real press on it: Characters -> Environment, and the icons move along.
+  const press = async (side) => {
+    const b = (await jumps())[side];
+    await page.mouse.move(b.arrow.x, b.arrow.y, { steps: 3 });
+    await page.mouse.move(b.x, b.y, { steps: 3 }); await settle();
+    const hitJump = await page.evaluate(({ x, y }) => document.elementFromPoint(x, y)?.closest('.work-jump')?.id, b);
+    await page.mouse.click(b.x, b.y);
+    return hitJump;
+  };
+  let hitJump = await press('next');
+  j = await jumps();
+  note(hitJump === 'workJumpNext' && j.on === 'ENVIRONMENT5', `a press on the tree hit ${hitJump} and landed on ${j.on}`);
+  note(j.prev.icon === 'pi-player' && j.next.icon === 'pi-sword' && j.next.tip === 'ITEMS',
+       `on Environment the buttons wear ${j.prev.icon} / ${j.next.icon} (${j.next.tip})`);
+  await press('next');
+  j = await jumps();
+  note(j.on === 'ITEMS5' && j.next.icon === 'snail', `after two presses: ${j.on}, next wears ${j.next.icon}`);
+  hitJump = await press('prev');
+  j = await jumps();
+  note(hitJump === 'workJumpPrev' && j.on === 'ENVIRONMENT5', `the left category button hit ${hitJump} and landed on ${j.on}`);
+  // Wrapping: Featured's right-hand button is Video, and the empty Video tab
+  // still has both, so it is not a dead end.
+  await page.evaluate(() => document.getElementById('work-tab-featured').click());
+  j = await jumps();
+  note(j.prev.icon === 'pi-ui' && j.next.icon === 'pi-video', `on Featured the buttons wear ${j.prev.icon} / ${j.next.icon}`);
+  await press('next');
+  j = await jumps();
+  note(j.on === 'VIDEO0' && !j.prev.hidden && j.prev.icon === 'pi-brand' && j.next.icon === 'pi-player',
+       `Featured's next went to ${j.on}, whose buttons wear ${j.prev.icon} / ${j.next.icon}`);
+  await page.mouse.move(5, 5);
+  console.log(`proto isles jumps: reveal within 2 widths, arrow still, tree->Environment, wrap Featured->Video`);
+
   await page.evaluate(() => document.getElementById('work-tab-video').click());
   const empty = await page.evaluate(() => ({
     on: document.getElementById('workPanel').classList.contains('is-empty'),
@@ -1641,8 +1718,10 @@ await page.waitForFunction(
   await page.waitForFunction(() => !document.getElementById('workModal').open, { timeout: 3000 }).catch(() => {});
   await page.evaluate(() => document.getElementById('viewAllWork').click());
   await page.waitForFunction(() => document.getElementById('workModal').open, { timeout: 5000 }).catch(() => {});
-  const back = await page.evaluate(() => document.querySelectorAll('.work-tab').length);
-  note(back === 8, `VIEW ALL WORK after Proto Isles shows ${back} tabs, not the portfolio's 8`);
+  const back = await page.evaluate(() => [document.querySelectorAll('.work-tab').length,
+    document.getElementById('workJumpPrev').hidden && document.getElementById('workJumpNext').hidden]);
+  note(back[0] === 8, `VIEW ALL WORK after Proto Isles shows ${back[0]} tabs, not the portfolio's 8`);
+  note(back[1], 'the portfolio gallery shows the Proto Isles category buttons');
   await page.evaluate(() => document.querySelectorAll('dialog[open]').forEach(d => d.close()));
 
   /* Closing an overlay hands the page back its scroll SMOOTHLY, so a

@@ -1817,9 +1817,11 @@ function readWorkSet(name) {
   const data = document.querySelector(`[data-work-set="${name}"] .pi-data`);
   if (!data) return null;
   let tabs = [];
+  let icons = {};
   try { tabs = JSON.parse(data.dataset.tabs || '[]'); } catch { tabs = []; }
+  try { icons = JSON.parse(data.dataset.tabIcons || '{}'); } catch { icons = {}; }
   const categories = tabs.map(([id, label, empty]) => ({
-    id, label, empty,
+    id, label, empty, icon: icons[id] || null,
     items: [...data.querySelectorAll(`figure[data-pi-cat="${id}"]`)].map(fig => {
       const img = fig.querySelector('img');
       const srcset = {};
@@ -1931,6 +1933,8 @@ const workCapDesc = document.getElementById('workCapDesc');
 const workCapIndex = document.getElementById('workCapIndex');
 const workPrevBtn = document.getElementById('workPrev');
 const workNextBtn = document.getElementById('workNext');
+const workJumpPrev = document.getElementById('workJumpPrev');
+const workJumpNext = document.getElementById('workJumpNext');
 
 let workTabButtons = [];
 let workTabsFor;      // which set the tab row was built for; undefined = none yet
@@ -1986,7 +1990,48 @@ function selectWorkCategory(index, itemIndex = 0) {
   workTabButtons[workCat].scrollIntoView({ inline: 'nearest', block: 'nearest' });
 
   buildWorkStrip(cats[workCat].items);
+  paintWorkJumps();
   showWorkItem(itemIndex);
+}
+
+/* ---------- category buttons over the arrows ----------------------------- */
+
+/* A set whose tabs carry icons (Proto Isles) gets a second round button
+   above each arrow: the arrows walk the shots of one tab, these walk the
+   TABS, so the whole gallery can be toured without going back up to the tab
+   row (Dex, 2026-10-09). Each wears the icon of the tab it goes to and wraps
+   like the arrows do -- Featured's right-hand button is Video. The portfolio's
+   own tabs have no icons, so there the buttons stay hidden. */
+function paintWorkJumps() {
+  const cats = galleryCats();
+  const on = !!workSet && cats.length > 1 && cats.every(cat => cat.icon);
+  [[workJumpPrev, -1], [workJumpNext, 1]].forEach(([btn, step]) => {
+    if (!btn) return;
+    btn.hidden = !on;
+    if (!on) return;
+    const index = (workCat + step + cats.length) % cats.length;
+    const cat = cats[index];
+    btn.dataset.index = String(index);
+    btn.dataset.tip = cat.label;
+    btn.setAttribute('aria-label', `${step < 0 ? 'Previous' : 'Next'} category: ${cat.label}`);
+    btn.querySelector('.icon')?.setAttribute('data-icon', cat.icon);
+  });
+}
+
+/* They come up when the pointer is within TWO ARROW-WIDTHS of an arrow's
+   centre, measured off the arrow on every move rather than with a fixed
+   number, so the phone's smaller arrows get a smaller reach. Each side on its
+   own: near the left arrow only the left button shows. On a touch screen
+   there is no hover to reveal them, so CSS shows them outright there. */
+function nearWorkJumps(event) {
+  [workPrevBtn, workNextBtn].forEach(arrow => {
+    const col = arrow?.parentElement;
+    if (!col?.classList.contains('work-nav-col')) return;
+    const r = arrow.getBoundingClientRect();
+    const near = event && r.width > 0 &&
+      Math.hypot(event.clientX - (r.left + r.width / 2), event.clientY - (r.top + r.height / 2)) <= r.width * 2;
+    col.classList.toggle('is-near', !!near);
+  });
 }
 
 /* ---------- filmstrip ---------------------------------------------------- */
@@ -2122,6 +2167,7 @@ async function openWork(catId, index, trigger, set = null) {
   catch (error) { console.warn('work gallery unavailable', error); return; }
   workSet = set ? readWorkSet(set) : null;
   if (workTabsFor !== (workSet?.name ?? null)) buildWorkTabs();
+  nearWorkJumps(null);   // nothing is near anything until the pointer moves
   const cats = galleryCats();
   const catIndex = Math.max(0, catId == null && workSet
     ? cats.findIndex(cat => cat.items.length)                              // a set opens on what it has
@@ -2143,6 +2189,12 @@ if (workModal) {
   document.getElementById('workClose')?.addEventListener('click', () => closeModal(workModal));
   workPrevBtn.addEventListener('click', () => showWorkItem(workIdx - 1));
   workNextBtn.addEventListener('click', () => showWorkItem(workIdx + 1));
+  [workJumpPrev, workJumpNext].forEach(btn => btn?.addEventListener('click', () =>
+    selectWorkCategory(Number(btn.dataset.index))));
+  workModal.addEventListener('pointermove', event => {
+    if (event.pointerType !== 'touch') nearWorkJumps(event);
+  });
+  workModal.addEventListener('pointerleave', () => nearWorkJumps(null));
 
   /* Each featured card opens its own tab ON THE PIECE IT IS SHOWING, which is
      what the card carousel writes into data-work-index every time it turns.
