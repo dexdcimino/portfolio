@@ -10838,7 +10838,13 @@ const MOBIUS_STORE = 'https://apps.microsoft.com/detail/9NBX324THQ1V';
   const link = document.getElementById('mobiusDownload');
   if (!link) return;
   const ua = navigator.userAgent, phone = /Android|iPhone|iPad|iPod/i.test(ua);
-  if (!phone && /Windows/i.test(ua)) { link.href = MOBIUS_STORE; return; }
+  if (!phone && /Windows/i.test(ua)) {
+    link.href = MOBIUS_STORE;
+    document.querySelectorAll('#mobiusDownload, .fv-get').forEach(btn => {
+      btn.dataset.tip = 'Get Mobius 3D\nfrom the Microsoft Store';
+    });
+    return;
+  }
   const file = phone ? null
     : /Mac OS X|Macintosh/i.test(ua) ? 'Mobius-3D-mac.dmg' : /Linux/i.test(ua) ? 'Mobius-3D-x86_64.AppImage' : null;
   if (!file) return;
