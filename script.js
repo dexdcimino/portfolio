@@ -1782,7 +1782,8 @@ const workCategories = () => workData?.categories ?? [];
    are not in work.json -- they are ordinary baked <picture> blocks in the
    card's .pi-data, and an item is built by READING the srcsets those blocks
    already carry, so nothing here assembles a URL either. A tab with no
-   figures yet is kept and shows SHOTS COMING. */
+   figures yet is kept and says its third field (VIDEO COMING), or SHOTS
+   COMING; the set opens on its first tab that has something in it. */
 let workSet = null;          // null = the portfolio; else { name, categories }
 const workSetCache = {};
 
@@ -1792,8 +1793,8 @@ function readWorkSet(name) {
   if (!data) return null;
   let tabs = [];
   try { tabs = JSON.parse(data.dataset.tabs || '[]'); } catch { tabs = []; }
-  const categories = tabs.map(([id, label]) => ({
-    id, label,
+  const categories = tabs.map(([id, label, empty]) => ({
+    id, label, empty,
     items: [...data.querySelectorAll(`figure[data-pi-cat="${id}"]`)].map(fig => {
       const img = fig.querySelector('img');
       const srcset = {};
@@ -2056,7 +2057,8 @@ function showWorkItem(index) {
   workPanel.classList.toggle('is-empty', !items.length);
   if (!items.length) {
     ++workHeroToken;
-    workCapTitle.textContent = 'Shots coming';
+    workHero.dataset.empty = galleryCats()[workCat].empty || 'SHOTS COMING';
+    workCapTitle.textContent = 'Coming soon';
     workCapDesc.textContent = galleryCats()[workCat].label;
     workCapIndex.replaceChildren();
     return;
@@ -2096,7 +2098,9 @@ async function openWork(catId, index, trigger, set = null) {
   workSet = set ? readWorkSet(set) : null;
   if (workTabsFor !== (workSet?.name ?? null)) buildWorkTabs();
   const cats = galleryCats();
-  const catIndex = Math.max(0, cats.findIndex(cat => cat.id === catId));   // unknown id -> first tab
+  const catIndex = Math.max(0, catId == null && workSet
+    ? cats.findIndex(cat => cat.items.length)                              // a set opens on what it has
+    : cats.findIndex(cat => cat.id === catId));                            // unknown id -> first tab
   openModal(workModal, null, () => {
     selectWorkCategory(catIndex, index);
     // The panel, not a control: it is the thing that just appeared, and it

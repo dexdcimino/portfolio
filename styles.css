@@ -4402,7 +4402,7 @@ body.modal-open{overflow:hidden}
    line saying so, and no arrows that would walk nothing. */
 .work-stage.is-empty .work-hero-img{visibility:hidden}
 .work-stage.is-empty .work-hero::after{
-  content:'SHOTS COMING';position:absolute;inset:0;display:grid;place-items:center;
+  content:attr(data-empty);position:absolute;inset:0;display:grid;place-items:center;
   font-weight:900;letter-spacing:.2em;font-size:clamp(16px,4cqw,40px);color:var(--text);opacity:.85}
 .work-stage.is-empty .work-nav{visibility:hidden}
 .work-hero{

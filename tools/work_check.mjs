@@ -1615,21 +1615,27 @@ await page.waitForFunction(
   const pi = await page.evaluate(() => ({
     open: document.getElementById('workModal').open,
     tabs: [...document.querySelectorAll('.work-tab')].map(t => t.textContent),
+    on: document.querySelector('.work-tab[aria-selected="true"]')?.textContent,
     hero: document.getElementById('workHeroImg').currentSrc,
     w: document.getElementById('workHeroImg').naturalWidth,
     thumbs: document.querySelectorAll('#workStrip .work-thumb').length,
   }));
   note(pi.open, 'the Proto Isles card did not open the gallery');
-  note(pi.tabs.length === 5 && pi.tabs[0] === 'CHARACTERS9',
+  note(JSON.stringify(pi.tabs) === JSON.stringify(['VIDEO0', 'CHARACTERS5', 'ENVIRONMENT5', 'ITEMS5', 'PETS5', 'UI5', 'FEATURED2']),
        `Proto Isles tabs are ${JSON.stringify(pi.tabs)}`);
+  note(pi.on === 'CHARACTERS5', `Proto Isles opened on ${pi.on}, not on its first tab with shots`);
   note(/proto-isles/.test(pi.hero) && pi.w > 0, `the Proto Isles hero is ${pi.hero} (${pi.w}px)`);
-  note(pi.thumbs === 9, `the Proto Isles strip has ${pi.thumbs} thumbs, not 9`);
-  await page.evaluate(() => document.getElementById('work-tab-ui').click());
+  note(pi.thumbs === 5, `the Proto Isles strip has ${pi.thumbs} thumbs, not 5`);
+  const masters = await page.evaluate(() => [...document.querySelectorAll('.pi-data figure img')].map(i => i.getAttribute('src')));
+  note(masters.length === 27 && new Set(masters).size === masters.length,
+       `Proto Isles names ${masters.length} shots, ${new Set(masters).size} of them different`);
+  await page.evaluate(() => document.getElementById('work-tab-video').click());
   const empty = await page.evaluate(() => ({
     on: document.getElementById('workPanel').classList.contains('is-empty'),
     cap: document.getElementById('workCapTitle').textContent,
+    says: document.getElementById('workHero').dataset.empty,
     thumbs: document.querySelectorAll('#workStrip .work-thumb').length }));
-  note(empty.on && empty.cap === 'Shots coming' && empty.thumbs === 0,
+  note(empty.on && empty.cap === 'Coming soon' && empty.says === 'VIDEO COMING' && empty.thumbs === 0,
        `an empty Proto Isles tab shows ${JSON.stringify(empty)}`);
   await page.keyboard.press('Escape');
   await page.waitForFunction(() => !document.getElementById('workModal').open, { timeout: 3000 }).catch(() => {});
