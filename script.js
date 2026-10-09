@@ -10921,18 +10921,14 @@ let openReader = () => {};
      release, so it is never a number typed here and never a release behind.
      If GitHub does not answer (offline, rate limited, the file renamed), the
      tip stays as the markup wrote it: a size we could not read is left out,
-     not guessed. The install line is per system and has no number in it,
-     because install time was not measured. Kept for the tab's life in
+     not guessed. The tip is the size and nothing else (Dex, 2026-10-09:
+     "Just 108 megabytes"). Kept for the tab's life in
      sessionStorage, so hovering twice is one request. Both download buttons
      carry it: the AI Lab card's and the featured video's. */
-  const how = { exe: 'installs in under a minute', dmg: 'drag it into Applications',
-                AppImage: 'no install, just run it' }[file.split('.').pop()];
   const mb = bytes => `${Math.max(1, Math.round(bytes / 1048576))} MB`;
   const label = size => {
-    const tail = [size && mb(size), how].filter(Boolean).join(' · ');
-    document.querySelectorAll('#mobiusDownload, .fv-get').forEach(btn => {
-      btn.dataset.tip = `Download Mobius 3D\n${tail}`;
-    });
+    if (!size) return;
+    document.querySelectorAll('#mobiusDownload, .fv-get').forEach(btn => { btn.dataset.tip = mb(size); });
   };
   const KEY = 'mobius-release-sizes';
   let cached = null;
