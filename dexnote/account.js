@@ -59,10 +59,14 @@ export function onAccount(fn) {
   return () => subscribers.delete(fn);
 }
 
+/* Signed in through the SITE's panel (account/site-auth.js, ~DEXDC) rather
+   than here: the same Firebase account, so the notes are the account's too. */
+const siteSignedIn = () => { try { return localStorage.getItem('site:signedIn') === '1'; } catch { return false; } };
+
 /* Who is signed in right now -- WITHOUT loading Firebase for someone who has
    never signed in on this browser. */
 export async function whoIsHere() {
-  if (remembered() !== 'account' && !listening) return null;
+  if (remembered() !== 'account' && !siteSignedIn() && !listening) return null;
   return listen();
 }
 

@@ -50,6 +50,29 @@ change**, so the reasoning cannot drift away from the diff it explains.
 
 ---
 
+## 2026-10-09 — ~DEXDC is the site's sign-in, not DexNote's
+
+**Decided:** DEXDC, typed into any keypad (the tilde prompt over any overlay, the
+Idea Vault, the notes' own box), opens one site sign-in panel built in `script.js`
+(`openSiteSignIn`, event `site:signin`) on `account/site-auth.js`. It shows the
+site's mark (the live accent favicon, the hexagonal helmet), Google, GitHub and
+Discord, and no DexNote branding. Signed in, the same panel says who and offers
+Sign out. It opens nothing else. `notes` at a keypad with Dex signed in opens his
+own notes rather than the public page. An open notes overlay follows a sign-in or
+sign-out made from the panel.
+
+**Replaced:** the 2026-10-08 `notes:mine` route, which opened the notes overlay and
+put the DexNote sign-in sheet over it.
+
+**Why:** Dex, 2026-10-09: "If I hit tilde and I type in Dex DC, that should be just a
+sign in overlay, not specific to Dex note ... it wouldn't automatically open the
+notes overlay." The site is the umbrella account, and admin follows the account.
+
+**Reverse it if:** the site's account and DexNote's ever stop being one Firebase
+account; then the panel would have to say which it signs in to.
+
+---
+
 ## 2026-10-09 — The hero's front fade breathes between two reaches
 
 **Decided:** `#bgFrontFade` fades along the band (top right solid, gone toward the bottom

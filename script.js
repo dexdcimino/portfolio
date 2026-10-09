@@ -1106,6 +1106,142 @@ function bindModal(dialog, onClose) {
   });
 }
 
+/* ---------- the site sign-in ---------------------------------------------- */
+
+/* ~DEXDC IS THE SITE'S SIGN-IN (Dex, 2026-10-09): "anytime I type in Dex DC,
+   it's just signing me into my website ... not specific for the Dex note."
+   Typed into any keypad -- the tilde prompt over any overlay, the Idea Vault,
+   the notes' own box -- it opens THIS: Google, GitHub, Discord, wearing the
+   site's own mark (the accent-coloured favicon, the hexagonal helmet), and
+   nothing else opens. Signed in, the same panel says who and offers Sign out.
+
+   It is account/site-auth.js, the one account every app shares. What being
+   signed in unlocks is decided elsewhere and by the server: Dex's account is
+   admin on every overlay (dexOwnerCheck at the top of this file), and his
+   notes open the next time he asks for them (`notes` at a keypad). A sign-out
+   ends all of it through the same 'site:user' -> 'dex:owner' path.
+
+   Stacked over whatever overlay is up, so backing out of it puts you back
+   where you typed the code. */
+const siteAuthMod = () => import('/account/site-auth.js');
+/* Things that must finish before the account goes away (the notes saving the
+   last keystrokes to it). Each returns a promise; a failure does not stop the
+   sign-out. */
+window.siteSignOutHooks = window.siteSignOutHooks || [];
+
+function siteSignInLabel(u) {
+  return (u && (u.email || u.displayName)) || 'your account';
+}
+
+async function openSiteSignIn(opener) {
+  let dialog = document.getElementById('signinModal');
+  if (!dialog) {
+    dialog = document.createElement('dialog');
+    dialog.className = 'signin-modal';
+    dialog.id = 'signinModal';
+    dialog.setAttribute('aria-labelledby', 'signinTitle');
+    document.body.append(dialog);
+    bindModal(dialog);
+  }
+  if (dialog.open) return;
+
+  const mark = document.createElement('img');
+  mark.className = 'signin-logo';
+  mark.alt = '';
+  mark.src = (faviconSvg && faviconSvg.href) || '/favicon-192.png';
+  const title = document.createElement('h2');
+  title.className = 'signin-title';
+  title.id = 'signinTitle';
+  title.textContent = 'Sign in';
+  const note = document.createElement('p');
+  note.className = 'signin-note';
+  note.textContent = 'Sign in to dexcimino.com.';
+  const error = document.createElement('p');
+  error.className = 'signin-error';
+  error.hidden = true;
+  const providers = document.createElement('div');
+  providers.className = 'signin-providers';
+  const foot = document.createElement('div');
+  foot.className = 'signin-foot';
+  const button = (label, cls, onclick) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = `signin-btn ${cls || ''}`.trim();
+    b.textContent = label;
+    b.addEventListener('click', onclick);
+    return b;
+  };
+
+  let auth = null;
+  const busy = (on) => dialog.querySelectorAll('button').forEach(b => { b.disabled = on; });
+  const signIn = (which) => async () => {
+    error.hidden = true;
+    busy(true);
+    try {
+      auth = auth || await siteAuthMod();
+      await auth.signIn(which);
+      closeModal(dialog);
+    } catch (err) {
+      const code = (err && err.code) || '';
+      if (!/popup-closed|cancelled-popup/.test(code)) {
+        console.warn('site sign-in failed', err);
+        error.textContent = code === 'auth/popup-blocked'
+          ? 'The sign-in window was blocked. Allow pop-ups for this site and try again.'
+          : code === 'auth/account-exists-with-different-credential'
+            ? 'That email already signs in with a different provider. Use the one you used before.'
+            : `Sign-in did not work (${code || (err && err.message) || 'unknown error'}). Try again.`;
+        error.hidden = false;
+      }
+    } finally { busy(false); }
+  };
+  const signOut = async () => {
+    busy(true);
+    for (const hook of window.siteSignOutHooks) {
+      try { await hook(); } catch (err) { console.warn('site sign-out: a hook failed', err); }
+    }
+    try {
+      auth = auth || await siteAuthMod();
+      await auth.signOut();
+      closeModal(dialog);
+    } catch (err) {
+      console.warn('site sign-out failed', err);
+      error.textContent = 'Sign-out did not work. Try again.';
+      error.hidden = false;
+    } finally { busy(false); }
+  };
+
+  providers.append(
+    button('Continue with Google', 'is-primary', signIn('google')),
+    button('Continue with GitHub', '', signIn('github')),
+    button('Continue with Discord', '', signIn('discord')));
+  const signOutBtn = button('Sign out', 'is-danger', signOut);
+  signOutBtn.hidden = true;
+  foot.append(signOutBtn, button('Not now', '', () => closeModal(dialog)));
+
+  const card = document.createElement('div');
+  card.className = 'signin-card';
+  card.append(mark, title, note, providers, error, foot);
+  dialog.replaceChildren(card);
+
+  /* Stacked only over a real overlay; the docked music bar is not one. */
+  const over = [...openDialogs].some(d => d !== dialog && d.open && !isDockedBar(d));
+  openModal(dialog, card, () => providers.querySelector('button')?.focus(), opener, over);
+
+  /* Who is signed in, without fetching Firebase for someone who never has. */
+  let signedIn = false;
+  try { signedIn = localStorage.getItem('site:signedIn') === '1'; } catch (e) { /* private mode */ }
+  if (!signedIn) return;
+  try {
+    auth = auth || await siteAuthMod();
+    const u = await auth.currentUser();
+    if (!dialog.open || !u) return;
+    note.textContent = `Signed in as ${siteSignInLabel(u)}.`;
+    signOutBtn.hidden = false;
+  } catch (err) { console.warn('site sign-in: could not read the account', err); }
+}
+window.openSiteSignIn = openSiteSignIn;
+document.addEventListener('site:signin', (event) => openSiteSignIn((event.detail || {}).opener));
+
 /* ---------- contact modal ------------------------------------------------ */
 
 function openContact() {
@@ -2459,6 +2595,7 @@ if (workModal) {
     let source = null;            // 'vault' | 'guest' | 'account', what is mounted
     let acctBtn = null;
     let ownerAcct = false;        // the account mounted is Dex's, i.e. the DEXDC notes
+    let ownMove = false;          // the overlay's own sign-in or out is moving stores
     const acctMod = () => import('/dexnote/account.js');
 
     /* Shared by every store. With no backend the app talks to the password
@@ -2565,6 +2702,10 @@ if (workModal) {
     }
 
     async function signInHere(note) {
+      ownMove = true;
+      try { await signInHereNow(note); } finally { ownMove = false; }
+    }
+    async function signInHereNow(note) {
       const acct = await acctMod();
       if (app) app.flush();
       const u = await acct.signInSheet(editor.querySelector('.nt-app'), note || (source === 'vault'
@@ -2575,10 +2716,13 @@ if (workModal) {
 
     async function signOutHere() {
       const acct = await acctMod();
-      if (app) { app.flush(); try { await app.save(); } catch { /* beaconed on unmount */ } }
-      await acct.signOut();
-      if (source === 'account') await swap(async () => { if (!(await mountVault())) await mountGuest(); });
-      else if (acctBtn) acctBtn.replaceWith(acctBtn = acct.accountButton(null, accountMenu));
+      ownMove = true;
+      try {
+        if (app) { app.flush(); try { await app.save(); } catch { /* beaconed on unmount */ } }
+        await acct.signOut();
+        if (source === 'account') await swap(async () => { if (!(await mountVault())) await mountGuest(); });
+        else if (acctBtn) acctBtn.replaceWith(acctBtn = acct.accountButton(null, accountMenu));
+      } finally { ownMove = false; }
     }
 
     /* READ ONLY on the password store. With a token from the keypad the
@@ -2640,31 +2784,48 @@ if (workModal) {
       if (!modal.open) openDemo((event.detail || {}).opener);
     });
 
-    /* ~DEXDC (Dex, 2026-10-08): "have dexdc open the sign in for me from
-       anywhere". The code opens nothing by itself any more -- it is the way
-       to YOUR notes: the account's, which for Dex's own Google are the DEXDC
-       notes (the server decides, api/notes/unlock.js). The sign-in sheet
-       comes up over them either way; signed in, it says who and offers Sign
-       out as well ("it will still show the sign in options but have a sign
-       out option", Dex). */
+    /* YOUR OWN NOTES. ~DEXDC used to land here with the DexNote sign-in
+       over them; it is the SITE sign-in now and opens nothing by itself (Dex,
+       2026-10-09: "it wouldn't automatically open the notes overlay"). This
+       is what `notes` at a keypad does once Dex is signed in: the account's
+       notes, which for his own Google are the DEXDC document (the server
+       decides, api/notes/unlock.js). Signed out it is the AI Lab's open. */
     document.addEventListener('notes:mine', async (event) => {
-      if (!modal.open) await openDemo((event.detail || {}).opener);
-      if (!modal.open) return;
+      if (!modal.open) { await openDemo((event.detail || {}).opener); return; }
       const acct = await acctMod();
-      /* whoIsHere() settles once, on the first answer; currentUser() is who
-         is signed in NOW, after a sign-in or out since. */
       await acct.whoIsHere().catch(() => null);
       const u = acct.currentUser();
-      if (!modal.open) return;
-      if (!u) { await signInHere('Sign in to open your notes.'); return; }
-      if (source !== 'account') await swap(() => mountAccount(u));
-      if (!modal.open || !editor.querySelector('.nt-app')) return;
-      if (app) app.flush();
-      const next = await acct.signInSheet(editor.querySelector('.nt-app'),
-        `Signed in as ${u.email || u.displayName || 'you'}.`, { signOut: true });
-      if (!modal.open) return;
-      if (next === 'signout') await signOutHere();
-      else if (next && next.uid !== u.uid) await swap(() => mountAccount(next));
+      if (!modal.open || !u || source === 'account') return;
+      gate.hidden = true;
+      if (wait) wait.hidden = true;
+      if (frame) frame.classList.add('is-app');
+      demoMode = true;
+      await swap(() => mountAccount(u));
+    });
+
+    /* THE SITE SIGN-IN REACHES AN OPEN OVERLAY. Signed in from the site's
+       panel (~DEXDC over the notes), the guest notes on screen become the
+       account's, as the overlay's own button does it; signed out there, the
+       account's notes go the way the overlay's own Sign out takes them. The
+       overlay's own sign-in and sign-out do their swap themselves and say so
+       with `ownMove`, so this does not do it twice. */
+    window.addEventListener('site:user', async () => {
+      if (!modal.open || !app || ownMove) return;
+      if (source !== 'guest' && source !== 'account') return;
+      const acct = await acctMod();
+      await acct.whoIsHere().catch(() => null);
+      const u = acct.currentUser();
+      if (!modal.open || ownMove) return;
+      if (u && source === 'guest') await swap(() => mountAccount(u));
+      else if (!u && source === 'account') await swap(async () => { if (!(await mountVault())) await mountGuest(); });
+    });
+    /* The last keystrokes reach the account before the site panel signs out
+       of it. */
+    window.siteSignOutHooks = window.siteSignOutHooks || [];
+    window.siteSignOutHooks.push(async () => {
+      if (!modal.open || !app || source !== 'account') return;
+      app.flush();
+      await app.save();
     });
 
     async function unlock(body) {
@@ -2703,9 +2864,11 @@ if (workModal) {
       resting: 'ENTER PASSWORD', passed: 'OPEN',
       async verify(secret) {
         /* DEXDC opens nothing as a password now (Dex, 2026-10-08); typed
-           here it goes where it goes from any keypad: his own notes, through
-           the sign-in. */
-        if (secret.trim().toLowerCase() === 'dexdc') return { ok: true, payload: 'mine' };
+           here it does what it does from any keypad, the site sign-in, over
+           this box (Dex, 2026-10-09). `notes` with Dex signed in is his own
+           notes rather than the public page. */
+        if (secret.trim().toLowerCase() === 'dexdc') return { ok: true, payload: 'signin' };
+        if (secret.trim().toLowerCase() === 'notes' && window.dexOwner.is) return { ok: true, payload: 'mine' };
         try {
           const data = await unlock({ password: secret.toLowerCase() });
           return data ? { ok: true, payload: data } : { ok: false };
@@ -2722,6 +2885,11 @@ if (workModal) {
         }
       },
       onPass(payload) {
+        if (payload === 'signin') {
+          keypad.reset(true);
+          document.dispatchEvent(new CustomEvent('site:signin', { detail: { opener: pins[0] } }));
+          return;
+        }
         if (payload !== 'mine') { opened(payload); return; }
         closeModal(modal);
         setTimeout(() => document.dispatchEvent(new CustomEvent('notes:mine')), 0);
@@ -4377,9 +4545,12 @@ function createKeypad({ root, pins, status, timer, resting, verify, onPass,
       /* Same plain keyword as the tilde keypad: `work` opens Mission Control
          from here too, not just from the overlay. */
       if (secret.trim().toLowerCase() === 'work') return { ok: true, payload: 'show:dash' };
-      /* DEXDC: Dex's own notes, and the sign-in if he is not signed in
-         (see the tilde keypad below; Dex, 2026-10-08). */
-      if (secret.trim().toLowerCase() === 'dexdc') return { ok: true, payload: 'notes:mine' };
+      /* DEXDC: the site sign-in (see the tilde keypad below; Dex,
+         2026-10-09). */
+      if (secret.trim().toLowerCase() === 'dexdc') return { ok: true, payload: 'site:signin' };
+      /* `notes` with Dex signed in: HIS notes, not the public page ("then if I
+         typed in notes, it would bring up my notes", Dex 2026-10-09). */
+      if (secret.trim().toLowerCase() === 'notes' && window.dexOwner.is) return { ok: true, payload: 'notes:mine' };
       /* A notes code ('notes', the public page) opens the notes directly.
          ('snail' is 5 chars but it is a vault code, so it is not sent.) */
       const trimmed = secret.trim();
@@ -4409,9 +4580,9 @@ function createKeypad({ root, pins, status, timer, resting, verify, onPass,
         keypad.reset(true);
         return;
       }
-      if (payload === 'notes:mine') {
+      if (payload === 'notes:mine' || payload === 'site:signin') {
         keypad.reset(true);
-        document.dispatchEvent(new CustomEvent('notes:mine', { detail: { opener: section } }));
+        document.dispatchEvent(new CustomEvent(payload, { detail: { opener: section } }));
         return;
       }
       reveal(payload, secret);
@@ -4483,10 +4654,12 @@ const codeModal = document.getElementById('codeModal');
         const normalized = secret.trim().toLowerCase();
         console.log('codepad verify:', normalized);
         if (normalized === 'work') return { ok: true, payload: 'show:dash' };
-        /* DEXDC is not a code any more (Dex, 2026-10-08): it is the way to
-           his own notes, and to signing in if he is not. Nothing is sent to
-           a server for it -- the account is what opens anything. */
-        if (normalized === 'dexdc') return { ok: true, payload: 'notes:mine' };
+        /* DEXDC is not a code any more (Dex, 2026-10-08): it is the site's
+           sign-in, from anywhere, over anything (Dex, 2026-10-09). Nothing
+           is sent to a server for it -- the account is what opens anything. */
+        if (normalized === 'dexdc') return { ok: true, payload: 'site:signin' };
+        /* `notes` with Dex signed in opens his own notes. */
+        if (normalized === 'notes' && window.dexOwner.is) return { ok: true, payload: 'notes:mine' };
         /* A 5-letter code the notes server knows: the public page ('notes').
            'snail' is 5 letters too but is a vault code, so it is not sent. */
         const trimmed = secret.trim();
@@ -4514,10 +4687,10 @@ const codeModal = document.getElementById('codeModal');
           window._padlockOverlay = null;
           return;
         }
-        if (payload === 'notes:mine') {
+        if (payload === 'notes:mine' || payload === 'site:signin') {
           closeModal(codeModal);
           window._padlockOverlay = null;
-          document.dispatchEvent(new CustomEvent('notes:mine', { detail: { opener: codeOpener } }));
+          document.dispatchEvent(new CustomEvent(payload, { detail: { opener: codeOpener } }));
           return;
         }
         if (codeLabel) codeLabel.textContent = 'OPEN';

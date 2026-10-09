@@ -30,7 +30,7 @@ const CHROME = [
   'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',
 ].find(p => p && existsSync(p));
 if (!CHROME) throw new Error('no Chrome or Edge found — set CHROME=<path to the exe>');
-const EXPECTED = 51;
+const EXPECTED = 55;
 
 const FAKE_CLOUD = `// Stand-in for dexnote/cloud.js: same exports, the "server" is a localStorage key.
 import { keyFor } from '/dexnote/local.js';
@@ -41,7 +41,13 @@ const listeners = [];
 const userOf = (uid) => uid ? { uid, email: \`\${uid}@example.com\`, displayName: uid, photoURL: null } : null;
 let current = userOf(all().signedIn);
 export function onUser(fn) { listeners.push(fn); setTimeout(() => fn(current), 50); return () => {}; }
-const emit = () => listeners.forEach((f) => f(current));
+const emit = () => {
+  listeners.forEach((f) => f(current));
+  // As the real cloud.js does: the site's cheap flag and the page's event.
+  current ? localStorage.setItem('site:signedIn', '1') : localStorage.removeItem('site:signedIn');
+  window.dispatchEvent(new CustomEvent('site:user', { detail: { signedIn: !!current } }));
+};
+export const _current = () => current;
 export async function signIn(which) { const s = all(); s.signedIn = 'dex-' + which; put(s); current = userOf(s.signedIn); emit(); return { user: current }; }
 export async function signOut() { const s = all(); s.signedIn = null; put(s); current = null; emit(); }
 export async function backupCurrent(user, cur) { const s = all(); const u = s.users[user.uid] ||= {}; (u.backups ||= []).push(cur); put(s); return 'b'; }
@@ -62,6 +68,18 @@ export function cloudBackend(user) {
   };
 }
 `;
+/* Stand-in for account/site-auth.js, the SITE's sign-in (~DEXDC). The real
+   one shares cloud.js's Firebase app, so this one shares the fake's state by
+   importing it: a sign-in here is a sign-in there, as it is for real. No ID
+   token, so nobody is Dex here -- owner_gate_check covers that door. */
+const FAKE_SITE_AUTH = `import * as cloud from '/dexnote/cloud.js';
+export const LOCAL_FLAG = 'site:signedIn';
+export const onUser = (fn) => cloud.onUser(fn);
+export const currentUser = async () => cloud._current();
+export const signIn = (which) => cloud.signIn(which);
+export const signOut = () => cloud.signOut();
+export const idToken = async () => null;
+`;
 const b = await puppeteer.launch({ executablePath: CHROME, headless: 'new', args: ['--no-first-run', '--no-default-browser-check'] });
 const p = await b.newPage();
 await p.setViewport({ width: 1300, height: 850 });
@@ -75,7 +93,10 @@ p.on('pageerror', (e) => errors.push('pageerror ' + e.message));
    is where the worker itself is checked. */
 await p.setBypassServiceWorker(true);
 await p.setRequestInterception(true);
-p.on('request', (r) => r.url().endsWith('/dexnote/cloud.js') ? r.respond({ status: 200, contentType: 'text/javascript', body: FAKE_CLOUD }) : r.continue());
+p.on('request', (r) => {
+  const fake = r.url().endsWith('/dexnote/cloud.js') ? FAKE_CLOUD : r.url().endsWith('/account/site-auth.js') ? FAKE_SITE_AUTH : null;
+  return fake ? r.respond({ status: 200, contentType: 'text/javascript', body: fake }) : r.continue();
+});
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 let n = 0, bad = 0;
 const ok = (cond, what) => { n++; if (!cond) bad++; console.log(`${cond ? 'ok  ' : 'FAIL'} ${what}`); };
@@ -244,38 +265,76 @@ ok(await clickText('Sign out'), 'Sign out pressed in the overlay');
 await p.waitForFunction(() => document.querySelector('#notesEditor .nt-app') && !/acct marker/.test(document.querySelector('#notesEditor .nt-app').textContent), { timeout: 15000 }).catch(() => {});
 ok(await p.evaluate(() => !JSON.parse(localStorage.getItem('fakecloud')).signedIn) && !/acct marker/.test(await overlayText()) && /vault fixture/.test(await overlayText() + await p.evaluate(() => document.querySelector('#notesEditor .nt-app')?.textContent || '')), 'signing out puts the password notes back, not the account\'s');
 
-// ~DEXDC is the way to your own notes now, not a password (Dex, 2026-10-08):
-// signed out it opens the notes overlay with the sign-in sheet over it, and
-// the sign-in lands on the account's notes. Nothing goes to the notes server
-// for the code itself.
+// ~DEXDC is the SITE's sign-in (Dex, 2026-10-09): from any keypad it opens
+// one panel -- the site's own mark, Google / GitHub / Discord, no DexNote --
+// and opens nothing else. Signed in, the same panel says who and offers Sign
+// out. Over an open overlay it stacks, and the notes on screen follow the
+// account it signs in to or out of. Nothing goes to the notes server for the
+// code itself.
 await p.click('#notesEditor .nt-close').catch(() => {});
 await overlayGone();
 await p.goto(`${BASE}/`, { waitUntil: 'networkidle2' });
 errors.splice(beforeHome);
 let codeCalls = 0;
 p.on('request', (r) => { if (r.url().includes('/api/notes/unlock') && /dexdc/i.test(r.postData() || '')) codeCalls++; });
-await p.evaluate(() => document.body.focus());
-await p.keyboard.press('`');
-await p.waitForSelector('#codeModal[open] .vault-pin', { timeout: 5000 }).catch(() => {});
-await p.focus('#codeModal .vault-pin').catch(() => {});
-for (const ch of 'dexdc') { await p.keyboard.type(ch); await sleep(40); }
-await p.waitForSelector('#notesEditor .dn-card', { timeout: 20000 }).catch(() => {});
-ok(await p.evaluate(() => /Sign in to open your notes/.test(document.querySelector('#notesEditor .dn-card')?.textContent || '')), '~dexdc signed out opens the notes with the sign-in sheet over them');
-ok(await clickText('Continue with Google'), 'Google pressed on that sheet');
+const tilde = async (word) => {
+  await p.evaluate(() => { if (document.activeElement && document.activeElement !== document.body) document.activeElement.blur(); });
+  await p.keyboard.press('`');
+  await p.waitForSelector('#codeModal[open] .vault-pin', { timeout: 5000 }).catch(() => {});
+  await p.focus('#codeModal .vault-pin').catch(() => {});
+  for (const ch of word) { await p.keyboard.type(ch); await sleep(40); }
+};
+const panel = () => p.evaluate(() => {
+  const d = document.querySelector('#signinModal');
+  if (!d || !d.open) return null;
+  const visible = (b) => b && !b.hidden;
+  const btn = (t) => [...d.querySelectorAll('button')].find((x) => x.textContent.trim() === t);
+  return {
+    text: d.textContent, logo: d.querySelector('.signin-logo')?.getAttribute('src') || '',
+    google: visible(btn('Continue with Google')), github: visible(btn('Continue with GitHub')), discord: visible(btn('Continue with Discord')),
+    signOut: visible(btn('Sign out')), notesOpen: !!document.querySelector('#notesModal[open]'),
+  };
+});
+const panelPress = (t) => p.evaluate((t) => { const b = [...document.querySelectorAll('#signinModal button')].find((x) => x.textContent.trim() === t); if (!b || b.hidden) return false; b.click(); return true; }, t);
+const panelShut = () => p.waitForFunction(() => !document.querySelector('#signinModal[open]'), { timeout: 10000 }).then(() => true, () => false);
+const signedInAs = () => p.evaluate(() => JSON.parse(localStorage.getItem('fakecloud') || '{}').signedIn || null);
+
+await tilde('dexdc');
+await p.waitForSelector('#signinModal[open]', { timeout: 10000 }).catch(() => {});
+let sp = await panel();
+ok(sp && sp.google && sp.github && sp.discord && !sp.signOut && /^data:image\/svg\+xml/.test(sp.logo) && !/DexNote/i.test(sp.text) && /dexcimino\.com/.test(sp.text),
+  `~dexdc signed out opens the SITE sign-in: its own mark, three providers, no Sign out, no DexNote: ${JSON.stringify(sp && { ...sp, logo: sp.logo.slice(0, 30), text: sp.text.slice(0, 80) })}`);
+ok(sp && !sp.notesOpen && !(await p.evaluate(() => !!document.querySelector('#notesEditor .nt-app'))), 'and the notes did not open');
+ok(await panelPress('Continue with Google'), 'Google pressed on the site panel');
+ok(await panelShut() && await signedInAs() === 'dex-google' && !(await p.evaluate(() => !!document.querySelector('#notesModal[open]'))),
+  'the sign-in closes the panel, signs in, and still opens no notes');
+await tilde('dexdc');
+await p.waitForSelector('#signinModal[open]', { timeout: 10000 }).catch(() => {});
+await p.waitForFunction(() => /Signed in as/.test(document.querySelector('#signinModal')?.textContent || ''), { timeout: 10000 }).catch(() => {});
+sp = await panel();
+ok(sp && /Signed in as dex-google@example\.com/.test(sp.text) && sp.google && sp.signOut, `~dexdc signed in shows the same panel with who and a Sign out: "${sp && sp.text.slice(0, 90)}"`);
+ok(await panelPress('Sign out'), 'Sign out pressed on that panel');
+ok(await panelShut() && await signedInAs() === null, 'and it signs out and closes');
+
+// Over an open overlay: the AI Lab's notes (a guest, signed out).
+await pressLab();
+await p.waitForSelector('#notesEditor .nt-body', { timeout: 15000 });
+await tilde('dexdc');
+await p.waitForSelector('#signinModal[open]', { timeout: 10000 }).catch(() => {});
+sp = await panel();
+ok(sp && sp.notesOpen && sp.google, 'typed over the notes, the panel stacks on them and the notes stay open underneath');
+await panelPress('Continue with Google');
+await panelShut();
 await p.waitForFunction(() => /acct marker/.test(document.querySelector('#notesEditor .nt-app')?.textContent || ''), { timeout: 15000 }).catch(() => {});
-ok(/acct marker/.test(await overlayText()) && !(await inOverlay('.dn-card')), 'and the sign-in lands on the account\'s notes');
-// Typed again while signed in: the same panel, saying who, with Sign out.
-await p.evaluate(() => document.body.focus());
-await p.keyboard.press('`');
-await p.waitForSelector('#codeModal[open] .vault-pin', { timeout: 5000 }).catch(() => {});
-await p.focus('#codeModal .vault-pin').catch(() => {});
-for (const ch of 'dexdc') { await p.keyboard.type(ch); await sleep(40); }
-await p.waitForSelector('#notesEditor .dn-card', { timeout: 20000 }).catch(() => {});
-const sheet = await p.evaluate(() => document.querySelector('#notesEditor .dn-card')?.textContent || '');
-ok(/Signed in as dex-google@example\.com/.test(sheet) && /Continue with Google/.test(sheet) && /Sign out/.test(sheet), `~dexdc signed in shows the sign-in panel with who and a Sign out: "${sheet.slice(0, 80)}"`);
-ok(await clickText('Sign out'), 'Sign out pressed on that panel');
-await p.waitForFunction(() => !JSON.parse(localStorage.getItem('fakecloud')).signedIn, { timeout: 10000 }).catch(() => {});
-ok(await p.evaluate(() => !JSON.parse(localStorage.getItem('fakecloud')).signedIn) && !/acct marker/.test(await overlayText()), 'and it signs out, taking the account\'s notes off the screen');
+ok(/acct marker/.test(await overlayText()) && await p.evaluate(() => !!document.querySelector('#notesModal[open]')), 'signing in there puts the account\'s notes on screen in the open overlay');
+await tilde('dexdc');
+await p.waitForSelector('#signinModal[open]', { timeout: 10000 }).catch(() => {});
+await p.waitForFunction(() => /Signed in as/.test(document.querySelector('#signinModal')?.textContent || ''), { timeout: 10000 }).catch(() => {});
+await panelPress('Sign out');
+await panelShut();
+await p.waitForFunction(() => document.querySelector('#notesEditor .nt-app') && !/acct marker/.test(document.querySelector('#notesEditor .nt-app').textContent), { timeout: 15000 }).catch(() => {});
+ok(await signedInAs() === null && !/acct marker/.test(await overlayText()) && await p.evaluate(() => !!document.querySelector('#notesEditor .nt-app')),
+  'signing out there takes the account\'s notes off the screen and leaves the overlay up');
 ok(codeCalls === 0, `the code itself was sent to the notes server ${codeCalls} times`);
 
 const real = errors.filter((e) => !/favicon|Failed to load resource/.test(e));

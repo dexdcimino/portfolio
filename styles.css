@@ -7261,6 +7261,38 @@ body:has(.sidebar:is(:hover,:has(:focus-visible))) > .music-remote.at-bl{
 .code-modal{border:0;padding:0;background:none;max-width:100vw;display:none}
 .code-modal[open]{display:grid;place-items:center}
 .code-modal::backdrop{background:rgba(3,5,7,.86);backdrop-filter:blur(6px)}
+
+/* --- the site sign-in (~DEXDC, Dex 2026-10-09) ---------------------------
+   The site's one account, so it wears the site's mark (the live favicon in
+   the current accent) and the tilde prompt's panel, not DexNote's. */
+.signin-modal{border:0;padding:0;background:none;max-width:100vw;display:none;color:var(--text,#e8ecf3)}
+.signin-modal[open]{display:grid;place-items:center}
+.signin-modal::backdrop{background:rgba(3,5,7,.86);backdrop-filter:blur(6px)}
+.signin-card{
+  display:flex;flex-direction:column;align-items:stretch;gap:10px;text-align:center;
+  width:min(360px,calc(100vw - 32px));box-sizing:border-box;
+  padding:28px 28px 22px;border-radius:26px;background:#171b25;
+  box-shadow:0 30px 80px rgba(0,0,0,.6);
+}
+.signin-logo{width:64px;height:64px;align-self:center;border-radius:14px}
+.signin-title{margin:4px 0 0;font-size:1.3rem;font-weight:700;letter-spacing:.01em}
+.signin-note{margin:0 0 6px;color:rgba(232,236,243,.62);font-size:.95rem;overflow-wrap:anywhere}
+.signin-providers{display:flex;flex-direction:column;gap:8px}
+.signin-btn{
+  min-height:44px;padding:0 18px;border:1px solid transparent;border-radius:12px;
+  background:#252a37;color:inherit;font:inherit;font-weight:600;cursor:pointer;
+  transition:background-color .15s,border-color .15s;
+}
+.signin-btn:hover{background:#2e3443}
+.signin-btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.signin-btn:disabled{opacity:.55;cursor:default}
+.signin-btn.is-primary{background:var(--accent);color:var(--accent-ink,#0b0d12)}
+.signin-btn.is-primary:hover{filter:brightness(1.08)}
+.signin-btn.is-danger{color:#ff8a80}
+.signin-btn.is-danger:hover{background:rgba(255,90,80,.16)}
+.signin-error{margin:0;color:#ff8a80;font-size:.9rem}
+.signin-foot{display:flex;justify-content:center;gap:10px;margin-top:10px}
+.signin-foot .signin-btn{min-width:110px}
 /* TIGHTER THAN IT WAS (Dex, 2026-09-09). At 44px top and bottom plus a 14px
    gap either side of the boxes, a five-character prompt was 224px tall for
    66px of input -- most of a panel that exists to hold one word. The bottom
