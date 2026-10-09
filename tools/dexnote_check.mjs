@@ -30,7 +30,7 @@ const CHROME = [
   'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',
 ].find(p => p && existsSync(p));
 if (!CHROME) throw new Error('no Chrome or Edge found — set CHROME=<path to the exe>');
-const EXPECTED = 63;
+const EXPECTED = 64;
 
 const FAKE_CLOUD = `// Stand-in for dexnote/cloud.js: same exports, the "server" is a localStorage key.
 import { keyFor } from '/dexnote/local.js';
@@ -110,7 +110,7 @@ await p.goto(`${BASE}/dexnote/`, { waitUntil: 'networkidle2' });
 await p.evaluate(() => { localStorage.clear(); indexedDB.deleteDatabase('dexnote-guest'); });
 await p.reload({ waitUntil: 'networkidle2' });
 const gate = await p.evaluate(() => [...document.querySelectorAll('.dn-card button')].map((b) => b.textContent));
-ok(gate.join('|') === 'Google|GitHub|Discord|Continue as guest', `gate shows 3 providers + guest, no "Continue with": ${JSON.stringify(gate)}`);
+ok(gate.join('|') === 'Google|Discord|GitHub|Continue as guest', `gate shows 3 providers + guest, no "Continue with": ${JSON.stringify(gate)}`);
 /* The card is the site's sign-in panel with dexnote's mark (Dex, 2026-10-09):
    lowercase name, two lines, each provider its mark and its name at the
    site's 195x46 with a 24px mark that actually draws (a mask with no image
@@ -317,6 +317,8 @@ let sp = await panel();
 ok(sp && sp.google && sp.github && sp.discord && !sp.signOut && /^data:image\/svg\+xml/.test(sp.logo) && !/DexNote/i.test(sp.text) && /dexcimino\.com/.test(sp.text),
   `~dexdc signed out opens the SITE sign-in: its own mark, three providers, no Sign out, no DexNote: ${JSON.stringify(sp && { ...sp, logo: sp.logo.slice(0, 30), text: sp.text.slice(0, 80) })}`);
 ok(sp && !sp.notesOpen && !(await p.evaluate(() => !!document.querySelector('#notesEditor .nt-app'))), 'and the notes did not open');
+const order = await p.evaluate(() => [...document.querySelectorAll('#signinModal .signin-provider')].map((b) => b.textContent.trim()));
+ok(order.join() === 'Google,Discord,GitHub,Email or name', `the buttons run Google, Discord, GitHub (Dex, 2026-10-09): ${order.join(', ')}`);
 // The fourth way in: one box for an email or an Inko name, in the same column.
 await panelPress('Email or name');
 const form = await p.evaluate(() => {

@@ -1185,7 +1185,7 @@ function bindModal(dialog, onClose) {
 /* ~DEXDC IS THE SITE'S SIGN-IN (Dex, 2026-10-09): "anytime I type in Dex DC,
    it's just signing me into my website ... not specific for the Dex note."
    Typed into any keypad -- the tilde prompt over any overlay, the Idea Vault,
-   the notes' own box -- it opens THIS: Google, GitHub, Discord, wearing the
+   the notes' own box -- it opens THIS: Google, Discord, GitHub, wearing the
    site's own mark (the accent-coloured favicon, the hexagonal helmet), and
    nothing else opens. Signed in, the same panel says who and offers Sign out.
 
@@ -1373,8 +1373,8 @@ async function openSiteSignIn(opener) {
 
   providers.append(
     provider('google', 'Google', 'is-primary'),
-    provider('github', 'GitHub'),
     provider('discord', 'Discord'),
+    provider('github', 'GitHub'),
     provider('lock', 'Email or name', 'is-quiet', showForm));
   const signOutBtn = button('Sign out', 'is-danger', signOut);
   signOutBtn.hidden = true;

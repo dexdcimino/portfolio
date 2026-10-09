@@ -88,7 +88,8 @@ export function signInError(err) {
    sign-in landed; `error` is a line to show in red from the start (the notes
    could not be opened); `extra` is whatever the caller puts underneath (the
    page's "Continue as guest", the overlay's "Not now"). */
-const PROVIDERS = [['google', 'Google'], ['github', 'GitHub'], ['discord', 'Discord']];
+// Google, Discord, GitHub: the order Dex asked for, 2026-10-09.
+const PROVIDERS = [['google', 'Google'], ['discord', 'Discord'], ['github', 'GitHub']];
 export function signInCard({ error: firstError, signedIn, extra } = {}) {
   const provider = ([which, name], i) => el('button', {
     type: 'button', class: `dn-provider${i === 0 ? ' is-primary' : ''}`, 'aria-label': `Sign in with ${name}`, onclick: go(which),

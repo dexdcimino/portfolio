@@ -223,7 +223,7 @@ try {
 
   console.log('2. the phone layout');
   const gate = await p.evaluate(() => ({ btns: [...document.querySelectorAll('.dn-card button')].map((b) => b.textContent), logo: document.querySelector('.dn-card .dn-logo')?.getAttribute('src') }));
-  ok(gate.btns.join('|') === 'Google|GitHub|Discord|Continue as guest' && gate.logo === '/dexnote/icons/logo-v2.svg',
+  ok(gate.btns.join('|') === 'Google|Discord|GitHub|Continue as guest' && gate.logo === '/dexnote/icons/logo-v2.svg',
     `the intro is the site's sign-in under the DexNote mark (${gate.btns.join(', ')})`);
   await clickText('Continue as guest');
   await p.waitForSelector('.dm-bar', { timeout: 10000 });
