@@ -2424,8 +2424,16 @@ if (workModal) {
        it pauses off screen as it always did. */
     let floatHeld = false;
     const audible = () => !video.muted || floatHeld;
+    /* IN VIEW means scrolled into view, the featured page showing, and no
+       overlay over it. With the sound on, leaving any of the three keeps it
+       playing and sends the speaker out (Dex, 2026-10-09: arrowing to Proto
+       Isles or opening a portfolio overlay was stopping it). */
+    const covered = () => [...document.querySelectorAll('dialog[open]')]
+      .some(d => !d.classList.contains('is-docked') && !d.contains(item));
+    const inView = () => seen && item.classList.contains('is-on') && !covered();
     function sync() {
-      if (wanted && (seen || audible()) && item.classList.contains('is-on') && !document.hidden) start();
+      if (inView()) floatHeld = false;
+      if (wanted && (inView() || audible()) && !document.hidden) start();
       else video.pause();
       floatUpdate();
     }
@@ -2473,7 +2481,7 @@ if (workModal) {
     }
     function floatUpdate() {
       if (!mute) return;
-      const want = !seen && !video.paused && item.classList.contains('is-on') && audible();
+      const want = !inView() && !video.paused && audible();
       if (want === floatOn) return;
       floatOn = want;
       if (want) {
@@ -2503,7 +2511,7 @@ if (workModal) {
           floatBtn.hidden = true; cancelAnimationFrame(floatRaf);
           if (floatBtn.parentNode !== document.body) document.body.append(floatBtn);
         };
-        if (seen) floatFly(false, done); else { fly = null; done(); }
+        if (inView()) floatFly(false, done); else { fly = null; done(); }
       }
     }
     function floatPaint() {
@@ -2731,11 +2739,12 @@ if (workModal) {
       else if (!seen && r >= .4 && r > lastRatio) seen = true;
       else if (r === 0) seen = false;
       lastRatio = r;
-      if (seen) floatHeld = false;
       sync();
     }, { threshold: Array.from({ length: 21 }, (_, i) => i / 20) })
       .observe(item);
     new MutationObserver(sync).observe(item, { attributes: true, attributeFilter: ['class'] });
+    // An overlay opening or closing anywhere is a change of view too.
+    new MutationObserver(sync).observe(document.body, { subtree: true, attributes: true, attributeFilter: ['open'] });
     document.addEventListener('visibilitychange', sync);
     paint();
   }
