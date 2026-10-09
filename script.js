@@ -12193,7 +12193,17 @@ const PORTRAIT_LABEL = {
       ? `Open the ${name} gallery, ${count} screenshot${count === 1 ? '' : 's'}`
       : `Open the ${name} gallery — no screenshots yet`);
   }
-  const countFor = (key) => (byGame.get(key) || []).length;
+  /* A game whose shots live in a WORK SET (Proto Isles: its tabs sit on the
+     featured card) has no .gal-items here. Its button counts that set and
+     opens the work overlay on it, so there is one gallery per game and the
+     games row cannot drift from the featured one. */
+  const workSetFor = (key) =>
+    key && document.querySelector(`[data-work-set="${key}"]`) ? readWorkSet(key) : null;
+  const countFor = (key) => {
+    const set = workSetFor(key);
+    if (set) return set.categories.reduce((n, c) => n + c.items.length, 0);
+    return (byGame.get(key) || []).length;
+  };
 
   function setGame(key, name, btn) {
     const asked = name || 'this game';
@@ -12263,6 +12273,11 @@ const PORTRAIT_LABEL = {
      another section may have shown its own pictures in the meantime, and
      opening on whatever was left there is how you click GAMES and get an app. */
   openBtn.addEventListener('click', () => {
+    if (workSetFor(gamesKey)) {
+      paintOpenBtn(openBtn, countFor(gamesKey), gamesName || 'this game');
+      openWork(null, 0, openBtn, gamesKey);
+      return;
+    }
     setGame(gamesKey, gamesName, openBtn);
     openModal(dialog, dialog.querySelector('.gal-shell'), () => select(index), openBtn);
   });

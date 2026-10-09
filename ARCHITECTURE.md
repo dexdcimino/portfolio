@@ -163,7 +163,11 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
   categories get the same buttons from `WORK_CAT_ICONS` in script.js, keyed by
   `work.json` category id, masks under `assets/icons/work/` plus the Proto
   Isles sword, pine and UI marks; the tips sit above, `data-tip-pos="above"`;
-  an empty tab keeps its arrows dimmed as placeholders), and its always-visible
+  an empty tab keeps its arrows dimmed as placeholders; the games list's row
+  05, PROTO ISLES (WIP), names the same set in its `data-game`, and
+  `initGameGallery` sends its GALLERY button there -- counted with
+  `readWorkSet()` and opened with `openWork(null, 0, btn, key)` -- rather
+  than keeping a second copy of the shots), and its always-visible
   download is `[data-code-lock]`: the ` keypad, labelled DOWNLOAD LOCKED,
   until there is a launcher. Hover and the bar slides up into its strip, pushing the
   caption and the pair up with it, all on one slow ease (`--fv-t`, .5s);
