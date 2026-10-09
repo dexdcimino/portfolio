@@ -3046,9 +3046,10 @@ Each app keeps its own data under it; the account is the parent, not any app.
 
 ```
 account/site-auth.js   the client: onUser, currentUser, signIn(provider),
-                       signOut, idToken, errorText. The ONE place a page
-                       signs in from. Imports the SDK by the same URLs as
-                       dexnote/cloud.js, so a page loading both shares one app.
+                       signOut, idToken, errorText, and CONFIG + signInTo,
+                       which dexnote/cloud.js imports so the two always make
+                       one app with identical options. The ONE place a page
+                       signs in from.
 account/index.html     the account page: sign in, who you are, sign out.
 account/main.js        Its card is DexNote's (notes.css + dexnote.css).
 lib/site-identity.js   the server: verify(idToken) -> claims, person(claims)
@@ -3062,6 +3063,16 @@ Inko      Vercel Blob, keyed by handle; the handle linked to the uid as
           sketch/identities/firebase-<uid>.json           (sketch-store identifySite)
 later     users/{uid}/data/<app>* -- prefs, games, music
 ```
+
+**The sign-in window runs on dexcimino.com.** On that host `CONFIG.authDomain`
+is the site itself and `vercel.json` forwards `/__/auth/*` and `/__/firebase/*`
+to `dexnote-d7047.firebaseapp.com` (served with only `frame-ancestors 'self'`,
+SAMEORIGIN and no COOP, as Firebase serves them), so Google's picker says
+"continue to dexcimino.com". Every other host -- previews, harnesses -- keeps
+Firebase's host. Google and Discord list `https://dexcimino.com/__/auth/handler`
+as a redirect; GitHub cannot (one callback per OAuth app, and dexnote.dev still
+uses it), so `signInTo` signs GitHub in on a memory-only second app
+(`site-github`) on Firebase's host and hands the credential to the real one.
 
 **Server check, no Admin SDK.** `verify()` checks an ID token the way Firebase
 documents for a third-party JWT library: RS256, a `kid` among Google's
