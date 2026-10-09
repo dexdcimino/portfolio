@@ -2393,6 +2393,9 @@ if (workModal) {
         const e = 1 - Math.pow(1 - t, 3);          // ease-out, as the old cubic-bezier(.22,.61,.36,1) read
         const k = fly.toSpot ? e : 1 - e;
         at = { left: c.left + (at.left - c.left) * k, top: c.top + (at.top - c.top) * k };
+        /* Home, it fades out over the last 40% of the way and is gone
+           the moment it lands (Dex: it reached the card and then blinked out). */
+        floatBtn.style.opacity = fly.toSpot ? '' : String(Math.min(1, (1 - e) / .4));
         if (t >= 1) { const done = fly.done; fly = null; done?.(); }
       }
       floatBtn.style.left = at.left + 'px';
@@ -2428,6 +2431,7 @@ if (workModal) {
         }
         floatBtn.getAnimations().forEach(a => a.cancel());
         floatBtn.hidden = false;
+        floatBtn.style.opacity = '';
         floatPaint();
         floatFly(true);
       } else if (floatBtn) {
