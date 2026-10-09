@@ -91,7 +91,10 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
   manifest. The sweep is THREE COLUMNS, not five items: the video, then the
   left pair of thumbnails, then the right pair, `STEP_MS` 300 apart on a
   15 s hold, so the whole wave crosses the stage in about 600 ms while each
-  `.85s` cross-fade is still running. And a frame LEAVING keeps opacity 1 one
+  `.85s` cross-fade is still running. A press on either column's arrow
+  skips the next two sweeps (`SKIP_AFTER_ARROW`) without resetting the
+  interval, so a manual page change is never flipped straight back and the
+  stage rejoins the same wave afterwards. And a frame LEAVING keeps opacity 1 one
   layer down (`.is-leaving`) instead of fading out under the new one: two
   matched ease curves composite to `1-(1-a)(1-b)`, which is 0.75 at the
   midpoint, and that quarter of panel showing through was the flicker in the

@@ -315,6 +315,43 @@ await page.waitForFunction(
   note(second.hiddenTabbable === 0, 'a hidden page still has focusable buttons');
 }
 
+/* ---- 3b. an arrow press holds the stage for TWO sweeps, then rejoins ------
+   FALSELY PASSES IF: the window were shorter than two holds (a stage that
+   never turns again passes "nothing moved"), or only the video were watched.
+   So the window runs past the third sweep and asserts BOTH halves: nothing
+   turned for two holds after the press, and then the video and the cards
+   turned again in the one wave. Dex: a press a moment before a sweep was
+   being answered by the stage flipping straight back. */
+{
+  await page.$eval('.fw-stage', el => el.scrollIntoView({ block: 'center', behavior: 'instant' }));
+  await page.click('[data-fv="1"]');
+  await page.mouse.move(5, 5);              // a pointer on the stage defers the sweep
+  const seen = await page.evaluate(() => new Promise(done => {
+    const shown = () => [
+      [...document.querySelectorAll('.fv-item')].findIndex(e => e.classList.contains('is-on')),
+      ...[...document.querySelectorAll('.work-page.is-on .work-card')].map(c =>
+        c.querySelector('.card-frame.is-on img')?.currentSrc || ''),
+    ];
+    let last = shown();
+    const out = [];
+    const t0 = performance.now();
+    const id = setInterval(() => {
+      const now = shown();
+      now.forEach((v, i) => { if (v !== last[i]) out.push({ item: i, at: Math.round(performance.now() - t0) }); });
+      last = now;
+      if (performance.now() - t0 > 47000) { clearInterval(id); done({ out, items: now.length }); }
+    }, 40);
+  }));
+  const first = seen.out[0];
+  console.log(`after an arrow: ${seen.out.length} turns in 47s over ${seen.items} items, ` +
+              `first at ${first ? first.at : '-'}ms`);
+  note(seen.items === 5, `watched ${seen.items} items, expected the video and four cards`);
+  note(!!first && first.at > 29000,
+       `the stage turned ${first ? first.at : '-'}ms after an arrow press; two 15s sweeps should be skipped`);
+  const turned = new Set(seen.out.map(t => t.item));
+  note(turned.size === 5, `${turned.size} of 5 items turned again after the skips - the stage did not rejoin the wave`);
+}
+
 /* ---- 4. THE OVERLAY STILL WORKS -----------------------------------------
    The regression that prompted this file. A collapsed hero still reports a
    bounding box and a loaded image, so the SIZE is what has to be asserted --
