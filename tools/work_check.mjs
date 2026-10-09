@@ -1690,12 +1690,12 @@ await page.waitForFunction(
     /* THE DOWNLOAD SIZE. Mobius's is read off the release (answered above);
        this Chrome says Linux, so it is the AppImage's 127,571,858 bytes. */
     const tips = await page.evaluate(() => [...document.querySelectorAll('#mobiusDownload, .fv-get')].map(b => b.dataset.tip));
-    note(releaseAsks >= 1 && tips.length === 2 && tips.every(t => t === 'Download Mobius 3D\n122 MB · no install, just run it'),
+    note(releaseAsks >= 1 && tips.length === 2 && tips.every(t => t === '122 MB'),
          `the Mobius download tips read ${JSON.stringify(tips)} after ${releaseAsks} release request(s)`);
     /* The installable apps' sizes are MEASURED here, not trusted: each app
        launched in a fresh profile, its service worker left to fill its cache,
-       and every cached body summed. The tip states "Under 1 MB" or "About N
-       MB"; data-install-size carries the same figure for this comparison. */
+       and every cached body summed. The tip is the size alone, "1 MB" or
+       "N MB"; data-install-size carries the same figure for this comparison. */
     const apps = await page.evaluate(() => [...document.querySelectorAll('#aiApps .ai-card-dl[data-install-size]')]
       .map(a => ({ path: new URL(a.href).pathname, size: a.dataset.installSize, tip: a.dataset.tip })));
     note(apps.length === 3, `${apps.length} install buttons state a size, expected 3`);
@@ -1718,7 +1718,7 @@ await page.waitForFunction(
       await ctx.close();
       const mib = got.bytes / 1048576;
       const says = app.size === '<1' ? mib < 1 : Math.round(mib) === +app.size;
-      const words = app.size === '<1' ? /\nUnder 1 MB · installs in seconds$/.test(app.tip) : app.tip.endsWith(`\nAbout ${app.size} MB · installs in seconds`);
+      const words = app.size === '<1' ? app.tip === '1 MB' : app.tip === `${app.size} MB`;
       console.log(`install size ${app.path}: ${got.files} files, ${mib.toFixed(2)} MB cached; the tip says ${app.size} MB`);
       if (got.files >= 5 && says && words) sized++;
       else note(false, `${app.path} caches ${got.files} files, ${mib.toFixed(2)} MB, but its tip says "${app.tip}" -- re-measure and fix data-install-size and the tip`);
@@ -1799,6 +1799,28 @@ await page.waitForFunction(
     return document.getElementById('appFrame').getAttribute('sandbox') || '(none)';
   });
   note(!/\ballow-downloads\b/.test(other), `the next app opened with "${other}" — the Mobius allowance leaked`);
+
+  /* THE X IN THE EMPTY SPACE (Dex, 2026-10-09): every AI Lab preview, of
+     every shape, wears the enlarged Mobius video's 52px X centred both ways in
+     the gap right of its own frame. Counted, so a lab with no previews fails. */
+  await page.evaluate(() => document.querySelectorAll('dialog[open]').forEach(d => d.close()));
+  const xs = await page.evaluate(async () => {
+    const out = [];
+    for (const card of document.querySelectorAll('#aiApps .ai-card[data-app-modal]')) {
+      card.querySelector('.ai-card-eye').click();
+      await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+      const d = document.getElementById('appModal');
+      const f = d.querySelector('.app-phone').getBoundingClientRect(), x = d.querySelector('.app-close').getBoundingClientRect();
+      const gapMid = (f.right + document.documentElement.clientWidth) / 2;
+      out.push({ shape: d.dataset.shape || 'phone', dx: Math.round(x.left + x.width / 2 - gapMid),
+                 dy: Math.round(x.top + x.height / 2 - (f.top + f.height / 2)), w: Math.round(x.width) });
+      d.close();
+    }
+    return out;
+  });
+  const xOk = xs.filter(o => Math.abs(o.dx) <= 2 && Math.abs(o.dy) <= 3 && o.w === 52);
+  note(xs.length >= 4 && xOk.length === xs.length, `the preview X centred right of the frame on ${xOk.length} of ${xs.length} overlays: ${JSON.stringify(xs)}`);
+  console.log(`preview X: ${xOk.length} of ${xs.length} centred in the gap (${[...new Set(xs.map(o => o.shape))].join(', ')})`);
   await page.evaluate(() => document.querySelectorAll('dialog[open]').forEach(d => d.close()));
 }
 
