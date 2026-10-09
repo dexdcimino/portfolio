@@ -1214,6 +1214,21 @@ html.dex-cursor button.app-art-view{cursor:zoom-in}
   letter-spacing:.01em;margin-top:8px}
 .fv-dl{right:18px;bottom:18px}
 
+/* --- a slot that is a GALLERY, not a video (Proto Isles) ---
+   The thumbnail is the whole card: 16:10 art made for this frame, so it
+   covers rather than letterboxing. One button under everything opens the work
+   overlay on the game's own tabs; the caption lets clicks through to it, and
+   the download sits on the bottom edge where a video's bar would be. */
+.fv-gallery .fv-poster img{object-fit:cover;object-position:50% 50%;
+  transition:scale .6s cubic-bezier(.22,.61,.36,1)}
+.fv-gallery:is(:hover,:has(.fv-open:focus-visible)) .fv-poster img{scale:1.025}
+.fv-open{position:absolute;inset:0;width:100%;height:100%;padding:0;border:0;
+  background:none;cursor:pointer;z-index:2}
+.fv-open:focus-visible{outline:2px solid var(--accent);outline-offset:-6px;border-radius:14px}
+.fv-gallery .card-meta{pointer-events:none}
+.fv-gallery .fv-actions{bottom:18px}
+@media(prefers-reduced-motion:reduce){.fv-gallery .fv-poster img{transition:none}}
+
 /* --- a slot with a real video in it (Mobius 3D) ---
    CONTAINED, never cropped: this is a recording of an app, and its controls
    -- the accent swatches the video is about -- live at the right edge, which
@@ -4362,6 +4377,13 @@ body.modal-open{overflow:hidden}
    .work-frame: cqw on the row would include both arrow columns, and the 3:2
    box would overhang them. */
 .work-hero-area{position:relative;flex:1 1 auto;min-width:0;min-height:0;container-type:size}
+/* A tab with nothing in it yet (Proto Isles' placeholders): the matte, a
+   line saying so, and no arrows that would walk nothing. */
+.work-stage.is-empty .work-hero-img{visibility:hidden}
+.work-stage.is-empty .work-hero::after{
+  content:'SHOTS COMING';position:absolute;inset:0;display:grid;place-items:center;
+  font-weight:900;letter-spacing:.2em;font-size:clamp(16px,4cqw,40px);color:var(--text);opacity:.85}
+.work-stage.is-empty .work-nav{visibility:hidden}
 .work-hero{
   --hero-ar:1.5;
   position:absolute;inset:0;margin:auto;

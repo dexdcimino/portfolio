@@ -1458,6 +1458,94 @@ await page.waitForFunction(
   await page.evaluate(() => document.querySelectorAll('dialog[open]').forEach(d => d.close()));
 }
 
+/* ---- 17b. Proto Isles: a featured slot that is a GALLERY ------------------
+   FALSELY PASSES IF: the overlay were only asserted open -- it is the SAME
+   dialog as VIEW ALL WORK, so the tabs have to be Proto Isles' own, the hero
+   has to be one of its shots and actually decode, and VIEW ALL WORK afterwards
+   has to be back on the portfolio's eight. And the lock is asserted by its
+   LABEL, because the keypad it opens is the ` one and opens for anything. */
+{
+  /* BEFORE section 18, on purpose: that one leaves a phone's emulation
+     behind it, and after it a mouse click at (783,775) arrived at (855,928)
+     -- on the section under the card -- one run in two. */
+  await page.evaluate(() => document.querySelectorAll('dialog[open]').forEach(d => d.close()));
+  await page.$eval('#work', el => el.scrollIntoView({ block: 'center', behavior: 'instant' }));
+  await page.evaluate(() => {
+    const items = [...document.querySelectorAll('.fv-item')];
+    if (!items[1].classList.contains('is-on')) document.querySelector('[data-fv="1"]').click();
+  });
+  await page.waitForFunction(() => document.querySelector('.fv-gallery')?.classList.contains('is-on'), { timeout: 5000 });
+  /* The section before this one reloads the page, so the stage is still
+     sliding in on its .reveal (24px over .7s) when this starts: a coordinate
+     read now is where the card is passing, and the first version of this
+     check clicked the section underneath. Wait for the slide to finish. */
+  await page.waitForFunction(() => {
+    const st = getComputedStyle(document.querySelector('.fw-stage'));
+    return st.transform === 'none' && st.opacity === '1';
+  }, { timeout: 5000 });
+  const at = await page.$eval('.fv-gallery', el => { const r = el.getBoundingClientRect();
+    return { x: r.left + r.width * 0.5, y: r.top + r.height * 0.35 }; });
+  const hit = await page.evaluate(({ x, y }) => document.elementFromPoint(x, y)?.className, at);
+  note(hit === 'fv-open', `the middle of the Proto Isles card is ${hit}, not its open button`);
+  await page.mouse.click(at.x, at.y);
+  await page.waitForFunction(() => document.getElementById('workModal').open
+    && /proto-isles/.test(document.getElementById('workHeroImg').currentSrc)
+    && document.getElementById('workHeroImg').complete, { timeout: 10000 }).catch(() => {});
+  const pi = await page.evaluate(() => ({
+    open: document.getElementById('workModal').open,
+    tabs: [...document.querySelectorAll('.work-tab')].map(t => t.textContent),
+    hero: document.getElementById('workHeroImg').currentSrc,
+    w: document.getElementById('workHeroImg').naturalWidth,
+    thumbs: document.querySelectorAll('#workStrip .work-thumb').length,
+  }));
+  note(pi.open, 'the Proto Isles card did not open the gallery');
+  note(pi.tabs.length === 5 && pi.tabs[0] === 'CHARACTERS7',
+       `Proto Isles tabs are ${JSON.stringify(pi.tabs)}`);
+  note(/proto-isles/.test(pi.hero) && pi.w > 0, `the Proto Isles hero is ${pi.hero} (${pi.w}px)`);
+  note(pi.thumbs === 7, `the Proto Isles strip has ${pi.thumbs} thumbs, not 7`);
+  await page.evaluate(() => document.getElementById('work-tab-ui').click());
+  const empty = await page.evaluate(() => ({
+    on: document.getElementById('workPanel').classList.contains('is-empty'),
+    cap: document.getElementById('workCapTitle').textContent,
+    thumbs: document.querySelectorAll('#workStrip .work-thumb').length }));
+  note(empty.on && empty.cap === 'Shots coming' && empty.thumbs === 0,
+       `an empty Proto Isles tab shows ${JSON.stringify(empty)}`);
+  await page.keyboard.press('Escape');
+  await page.waitForFunction(() => !document.getElementById('workModal').open, { timeout: 3000 }).catch(() => {});
+  await page.evaluate(() => document.getElementById('viewAllWork').click());
+  await page.waitForFunction(() => document.getElementById('workModal').open, { timeout: 5000 }).catch(() => {});
+  const back = await page.evaluate(() => document.querySelectorAll('.work-tab').length);
+  note(back === 8, `VIEW ALL WORK after Proto Isles shows ${back} tabs, not the portfolio's 8`);
+  await page.evaluate(() => document.querySelectorAll('dialog[open]').forEach(d => d.close()));
+
+  /* Closing an overlay hands the page back its scroll SMOOTHLY, so a
+     coordinate read too soon is where the button is going to be passing, not
+     where it stops -- the first version of this clicked the section below
+     it. Wait for the button to stop moving, then measure. */
+  await page.$eval('#work', el => el.scrollIntoView({ block: 'center', behavior: 'instant' }));
+  for (let last = null, same = 0; same < 3;) {
+    await new Promise(r => setTimeout(r, 150));
+    const y = await page.$eval('.fv-gallery .fv-lock', el => Math.round(el.getBoundingClientRect().top));
+    same = y === last ? same + 1 : 0; last = y;
+  }
+  const lock = await page.$eval('.fv-gallery .fv-lock', el => { const r = el.getBoundingClientRect();
+    return { x: r.left + r.width / 2, y: r.top + r.height / 2, tip: el.dataset.tip }; });
+  note(!/Mobius/.test(lock.tip), `the Proto Isles download tip says "${lock.tip}"`);
+  const onLock = await page.evaluate(({ x, y }) => document.elementFromPoint(x, y)?.closest('.fv-lock') != null, lock);
+  note(onLock, 'the Proto Isles download is covered where it is drawn');
+  await page.mouse.move(lock.x, lock.y);
+  await new Promise(r => setTimeout(r, 300));
+  await page.mouse.click(lock.x, lock.y);
+  await page.waitForFunction(() => document.getElementById('codeModal').open, { timeout: 3000 }).catch(() => {});
+  const label = await page.evaluate(() => [document.getElementById('codeModal').open, document.getElementById('codeLabel').textContent]);
+  note(label[0] && label[1] === 'DOWNLOAD LOCKED', `the Proto Isles download opened ${JSON.stringify(label)}`);
+  await page.keyboard.press('Escape');
+  await page.waitForFunction(() => !document.getElementById('codeModal').open, { timeout: 3000 }).catch(() => {});
+  const after = await page.evaluate(() => document.getElementById('codeLabel').textContent);
+  note(after === 'ENTER CODE', `after the locked download the keypad says ${after}`);
+  console.log(`proto isles: ${pi.tabs.length} tabs, ${pi.thumbs} shots, hero ${pi.w}px, empty tab ok=${empty.on}, lock "${label[1]}" -> "${after}"`);
+}
+
 /* ---- 18. the AI Lab app gallery: rails, the X, and the dark round it -------
    THE ASK (Dex, 2026-10-08): every AI Lab app's gallery (they all open
    #appShotModal) gets a thin rail outside each side of the picture with an

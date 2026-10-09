@@ -1775,6 +1775,43 @@ function loadWork() {
 
 const workCategories = () => workData?.categories ?? [];
 
+/* A SECOND SET OF TABS in the same overlay. A featured card that names
+   data-work-set (Proto Isles) opens this overlay on its own tabs rather than
+   the portfolio's: the same hero, arrows, strip and keys, so it browses
+   exactly like every other gallery on the page (Dex, 2026-10-09). Its shots
+   are not in work.json -- they are ordinary baked <picture> blocks in the
+   card's .pi-data, and an item is built by READING the srcsets those blocks
+   already carry, so nothing here assembles a URL either. A tab with no
+   figures yet is kept and shows SHOTS COMING. */
+let workSet = null;          // null = the portfolio; else { name, categories }
+const workSetCache = {};
+
+function readWorkSet(name) {
+  if (workSetCache[name]) return workSetCache[name];
+  const data = document.querySelector(`[data-work-set="${name}"] .pi-data`);
+  if (!data) return null;
+  let tabs = [];
+  try { tabs = JSON.parse(data.dataset.tabs || '[]'); } catch { tabs = []; }
+  const categories = tabs.map(([id, label]) => ({
+    id, label,
+    items: [...data.querySelectorAll(`figure[data-pi-cat="${id}"]`)].map(fig => {
+      const img = fig.querySelector('img');
+      const srcset = {};
+      fig.querySelectorAll('source').forEach(source => {
+        srcset[source.type === 'image/avif' ? 'avif' : 'webp'] = source.getAttribute('srcset');
+      });
+      return {
+        title: fig.dataset.title || '', desc: label,
+        src: img.getAttribute('src'), w: img.width, h: img.height, srcset,
+      };
+    }),
+  }));
+  return (workSetCache[name] = categories.length ? { name, categories } : null);
+}
+
+// What the overlay is showing: the active set, or the portfolio.
+const galleryCats = () => workSet ? workSet.categories : workCategories();
+
 /* TIGHTEN the cover-crop, for the few pieces that need it. object-position can
    only pan, and a piece with a painted border round it (osseous) or a
    three-view turnaround sheet (bone-archer) cannot be fixed by aiming: the
@@ -1870,18 +1907,20 @@ const workPrevBtn = document.getElementById('workPrev');
 const workNextBtn = document.getElementById('workNext');
 
 let workTabButtons = [];
+let workTabsFor;      // which set the tab row was built for; undefined = none yet
 let workCat = 0;      // index into workCategories()
 let workIdx = 0;      // index into the active category's items
 let workHeroToken = 0;
 
 const pad2 = value => String(value).padStart(2, '0');
-const workItems = () => workCategories()[workCat].items;
+const workItems = () => galleryCats()[workCat].items;
 
 /* ---------- tabs --------------------------------------------------------- */
 
 function buildWorkTabs() {
   const frag = document.createDocumentFragment();
-  workCategories().forEach((cat, index) => {
+  workTabsFor = workSet?.name ?? null;
+  galleryCats().forEach((cat, index) => {
     const tab = document.createElement('button');
     tab.className = 'work-tab';
     tab.type = 'button';
@@ -1909,7 +1948,7 @@ function buildWorkTabs() {
 // Switching category always resets to the first image and rebuilds the strip;
 // only the openers pass an index, so a featured card can land on its own piece.
 function selectWorkCategory(index, itemIndex = 0) {
-  const cats = workCategories();
+  const cats = galleryCats();
   workCat = Math.max(0, Math.min(cats.length - 1, index));
 
   workTabButtons.forEach((tab, i) => {
@@ -2012,7 +2051,16 @@ function preloadWorkNeighbours(items, index) {
 // The modulo is written to survive a negative index, which -1 from item 0 is.
 function showWorkItem(index) {
   const items = workItems();
-  if (!items.length) return;
+  // An empty tab (a Proto Isles category with no shots yet) says so rather
+  // than leaving the last tab's picture up under a new name.
+  workPanel.classList.toggle('is-empty', !items.length);
+  if (!items.length) {
+    ++workHeroToken;
+    workCapTitle.textContent = 'Shots coming';
+    workCapDesc.textContent = galleryCats()[workCat].label;
+    workCapIndex.replaceChildren();
+    return;
+  }
   workIdx = ((index % items.length) + items.length) % items.length;
   const item = items[workIdx];
 
@@ -2037,7 +2085,7 @@ function showWorkItem(index) {
 
 /* ---------- open / close ------------------------------------------------- */
 
-async function openWork(catId, index, trigger) {
+async function openWork(catId, index, trigger, set = null) {
   if (!workModal) return;
   // The manifest is normally already here — the featured grid starts the
   // fetch as it nears the viewport, long before anything is clicked. On a
@@ -2045,8 +2093,9 @@ async function openWork(catId, index, trigger) {
   // page as it was rather than opening an empty dialog.
   try { await loadWork(); }
   catch (error) { console.warn('work gallery unavailable', error); return; }
-  if (!workTabButtons.length) buildWorkTabs();
-  const cats = workCategories();
+  workSet = set ? readWorkSet(set) : null;
+  if (workTabsFor !== (workSet?.name ?? null)) buildWorkTabs();
+  const cats = galleryCats();
   const catIndex = Math.max(0, cats.findIndex(cat => cat.id === catId));   // unknown id -> first tab
   openModal(workModal, null, () => {
     selectWorkCategory(catIndex, index);
@@ -2078,6 +2127,12 @@ if (workModal) {
   });
   document.getElementById('viewAllWork')?.addEventListener('click', event => {
     openWork(null, 0, event.currentTarget);
+  });
+  // A featured card with its own tabs (Proto Isles): the whole thumbnail is
+  // the button, and it opens on the first tab's first shot.
+  document.querySelectorAll('[data-work-set] .fv-open').forEach(button => {
+    button.addEventListener('click', () =>
+      openWork(null, 0, button, button.closest('[data-work-set]').dataset.workSet));
   });
 
   // Left/Right inside the tab row belong to the tablist; that handler runs
@@ -5126,6 +5181,23 @@ const codeModal = document.getElementById('codeModal');
 
     document.getElementById('codeClose')?.addEventListener('click',
       () => closeModal(codeModal));
+    /* A LOCKED DOWNLOAD ([data-code-lock], the Proto Isles card): the keypad,
+       wearing the button's own words in place of ENTER CODE, until there is a
+       launcher to hand out. It is the same keypad as ` -- every code it knows
+       still works from here -- and closing it puts ENTER CODE back (the
+       bindModal reset above). */
+    document.querySelectorAll('[data-code-lock]').forEach((lock) => {
+      lock.addEventListener('click', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        if (codeModal.open) return;
+        codeOpener = lock;
+        if (codeLabel) codeLabel.textContent = lock.dataset.codeLock;
+        openModal(codeModal, codeModal.querySelector('.code-shell'), null, codeOpener,
+                  !!document.querySelector(OVERLAY_OPEN));
+        codepad.focus();
+      });
+    });
     /* Overlay lock buttons ([lock][x] chrome): open the tilde keypad stacked
        over the open overlay, exactly as if the user had pressed `. The
        editor-upgrade step (the universal code unlocking the overlay beneath)

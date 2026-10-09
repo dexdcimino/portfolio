@@ -113,7 +113,15 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
   of the wide layout's near-square frame cut off the app's controls; its bar
   (the AI Lab player's `.cl-*` controls, shared) hides under a playing
   video until the frame is hovered, and the caption and the eye/download pair
-  sit above it. Hover and the bar slides up into its strip, pushing the
+  sit above it. The second item, `.fv-gallery` (Proto Isles), is NOT a
+  video: its 16:10 thumbnail covers the frame, one `.fv-open` button under
+  everything opens the WORK OVERLAY on the card's own tabs
+  (`openWork(..., set)` with `data-work-set`; `readWorkSet()` builds the
+  categories from the baked `<picture>` blocks in the card's hidden
+  `.pi-data`, reading their srcsets, so the portfolio's `work.json` is not
+  touched; a tab with no figures shows SHOTS COMING), and its always-visible
+  download is `[data-code-lock]`: the ` keypad, labelled DOWNLOAD LOCKED,
+  until there is a launcher. Hover and the bar slides up into its strip, pushing the
   caption and the pair up with it, all on one slow ease (`--fv-t`, .5s);
   unhovered they sit on the bottom row. Nothing moves sideways. With a mouse
   the unmute (`data-audio`) shows on hover only, muted or not, and never
