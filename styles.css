@@ -1239,15 +1239,72 @@ html.dex-cursor button.app-art-view{cursor:zoom-in}
 .fv-bar{transition:opacity .25s ease,background .25s ease}
 .fv-bar>*{transition:opacity .25s ease}
 .fv-item.is-playing:not(:hover):not(:has(:focus-visible)) .fv-bar{background:transparent}
-.fv-item.is-playing:not(:hover):not(:has(:focus-visible)) .fv-bar>*:not(.fv-mute){opacity:0}
+.fv-item.is-playing:not(:hover):not(:has(:focus-visible)) .fv-bar>*:not(.fv-vol){opacity:0}
+.fv-mute{transition:opacity .25s ease,color var(--accent-ease),background .2s ease}
 .fv-item.is-playing:not(.is-muted):not(:hover):not(:has(:focus-visible)) .fv-mute{opacity:0}
 /* Muted, the speaker is grey and struck through (the line lifted off a cut, so it reads as raised). */
 .fv-item.is-muted .fv-mute{color:#9aa3ad}
-/* Full screen: the slot is the screen, the picture is letterboxed in black, and
-   only the bar comes along -- the caption and the buttons belong to the page. */
-.fv-item:fullscreen{border-radius:0;background:#000}
-.fv-item:fullscreen :is(.fv-poster img,.fv-video){object-position:50% 50%}
-.fv-item:fullscreen :is(.card-meta,.card-shade,.fv-actions,.fv-info,.fv-desc){display:none}
+/* The volume pops up centred above the speaker on hover (or focus), in the
+   accent with a white handle like every other range on the site. It sits in
+   the bar, which stacks above .fv-actions, so the open panel covers the
+   download and preview buttons; while it is open they take no clicks at all,
+   so a drag that overshoots cannot start a download. The 12px of padding under
+   the panel is the bridge the pointer crosses from the button to it. Keyboard
+   focus opens it; a mouse drag's leftover focus does not hold it open. */
+.fv-vol{position:relative;display:flex;flex:none}
+.fv-vol:has(.fv-mute[hidden]){display:none}
+.fv-vol-pop{
+  position:absolute;left:50%;bottom:100%;padding:0 0 12px;
+  transform:translate(-50%,8px) scale(.94);transform-origin:50% 100%;
+  opacity:0;visibility:hidden;pointer-events:none;
+  transition:opacity .18s ease,transform .18s cubic-bezier(.2,.8,.3,1.2),visibility 0s linear .18s;
+}
+.fv-vol:is(:hover,:has(:focus-visible)) .fv-vol-pop{
+  opacity:1;visibility:visible;pointer-events:auto;transform:translate(-50%,0) scale(1);
+  transition:opacity .18s ease,transform .18s cubic-bezier(.2,.8,.3,1.2),visibility 0s;
+}
+.fv-item:has(.fv-vol:is(:hover,:has(:focus-visible))) .fv-actions{pointer-events:none}
+.fv-volume{
+  -webkit-appearance:none;appearance:none;display:block;margin:0;cursor:pointer;
+  writing-mode:vertical-lr;direction:rtl;width:20px;height:116px;
+  padding:14px 12px;box-sizing:content-box;border-radius:14px;
+  background:rgba(6,8,11,.9);backdrop-filter:blur(6px);box-shadow:0 10px 28px rgba(0,0,0,.45);
+}
+.fv-volume::-webkit-slider-runnable-track{
+  width:4px;height:100%;margin:0 auto;border-radius:999px;
+  background:linear-gradient(0deg,var(--accent) var(--fill,100%),rgba(255,255,255,.28) var(--fill,100%));
+}
+.fv-volume::-moz-range-track{
+  width:4px;height:100%;border-radius:999px;
+  background:linear-gradient(0deg,var(--accent) var(--fill,100%),rgba(255,255,255,.28) var(--fill,100%));
+}
+.fv-volume::-webkit-slider-thumb{
+  -webkit-appearance:none;appearance:none;width:14px;height:14px;border-radius:999px;
+  background:#fff;border:0;margin-left:-5px;box-shadow:0 1px 4px rgba(0,0,0,.5);
+}
+.fv-volume::-moz-range-thumb{width:14px;height:14px;border-radius:999px;background:#fff;border:0}
+.fv-volume:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+/* ENLARGED (Dex: not real full screen). The slot is a popover in the top layer,
+   centred at the video's own aspect, so the picture fills it with no bars at
+   the sides, rounded like the site's overlays, over a dimmed page. Only the bar
+   and the X come along -- the caption and the buttons belong to the card. */
+.fv-close{display:none}
+/* The attribute outlives the close by a task (the toggle event that removes it
+   is async), and a closed [popover] is display:none in the UA sheet. */
+.fv-item[popover]:not(:popover-open){display:block;width:auto;height:auto;margin:0;padding:0;color:inherit}
+.fv-item:popover-open{
+  position:fixed;inset:0;margin:auto;padding:0;z-index:auto;opacity:1;
+  width:min(94vw,calc((100dvh - 56px) * var(--fv-ar,4/3)));height:auto;aspect-ratio:var(--fv-ar,4/3);
+  border-radius:18px;border:var(--stroke) solid rgba(255,255,255,.18);
+  color:inherit;background:#0a1821;box-shadow:0 30px 90px rgba(0,0,0,.6);
+  animation:fv-max-in .22s cubic-bezier(.2,.8,.3,1);
+}
+.fv-item:popover-open::backdrop{background:rgba(3,5,8,.78);backdrop-filter:blur(4px)}
+@keyframes fv-max-in{from{opacity:0;transform:scale(.96)}}
+.fv-item:popover-open :is(.fv-poster img,.fv-video){object-position:50% 50%}
+.fv-item:popover-open :is(.card-meta,.card-shade,.fv-actions,.fv-info,.fv-desc){display:none}
+.fv-item:popover-open .fv-close{display:grid;top:14px;right:14px;z-index:5;background:rgba(8,11,15,.72);color:#c9d0d6}
+@media(prefers-reduced-motion:reduce){.fv-item:popover-open{animation:none}.fv-vol-pop{transition:none}}
 /* Before a source exists there is nothing to scrub. */
 .fv-has-video:not([data-src^="https"]) :is(.fv-bar,.fv-play){display:none}
 /* No blue flash on a phone tap: the slot draws its own pressed and focus states. */
@@ -4677,6 +4734,8 @@ body.modal-open{overflow:hidden}
    A shade larger and heavier, because "Copied!" is an answer to something the
    visitor just did and a 12px label reads as chrome they are meant to ignore. */
 #tip.is-flash{font-size:13px;font-weight:700;letter-spacing:.01em}
+/* data-tip-big: four points up, for the featured video's two buttons (Dex). */
+#tip.is-big{font-size:16px;padding:9px 14px;border-radius:12px}
 /* LOUD: a headline in the accent with a quieter line under it. The plain
    bubble is a label and is meant to be ignorable; this one is for a control
    that is announcing something -- the game download, which is a placeholder

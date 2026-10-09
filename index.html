@@ -401,7 +401,7 @@
                The bar runs along the bottom edge, and everything else that
                sits low -- the caption, the eye, the download -- sits ABOVE it,
                so nothing ever covers the scrubber. -->
-          <article class="fv-item fv-has-video is-on" data-video="0" data-src="https://vz-f98421b2-da0.b-cdn.net/b3f51fa9-d5a0-4125-bce1-a7ea495aa28a/play_720p.mp4" data-audio>
+          <article class="fv-item fv-has-video is-on" data-video="0" data-src="https://vz-f98421b2-da0.b-cdn.net/6b7c42d7-5f86-4992-abb7-45a7946b55cc/play_720p.mp4" data-audio>
             <span class="fv-matte" aria-hidden="true"></span>
             <!-- img src="assets/featured/mobius-3d.png" slot="clip-poster" alt="" picture-class="fv-poster" -->
             <picture class="fv-poster">
@@ -437,12 +437,12 @@
                  page rather than built as a URL (CLAUDE.md, image pipeline). -->
             <div class="fv-actions">
               <a class="fv-act fv-get" href="https://github.com/dexdcimino/mobius-3d/releases/latest"
-                 target="_blank" rel="noopener" data-tip="Download Mobius 3D" data-tip-pos="above"
+                 target="_blank" rel="noopener" data-tip="Download&#10;Mobius 3D" data-tip-pos="above" data-tip-big
                  aria-label="Download the Mobius 3D desktop app">
                 <span class="icon" data-icon="download" aria-hidden="true"></span>
               </a>
               <button class="fv-act fv-eye" type="button" data-open-app="mobiusCard"
-                      data-tip="Functional preview" data-tip-pos="above"
+                      data-tip="Functional preview" data-tip-pos="above" data-tip-big
                       data-tip-thumb='figure.gal-item[data-game="mobius"] picture'
                       aria-label="Open a functional preview of Mobius 3D">
                 <span class="icon" data-icon="eye" aria-hidden="true"></span>
@@ -452,9 +452,15 @@
               <button class="cl-btn cl-play fv-toggle" type="button" aria-label="Pause"><span class="icon" data-icon="pause" aria-hidden="true"></span></button>
               <input class="cl-scrub fv-scrub" type="range" min="0" max="1000" value="0" step="1" aria-label="Seek">
               <span class="cl-time fv-time">0:00 / 0:00</span>
-              <button class="cl-btn fv-mute" type="button" aria-label="Unmute" hidden><span class="icon" data-icon="volume-slash" aria-hidden="true"></span></button>
-              <button class="cl-btn fv-full" type="button" aria-label="Full screen"><span class="icon" data-icon="fullscreen" aria-hidden="true"></span></button>
+              <div class="fv-vol">
+                <button class="cl-btn fv-mute" type="button" aria-label="Unmute" hidden><span class="icon" data-icon="volume-slash" aria-hidden="true"></span></button>
+                <div class="fv-vol-pop"><input class="fv-volume" type="range" min="0" max="100" value="100" step="1" aria-label="Volume"></div>
+              </div>
+              <button class="cl-btn fv-full" type="button" aria-label="Enlarge video"><span class="icon" data-icon="fullscreen" aria-hidden="true"></span></button>
             </div>
+            <button class="contact-close fv-close" type="button" aria-label="Close enlarged video">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+            </button>
           </article>
           <article class="fv-item" data-video="1">
             <span class="fv-matte" aria-hidden="true"></span>

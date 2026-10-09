@@ -115,9 +115,14 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
   video until the frame is hovered, with the unmute (`data-audio`) staying
   up while the sound is off, and the caption and the eye/download pair sit
   above it. A click anywhere on the frame pauses or plays it. Muted, the
-  speaker is the grey struck-through `volume-slash`; right of it `.fv-full`
-  puts the whole slot full screen (the video's own player on an iPhone, which
-  has no element full screen), where only the bar comes along. The eye presses the AI
+  speaker is the grey struck-through `volume-slash`, and hovering it pops a
+  vertical `.fv-volume` up above it that covers (and disables) the
+  eye/download pair while open. Right of it `.fv-full` ENLARGES rather than
+  going full screen: the slot becomes a `popover="auto"` in the top layer,
+  centred at the video's own aspect (`--fv-ar`, so no side bars) over a dimmed
+  page, closed by its `.fv-close` X, a click outside or Escape (the video's
+  own player where there is no popover). Only the bar comes along. Both buttons'
+  tips carry `data-tip-big`. The eye presses the AI
   Lab card's own eye once the scroll there has ended, and its tip clones the
   first Mobius gallery `<picture>` via `data-tip-thumb`), one `initTabs()`
   behind four tablists, `initGallery({id, root, panel})` — ONE carousel +
