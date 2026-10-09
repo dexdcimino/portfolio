@@ -122,7 +122,9 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
   (`openWork(..., set)` with `data-work-set`; `readWorkSet()` builds the
   categories from the baked `<picture>` blocks in the card's hidden
   `.pi-data`, reading their srcsets, so the portfolio's `work.json` is not
-  touched; a tab with no figures shows SHOTS COMING), and its always-visible
+  touched; a tab with no figures says its own third `data-tabs` field, VIDEO
+  COMING, or SHOTS COMING, and the set opens on its first tab with shots; one
+  versionless master per shot, so a newer take replaces its file), and its always-visible
   download is `[data-code-lock]`: the ` keypad, labelled DOWNLOAD LOCKED,
   until there is a launcher. Hover and the bar slides up into its strip, pushing the
   caption and the pair up with it, all on one slow ease (`--fv-t`, .5s);
