@@ -422,10 +422,12 @@ await page.waitForFunction(
       x: { w: Math.round(x.width), cx: x.left + x.width / 2, cy: x.top + x.height / 2 },
       hero: { right: hero.right, cy: hero.top + hero.height / 2 },
       stageRight: r('#workPanel').right,
+      pf: (() => { const b = document.querySelector('.profile-btn').getBoundingClientRect(); return { cx: b.left + b.width / 2, cy: b.top + b.height / 2 }; })(),
+      frameShare: r('.work-frame').width / r('#workPanel').width,
+      prevArrow: r('#workPrev').toJSON(), nextArrow: r('#workNext').toJSON(), heroBox: hero.toJSON(),
       hint: !!document.querySelector('.work-hint'),
       shown: shown.length, all: document.querySelectorAll('#workStrip .work-thumb').length,
       stripMid: Math.round(strip.left + strip.width / 2), countGap: Math.round(count.left - strip.right),
-      arrowOp: getComputedStyle(document.getElementById('workNext').parentElement).opacity,
       index: document.getElementById('workCapIndex').textContent,
       indexColor: getComputedStyle(document.querySelector('#workCapIndex b')).color,
       accent: getComputedStyle(document.documentElement).getPropertyValue('--accent').trim(),
@@ -433,7 +435,7 @@ await page.waitForFunction(
   });
   console.log(`layout: box ${lay.boxAr.toFixed(3)} vs image ${lay.imgAr.toFixed(3)}, title "${lay.titleText}" in=${lay.titleIn}, ` +
               `X ${lay.x.w}px at ${Math.round(lay.x.cx)} (gutter centre ${Math.round((lay.stageRight + lay.vw) / 2)}), ` +
-              `${lay.shown}/${lay.all} thumbs shown, strip centre ${lay.stripMid}, count ${lay.countGap}px right of it, arrows at ${lay.arrowOp}`);
+              `${lay.shown}/${lay.all} thumbs shown, strip centre ${lay.stripMid}, count ${lay.countGap}px right of it, frame ${Math.round(lay.frameShare * 100)}% of the column`);
   note(lay.tall || Math.abs(lay.boxAr - lay.imgAr) < 0.01, `the picture's box is ${lay.boxAr.toFixed(3)} wide for a ${lay.imgAr.toFixed(3)} image -- a matte is back`);
   note(!/repeating-linear-gradient/.test(lay.heroBg) && lay.heroBg === 'none', `the hero still paints ${lay.heroBg}`);
   note(/none/.test(lay.shellBg) && /rgba\(0, 0, 0, 0\)/.test(lay.shellBg), `the overlay has a panel fill again: ${lay.shellBg}`);
@@ -441,18 +443,18 @@ await page.waitForFunction(
   note(lay.shadow !== 'none', 'the title on the picture has no shadow to read on light art');
   note(Math.abs(lay.tabsMid - lay.vw / 2) <= 2, `the tabs are centred at ${lay.tabsMid} of ${lay.vw}`);
   note(lay.x.w === 52, `the X is ${lay.x.w}px, not the enlarged Mobius video's 52`);
-  /* Centred in the right GUTTER, not in whatever gap this picture leaves:
-     the box follows each piece's shape, and an X that followed it would
-     move on every arrow press. */
-  note(lay.x.cx > lay.hero.right + 26 && Math.abs(lay.x.cx - (lay.stageRight + lay.vw) / 2) <= 1,
-       `the X is not centred in the space right of the picture (${Math.round(lay.x.cx)} against ${Math.round(lay.stageRight)}..${lay.vw})`);
-  note(Math.abs(lay.x.cy - lay.hero.cy) <= 2, `the X is ${Math.round(lay.x.cy - lay.hero.cy)}px off the picture's middle`);
+  /* In the screen's top right corner, on the profile hexagon's own spot
+     (Dex, 2026-10-09), so the floating Mobius speaker keeps its place under it. */
+  note(Math.abs(lay.x.cx - lay.pf.cx) <= 1 && Math.abs(lay.x.cy - lay.pf.cy) <= 1,
+       `the X is centred at ${Math.round(lay.x.cx)},${Math.round(lay.x.cy)}, not on the profile button's ${Math.round(lay.pf.cx)},${Math.round(lay.pf.cy)}`);
   note(!lay.hint, 'the BROWSE / ESC CLOSE line is still there');
   note(lay.shown === 8 && lay.all > 8, `${lay.shown} of ${lay.all} thumbnails are in the strip's window, not a page of eight`);
   note(Math.abs(lay.stripMid - lay.vw / 2) <= 2, `the strip is centred at ${lay.stripMid} of ${lay.vw} -- the count pulled it over`);
   note(lay.countGap > 0, 'the count is not to the right of the strip');
   note(/^01 \/ \d\d$/.test(lay.index), `the count reads "${lay.index}"`);
-  note(lay.arrowOp === '0', `with the pointer off the picture its arrows are at opacity ${lay.arrowOp}`);
+  note(Math.abs(lay.frameShare - 0.8) < 0.01, `the picture's frame is ${Math.round(lay.frameShare * 100)}% of the column, not 80%`);
+  note(lay.prevArrow.right <= lay.heroBox.left && lay.nextArrow.left >= lay.heroBox.right,
+       'an arrow sits on the picture instead of outside it');
 
   // The page follows the selection: the ninth piece slides the next eight in.
   const paged = await page.evaluate(async () => {
@@ -464,29 +466,44 @@ await page.waitForFunction(
              index: document.getElementById('workCapIndex').textContent };
   });
   note(paged.inside && /^09 \//.test(paged.index), `the ninth piece did not page the strip: ${JSON.stringify(paged)}`);
+  /* THE ARROWS DO NOT MOVE between pieces of different shapes (Dex,
+     2026-10-09): walked through ten pieces, their boxes never change. */
+  const still = await page.evaluate(async () => {
+    const at = () => ['workPrev', 'workNext'].map(id => { const b = document.getElementById(id).getBoundingClientRect(); return `${Math.round(b.left)},${Math.round(b.top)}`; }).join(' ');
+    const seen = new Set(), shapes = new Set();
+    for (let i = 0; i < 10; i++) {
+      document.getElementById('workNext').click();
+      await new Promise(r => setTimeout(r, 450));
+      const h = document.getElementById('workHero').getBoundingClientRect();
+      shapes.add((h.width / h.height).toFixed(2));
+      seen.add(at());
+    }
+    return { places: seen.size, shapes: shapes.size };
+  });
+  note(still.shapes > 1 && still.places === 1, `over ${still.shapes} picture shapes the arrows took ${still.places} places`);
 
   /* A hover on a thumbnail previews it in the big picture and leaving puts
      the selection back, with the count never moving -- under a REAL pointer. */
-  const thumbAt = await page.evaluate(() => { const b = document.querySelectorAll('#workStrip .work-thumb')[10].getBoundingClientRect();
+  const thumbAt = await page.evaluate(() => { const b = document.querySelectorAll('#workStrip .work-thumb')[20].getBoundingClientRect();
     return { x: b.left + b.width / 2, y: b.top + b.height / 2 }; });
   const titleOf = () => page.evaluate(() => [document.getElementById('workCapTitle').textContent, document.getElementById('workCapIndex').textContent]);
   const before = await titleOf();
   await page.mouse.move(thumbAt.x, thumbAt.y, { steps: 4 });
   await new Promise(r => setTimeout(r, 900));
   const during = await page.evaluate(() => { const stemOf = u => (u || '').split('/').pop().split('?')[0].replace(/(-\d{3,4})?\.(avif|webp|png|jpe?g)$/i, ''); return [document.getElementById('workCapTitle').textContent, document.getElementById('workCapIndex').textContent,
-    stemOf(document.getElementById('workHeroImg').currentSrc), stemOf(document.querySelectorAll('#workStrip .work-thumb')[10].querySelector('img').src)]; });
+    stemOf(document.getElementById('workHeroImg').currentSrc), stemOf(document.querySelectorAll('#workStrip .work-thumb')[20].querySelector('img').src)]; });
   await page.mouse.move(3, 3, { steps: 4 });
   await new Promise(r => setTimeout(r, 900));
   const after = await titleOf();
-  note(during[2] === during[3] && during[1] === before[1], `hovering thumbnail 11 showed ${during[2]} (wanted ${during[3]}) and the count read ${during[1]}`);
+  note(during[2] === during[3] && during[1] === before[1], `hovering thumbnail 21 showed ${during[2]} (wanted ${during[3]}) and the count read ${during[1]}`);
   note(after[0] === before[0] && after[1] === before[1], `leaving the strip left ${JSON.stringify(after)} up, not ${JSON.stringify(before)}`);
 
   // THE WHEEL: one piece a tick, forward and back.
   const mid = await page.evaluate(() => { const b = document.getElementById('workHero').getBoundingClientRect();
     return { x: b.left + b.width / 2, y: b.top + b.height / 2, tall: document.getElementById('workHero').classList.contains('is-tall') }; });
   const at = async () => page.evaluate(() => parseInt(document.getElementById('workCapIndex').textContent, 10));
-  // Over the right gutter, above the X: nothing tall can claim the wheel there.
-  const gutterAt = await page.evaluate(() => { const b = document.querySelector('.work-close').getBoundingClientRect(); return { x: b.left + b.width / 2, y: b.top - 40 }; });
+  // Over the left gutter: nothing tall can claim the wheel there.
+  const gutterAt = await page.evaluate(() => ({ x: 20, y: Math.round(innerHeight / 2) }));
   const w0 = await at();
   await page.mouse.move(gutterAt.x, gutterAt.y);
   for (let i = 0; i < 3; i++) { await page.mouse.wheel({ deltaY: 100 }); await new Promise(r => setTimeout(r, 160)); }

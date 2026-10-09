@@ -5064,30 +5064,31 @@
               <p class="work-plate" aria-live="polite">
                 <span class="work-cap-title" id="workCapTitle"></span>
               </p>
-              <!-- Hover-only arrows on the picture's edges (always shown on
-                   touch). Each sits in a column the arrow's own size, so the
-                   category button above it (.work-jump, a set with icons
-                   only) hangs out of the top and never moves the arrow. It
-                   shows the NEIGHBOURING tab's icon and jumps there; it comes
-                   up when the pointer is within two arrow-widths of the
-                   arrow (Dex, 2026-10-09). -->
-              <div class="work-nav-col prev">
-                <button class="work-jump" type="button" id="workJumpPrev" hidden>
-                  <span class="icon" aria-hidden="true"></span>
-                </button>
-                <button class="work-nav prev" type="button" id="workPrev" aria-label="Previous image">
-                  <span class="icon" data-icon="arrow-right" aria-hidden="true"></span>
-                </button>
-              </div>
-              <div class="work-nav-col next">
-                <button class="work-jump" type="button" id="workJumpNext" hidden>
-                  <span class="icon" aria-hidden="true"></span>
-                </button>
-                <button class="work-nav next" type="button" id="workNext" aria-label="Next image">
-                  <span class="icon" data-icon="arrow-right" aria-hidden="true"></span>
-                </button>
-              </div>
             </div>
+          </div>
+          <!-- The arrows sit OUTSIDE the picture at fixed places beside the
+               frame (Dex, 2026-10-09), so they never move while you click
+               through pieces of different shapes. Each sits in a column the arrow's own size, so the
+               category button above it (.work-jump, a set with icons
+               only) hangs out of the top and never moves the arrow. It
+               shows the NEIGHBOURING tab's icon and jumps there; it comes
+               up when the pointer is within two arrow-widths of the
+               arrow (Dex, 2026-10-09). -->
+          <div class="work-nav-col prev">
+            <button class="work-jump" type="button" id="workJumpPrev" hidden>
+              <span class="icon" aria-hidden="true"></span>
+            </button>
+            <button class="work-nav prev" type="button" id="workPrev" aria-label="Previous image">
+              <span class="icon" data-icon="arrow-right" aria-hidden="true"></span>
+            </button>
+          </div>
+          <div class="work-nav-col next">
+            <button class="work-jump" type="button" id="workJumpNext" hidden>
+              <span class="icon" aria-hidden="true"></span>
+            </button>
+            <button class="work-nav next" type="button" id="workNext" aria-label="Next image">
+              <span class="icon" data-icon="arrow-right" aria-hidden="true"></span>
+            </button>
           </div>
         </div>
       </div>

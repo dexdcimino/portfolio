@@ -4410,12 +4410,15 @@ body.modal-open{overflow:hidden}
 .work-tab[aria-selected="true"]{color:var(--accent);border-bottom-color:var(--accent)}
 .work-tab-count{font-size:11px;font-weight:700;letter-spacing:.06em;opacity:.5;font-variant-numeric:tabular-nums}
 
-/* The enlarged Mobius video's X: 52px, 14px corners, dark glass. Centred in
-   the right gutter, level with the middle of the picture's row. */
+/* The enlarged Mobius video's X: 52px, 14px corners, dark glass. In the
+   screen's top right corner, centred on the profile hexagon's own spot (Dex,
+   2026-10-09), so the floating Mobius speaker stays where it always is,
+   just under it. */
 .work-close{
-  grid-column:3;grid-row:2;position:relative;top:auto;right:auto;
-  justify-self:center;align-self:center;z-index:3;
-  width:52px;height:52px;border-radius:14px;background:rgba(8,11,15,.72);color:#c9d0d6;
+  --xs:52px;position:fixed;z-index:3;
+  top:calc(var(--dock-top) + 10px + (var(--swatch) - var(--xs)) / 2);
+  right:calc(var(--dock-right) + 10px + (var(--swatch) - var(--xs)) / 2);
+  width:var(--xs);height:var(--xs);border-radius:14px;background:rgba(8,11,15,.72);color:#c9d0d6;
 }
 .work-close svg{width:22px;height:22px}
 
@@ -4425,7 +4428,9 @@ body.modal-open{overflow:hidden}
   display:grid;grid-template-rows:minmax(0,1fr);padding:6px 0;
 }
 .work-stage:focus-visible{outline:none}
-.work-frame{position:relative;min-height:0;display:flex;align-items:stretch}
+/* 80% of the column (Dex, 2026-10-09: the wide shots read too wide), which
+   leaves room either side for the arrows at fixed places outside it. */
+.work-frame{position:relative;min-height:0;display:flex;align-items:stretch;width:80%;justify-self:center}
 /* The container the picture measures itself in: both axes are stated in
    container units, so the box is the picture's own shape fitted to the area
    -- an aspect-ratio box with max-width and max-height is over-constrained
@@ -4491,17 +4496,11 @@ body.modal-open{overflow:hidden}
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
 }
 
-/* The arrows on the picture's edges: up while the pointer is on the picture
-   (or within reach of one, or focus is on it), always up on touch. */
-.work-nav-col{
-  position:absolute;top:50%;translate:0 -50%;display:grid;pointer-events:auto;
-  opacity:0;transition:opacity .2s ease;
-}
-.work-nav-col.prev{left:16px}
-.work-nav-col.next{right:16px}
-.work-hero.is-tall ~ .work-over .work-nav-col.next{right:22px}
-.work-hero-area:hover .work-nav-col,.work-nav-col.is-near,.work-nav-col:focus-within{opacity:1}
-@media (hover:none) and (pointer:coarse){ .work-nav-col{opacity:1} }
+/* The arrows OUTSIDE the frame, at the same place whatever shape the piece
+   is, so they can be pressed over and over without chasing them. */
+.work-nav-col{position:absolute;top:50%;translate:0 -50%;display:grid;z-index:2}
+.work-nav-col.prev{right:calc(100% + 14px)}
+.work-nav-col.next{left:calc(100% + 14px)}
 .work-nav{
   width:46px;height:46px;display:grid;place-items:center;padding:0;cursor:pointer;
   border:var(--stroke) solid var(--line);border-radius:50%;
@@ -4586,8 +4585,9 @@ body.modal-open{overflow:hidden}
      top right corner beside the tabs, the strip's arrows give way to a swipe
      on the picture, and the count follows the strip in the row. */
   .work-shell{--gut:0px}
-  .work-head{padding:6px 60px 2px 8px}
-  .work-close{grid-column:1/-1;grid-row:1;justify-self:end;align-self:start;margin:6px 8px 0 0;width:44px;height:44px;border-radius:12px}
+  .work-head{padding:6px 60px 2px}
+  .work-close{--xs:44px;border-radius:12px}
+  .work-frame{width:100%}
   .work-close svg{width:19px;height:19px}
   .work-tab{min-height:44px;padding:0 11px;font-size:11px;letter-spacing:.1em}
   .work-stage{padding:4px 8px}
@@ -4595,8 +4595,8 @@ body.modal-open{overflow:hidden}
   .work-cap-title{font-size:16px}
   .work-nav{width:34px;height:34px}
   .work-nav .icon{width:15px;height:15px}
-  .work-nav-col.prev{left:8px}
-  .work-nav-col.next{right:8px}
+  .work-nav-col.prev{right:auto;left:8px}
+  .work-nav-col.next{left:auto;right:8px}
   .work-jump .icon{width:17px;height:17px}
   .work-jump{bottom:calc(100% + 8px)}
   .work-strip-row .work-step{display:none}
