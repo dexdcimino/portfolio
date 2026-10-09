@@ -173,7 +173,13 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
   tips carry `data-tip-big`. The download copies `#mobiusDownload`'s href
   and target at click time, so it starts the same per-system installer
   (`initMobiusDownload`). Proto Isles' info button shows only while the card
-  is hovered, on a device with hover. With the sound on it keeps playing when it
+  is hovered, on a device with hover. Nothing drawn over the video uses
+  `backdrop-filter` (`.fv-act`, `.fv-volume`, `.fv-info`, `.fv-desc`,
+  `.fv-about` are near-opaque fills): a blur over it made the compositor read
+  the video back through an SDR surface, so it flickered between HDR and sRGB
+  whenever a blurred control was on top (Dex, 2026-10-09). With the sound on it
+  keeps playing in another tab or app until it is paused or muted (`sync()`;
+  muted, a hidden tab still pauses it), and when it
   scrolls out of view, and a `.fv-float` copy of the mute flies from the
   card to just under `#accentSwatches`, re-placed every frame so it follows
   the picker open and shut (the flight too is worked out per frame between

@@ -2433,7 +2433,10 @@ if (workModal) {
     const inView = () => seen && item.classList.contains('is-on') && !covered();
     function sync() {
       if (inView()) floatHeld = false;
-      if (wanted && (inView() || audible()) && !document.hidden) start();
+      /* With the sound on it plays on in another tab or app too (Dex,
+         2026-10-09); only a pause or a mute stops it. Muted, a hidden tab
+         still pauses it. */
+      if (wanted && (inView() || audible()) && (audible() || !document.hidden)) start();
       else video.pause();
       floatUpdate();
     }
@@ -2581,8 +2584,9 @@ if (workModal) {
        mute away), and its sound coming on pauses the music, through MediaBus
        like every other player. To the bus it is "playing" only while it is
        audible, so a muted autoplay is never anyone's business. It stays out of
-       the space bar and the hidden-tab rule (sync() already pauses it there,
-       and the bus would mute it instead). Registered a tick late: this block
+       the space bar and the hidden-tab rule (sync() keeps it playing in a
+       hidden tab while it is audible and pauses it there muted; the bus would
+       mute it instead). Registered a tick late: this block
        runs before the line that defines MediaBus, and touching it here would
        throw on the temporal dead zone. */
     let bus = null;
