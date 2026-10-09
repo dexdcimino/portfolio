@@ -1246,9 +1246,10 @@ html.dex-cursor button.app-art-view{cursor:zoom-in}
 .fv-item.is-muted .fv-mute{color:#9aa3ad}
 /* The volume pops up centred above the speaker on hover (or focus), in the
    accent with a white handle like every other range on the site. It sits in
-   the bar, which stacks above .fv-actions, so the open panel covers the
-   download and preview buttons; while it is open they take no clicks at all,
-   so a drag that overshoots cannot start a download. The 12px of padding under
+   the bar, in the corner (Dex: so a muted video left alone keeps its one
+   button at the edge, not floating beside an empty space). While it is open
+   the download and preview buttons fade out and take no clicks, so a drag
+   that overshoots cannot start a download. The 12px of padding under
    the panel is the bridge the pointer crosses from the button to it. Keyboard
    focus opens it; a mouse drag's leftover focus does not hold it open. */
 .fv-vol{position:relative;display:flex;flex:none}
@@ -1263,7 +1264,8 @@ html.dex-cursor button.app-art-view{cursor:zoom-in}
   opacity:1;visibility:visible;pointer-events:auto;transform:translate(-50%,0) scale(1);
   transition:opacity .18s ease,transform .18s cubic-bezier(.2,.8,.3,1.2),visibility 0s;
 }
-.fv-item:has(.fv-vol:is(:hover,:has(:focus-visible))) .fv-actions{pointer-events:none}
+.fv-actions{transition:opacity .18s ease}
+.fv-item:has(.fv-vol:is(:hover,:has(:focus-visible))) .fv-actions{pointer-events:none;opacity:0}
 .fv-volume{
   -webkit-appearance:none;appearance:none;display:block;margin:0;cursor:pointer;
   writing-mode:vertical-lr;direction:rtl;width:20px;height:116px;
