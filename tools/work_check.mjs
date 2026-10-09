@@ -1908,10 +1908,21 @@ await page.waitForFunction(
     await page.mouse.move(b.arrow.x, b.arrow.y, { steps: 3 });
     await page.mouse.move(b.x, b.y, { steps: 3 }); await settle();
     const hitJump = await page.evaluate(({ x, y }) => document.elementFromPoint(x, y)?.closest('.work-jump')?.id, b);
+    await new Promise(r => setTimeout(r, 400));
+    // Its tip, under that real hover: centred ABOVE the button (Dex, 2026-10-09).
+    jumpTip = await page.evaluate(({ x, y, tip }) => {
+      const t = document.getElementById('tip');
+      const tb = t.getBoundingClientRect(), r = document.elementFromPoint(x, y).closest('.work-jump').getBoundingClientRect();
+      return { on: t.classList.contains('is-on'), right: t.textContent.trim() === tip,
+               gap: Math.round(r.top - tb.bottom), off: Math.round((tb.left + tb.right) / 2 - (r.left + r.right) / 2) };
+    }, b);
     await page.mouse.click(b.x, b.y);
     return hitJump;
   };
+  let jumpTip = null;
   let hitJump = await press('next');
+  note(jumpTip.on && jumpTip.right && jumpTip.gap >= 0 && jumpTip.gap < 30 && Math.abs(jumpTip.off) <= 2,
+       `the category button's tip is not centred above it: ${JSON.stringify(jumpTip)}`);
   j = await jumps();
   note(hitJump === 'workJumpNext' && j.on === 'ENVIRONMENT5', `a press on the tree hit ${hitJump} and landed on ${j.on}`);
   note(j.prev.icon === 'pi-player' && j.next.icon === 'pi-sword' && j.next.tip === 'ITEMS',
@@ -1940,17 +1951,26 @@ await page.waitForFunction(
     on: document.getElementById('workPanel').classList.contains('is-empty'),
     cap: document.getElementById('workCapTitle').textContent,
     says: document.getElementById('workHero').dataset.empty,
-    thumbs: document.querySelectorAll('#workStrip .work-thumb').length }));
-  note(empty.on && empty.cap === 'Coming soon' && empty.says === 'VIDEO COMING' && empty.thumbs === 0,
+    thumbs: document.querySelectorAll('#workStrip .work-thumb').length,
+    // Its arrows stay as dimmed placeholders under the category buttons (Dex).
+    arrows: ['workPrev', 'workNext'].map(id => {
+      const cs = getComputedStyle(document.getElementById(id));
+      return cs.visibility === 'visible' && +cs.opacity > 0.1 && +cs.opacity < 1;
+    }).every(Boolean) }));
+  note(empty.on && empty.cap === 'Coming soon' && empty.says === 'VIDEO COMING' && empty.thumbs === 0 && empty.arrows,
        `an empty Proto Isles tab shows ${JSON.stringify(empty)}`);
   await page.keyboard.press('Escape');
   await page.waitForFunction(() => !document.getElementById('workModal').open, { timeout: 3000 }).catch(() => {});
   await page.evaluate(() => document.getElementById('viewAllWork').click());
   await page.waitForFunction(() => document.getElementById('workModal').open, { timeout: 5000 }).catch(() => {});
   const back = await page.evaluate(() => [document.querySelectorAll('.work-tab').length,
-    document.getElementById('workJumpPrev').hidden && document.getElementById('workJumpNext').hidden]);
+    ...['workJumpPrev', 'workJumpNext'].map(id => { const b = document.getElementById(id);
+      return b.hidden ? 'hidden' : `${b.querySelector('.icon').dataset.icon} ${b.dataset.tip}`; })]);
   note(back[0] === 8, `VIEW ALL WORK after Proto Isles shows ${back[0]} tabs, not the portfolio's 8`);
-  note(back[1], 'the portfolio gallery shows the Proto Isles category buttons');
+  // The portfolio has its own category buttons now (Dex, 2026-10-09): on
+  // Characters, Earlier Work to the left and the sword to the right.
+  note(back[1] === 'work-archive EARLIER WORK' && back[2] === 'pi-sword PROPS & WEAPONS',
+       `the portfolio's category buttons read ${back[1]} / ${back[2]}`);
   await page.evaluate(() => document.querySelectorAll('dialog[open]').forEach(d => d.close()));
 
   /* Closing an overlay hands the page back its scroll SMOOTHLY, so a

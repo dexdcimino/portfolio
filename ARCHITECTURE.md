@@ -159,7 +159,11 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
   moves, wearing the neighbouring tab's icon and walking the tabs with
   wrapping -- `paintWorkJumps()`, revealed by `nearWorkJumps()` within two
   arrow-widths, always on for a coarse pointer; the icons are masks under
-  `assets/icons/proto-isles/` plus the keypad's `snail`; the games list's row
+  `assets/icons/proto-isles/` plus the keypad's `snail`; the portfolio's own
+  categories get the same buttons from `WORK_CAT_ICONS` in script.js, keyed by
+  `work.json` category id, masks under `assets/icons/work/` plus the Proto
+  Isles sword, pine and UI marks; the tips sit above, `data-tip-pos="above"`;
+  an empty tab keeps its arrows dimmed as placeholders; the games list's row
   05, PROTO ISLES (WIP), names the same set in its `data-game`, and
   `initGameGallery` sends its GALLERY button there -- counted with
   `readWorkSet()` and opened with `openWork(null, 0, btn, key)` -- rather
