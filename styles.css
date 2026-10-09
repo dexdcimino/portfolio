@@ -1582,8 +1582,10 @@ html.fv-maxed .fv-item:popover-open{pointer-events:auto}
 .card-meta small{display:block;color:var(--accent);font-weight:900;font-size:12px;letter-spacing:.13em;transition:color var(--accent-ease)}
 /* <strong>, not <h3>: a button may only contain phrasing content. */
 .card-meta strong{display:block;font-size:19px;font-weight:700;margin:5px 0 0;letter-spacing:.01em}
-.card-go{position:absolute;right:14px;bottom:15px;width:14px;height:14px;color:var(--text);opacity:.75}
-.work-card:hover .card-go{opacity:1;transform:translate(2px,-2px)}
+/* Hover only (Dex, 2026-10-09): on every card at once the arrows were noise;
+   on the one under the pointer it says "this opens". */
+.card-go{position:absolute;right:14px;bottom:15px;width:14px;height:14px;color:var(--text);opacity:0;transition:opacity .2s ease,transform .25s ease}
+.work-card:is(:hover,:focus-visible) .card-go{opacity:1;transform:translate(2px,-2px)}
 
 /* ---- the card carousel -------------------------------------------------
    Frames STACK AND CROSS-FADE rather than slide. A slide would translate the

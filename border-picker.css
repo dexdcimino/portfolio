@@ -1,0 +1,27 @@
+/* TEMPORARY (2026-10-09): six border looks for the Featured Work thumbnails, so
+   Dex can pick one. Remove with border-picker.js and their two tags in
+   index.html once he has, folding the winner into styles.css.
+   1 as now (grey) . 2 no border . 3 no border, medium glow . 4 no border,
+   strong glow . 5 soft accent tint . 6 edge-lit: an accent light on the top
+   left corner fading out along the edges.
+   Hover keeps the full accent outline in every look; the shadows stay under it. */
+.border-picker{position:fixed;top:12px;left:50%;transform:translateX(-50%);z-index:2147483000;display:flex;gap:6px;padding:6px;border-radius:999px;background:rgba(10,12,16,.82);border:1px solid rgba(255,255,255,.18)}
+.border-picker button{width:34px;height:34px;border-radius:50%;border:1px solid rgba(255,255,255,.3);background:transparent;color:#fff;font:600 14px/1 system-ui,sans-serif;cursor:pointer}
+.border-picker button[aria-pressed="true"]{background:var(--accent);color:#0b0d12;border-color:var(--accent)}
+
+html:is([data-fwb="2"],[data-fwb="3"],[data-fwb="4"],[data-fwb="6"]) .fw-stage :is(.work-card,.fv-item:not(:popover-open)):not(:hover){border-color:transparent}
+html[data-fwb="3"] .fw-stage :is(.work-card,.fv-item:not(:popover-open)){
+  --fwb-sh:0 10px 26px rgba(0,0,0,.55),0 0 22px color-mix(in srgb,var(--accent) 14%,transparent)}
+html[data-fwb="4"] .fw-stage :is(.work-card,.fv-item:not(:popover-open)){
+  --fwb-sh:0 18px 44px rgba(0,0,0,.8),0 0 34px color-mix(in srgb,var(--accent) 30%,transparent)}
+html:is([data-fwb="3"],[data-fwb="4"]) .fw-stage :is(.work-card,.fv-item:not(:popover-open)){box-shadow:var(--fwb-sh)}
+html:is([data-fwb="3"],[data-fwb="4"]) .fw-stage .work-card:hover{box-shadow:0 0 0 var(--stroke-ring) var(--accent),var(--fwb-sh)}
+html[data-fwb="5"] .fw-stage :is(.work-card,.fv-item:not(:popover-open)):not(:hover){border-color:color-mix(in srgb,var(--accent) 34%,transparent)}
+html[data-fwb="6"] .fw-stage :is(.work-card,.fv-item:not(:popover-open))::after{
+  content:"";position:absolute;inset:0;z-index:6;pointer-events:none;border-radius:inherit;
+  padding:var(--stroke);
+  background:linear-gradient(135deg,var(--accent) 0%,color-mix(in srgb,var(--accent) 40%,transparent) 22%,rgba(255,255,255,.07) 48%,rgba(255,255,255,.03) 100%);
+  -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);
+  -webkit-mask-composite:xor;mask-composite:exclude;
+  transition:opacity var(--accent-ease)}
+html[data-fwb="6"] .fw-stage .work-card:hover::after{opacity:0}
