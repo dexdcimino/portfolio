@@ -1,4 +1,6 @@
-@import "tailwindcss";
+/* Classes come from src/ only: Tailwind v4 otherwise scans every file in the
+   project, and prose in CLAUDE.md changed the built CSS. */
+@import "tailwindcss" source(".");
 @import "./fonts.css";
 
 /* ── Moved out of App.jsx's <style> block, verbatim ───────────────────────────
