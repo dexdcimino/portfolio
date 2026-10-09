@@ -2862,7 +2862,8 @@ notes exactly as before.
 
 ```
 dexnote/index.html   the page: notes.css, dexnote.css, main.js. Nothing else.
-dexnote/account.js   who is signed in, the sign-in card, the account button,
+dexnote/account.js   who is signed in, the sign-in card (the site sign-in's
+                     layout with dexnote's mark), the account button,
                      the move on first sign-in, bringing in the password
                      notes -- shared by this page and the homepage overlay
 dexnote/main.js      this page: the gate, guest/account switching, its menu
@@ -3007,6 +3008,12 @@ dexnote/manifest.webmanifest  standalone, scope /dexnote/, the AI Lab card's
                               maskable and monochrome
 dexnote/sw.js        network-first for code, cache-first for fonts, the emoji
                      table, the vendored SDK and icons; never /api/
+dexnote/icons/       the PNGs rendered from assets/icons/apps/dexnote.svg (the
+                     fire mark, 2026-10-09) by tools/dexnote_icons.mjs, which
+                     also renders the AI Lab card's PNG and renames every
+                     reference. Cache-first means a changed icon needs a NEW
+                     NAME (the -v2 suffix), never new bytes under the old one:
+                     an installed app would keep the old icon
 dexnote/mobile.js    the phone shell: the header's controls re-homed
 dexnote/mobile.css   everything scoped to .nt-app.is-mobile
 ```
