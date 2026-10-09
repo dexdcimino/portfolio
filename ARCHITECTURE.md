@@ -4232,12 +4232,17 @@ account and DexNote and MindSplit see one uid. Signed in, the panel is the
 account's menu: "Your account", who and how, and Sign out; no sign-in buttons.
 
 **The profile button** (`#profileButton`, `buildProfileButton()` in
-`script.js`) is the last thing in the accent row: a hexagon frame with a person
-whose head is a small hexagon, in the accent, filled once `site:signedIn` is
-set. A click opens `openSiteSignIn`. Docked (scrolled), it takes the active
-swatch's place at the top of the stack and every swatch moves down one row
-(`(--row + 1) * --swatch-step + 5px`); hover still opens the stack, and on touch
-the first tap opens it and the second opens the panel.
+`script.js`) is a hexagon frame with a person whose head is a small hexagon,
+in the accent, filled once `site:signedIn` is set. A click opens
+`openSiteSignIn`. It is `position:fixed` on `<body>` (a transformed ancestor
+would pin it) at the docked toggle's own spot, `--dock-top` / `--dock-right`,
+from the first frame: scrolling never moves it, it only docks the swatches
+under it. The inline row ends left of it (`.topbar` padding). Docked, the
+active swatch is hidden and the other six take rows 1..6
+(`--row * --swatch-step + 5px`), so the dropdown never lists the current
+accent; hover on either the button or the stack opens it
+(`inPickerOrProfile`), and on touch the first tap opens it and the second
+opens the panel.
 
 The client-side Idea Vault codes are NOT behind this: their payloads ship in
 the page and are public by construction (the backlog and the doors), so a

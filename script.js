@@ -501,9 +501,14 @@ function onSwatchClick(theme, button) {
 /* THE PROFILE BUTTON (Dex, 2026-10-09): "at the very top right ... a sign in
    icon ... the exact same thing as just me hitting tilde and typing in Dex
    DC", and once the page scrolls it "would just replace that swatch at the
-   top" -- hovering it still drops the hexagons down. So it is the last thing
-   in the inline row and, docked, the toggle the cascade falls out of (the
-   swatches all move down one row, the active one first).
+   top" -- hovering it still drops the hexagons down. It is FIXED at the top
+   right from the first frame, exactly where the docked swatch sits, so
+   scrolling never moves it ("it's supposed to already load in that
+   location"); docked, it is the toggle the cascade falls out of. The
+   dropdown never lists the current accent: the hexagon IS the current one,
+   and the accent you leave appears in the list, as the docked stack always
+   worked. It lives on <body>, not in the picker, because the inline picker
+   is transformed and a transformed ancestor would pin it to the row.
 
    The mark is the site's own shape: a hexagon frame with a person in it whose
    HEAD is a small hexagon too. Hollow and accent-inked while nobody is signed
@@ -513,6 +518,8 @@ function onSwatchClick(theme, button) {
    is the account's own menu. On touch, docked, the first tap opens the
    swatches (there is no hover) and the second opens the panel. */
 const PROFILE_HEAD = roundedPolygonPath(hexPoints(38, 29, 9.5), 3);
+let profileBtn = null;
+const inPickerOrProfile = (node) => !!node && (picker.contains(node) || !!profileBtn?.contains(node));
 function buildProfileButton() {
   const btn = document.createElement('button');
   btn.type = 'button';
@@ -542,7 +549,20 @@ function buildProfileButton() {
     body);
   svg.firstChild.append(clip);
   btn.append(svg);
-  picker.append(btn);
+  document.body.append(btn);
+  profileBtn = btn;
+
+  /* The picker's hover and focus rules, extended over the button: moving
+     between the two is staying inside, not leaving. */
+  const inside = (node) => !!node && (picker.contains(node) || btn.contains(node));
+  btn.addEventListener('pointerenter', () => { if (isDocked() && canHover.matches) setOpen(true); });
+  btn.addEventListener('pointerleave', (event) => {
+    if (isDocked() && canHover.matches && !pickerPinned && !inside(event.relatedTarget)) setOpen(false);
+  });
+  btn.addEventListener('focusin', () => { if (isDocked()) setOpen(true); });
+  btn.addEventListener('focusout', (event) => {
+    if (isDocked() && !inside(event.relatedTarget)) setOpen(false);
+  });
 
   const paint = () => {
     let on = false;
@@ -698,14 +718,14 @@ function buildAccentPicker() {
   // Leaving closes a HOVER-open only — a pinned one is waiting on a click,
   // an outside tap or Escape, which is the point of pinning it.
   picker.addEventListener('pointerenter', () => { if (isDocked() && canHover.matches) setOpen(true); });
-  picker.addEventListener('pointerleave', () => {
-    if (isDocked() && canHover.matches && !pickerPinned) setOpen(false);
+  picker.addEventListener('pointerleave', event => {
+    if (isDocked() && canHover.matches && !pickerPinned && !inPickerOrProfile(event.relatedTarget)) setOpen(false);
   });
 
   // Keyboard: focus opens it, arrows walk the stack, Escape closes it.
   picker.addEventListener('focusin', () => { if (isDocked()) setOpen(true); });
   picker.addEventListener('focusout', event => {
-    if (isDocked() && !picker.contains(event.relatedTarget)) setOpen(false);
+    if (isDocked() && !inPickerOrProfile(event.relatedTarget)) setOpen(false);
   });
   picker.addEventListener('keydown', event => {
     const target = event.target.closest?.('.swatch');
@@ -742,7 +762,7 @@ function buildAccentPicker() {
 
   // Outside tap closes the docked stack, pinned or not.
   document.addEventListener('pointerdown', event => {
-    if (isDocked() && !picker.contains(event.target)) setOpen(false);
+    if (isDocked() && !inPickerOrProfile(event.target)) setOpen(false);
   });
 }
 

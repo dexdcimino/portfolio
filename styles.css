@@ -81,6 +81,8 @@
   --copy-size:18px;
   --accent-ease:.26s cubic-bezier(.22,.61,.36,1);
   --swatch:34px;
+  --dock-top:2px;   /* where the docked picker and the profile button sit */
+  --dock-right:10px;
   --swatch-step:40px;
 }
 
@@ -739,6 +741,8 @@ button.button{cursor:pointer;font-family:inherit}
    ========================================================================== */
 .site-shell{margin-left:var(--sidebar);min-height:100vh}
 .topbar{height:62px;display:flex;align-items:center;justify-content:flex-end;padding:0 clamp(24px,4vw,72px);position:relative;z-index:10}
+/* Clear of the profile button, which is fixed at the top right (below). */
+.topbar{padding-right:max(50px,clamp(24px,4vw,72px))}
 
 /* ==========================================================================
    ACCENT PICKER
@@ -770,7 +774,7 @@ button.button{cursor:pointer;font-family:inherit}
 
 /* padding widens the hover target so the pointer can travel down the open
    stack without leaving the picker and collapsing it */
-.accent-picker.compact{position:fixed;top:2px;right:10px;padding:10px;transform:none;gap:0;z-index:90;animation:pickerDock .28s cubic-bezier(.22,.61,.36,1)}
+.accent-picker.compact{position:fixed;top:var(--dock-top);right:var(--dock-right);padding:10px;transform:none;gap:0;z-index:90;animation:pickerDock .28s cubic-bezier(.22,.61,.36,1)}
 .accent-picker.compact .accent-label{opacity:0;width:0;overflow:hidden;pointer-events:none}
 .accent-picker.compact .accent-swatches{
   position:relative;gap:0;
@@ -792,22 +796,25 @@ button.button{cursor:pointer;font-family:inherit}
   transition:transform .34s cubic-bezier(.22,.61,.36,1),opacity .2s ease;
 }
 .accent-picker.compact .swatch svg{transform:rotate(90deg)}
-.accent-picker.compact .swatch.active{z-index:3}
+/* The profile button sits on the active swatch's cell and IS the current
+   accent, so the active hex never shows in the dropdown; the one you leave
+   joins the list (paintSwatches gives the rest rows 1..6). */
+.accent-picker.compact .swatch.active{opacity:0 !important;pointer-events:none !important}
 /* Docked, the active hex is the only thing on screen and it lands right on the
    accent wedge — same color, so the ring alone disappears. The rim rides the
    larger RIM_R hexagon, so it hugs the ring's outer edge and adds nothing
    inside the hex. ~3px at the default 34px swatch. */
 .accent-picker.compact .swatch.active .halo{stroke-width:7}
 
-.accent-picker.compact.open .accent-swatches{height:calc(var(--swatch) + (var(--rows,6) + 1) * var(--swatch-step) + 5px)}
+.accent-picker.compact.open .accent-swatches{height:calc(var(--swatch) + var(--rows,6) * var(--swatch-step) + 5px)}
 .accent-picker.compact.open .accent-swatches::before{opacity:1;transform:none}
 .accent-picker.compact.open .swatch{
   opacity:1;pointer-events:auto;
-  transform:translateY(calc((var(--row,0) + 1) * var(--swatch-step) + 5px));
+  transform:translateY(calc(var(--row,0) * var(--swatch-step) + 5px));
   transition-delay:calc(var(--row,0) * 32ms);
 }
 .accent-picker.compact.open .swatch:hover{
-  transform:translateY(calc((var(--row,0) + 1) * var(--swatch-step) + 5px)) scale(1.18);
+  transform:translateY(calc(var(--row,0) * var(--swatch-step) + 5px)) scale(1.18);
   transition-delay:0s;
 }
 
@@ -914,27 +921,32 @@ html.dex-cursor button.app-art-view{cursor:zoom-in}
 .accent-picker.compact .cursor-toggle .ct-hex{transform:rotate(90deg) scale(1.07);transform-origin:38px 38px}
 .accent-picker.compact.open .cursor-toggle{
   opacity:1;pointer-events:auto;
-  transform:translateY(calc((var(--row,7) + 1) * var(--swatch-step) + 5px));
+  transform:translateY(calc(var(--row,7) * var(--swatch-step) + 5px));
   transition-delay:calc(var(--row,7) * 32ms);
 }
 .accent-picker.compact.open .cursor-toggle:hover{
-  transform:translateY(calc((var(--row,7) + 1) * var(--swatch-step) + 5px)) scale(1.18);
+  transform:translateY(calc(var(--row,7) * var(--swatch-step) + 5px)) scale(1.18);
   transition-delay:0s;
 }
 
-/* THE PROFILE BUTTON — the last thing in the inline row; docked, the toggle
-   at the top of the stack that the swatches cascade out of (one row down,
-   above). Hollow hexagon frame and a person with a hexagonal head, both in
-   the accent; signed in, the frame fills and the person is cut out of it in
-   the page colour. A little larger than a swatch so it reads as the anchor. */
+/* THE PROFILE BUTTON — fixed at the top right from the first frame, on the
+   docked swatch's own cell (--dock-top/--dock-right are the docked picker's),
+   so scrolling never moves it; docked, the stack cascades out from under it.
+   Hollow hexagon frame and a person with a hexagonal head, both in the
+   accent; signed in, the frame fills and the person is cut out of it in the
+   page colour. A little larger than a swatch so it reads as the anchor, on a
+   page-coloured backing so it never vanishes into the accent wedge. */
 .profile-btn{
   --pf:calc(var(--swatch) + 8px);
+  position:fixed;z-index:91;
+  top:calc(var(--dock-top) + 10px + (var(--swatch) - var(--pf)) / 2);
+  right:calc(var(--dock-right) + 10px + (var(--swatch) - var(--pf)) / 2);
   width:var(--pf);height:var(--pf);padding:0;border:0;background:none;cursor:pointer;
-  display:grid;place-items:center;margin-left:6px;color:var(--accent);
+  display:grid;place-items:center;color:var(--accent);
   transition:transform var(--accent-ease),color var(--accent-ease);
 }
 .profile-btn svg{display:block;width:100%;height:100%;overflow:visible}
-.profile-btn .pf-back{fill:none}
+.profile-btn .pf-back{fill:var(--page-bg)}
 .profile-btn .pf-fill{fill:currentColor;opacity:0;transition:opacity .2s ease}
 .profile-btn .pf-frame{fill:none;stroke:currentColor;stroke-width:5.5}
 .profile-btn .pf-person{fill:currentColor;transition:fill .2s ease}
@@ -942,14 +954,6 @@ html.dex-cursor button.app-art-view{cursor:zoom-in}
 .profile-btn.is-signed-in .pf-person{fill:var(--page-bg)}
 .profile-btn:hover{transform:scale(1.1)}
 .profile-btn:focus-visible{outline:2px solid var(--text);outline-offset:3px;border-radius:8px}
-/* Docked it sits where the active swatch used to, centred on the swatch box,
-   on a page-coloured backing so it never vanishes into the accent wedge. */
-.accent-picker.compact .profile-btn{
-  position:absolute;z-index:4;margin:0;
-  top:calc(10px + (var(--swatch) - var(--pf)) / 2);
-  left:calc(10px + (var(--swatch) - var(--pf)) / 2);
-}
-.accent-picker.compact .profile-btn .pf-back{fill:var(--page-bg)}
 
 /* ==========================================================================
    HERO
@@ -4601,14 +4605,14 @@ body.modal-open{overflow:hidden}
   .topbar{padding:0 12px}
   .accent-picker{transform:translate(-4px,12px)}
   .accent-picker .accent-label{display:none}
-  /* Room for the profile button at a phone's width: the row was already full. */
+  /* Room for the fixed profile button at a phone's width: the row was already full. */
+  .topbar{padding-right:48px}
   .accent-picker:not(.compact) .accent-swatches{gap:3px}
-  .accent-picker:not(.compact) .profile-btn{margin-left:3px}
   /* Below 420px it still does not fit beside the sidebar, so the cursor
      toggle leaves the INLINE row (a phone has no cursor to change); it is
      still at the bottom of the docked stack. */
   @media (max-width:420px){.accent-picker:not(.compact) .cursor-toggle{display:none}}
-  .accent-picker.compact{top:0;right:2px}
+  :root{--dock-top:0px;--dock-right:2px}
   .hero{min-height:790px;padding:46px 20px 0}
   .hero-copy{width:100%}
   .dex-wordmark{width:min(72vw,379px)}
@@ -7666,7 +7670,8 @@ body:has(.sidebar:is(:hover,:has(:focus-visible))) > .music-remote.at-bl{
 .music-remote.at-tl .music-remote-expand svg{transform:rotate(90deg)}
 /* Pill at top-right: hide the accent dropdown instead of offsetting.
    Only the compact (floating) version; the inline one is unaffected. */
-body:has(> .music-remote.at-tr:not([hidden])) .accent-picker.compact{display:none}
+body:has(> .music-remote.at-tr:not([hidden])) .accent-picker.compact,
+body:has(> .music-remote.at-tr:not([hidden])) .profile-btn{display:none}
 /* X button 20% smaller (20px → 16px icon). */
 .music-remote-close svg{width:16px;height:16px}
 

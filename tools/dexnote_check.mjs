@@ -30,7 +30,7 @@ const CHROME = [
   'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',
 ].find(p => p && existsSync(p));
 if (!CHROME) throw new Error('no Chrome or Edge found — set CHROME=<path to the exe>');
-const EXPECTED = 64;
+const EXPECTED = 66;
 
 const FAKE_CLOUD = `// Stand-in for dexnote/cloud.js: same exports, the "server" is a localStorage key.
 import { keyFor } from '/dexnote/local.js';
@@ -348,7 +348,9 @@ ok(await panelPress('Sign out'), 'Sign out pressed on that panel');
 ok(await panelShut() && await signedInAs() === null, 'and it signs out and closes');
 await p.waitForFunction(() => !document.querySelector('#profileButton')?.classList.contains('is-signed-in'), { timeout: 5000 }).catch(() => {});
 ok(JSON.stringify(await profileState()) === JSON.stringify({ on: false, label: 'Sign in' }), `and the profile button goes back to Sign in: ${JSON.stringify(await profileState())}`);
-// The button itself opens the same panel, and docked it is the top of the swatch stack.
+// The button itself opens the same panel. It is fixed where the docked toggle
+// sits from the first frame, so scrolling must not move it by a pixel.
+const atTop = await p.evaluate(() => { const r = document.querySelector('#profileButton').getBoundingClientRect(); return [Math.round(r.left), Math.round(r.top)]; });
 await p.evaluate(() => { document.documentElement.style.scrollBehavior = 'auto'; window.scrollTo(0, 1600); });
 await p.waitForFunction(() => document.querySelector('#accentPicker')?.classList.contains('compact'), { timeout: 5000 }).catch(() => {});
 await sleep(400);
@@ -360,11 +362,17 @@ const docked = await p.evaluate(() => {
 });
 ok(docked.right < 40 && docked.top < 30 && docked.w >= 36 && docked.hit && docked.activeShown === '0',
   `scrolled, the profile button stays at the top right in place of the active swatch: ${JSON.stringify(docked)}`);
+const scrolledAt = await p.evaluate(() => { const r = document.querySelector('#profileButton').getBoundingClientRect(); return [Math.round(r.left), Math.round(r.top)]; });
+ok(JSON.stringify(atTop) === JSON.stringify(scrolledAt), `and it is exactly where it was at the top of the page: ${JSON.stringify(atTop)} then ${JSON.stringify(scrolledAt)}`);
 // Headless Chrome has no hover, so this is the TOUCH path: the first tap opens
 // the swatches (there is no hover to do it), the second opens the panel.
 await p.click('#profileButton');
 await sleep(400);
 const firstTap = await p.evaluate(() => [document.querySelector('#accentPicker').classList.contains('open'), !!document.querySelector('#signinModal[open]')]);
+const listed = await p.evaluate(() => [...document.querySelectorAll('#accentSwatches .swatch')]
+  .map((s) => ({ active: s.classList.contains('active'), shown: getComputedStyle(s).opacity !== '0' })));
+ok(listed.length === 7 && listed.filter((s) => s.shown).length === 6 && listed.every((s) => s.shown !== s.active),
+  `the open stack lists the six other accents and never the current one: ${JSON.stringify(listed)}`);
 await p.click('#profileButton');
 await p.waitForSelector('#signinModal[open]', { timeout: 5000 }).catch(() => {});
 sp = await panel();
