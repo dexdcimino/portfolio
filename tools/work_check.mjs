@@ -1216,98 +1216,91 @@ await page.waitForFunction(
   note(!card.onTitle.includes('card-shade'), 'the fade is painted over the caption');
   note(!card.onDownload.includes('card-shade'), 'the fade is painted over the download button');
 
-  /* The info popover sits BESIDE its icon. Measured against the hazard strip's
-     TAPE, not against .fv-soon's box: that box is 44% of the frame tall and
-     mostly empty at the top, so a box-to-box test calls a clean layout a
-     collision. What the complaint was about is ink on ink. */
-  /* THE PITCH ON THE CARD (Dex, 2026-10-09): Mobius 3D's info button sits in
-     its title, on the title's bottom line, and a REAL hover on it swaps it for
-     the pitch -- the same words as the AI Lab card -- between the title and
-     the download, staying while the pointer moves onto the card and folding
-     when it leaves both. FALSELY PASSES IF: the hover were a synthetic event
-     (the handlers read pointerType), or the card were measured while still
-     scaled up from the button. Proto Isles' old-style popover follows. */
-  {
-    const c = await page.$eval('.fv-has-video', el => { const r = el.getBoundingClientRect();
+  /* THE PITCH ON THE CARD (Dex, 2026-10-09), on BOTH big thumbnails: the
+     info button is a third action LEFT of the download, the same 52px box
+     and style as it (no accent edge), and a REAL hover on it swaps it for
+     "The pitch", whose bottom right corner is the button's. It stays while
+     the pointer moves onto it, the X on the head's row folds it, and leaving
+     both folds it too. Neither big thumbnail draws an outline under a hover.
+     FALSELY PASSES IF: the hover were a synthetic event (the handlers read
+     pointerType), or the card were measured while still scaled up from the
+     button -- hence the waits before each read. */
+  for (const [sel, name, words] of [['.fv-has-video', 'Mobius 3D', null],
+                                    ['.fv-gallery', 'Proto Isles', /game I am building/]]) {
+    if (sel === '.fv-gallery') {
+      await page.evaluate(() => document.querySelector('[data-fv="1"]').click());
+      await page.waitForFunction(() => document.querySelector('.fv-gallery')?.classList.contains('is-on'), { timeout: 5000 });
+      await new Promise(r => setTimeout(r, 900));
+    }
+    await page.mouse.move(5, 5);
+    await new Promise(r => setTimeout(r, 500));
+    const restOp = await page.$eval(sel, el => +getComputedStyle(el.querySelector('.fv-pitch-btn')).opacity);
+    note(restOp < 0.05, `${name}'s info button is at opacity ${restOp} with no pointer on the thumbnail`);
+    const c = await page.$eval(sel, el => { const r = el.getBoundingClientRect();
       return { x: r.left + r.width / 2, y: r.top + r.height / 3 }; });
     await page.mouse.move(c.x, c.y);
     await new Promise(r => setTimeout(r, 700));
-    const btn = await page.$eval('.fv-has-video .fv-pitch-btn', el => { const r = el.getBoundingClientRect();
-      const t = el.closest('strong'); const range = document.createRange(); range.selectNodeContents(t.firstChild);
-      const tr = range.getBoundingClientRect();
-      return { x: r.left + r.width / 2, y: r.top + r.height / 2, gap: Math.round(r.left - tr.right),
-               bottomOff: Math.round(r.bottom - tr.bottom), op: +getComputedStyle(el).opacity }; });
-    note(btn.op > 0.9, `the Mobius info button is at opacity ${btn.op} on a hovered card`);
-    note(btn.gap >= 0 && btn.gap < 30, `the info button is ${btn.gap}px right of "Mobius 3D"`);
-    note(Math.abs(btn.bottomOff) <= 6, `the info button's bottom is ${btn.bottomOff}px off the title's`);
-    await page.mouse.move(btn.x, btn.y);
+    const row = await page.$eval(sel, el => {
+      const b = el.querySelector('.fv-pitch-btn'), next = b.nextElementSibling;
+      const br = b.getBoundingClientRect(), nr = next.getBoundingClientRect(), cs = getComputedStyle(b);
+      const ns = getComputedStyle(next), ics = getComputedStyle(el);
+      return { inRow: b.parentElement.classList.contains('fv-actions') && next.classList.contains('fv-act'),
+               w: Math.round(br.width), h: Math.round(br.height), nw: Math.round(nr.width), nh: Math.round(nr.height),
+               gap: Math.round(nr.left - br.right), dy: Math.round(nr.top - br.top),
+               same: cs.backgroundColor === ns.backgroundColor && cs.borderRadius === ns.borderRadius
+                     && cs.borderTopColor === ns.borderTopColor,
+               op: +cs.opacity, outline: ics.borderTopColor, olds: el.querySelectorAll('.fv-info, .fv-desc').length,
+               x: br.left + br.width / 2, y: br.top + br.height / 2 }; });
+    console.log(`${name} info: ${row.w}x${row.h} beside a ${row.nw}x${row.nh}, ${row.gap}px gap, hover edge ${row.outline}`);
+    note(row.inRow && row.dy === 0 && row.gap === 10 && row.olds === 0,
+         `${name}'s info button is not in the action row 10px left of the download (gap ${row.gap}, dy ${row.dy})`);
+    note(row.op > 0.9, `${name}'s info button is at opacity ${row.op} on a hovered thumbnail`);
+    note(row.w === row.nw && row.h === row.nh && row.same,
+         `${name}'s info button is ${row.w}x${row.h}, not the download's ${row.nw}x${row.nh} and style`);
+    note(/rgba\(\d+, \d+, \d+, 0\)|transparent/.test(row.outline), `${name}'s thumbnail draws a ${row.outline} edge under a hover`);
+    await page.mouse.move(row.x, row.y, { steps: 4 });
     await new Promise(r => setTimeout(r, 500));
-    const pop = await page.evaluate(() => {
-      const item = document.querySelector('.fv-has-video');
+    const pop = await page.$eval(sel, item => {
       const p = item.querySelector('.fv-pitch-pop'), b = item.querySelector('.fv-pitch-btn');
-      const pr = p.getBoundingClientRect(), dl = item.querySelector('.fv-get').getBoundingClientRect();
+      const pr = p.getBoundingClientRect(), br = b.getBoundingClientRect(), ir = item.getBoundingClientRect();
+      const hn = document.createRange(); hn.selectNodeContents(p.querySelector('.fv-about-head'));
+      const hr = hn.getBoundingClientRect(), xr = p.querySelector('.fv-pitch-x').getBoundingClientRect();
       return { open: item.classList.contains('is-pitched') && b.getAttribute('aria-expanded') === 'true',
                op: +getComputedStyle(p).opacity, btnOp: +getComputedStyle(b).opacity,
                lead: p.querySelector('.fv-about-lead')?.textContent.trim() || '',
                head: p.querySelector('.fv-about-head')?.textContent.trim() || '',
                card: document.getElementById('mobiusCard').dataset.descLead,
-               clearOfDownload: pr.right <= dl.left, width: Math.round(pr.width),
-               cx: pr.left + pr.width / 2, cy: pr.top + 20 };
-    });
-    console.log(`card pitch: open=${pop.open}, "${pop.head}", ${pop.width}px wide, clear of the download=${pop.clearOfDownload}`);
-    note(pop.open && pop.op > 0.9 && pop.btnOp < 0.1, 'hovering the info button did not swap it for the pitch');
-    note(pop.lead === pop.card && pop.head === 'The pitch', `the card's pitch reads "${pop.head}: ${pop.lead}"`);
-    note(pop.clearOfDownload && pop.width >= 200, `the card's pitch is ${pop.width}px wide and over the download`);
+               corner: Math.round(Math.abs(pr.right - br.right) + Math.abs(pr.bottom - br.bottom)),
+               inside: pr.left >= ir.left && pr.top >= ir.top, width: Math.round(pr.width),
+               xRow: Math.round((xr.top + xr.bottom) / 2 - (hr.top + hr.bottom) / 2),
+               xRight: Math.round(pr.right - xr.right), xLeftOfHead: xr.left >= hr.right - 2,
+               x: xr.left + xr.width / 2, y: xr.top + xr.height / 2,
+               cx: pr.left + pr.width / 2, cy: pr.top + pr.height / 2 }; });
+    console.log(`${name} pitch: open=${pop.open}, "${pop.head}", ${pop.width}px wide, corner off by ${pop.corner}px, X ${pop.xRow}px off the head's row`);
+    note(pop.open && pop.op > 0.9 && pop.btnOp < 0.1, `hovering ${name}'s info button did not swap it for the pitch`);
+    note(pop.head === 'The pitch' && (words ? words.test(pop.lead) : pop.lead === pop.card),
+         `${name}'s pitch reads "${pop.head}: ${pop.lead}"`);
+    note(pop.corner <= 2 && pop.inside && pop.width >= 180, `${name}'s pitch is ${pop.width}px wide, ${pop.corner}px off the button's corner`);
+    note(Math.abs(pop.xRow) <= 4 && pop.xRight <= 16 && pop.xLeftOfHead,
+         `${name}'s X is ${pop.xRow}px off the head's row and ${pop.xRight}px in from the right`);
     await page.mouse.move(pop.cx, pop.cy, { steps: 6 });
     await new Promise(r => setTimeout(r, 500));
-    const held = await page.$eval('.fv-has-video', el => el.classList.contains('is-pitched'));
-    note(held, 'the pitch folded while the pointer was on it');
+    note(await page.$eval(sel, el => el.classList.contains('is-pitched')), `${name}'s pitch folded while the pointer was on it`);
+    await page.mouse.move(pop.x, pop.y, { steps: 3 });
+    await page.mouse.click(pop.x, pop.y);
+    await new Promise(r => setTimeout(r, 500));
+    note(await page.$eval(sel, el => !el.classList.contains('is-pitched') && !el.matches(':popover-open')
+         && el.querySelector('.fv-pitch-btn').getAttribute('aria-expanded') === 'false'),
+         `the X did not fold ${name}'s pitch`);
+    await page.mouse.move(c.x, c.y, { steps: 3 });
+    await page.mouse.move(row.x, row.y, { steps: 4 });
+    await new Promise(r => setTimeout(r, 500));
     await page.mouse.move(5, 5);
     await new Promise(r => setTimeout(r, 600));
-    const folded = await page.$eval('.fv-has-video', el => !el.classList.contains('is-pitched')
-      && el.querySelector('.fv-pitch-btn').getAttribute('aria-expanded') === 'false');
-    note(folded, 'the pitch stayed open after the pointer left it');
+    note(await page.$eval(sel, el => !el.classList.contains('is-pitched')
+         && el.querySelector('.fv-pitch-btn').getAttribute('aria-expanded') === 'false'),
+         `${name}'s pitch stayed open after the pointer left it`);
   }
-  await page.evaluate(() => document.querySelector('[data-fv="1"]').click());
-  await page.waitForFunction(() => document.querySelector('.fv-gallery')?.classList.contains('is-on'), { timeout: 5000 });
-  await new Promise(r => setTimeout(r, 600));
-  await page.hover('.fv-item.is-on .fv-info');
-  await new Promise(r => setTimeout(r, 420));
-  const desc = await page.evaluate(() => {
-    const item = document.querySelector('.fv-item.is-on');
-    const d = item.querySelector('.fv-desc');
-    const i = item.querySelector('.fv-info');
-    const tape = [...item.querySelectorAll('.fv-soon .collab-soon-tape, .fv-soon strong')];
-    const db = d.getBoundingClientRect(), ib = i.getBoundingClientRect();
-    const hits = (a, b) => !(a.right < b.left || a.left > b.right ||
-                             a.bottom < b.top || a.top > b.bottom);
-    return {
-      open: d.classList.contains('is-open'),
-      opacity: +getComputedStyle(d).opacity,
-      rightOfIcon: Math.round(db.left - ib.right),
-      offCentre: Math.round((db.top + db.bottom) / 2 - (ib.top + ib.bottom) / 2),
-      // A real description wraps; then it is level with the icon's TOP, not its middle.
-      wraps: db.height > ib.height + 4,
-      offTop: Math.round(db.top - ib.top),
-      onTape: tape.some(t => hits(db, t.getBoundingClientRect())),
-      widthShare: Math.round(db.width / item.getBoundingClientRect().width * 100),
-      texts: [...document.querySelectorAll('.fv-desc')].map(p => p.textContent.trim()),
-    };
-  });
-  console.log(`info popover: ${desc.rightOfIcon}px right of the icon, ${desc.offCentre}px off ` +
-              `its centre, ${desc.widthShare}% of the frame, over the tape=${desc.onTape}`);
-  note(desc.open && desc.opacity > 0.9, 'hovering the info icon did not raise the description');
-  note(desc.rightOfIcon >= 0 && desc.rightOfIcon < 30,
-       `the description starts ${desc.rightOfIcon}px from the icon`);
-  note(desc.wraps ? Math.abs(desc.offTop) <= 3 : Math.abs(desc.offCentre) <= 3,
-       desc.wraps ? `the wrapped description starts ${desc.offTop}px off the icon's top`
-                  : `the description is ${desc.offCentre}px off the icon's centre line`);
-  note(!desc.onTape, 'the description is printed over the UNDER CONSTRUCTION strip');
-  note(desc.widthShare < 70, `the description spans ${desc.widthShare}% of the frame`);
-  // One description left on the small cards: Proto Isles'.
-  note(desc.texts.length === 1 && /game I am building/.test(desc.texts[0]),
-       `the small cards' descriptions read ${JSON.stringify(desc.texts)}`);
-  await page.mouse.move(5, 5);
   await page.evaluate(() => document.querySelector('[data-fv="-1"]').click());
   await page.waitForFunction(() => document.querySelector('.fv-has-video')?.classList.contains('is-on'), { timeout: 5000 });
   await new Promise(r => setTimeout(r, 600));
