@@ -50,6 +50,26 @@ change**, so the reasoning cannot drift away from the diff it explains.
 
 ---
 
+## 2026-10-09 — The front band reaches further down-left over the mascot
+
+**Decided:** `#bgFrontAlongFade` starts at viewBox 1040,720 and is solid by 1280,530, and
+the band's edge feather (`#bgFrontEdgeFade`) is 80 units deep instead of 200. The band now
+covers his lower right side, from his hip toward his middle.
+
+**Replaced:** the earlier 2026-10-09 ramp (1240,520 to 1400,394) with a 200-unit feather.
+Dex: "it's not coming down and to the left far enough. It's not covering enough of the
+character." The deep feather also hid the band for a long way inside its own edge, and
+that is exactly where it crosses him.
+
+**Why:** the band (`.bg-front`, polygon `2244,0 211.9,1080 ...`) is the only layer drawn
+over him, and its upper-left edge only reaches his lower right half, so the fade has to
+start low and the feather has to be thin, or nothing of it lands on him.
+
+**Reverse it if:** the band's polygon is moved to cross more of him. A thin feather would
+then show as a hard line.
+
+---
+
 ## 2026-10-09 — The front band shows over the mascot and fades out halfway across him
 
 **Decided:** `#bgFrontAlongFade` in `index.html` is a short ramp (zero at viewBox
