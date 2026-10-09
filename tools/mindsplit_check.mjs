@@ -20,7 +20,7 @@
  * ?install=1, the manifest's icons, the service worker's scope, and the
  * AI Lab card's download button.
  */
-import { existsSync, readFileSync, readdirSync, mkdtempSync, rmSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { extname, join, normalize, resolve } from 'node:path';
@@ -92,11 +92,142 @@ export const HANDLE = /^[a-z0-9_]{3,20}$/;
 export async function myHandle() { const s = S(); return s.user ? s.users[uid()] || null : null; }
 export async function claimHandle(h) { const s = S(); h = String(h).toLowerCase(); s.users[uid()] = h; s.handles[h] = uid(); W(s); return h; }
 export async function suggestHandle() { return 'inkoname'; }
+// Faces and follows: Inko's in the real module, kept here per handle.
+export async function person(h) { const s = S(), f = (s.faces || {})[h] || {}; return { handle: h, avatar: f.avatar || '', followers: (s.followers || {})[h]?.length || 0, following: Object.values(s.followers || {}).filter((l) => l.includes(s.users[uid()])).length }; }
+export async function follow(h, on) { const s = S(), me = s.users[uid()]; if (!me) throw new Error('Pick a name first.'); const l = ((s.followers ||= {})[h] ||= []); const i = l.indexOf(me);
+  if (on !== false && i < 0) l.push(me); if (on === false && i >= 0) l.splice(i, 1); W(s); return { following: on !== false, followers: l.length }; }
+export async function following() { const s = S(), me = s.users[uid()]; return Object.entries(s.followers || {}).filter(([, l]) => l.includes(me)).map(([h]) => h); }
+export async function pollsBy(h, u) { return S().polls.filter((p) => p.by && (u ? p.uid === u : p.by === h)); }
 `;
 const exportsOf = (src) => new Set([...src.matchAll(/export\s+(?:async\s+)?(?:function|const|let)\s+([A-Za-z_]\w*)/g)].map((m) => m[1]));
 const real = exportsOf(readFileSync(join(SRC, 'public/cloud.js'), 'utf8')), fake = exportsOf(FAKE);
 note(real.size >= 20 && [...real].every((n) => fake.has(n)) && [...fake].every((n) => real.has(n)),
   `the fake cloud's exports differ from public/cloud.js: real ${[...real].join(',')} / fake ${[...fake].join(',')}`);
+
+/* ---------- ONE @name: the REAL cloud.js against a fake name server ----------
+   The browser half runs on a fake cloud.js, so the name logic in the real one
+   -- Inko's server as the authority, Firestore as its copy -- is driven here,
+   in this process: the real module, with the site account, the Firebase SDK
+   and fetch('/api/sketch') swapped for small fakes. The Firestore rules are
+   still not exercised. */
+{
+  const dir = mkdtempSync(join(tmpdir(), 'mscloud-'));
+  try {
+    const url = (f) => pathToFileURL(join(dir, f)).href;
+    writeFileSync(join(dir, 'site.js'), `
+      const S = globalThis.__site;
+      export const CONFIG = {};
+      export function onUser(fn) { S.subs.add(fn); fn(S.user); return () => S.subs.delete(fn); }
+      export async function idToken() { return S.user ? 'tok:' + S.user.uid : null; }
+      export async function signIn() {} export async function signOut() {}`);
+    writeFileSync(join(dir, 'firebase-app.js'), `export const getApps = () => [{ name: '[DEFAULT]' }]; export const initializeApp = () => ({ name: 'mindsplit' });`);
+    writeFileSync(join(dir, 'firebase-auth.js'), `export const initializeAuth = () => ({});`);
+    writeFileSync(join(dir, 'firebase-firestore.js'), `
+      const D = globalThis.__fs;
+      const key = (r) => r.c + '/' + r.id;
+      export const getFirestore = () => D;
+      export const doc = (db, c, id) => ({ c, id });
+      export async function getDoc(r) { const v = D.docs[key(r)]; return { exists: () => !!v, data: () => v }; }
+      export const collection = (db, c) => ({ c });
+      export const where = (f, op, v) => ({ f, v });
+      export const limit = (n) => ({ n });
+      export const query = (col, ...w) => ({ c: col.c, w: w.filter((x) => x.f) });
+      export async function getDocs(q) { const rows = Object.entries(D.docs).filter(([k, v]) => k.startsWith(q.c + '/') && q.w.every((w) => v[w.f] === w.v));
+        return { forEach: (fn) => rows.forEach(([k, v]) => fn({ id: k.slice(q.c.length + 1), data: () => v })) }; }
+      export function writeBatch() { const ops = []; return {
+        set: (r, d, o) => ops.push(() => { D.docs[key(r)] = o && o.merge ? { ...(D.docs[key(r)] || {}), ...d } : { ...d }; }),
+        delete: (r) => ops.push(() => { delete D.docs[key(r)]; }),
+        commit: async () => { D.writes++; ops.forEach((f) => f()); } }; }`);
+    const realSrc = readFileSync(join(SRC, 'public/cloud.js'), 'utf8');
+    note(realSrc.includes("const V = '/dexnote/vendor/firebase/';") && realSrc.includes("import('/account/site-auth.js')"), 'cloud.js no longer loads the SDK and the site account the way this section swaps them');
+    writeFileSync(join(dir, 'cloud.js'), realSrc.replace("const V = '/dexnote/vendor/firebase/';", `const V = '${pathToFileURL(dir).href}/';`).replace("import('/account/site-auth.js')", `import('${url('site.js')}')`));
+
+    // The name server: Inko's handles, links, renames and follows, in memory.
+    const N = { users: {}, links: {}, tokens: {}, social: {}, calls: [] };
+    const mint = (h) => { const t = 't' + Math.random().toString(36).slice(2); N.tokens[t] = h; return t; };
+    const live = (t) => { const h = N.tokens[t]; return h && N.users[h] && !N.users[h].movedTo ? h : null; };
+    const soc = (h) => (N.social[h] ||= { followers: [], following: [] });
+    N.rename = (from, to) => { N.users[to] = { ...N.users[from] }; N.users[from] = { movedTo: to }; for (const [u, h] of Object.entries(N.links)) if (h === from) N.links[u] = to; N.social[to] = soc(from); delete N.social[from];
+      for (const x of Object.values(N.social)) for (const k of ['followers', 'following']) x[k] = x[k].map((h) => (h === from ? to : h)); };
+    const reply = (status, body) => ({ ok: status < 300, status, json: async () => body });
+    globalThis.fetch = async (u, init) => {
+      if (!init) {
+        const h = decodeURIComponent(/profile=([^&]+)/.exec(u)[1]);
+        const rec = N.users[h];
+        if (!rec) return reply(404, { error: 'No such artist' });
+        if (rec.movedTo) return reply(200, { handle: h, movedTo: rec.movedTo });
+        return reply(200, { handle: h, avatar: rec.avatar || 0, posts: [], ...{ followers: soc(h).followers.length, following: soc(h).following.length } });
+      }
+      const b = JSON.parse(init.body); N.calls.push(b.action);
+      const taken = (h) => !!N.users[h] || h.startsWith('dex');
+      if (b.action === 'site') { const uid = b.idToken.slice(4), h = N.links[uid]; return h ? reply(200, { handle: h, token: mint(h) }) : reply(200, { ticket: 'ticket:' + uid, suggest: 'Suggested' }); }
+      if (b.action === 'claim') { const uid = b.ticket.slice(7); if (N.links[uid]) return reply(200, { handle: N.links[uid], token: mint(N.links[uid]) });
+        if (taken(b.handle)) return reply(409, { error: 'That name is taken' }); N.users[b.handle] = { uid }; N.links[uid] = b.handle; return reply(200, { handle: b.handle, token: mint(b.handle), fresh: true }); }
+      const me = live(b.token);
+      if (!me) return reply(401, { error: 'Sign in again' });
+      if (b.action === 'rename') { if (taken(b.handle)) return reply(409, { error: 'That name is taken' }); N.rename(me, b.handle); return reply(200, { handle: b.handle, token: mint(b.handle) }); }
+      if (b.action === 'follow') { const t = soc(b.handle); if (b.on) { if (!t.followers.includes(me)) t.followers.push(me); soc(me).following.push(b.handle); }
+        else { t.followers = t.followers.filter((x) => x !== me); soc(me).following = soc(me).following.filter((x) => x !== b.handle); } return reply(200, { handle: b.handle, following: b.on, followers: t.followers.length }); }
+      if (b.action === 'following') return reply(200, { following: soc(me).following });
+      return reply(400, { error: 'no such action' });
+    };
+    globalThis.__fs = { docs: {}, writes: 0 };
+    globalThis.__site = { user: null, subs: new Set() };
+    const F = globalThis.__fs.docs;
+    const as = async (uid) => { globalThis.__site.user = uid ? { uid, providerData: [{ providerId: 'google.com' }], email: uid + '@example.com' } : null; globalThis.__site.subs.forEach((f) => f(globalThis.__site.user)); };
+    const C = await import(url('cloud.js'));
+    let seen = null;
+    await C.onUser((u) => { seen = u; });
+    const refused = async (p) => { try { await p; return null; } catch (e) { return e.message; } };
+    const nameCases = [];
+    const nc = (ok, why) => { nameCases.push(ok); note(ok, why); };
+
+    // 1. A new account has no name; picking one makes it on the NAME SERVER and copies it.
+    await as('a1');
+    nc((await C.myHandle()) === null && (await C.suggestHandle()) === 'suggested', 'a new account is offered a name it does not have');
+    nc((await C.claimHandle('@Alice')) === 'alice' && N.links.a1 === 'alice' && F['msUsers/a1']?.handle === 'alice' && F['msHandles/alice']?.uid === 'a1',
+      `a first name did not land on the name server and in its copy: ${JSON.stringify({ link: N.links.a1, copy: F['msUsers/a1'] })}`);
+    // 2. A rename made IN INKO reaches MindSplit on the next launch, and lets the old name go.
+    N.rename('alice', 'alicia');
+    nc((await C.myHandle()) === 'alicia' && F['msUsers/a1'].handle === 'alicia' && F['msHandles/alicia']?.uid === 'a1' && !F['msHandles/alice'],
+      'a rename made in Inko did not reach the copy');
+    // 3. A rename made HERE renames the one account, with the token the launch was given.
+    nc((await C.claimHandle('ally')) === 'ally' && N.users.alicia.movedTo === 'ally' && N.links.a1 === 'ally' && F['msUsers/a1'].handle === 'ally' && !F['msHandles/alicia'],
+      'a rename here did not rename the Inko account');
+    // 4. A taken or reserved name is refused by the name server, and nothing is copied.
+    N.users.zed = { uid: 'z9' };
+    const w0 = globalThis.__fs.writes;
+    nc(/taken/.test(await refused(C.claimHandle('zed')) || '') && /taken/.test(await refused(C.claimHandle('dexter')) || '') && F['msUsers/a1'].handle === 'ally' && globalThis.__fs.writes === w0,
+      'a taken or reserved name was not refused, or reached the copy');
+    // 5. Follows are the name server's, and a token a rename elsewhere killed is renewed once.
+    N.users.bea = { uid: 'b2' };
+    nc((await C.follow('bea', true)).followers === 1 && (await C.following()).join() === 'bea', 'following did not reach the name server');
+    N.rename('ally', 'allie');
+    nc((await C.follow('bea', false)).followers === 0 && soc('bea').followers.length === 0 && (await C.following()).length === 0, 'an unfollow after a rename elsewhere was lost');
+    // 6. Faces: a rename is followed; a name the server never heard of is initials.
+    N.users.bea.avatar = 3;
+    const bea = await C.person('bea'), old = await C.person('ally'), none = await C.person('nobody_here');
+    nc(bea.avatar === '/api/sketch?img=' + encodeURIComponent('sketch/avatars/bea-3.jpg') && old.handle === 'allie' && none.avatar === '' && none.followers === 0,
+      `faces read ${JSON.stringify([bea, old, none])}`);
+    // 7. Signing out and in as someone else carries nothing over. A MindSplit
+    //    name from before the names were one becomes the universal name if free...
+    F['msUsers/c3'] = { handle: 'carol' }; F['msHandles/carol'] = { uid: 'c3' };
+    await as(null); await as('c3');
+    nc(seen && seen.uid === 'c3' && (await C.myHandle()) === 'carol' && N.links.c3 === 'carol', 'an old MindSplit name was not carried to the name server');
+    // ...and is NOT when the name server already gave it to someone else.
+    F['msUsers/d4'] = { handle: 'zed' }; F['msHandles/zed'] = { uid: 'd4' };
+    await as('d4');
+    nc((await C.myHandle()) === null && !N.links.d4 && N.users.zed.uid === 'z9', 'an old MindSplit name taken on the name server was handed over');
+    // 8. Someone's questions: by uid, so a pre-rename `by` is still theirs; never an anonymous one.
+    F['msPolls/uaaaaaaaaaaaaa1'] = { q: 'Old name?', o: ['a', 'b'], cat: 'tech', uid: 'a1', by: 'alice', at: 2, rep: 0 };
+    F['msPolls/uaaaaaaaaaaaaa2'] = { q: 'Anon?', o: ['a', 'b'], cat: 'tech', uid: 'a1', by: null, at: 3, rep: 0 };
+    F['msPolls/uaaaaaaaaaaaaa3'] = { q: 'New name?', o: ['a', 'b'], cat: 'tech', uid: 'a1', by: 'ally', at: 4, rep: 0 };
+    F['msHandles/allie'] = { uid: 'a1' };
+    const theirs = await C.pollsBy('allie');
+    nc(theirs.map((p) => p.q).join('|') === 'New name?|Old name?', `pollsBy read ${theirs.map((p) => p.q).join('|')}`);
+    note(nameCases.length === 11, `the name section ran ${nameCases.length} cases, not 11`);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+}
 
 /* ---------- the build is the source ---------- */
 if (!existsSync(join(SRC, 'node_modules'))) {
@@ -283,10 +414,50 @@ try {
   st = await fakeState();
   note(st.polls?.length === 0 && (await question()) !== 'Is the check run the best part of the day?', 'Remove left the question up');
 
+  /* SOMEONE ELSE'S PROFILE. A question @artist_b asked: her face (initials,
+     no Inko picture) in the card's bottom row opens her page -- followers,
+     following, the questions she asked under her name, never an anonymous
+     one -- and Follow there reaches the server (Inko's follows, faked). */
+  await page.evaluate(() => { const s = window.__msFake.S();
+    s.polls.unshift({ id: 'uartistbquestion1', q: 'Is a profile check worth writing?', o: ['Yes', 'No'], cat: 'tech', by: 'artist_b', uid: 'acct-b', at: Date.now(), rep: 0 },
+                    { id: 'uartistbsecretq01', q: 'Did anyone see this one?', o: ['Yes', 'No'], cat: 'tech', by: null, uid: 'acct-b', at: Date.now(), rep: 0 });
+    s.users['acct-b'] = 'artist_b'; s.handles.artist_b = 'acct-b'; s.followers = { artist_b: ['someone'] }; window.__msFake.W(s); });
+  await open('?embed=1&q=uartistbquestion1');
+  note((await question()) === 'Is a profile check worth writing?', `the seeded question is not first: ${await question()}`);
+  const faceBtn = await page.evaluate(() => { const b = document.querySelector('button[aria-label="@artist_b\'s profile"]'); if (!b) return null;
+    const r = b.getBoundingClientRect(); return { text: b.textContent.trim(), below: r.top >= innerHeight / 2 }; });
+  note(faceBtn && faceBtn.text === 'AB' && faceBtn.below, `the asker's face is ${JSON.stringify(faceBtn)}, not AB below the midpoint`);
+  note(await pressButton("@artist_b's profile"), "no pressable face for @artist_b");
+  await sleep(500);
+  const prof = () => page.evaluate(() => { const d = [...document.querySelectorAll('[aria-hidden="false"]')].find((x) => x.textContent.includes('@artist_b'));
+    return d ? d.textContent : ''; });
+  let pt = await prof();
+  note(/Asked · 1/.test(pt) && pt.includes('Is a profile check worth writing?') && !pt.includes('Did anyone see this one?') && /1Follower/.test(pt),
+    `her page reads: ${pt.slice(0, 200)}`);
+  note(await pressButton('Follow'), 'no Follow on her page');
+  await sleep(500);
+  st = await fakeState();
+  pt = await prof();
+  note(st.followers?.artist_b?.includes('pat_check') && /2Followers/.test(pt) && await page.evaluate(() => [...document.querySelectorAll('button[aria-pressed="true"]')].some((b) => b.textContent.trim() === 'Following')),
+    `Follow did not reach the server and the page: ${JSON.stringify(st.followers)} / ${pt.slice(0, 120)}`);
+  note(await pressButton('Following'), 'no Following to unfollow with');
+  await sleep(500);
+  st = await fakeState();
+  note(!st.followers?.artist_b?.includes('pat_check') && /1Follower/.test(await prof()), 'unfollowing did not take the follow back');
+  note(await pressButton('Follow'), 'no Follow after unfollowing');
+  await sleep(400);
+  const row = await page.evaluate(() => { const b = [...document.querySelectorAll('[aria-hidden="false"] button')].find((x) => x.textContent.includes('Is a profile check worth writing?'));
+    if (!b) return null; const r = b.getBoundingClientRect(), x = r.left + r.width / 2, y = r.top + r.height / 2, hit = document.elementFromPoint(x, y);
+    return { x, y, ok: !!hit && b.contains(hit) }; });
+  note(row && row.ok, 'her question is not a pressable row on her page');
+  if (row) { await page.mouse.click(row.x, row.y); await sleep(600); }
+  note((await question()) === 'Is a profile check worth writing?', 'her question did not open in the feed');
+
   /* The profile, then signing out. */
   note(await pressButton('Your profile, @pat_check'), 'the dock does not show who is signed in');
   await sleep(500);
   note(await page.evaluate(() => document.body.textContent.includes('@pat_check') && /Answered · 1/.test(document.body.textContent)), 'the profile does not show @pat_check with one answer');
+  note(await page.evaluate(() => document.body.textContent.includes('0 followers · 1 following')), 'your profile does not count the one person you follow');
   note(await pressButton('Account'), 'no Account button on the profile');
   note(await pressButton('Sign out'), 'no Sign out');
   await sleep(500);
