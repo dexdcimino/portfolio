@@ -4106,12 +4106,22 @@ when it flips. Music asks for editing whenever it opens for Dex and drops it
 when he signs out; Mission Control gets the JWT as above. `siteIdToken()`
 reads the site-auth mirror flag first, so a visitor never downloads Firebase.
 
-**DEXDC is a way to his notes, not a key.** Typed in the tilde keypad, the
-Idea Vault or the notes keypad it fires `notes:mine`: the notes overlay opens
-on the account's notes (for Dex's Google, the DEXDC notes -- the server
-decides) with the sign-in sheet over it -- signed out to sign in; signed in,
-saying who, with Sign out as well (`signInSheet(..., { signOut: true })`).
-Nothing is sent to a server for the code itself.
+**DEXDC is the site's sign-in, not a key** (Dex, 2026-10-09). Typed in the
+tilde keypad, the Idea Vault or the notes keypad it fires `site:signin`, and
+`openSiteSignIn()` in `script.js` opens `#signinModal` (built on first use) on
+`account/site-auth.js`: the site's own mark (the live favicon SVG, in the
+accent), Google / GitHub / Discord, and, when someone is signed in, who and a
+Sign out. It is stacked over whatever overlay is up and opens nothing else.
+Before signing out it runs `window.siteSignOutHooks` (the notes overlay saves
+its last keystrokes there). `notes` at a keypad with `dexOwner.is` fires
+`notes:mine` instead of opening the public page: the notes overlay on the
+account's notes, which for Dex's Google are the DEXDC notes (the server
+decides). An open notes overlay follows `site:user`: a sign-in from the panel
+over the AI Lab's guest notes swaps to the account's, a sign-out swaps the
+account's away; its own account menu marks its moves with `ownMove` so they
+are not done twice. `dexnote/account.js` `whoIsHere()` reads the site's
+`site:signedIn` flag too, since a sign-in from the panel is the same Firebase
+account. Nothing is sent to a server for the code itself.
 
 The client-side Idea Vault codes are NOT behind this: their payloads ship in
 the page and are public by construction (the backlog and the doors), so a
