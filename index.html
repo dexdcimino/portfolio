@@ -916,7 +916,10 @@
                the trefoil sample, so a visitor with no model file of their own
                still sees it work. data-app-downloads lets its Save screenshot
                button through the overlay's sandbox (see initAppModal). The
-               title link is the repo, which is where the desktop builds are.
+               title link is the app itself, /mobius/ (Dex, 2026-10-09: every
+               title goes to the app or its store, the code goes behind the
+               GitHub chip); it moves to the Microsoft Store listing once that
+               is live, with portfolio#45.
                Second in the list (Dex, 2026-10-07), which makes it the app the
                panel RESTS on: the first card that is not the placeholder. -->
           <article class="ai-card" id="mobiusCard"
@@ -925,7 +928,7 @@
              data-desc-lead="Windows 3D Viewer sucks and I couldn't find one I liked, so I made my own."
              data-desc-body="A 3D model viewer for the desktop and the web, from one codebase. Drop in a GLB, FBX, OBJ, STL, USDZ and more, play its animations and blend shapes, and inspect its materials and normals. Big files load off the main thread, nothing leaves your machine, and on the desktop it is an Open with app too."
              data-desc-link="https://github.com/dexdcimino/mobius-3d"
-             data-desc-link-label="GITHUB"><a class="ai-card-link" href="https://github.com/dexdcimino/mobius-3d" target="_blank" rel="noopener noreferrer"><strong>Mobius 3D</strong><span>3D model viewer<span class="icon inline-arrow" data-icon="arrow-ne" aria-hidden="true"></span></span></a>
+             data-desc-link-label="GITHUB"><a class="ai-card-link" href="/mobius/" target="_blank" rel="noopener noreferrer"><strong>Mobius 3D</strong><span>3D model viewer<span class="icon inline-arrow" data-icon="arrow-ne" aria-hidden="true"></span></span></a>
             <!-- img src="assets/icons/apps/mobius.png" slot="ai-icon" alt="" class="ai-card-icon" picture-class="ai-card-iconwrap" -->
             <picture class="ai-card-iconwrap">
               <source type="image/avif" srcset="assets/derived/icons/apps/mobius-420.avif?v=d626242e 420w,
@@ -939,6 +942,13 @@
               <img class="ai-card-icon" src="assets/icons/apps/mobius.png" alt="" width="512" height="512" loading="lazy" decoding="async">
             </picture>
             <!-- /img -->
+            <!-- The source, as a small chip that shows while the row is hovered
+                 (Dex, 2026-10-09). The title is the app; this is the code. Only
+                 on rows whose code is public: dexddc's repo is private. -->
+            <a class="ai-card-gh" href="https://github.com/dexdcimino/mobius-3d" target="_blank" rel="noopener noreferrer"
+               data-tip="Source on GitHub" data-tip-pos="above" aria-label="Mobius 3D source on GitHub">
+              <span class="icon" data-icon="github" aria-hidden="true"></span>
+            </a>
             <!-- Download the desktop app (Dex, 2026-10-08), left of the eye as
                  Inko's install is. The href is the Releases page, which is what
                  a phone or an unknown system gets; initMobiusDownload points it
@@ -959,12 +969,16 @@
             <picture class="ai-card-iconwrap">
               <img class="ai-card-icon" src="/inko/icon.svg" alt="" width="512" height="512" loading="lazy" decoding="async">
             </picture>
+            <a class="ai-card-gh" href="https://github.com/dexdcimino/portfolio/tree/main/inko" target="_blank" rel="noopener noreferrer"
+               data-tip="Source on GitHub" data-tip-pos="above" aria-label="Inko source on GitHub">
+              <span class="icon" data-icon="github" aria-hidden="true"></span>
+            </a>
             <!-- Install Inko straight from here, no app store (Dex, 2026-10-08).
                  Opens the app with ?install=1, which offers the browser's own
                  install prompt or the Add to Home Screen steps. Shown on
                  phones too, where the eye is hidden. -->
             <a class="ai-card-dl" href="/inko/?install=1" target="_blank" rel="noopener"
-               data-tip="Install Inko" data-tip-pos="above" aria-label="Install Inko on this device">
+               data-tip="Install Inko&#10;Under 1 MB · installs in seconds" data-tip-pos="above" data-install-size="<1" aria-label="Install Inko on this device">
               <span class="icon" data-icon="download" aria-hidden="true"></span>
             </a>
             <button class="ai-card-eye" type="button" data-tip="Functional preview" data-tip-pos="above"
@@ -994,12 +1008,16 @@
                  in-memory document and no token. It cannot see or touch
                  the real notes behind the passcode, and everything typed
                  into it dies with the window. -->
+            <a class="ai-card-gh" href="https://github.com/dexdcimino/portfolio/tree/main/dexnote" target="_blank" rel="noopener noreferrer"
+               data-tip="Source on GitHub" data-tip-pos="above" aria-label="dexnote source on GitHub">
+              <span class="icon" data-icon="github" aria-hidden="true"></span>
+            </a>
             <!-- Install the DexNote phone app (Dex, 2026-10-08), left of the eye
                  as Inko's is: /dexnote/ with ?install=1, which offers the
                  browser's own install prompt or the Add to Home Screen steps.
                  Shown on phones too, where the eye is hidden. -->
             <a class="ai-card-dl" href="/dexnote/?install=1" target="_blank" rel="noopener"
-               data-tip="Install dexnote" data-tip-pos="above" aria-label="Install dexnote on this device">
+               data-tip="Install dexnote&#10;About 2 MB · installs in seconds" data-tip-pos="above" data-install-size="2" aria-label="Install dexnote on this device">
               <span class="icon" data-icon="download" aria-hidden="true"></span>
             </a>
             <button class="ai-card-eye" type="button" data-notes-demo data-tip="Functional preview" data-tip-pos="above"
@@ -1027,12 +1045,16 @@
               <img class="ai-card-icon" src="assets/icons/apps/mindsplit.png" alt="" width="512" height="512" loading="lazy" decoding="async">
             </picture>
             <!-- /img -->
+            <a class="ai-card-gh" href="https://github.com/dexdcimino/portfolio/tree/main/ai/apps/mindsplit" target="_blank" rel="noopener noreferrer"
+               data-tip="Source on GitHub" data-tip-pos="above" aria-label="MindSplit source on GitHub">
+              <span class="icon" data-icon="github" aria-hidden="true"></span>
+            </a>
             <!-- Install MindSplit on a phone (Dex, 2026-10), left of the eye as
                  Inko's and DexNote's are: /mindsplit/ with ?install=1, which
                  offers the browser's own install prompt or the Add to Home
                  Screen steps. Shown on phones too, where the eye is hidden. -->
             <a class="ai-card-dl" href="/mindsplit/?install=1" target="_blank" rel="noopener"
-               data-tip="Install MindSplit" data-tip-pos="above" aria-label="Install MindSplit on this device">
+               data-tip="Install MindSplit&#10;Under 1 MB · installs in seconds" data-tip-pos="above" data-install-size="<1" aria-label="Install MindSplit on this device">
               <span class="icon" data-icon="download" aria-hidden="true"></span>
             </a>
             <button class="ai-card-eye" type="button" data-tip="Functional preview" data-tip-pos="above"
@@ -1067,6 +1089,10 @@
               <img class="ai-card-icon" src="assets/icons/apps/themedock.png" alt="" width="512" height="512" loading="lazy" decoding="async">
             </picture>
             <!-- /img -->
+            <a class="ai-card-gh" href="https://github.com/dexdcimino/themedock" target="_blank" rel="noopener noreferrer"
+               data-tip="Source on GitHub" data-tip-pos="above" aria-label="ThemeDock source on GitHub">
+              <span class="icon" data-icon="github" aria-hidden="true"></span>
+            </a>
             <button class="ai-card-eye" type="button" data-tip="Functional preview" data-tip-pos="above"
                     aria-label="Open a functional preview of ThemeDock">
               <span class="icon" data-icon="eye" aria-hidden="true"></span>
@@ -1088,6 +1114,10 @@
               <img class="ai-card-icon" src="assets/icons/apps/nodeblast.png" alt="" width="512" height="512" loading="lazy" decoding="async">
             </picture>
             <!-- /img -->
+            <a class="ai-card-gh" href="https://github.com/dexdcimino/nodeblast" target="_blank" rel="noopener noreferrer"
+               data-tip="Source on GitHub" data-tip-pos="above" aria-label="NodeBlast source on GitHub">
+              <span class="icon" data-icon="github" aria-hidden="true"></span>
+            </a>
           </article>
           <article class="ai-card" data-gallery="dexddc" data-kind="WEB APP" data-stack="SITE"
              data-desc-lead="The portfolio this one replaced."
