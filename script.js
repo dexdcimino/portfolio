@@ -2736,6 +2736,65 @@ if (workModal) {
         about.append(p);
       }
     }
+    /* THE PITCH ON THE CARD (Dex, 2026-10-09): an info button just right of
+       the title, on its bottom line. Hovering it swaps it for a wide copy of
+       the pitch that grows up and right from where the button was, across the
+       gap to the download; it stays while the pointer is on it or the button
+       and folds back into the button when the pointer leaves both. A tap or a
+       key press toggles it, a tap elsewhere or Escape folds it. */
+    const pitchBtn = item.querySelector('.fv-pitch-btn');
+    if (pitchBtn && about) {
+      const pop = about.cloneNode(true);
+      pop.className = 'fv-pitch-pop';
+      pop.removeAttribute('data-about');
+      pop.hidden = true;
+      item.append(pop);
+      let shutAt = 0;
+      const place = () => {
+        const ir = item.getBoundingClientRect(), br = pitchBtn.getBoundingClientRect();
+        const ar = item.querySelector('.fv-actions')?.getBoundingClientRect();
+        const end = (ar && ar.width ? ar.left : ir.right) - ir.left - 16;
+        let left = br.left - ir.left, bottom = ir.bottom - br.bottom;
+        /* Too little gap beside the title for the words: it stands on the
+           title instead, from the caption's left edge to the download. */
+        if (end - left < 260) {
+          const mr = pitchBtn.closest('.card-meta').getBoundingClientRect();
+          left = mr.left - ir.left;
+          bottom = ir.bottom - mr.top + 8;
+        }
+        const width = Math.max(200, Math.min(460, end - left));
+        left = Math.max(14, Math.min(left, end - width));
+        pop.style.cssText = `left:${left}px;bottom:${bottom}px;width:${width}px;max-height:${ir.height - bottom - 14}px`;
+        pop.style.transformOrigin = `${br.left - ir.left - left + br.width / 2}px 100%`;
+        pop.classList.remove('is-short');
+        if (pop.scrollHeight > pop.clientHeight + 1) pop.classList.add('is-short');
+      };
+      const set = open => {
+        clearTimeout(shutAt);
+        if (open === (pitchBtn.getAttribute('aria-expanded') === 'true')) return;
+        if (open) { pop.hidden = false; place(); }
+        pitchBtn.setAttribute('aria-expanded', String(open));
+        item.classList.toggle('is-pitched', open);
+        if (!open) shutAt = setTimeout(() => { pop.hidden = true; }, 260);
+      };
+      const later = () => { clearTimeout(shutAt); shutAt = setTimeout(() => set(false), 220); };
+      for (const el of [pitchBtn, pop]) {
+        el.addEventListener('pointerenter', e => { if (e.pointerType === 'mouse') set(true); });
+        el.addEventListener('pointerleave', e => { if (e.pointerType === 'mouse') later(); });
+      }
+      pitchBtn.addEventListener('click', e => {
+        e.stopPropagation();
+        set(pitchBtn.getAttribute('aria-expanded') !== 'true');
+      });
+      document.addEventListener('pointerdown', e => {
+        if (pitchBtn.getAttribute('aria-expanded') === 'true' && !pop.contains(e.target) && !pitchBtn.contains(e.target)) set(false);
+      });
+      document.addEventListener('keydown', e => {
+        if (e.key !== 'Escape' || pitchBtn.getAttribute('aria-expanded') !== 'true') return;
+        e.stopPropagation(); set(false);
+      }, true);
+      window.addEventListener('resize', () => { if (!pop.hidden) place(); });
+    }
     /* Sized first, placed second: how tall it is decides whether the column
        has to rise to make room for it. Narrower than 200px it keeps only the
        lead; with no room even for that, it is not shown. */
@@ -2803,7 +2862,7 @@ if (workModal) {
     close?.addEventListener('click', shrink);
     // A double click on the picture enlarges it (Dex), and in the overlay shrinks it.
     item.addEventListener('dblclick', e => {
-      if (e.target.closest('.fv-bar, .fv-actions, .fv-info, .fv-desc, .fv-about, .fv-close')) return;
+      if (e.target.closest('.fv-bar, .fv-actions, .fv-info, .fv-desc, .fv-about, .fv-pitch-pop, .fv-close')) return;
       clearTimeout(flipLater);
       isMax() ? shrink() : enlarge();
     });
