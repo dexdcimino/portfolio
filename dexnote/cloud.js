@@ -25,25 +25,18 @@
  */
 
 import { initializeApp } from './vendor/firebase/firebase-app.js';
-import {
-  getAuth, onAuthStateChanged, signInWithPopup, signOut as fbSignOut,
-  GoogleAuthProvider, GithubAuthProvider, OAuthProvider,
-} from './vendor/firebase/firebase-auth.js';
+import { getAuth, onAuthStateChanged, signOut as fbSignOut } from './vendor/firebase/firebase-auth.js';
 import { getFirestore, doc, runTransaction, writeBatch } from './vendor/firebase/firebase-firestore.js';
 import { getStorage, ref, uploadBytes, getDownloadURL } from './vendor/firebase/firebase-storage.js';
 
 /* The production project, as in github.com/dexdcimino/dexnote's
    js/firebase-config.js. These are public identifiers, not secrets: what
    protects the data is the rules, which only let a signed-in user at their
-   own documents. */
-const CONFIG = {
-  apiKey: 'AIzaSyCU7xuhuILTkbdcP-E2qBH3EnNKT_eWTjA',
-  authDomain: 'dexnote-d7047.firebaseapp.com',
-  projectId: 'dexnote-d7047',
-  storageBucket: 'dexnote-d7047.firebasestorage.app',
-  messagingSenderId: '981706581411',
-  appId: '1:981706581411:web:afcdd27d285ba5ba9d2616',
-};
+   own documents. The object and the sign-in itself come from the site
+   account, so the two always initialise one app with the same options
+   (initializeApp throws on a second [DEFAULT] that differs) and the sign-in
+   window runs on dexcimino.com there too. */
+import { CONFIG, signInTo } from '/account/site-auth.js';
 
 const PART_CHARS = 250000;
 
@@ -70,17 +63,7 @@ export function onUser(fn) { init(); return onAuthStateChanged(auth, fn); }
 
 export async function signIn(which) {
   init();
-  let provider;
-  if (which === 'google') provider = new GoogleAuthProvider();
-  else if (which === 'github') provider = new GithubAuthProvider();
-  else {
-    // Discord is not built into Firebase; dexnote.dev set it up as an OpenID
-    // Connect provider under this id.
-    provider = new OAuthProvider('oidc.discord');
-    provider.addScope('identify');
-    provider.addScope('email');
-  }
-  return signInWithPopup(auth, provider);
+  return signInTo(auth, which === 'google' || which === 'github' ? which : 'discord');
 }
 
 export async function signOut() { init(); return fbSignOut(auth); }

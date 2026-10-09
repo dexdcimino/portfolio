@@ -50,6 +50,27 @@ change**, so the reasoning cannot drift away from the diff it explains.
 
 ---
 
+## 2026-10-09 — The sign-in window says dexcimino.com, not dexnote-d7047
+
+**Decided:** on dexcimino.com the Firebase `authDomain` is the site, and
+`vercel.json` proxies `/__/auth/*` and `/__/firebase/*` to
+`dexnote-d7047.firebaseapp.com`. GitHub keeps Firebase's host through a second,
+memory-only app whose credential is handed to the real sign-in.
+
+**Replaced:** `authDomain: 'dexnote-d7047.firebaseapp.com'` everywhere, which put
+"continue to dexnote-d7047.firebaseapp.com" on Google's account picker.
+
+**Why:** Dex, 2026-10-09: people signing in should not see "dexnote-d7047". The
+Firebase project's name is never shown; the authDomain is. Moving to a new
+Firebase project would cost an account migration for a label. GitHub stays on
+the old host because an OAuth app has one callback and dexnote.dev still uses it.
+
+**Reverse it if:** dexnote.dev stops signing in with GitHub (then move GitHub's
+callback to dexcimino.com and drop `site-github`), or the site moves to a
+different domain, which needs that domain added to every provider first.
+
+---
+
 ## 2026-10-09 — MindSplit's votes are real, in Firestore, on the site account
 
 **Decided:** MindSplit stores polls, votes and counts in Firestore in `dexnote-d7047`,
