@@ -291,7 +291,7 @@ const panel = () => p.evaluate(() => {
   const btn = (t) => [...d.querySelectorAll('button')].find((x) => x.textContent.trim() === t);
   return {
     text: d.textContent, logo: d.querySelector('.signin-logo')?.getAttribute('src') || '',
-    google: visible(btn('Continue with Google')), github: visible(btn('Continue with GitHub')), discord: visible(btn('Continue with Discord')),
+    google: visible(btn('Google')), github: visible(btn('GitHub')), discord: visible(btn('Discord')),
     signOut: visible(btn('Sign out')), notesOpen: !!document.querySelector('#notesModal[open]'),
   };
 });
@@ -305,7 +305,7 @@ let sp = await panel();
 ok(sp && sp.google && sp.github && sp.discord && !sp.signOut && /^data:image\/svg\+xml/.test(sp.logo) && !/DexNote/i.test(sp.text) && /dexcimino\.com/.test(sp.text),
   `~dexdc signed out opens the SITE sign-in: its own mark, three providers, no Sign out, no DexNote: ${JSON.stringify(sp && { ...sp, logo: sp.logo.slice(0, 30), text: sp.text.slice(0, 80) })}`);
 ok(sp && !sp.notesOpen && !(await p.evaluate(() => !!document.querySelector('#notesEditor .nt-app'))), 'and the notes did not open');
-ok(await panelPress('Continue with Google'), 'Google pressed on the site panel');
+ok(await panelPress('Google'), 'Google pressed on the site panel');
 ok(await panelShut() && await signedInAs() === 'dex-google' && !(await p.evaluate(() => !!document.querySelector('#notesModal[open]'))),
   'the sign-in closes the panel, signs in, and still opens no notes');
 await tilde('dexdc');
@@ -323,7 +323,7 @@ await tilde('dexdc');
 await p.waitForSelector('#signinModal[open]', { timeout: 10000 }).catch(() => {});
 sp = await panel();
 ok(sp && sp.notesOpen && sp.google, 'typed over the notes, the panel stacks on them and the notes stay open underneath');
-await panelPress('Continue with Google');
+await panelPress('Google');
 await panelShut();
 await p.waitForFunction(() => /acct marker/.test(document.querySelector('#notesEditor .nt-app')?.textContent || ''), { timeout: 15000 }).catch(() => {});
 ok(/acct marker/.test(await overlayText()) && await p.evaluate(() => !!document.querySelector('#notesModal[open]')), 'signing in there puts the account\'s notes on screen in the open overlay');
