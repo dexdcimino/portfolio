@@ -167,7 +167,8 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
   cannot send it to a stale spot), and moved into the top open
   `<dialog>` (the Functional Preview's included) so a modal never leaves it
   inert; muted from there it keeps
-  playing until the card is back, when the copy flies home. Its sound and
+  playing until the card is back, when the copy flies home, fading out over
+  the last 40% of the way so it is gone as it lands. Its sound and
   the music are one at a time: the slot registers with `MediaBus` (a tick
   late, past the bus's temporal dead zone) as a player that is "playing" only
   while audible, so music starting mutes it (taking the float away) and its
@@ -4234,12 +4235,17 @@ account and DexNote and MindSplit see one uid. Signed in, the panel is the
 account's menu: "Your account", who and how, and Sign out; no sign-in buttons.
 
 **The profile button** (`#profileButton`, `buildProfileButton()` in
-`script.js`) is the last thing in the accent row: a hexagon frame with a person
-whose head is a small hexagon, in the accent, filled once `site:signedIn` is
-set. A click opens `openSiteSignIn`. Docked (scrolled), it takes the active
-swatch's place at the top of the stack and every swatch moves down one row
-(`(--row + 1) * --swatch-step + 5px`); hover still opens the stack, and on touch
-the first tap opens it and the second opens the panel.
+`script.js`) is a hexagon frame with a person whose head is a small hexagon,
+in the accent, filled once `site:signedIn` is set. A click opens
+`openSiteSignIn`. It is `position:fixed` on `<body>` (a transformed ancestor
+would pin it) at the docked toggle's own spot, `--dock-top` / `--dock-right`,
+from the first frame: scrolling never moves it, it only docks the swatches
+under it. The inline row ends left of it (`.topbar` padding). Docked, the
+active swatch is hidden and the other six take rows 1..6
+(`--row * --swatch-step + 5px`), so the dropdown never lists the current
+accent; hover on either the button or the stack opens it
+(`inPickerOrProfile`), and on touch the first tap opens it and the second
+opens the panel.
 
 The client-side Idea Vault codes are NOT behind this: their payloads ship in
 the page and are public by construction (the backlog and the doors), so a
