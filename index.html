@@ -33,7 +33,6 @@
   <link rel="preload" as="image" href="assets/logos/DEX.svg" />
   <link rel="preload" as="image" href="assets/logos/CIMINO.svg" />
   <link rel="stylesheet" href="styles.css?v=213" />
-  <link rel="stylesheet" href="fade-picker.css?v=1">
   <!-- preload src="assets/mascots/mascot_limegreen.png" slot="hero-mascot" -->
   <link rel="preload" as="image" fetchpriority="high"
         href="assets/derived/mascots/mascot_limegreen-900.avif?v=6edad5f9"
@@ -94,23 +93,25 @@
   </div>
 
   <!-- Front wedge: the only layer that sits OVER the mascot, exactly as in the
-       source art. Its alpha ramps 0 -> 1 up the page, so the mascot's legs read
-       through the translucent lower half and the top-right stays solid. The ramp
-       is the original one (restored 2026-10-09 after three reworks Dex rejected);
-       only the colour is new: it fills with the back wedge's grade (#bgWedge), so
-       where the two overlap the colour cannot disagree. -->
+       source art. It fills with the back wedge's grade (#bgWedge), so where the
+       two overlap the colour cannot disagree, and fades ALONG the band, solid at
+       the top right and gone toward the bottom left. The fade breathes slowly
+       between two reaches (Dex picked both, 2026-10-09): about half way down him
+       and just a little of him, holding at each end with an eased swing between,
+       14s a loop. Under reduced motion script.js stops it on the first. -->
   <div class="bg-front" aria-hidden="true">
     <svg viewBox="0 0 1920 1080" preserveAspectRatio="none">
       <defs>
-        <linearGradient id="bgFrontFade" x1="1361.7" y1="1355.8" x2="1752.8" y2="-29.3" gradientUnits="userSpaceOnUse">
-          <stop offset=".0942" stop-color="#fff" stop-opacity="0"/>
-          <stop offset=".1736" stop-color="#fff" stop-opacity=".05"/>
-          <stop offset=".2365" stop-color="#fff" stop-opacity=".15"/>
-          <stop offset=".2937" stop-color="#fff" stop-opacity=".3"/>
-          <stop offset=".3476" stop-color="#fff" stop-opacity=".5"/>
-          <stop offset=".3992" stop-color="#fff" stop-opacity=".7"/>
-          <stop offset=".449" stop-color="#fff" stop-opacity=".85"/>
-          <stop offset=".55" stop-color="#fff" stop-opacity="1"/>
+        <linearGradient id="bgFrontFade" x1="701.2" y1="820" x2="1453.8" y2="420" gradientUnits="userSpaceOnUse">
+          <stop offset="0" stop-color="#fff" stop-opacity="0"/>
+          <stop offset=".25" stop-color="#fff" stop-opacity=".12"/>
+          <stop offset=".5" stop-color="#fff" stop-opacity=".4"/>
+          <stop offset=".75" stop-color="#fff" stop-opacity=".75"/>
+          <stop offset="1" stop-color="#fff" stop-opacity="1"/>
+          <animate attributeName="x1" values="701.2;701.2;1115.1;1115.1;701.2" dur="14s" repeatCount="indefinite" keyTimes="0;.2;.5;.7;1" calcMode="spline" keySplines="0 0 1 1;.45 0 .55 1;0 0 1 1;.45 0 .55 1"/>
+          <animate attributeName="y1" values="820;820;600;600;820" dur="14s" repeatCount="indefinite" keyTimes="0;.2;.5;.7;1" calcMode="spline" keySplines="0 0 1 1;.45 0 .55 1;0 0 1 1;.45 0 .55 1"/>
+          <animate attributeName="x2" values="1453.8;1453.8;1679.55;1679.55;1453.8" dur="14s" repeatCount="indefinite" keyTimes="0;.2;.5;.7;1" calcMode="spline" keySplines="0 0 1 1;.45 0 .55 1;0 0 1 1;.45 0 .55 1"/>
+          <animate attributeName="y2" values="420;420;300;300;420" dur="14s" repeatCount="indefinite" keyTimes="0;.2;.5;.7;1" calcMode="spline" keySplines="0 0 1 1;.45 0 .55 1;0 0 1 1;.45 0 .55 1"/>
         </linearGradient>
         <mask id="bgFrontMask" maskUnits="userSpaceOnUse" x="0" y="0" width="1920" height="1080">
           <rect width="1920" height="1080" fill="url(#bgFrontFade)"/>
@@ -5409,7 +5410,6 @@
     </form>
   </dialog>
 
-  <script src="script.js?v=209"></script>
-  <script src="fade-picker.js?v=1"></script>
+  <script src="script.js?v=210"></script>
 </body>
 </html>
