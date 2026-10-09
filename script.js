@@ -2042,6 +2042,8 @@ if (workModal) {
     });
     const eye = item.querySelector('[data-open-app]');
     if (eye) eye.addEventListener('click', () => {
+      // From the enlarged video: put it back first, or the preview opens under it.
+      if (item.matches(':popover-open')) item.hidePopover();
       /* The AI Lab card's own eye does the opening, so the two can never
          disagree about what the preview is. Down to the Apps tab first, so
          the visitor lands where the card lives when they close it. */
@@ -2226,13 +2228,24 @@ if (workModal) {
     const close = item.querySelector('.fv-close');
     /* offset*, not getBoundingClientRect: the opening animation scales the
        slot, and the X is placed against where it lands, not where it starts. */
+    /* Dex: in the dead space right of the enlarged video, one column centred
+       both ways -- Functional Preview, the X, Download. Too narrow a gap and
+       the X goes back inside the corner with the other two left out. */
+    const acts = item.querySelector('.fv-actions');
     function placeClose() {
-      if (!close || !isMax()) return;
-      const size = 46, right = item.offsetLeft + item.offsetWidth;
+      if (!close) return;
+      if (!isMax()) { if (acts) acts.style.cssText = ''; item.classList.remove('is-side'); return; }
+      const size = 52, step = size + 14, right = item.offsetLeft + item.offsetWidth;
       const gap = document.documentElement.clientWidth - right;
-      const inside = gap < size + 16;
-      close.style.left = (inside ? right - 14 - size : right + gap / 2 - size / 2) + 'px';
-      close.style.top = (item.offsetTop + (inside ? 14 : 0)) + 'px';
+      const inside = gap < size + 24;
+      item.classList.toggle('is-side', !inside);
+      const cx = right + gap / 2, cy = item.offsetTop + item.offsetHeight / 2;
+      close.style.left = (inside ? right - 14 - size : cx - size / 2) + 'px';
+      close.style.top = (inside ? item.offsetTop + 14 : cy - size / 2) + 'px';
+      if (acts && !inside) {
+        const tall = acts.offsetHeight;
+        acts.style.cssText = `left:${cx - size / 2}px;top:${cy - tall / 2}px;right:auto;bottom:auto`;
+      }
     }
     window.addEventListener('resize', placeClose);
     const isMax = () => item.matches(':popover-open');
@@ -3842,7 +3855,7 @@ let flashTip = () => {};
      Idea Vault's buttons and the work overlay's copy and download tips, which
      have been labelling themselves to an empty room. */
   const rehome = (el) => {
-    const host = el.closest?.('dialog[open]') || document.body;
+    const host = el.closest?.('dialog[open], :popover-open') || document.body;   // the enlarged featured video is a popover
     if (tip.parentNode !== host) host.append(tip);
   };
 
@@ -3873,7 +3886,11 @@ let flashTip = () => {};
        fallback would fire every time, and a bubble that is sometimes above and
        sometimes below reads as a bug. Above with a fallback to below is the
        same rule the other way round, for a control that lives at the bottom. */
-    if (el.dataset.tipPos === 'above') {
+    /* data-tip-pos-max: where the bubble goes while its control is in the
+       enlarged featured video, whose buttons stand in a column -- above,
+       one would land on the button over it. */
+    const pos = el.dataset.tipPosMax && el.closest(':popover-open') ? el.dataset.tipPosMax : el.dataset.tipPos;
+    if (pos === 'above') {
       const above = r.top - t.height - GAP;
       const at = above >= 6 ? above : r.bottom + GAP;
       const mid = r.left + r.width / 2 - t.width / 2;
@@ -3881,7 +3898,7 @@ let flashTip = () => {};
       tip.style.top = `${Math.round(at)}px`;
       return;
     }
-    if (el.dataset.tipPos === 'right') {
+    if (pos === 'right') {
       const fitsRight = r.right + GAP + t.width <= window.innerWidth - 6;
       const fitsLeft = r.left - GAP - t.width >= 6;
       if (fitsRight || fitsLeft) {

@@ -1339,12 +1339,17 @@ html.fv-maxed .fv-item:popover-open{pointer-events:auto}
 @keyframes fv-max-in{from{opacity:0;transform:scale(.96)}}
 .fv-item:popover-open :is(.fv-poster img,.fv-video){object-position:50% 50%}
 .fv-item:popover-open :is(.card-meta,.card-shade,.fv-actions,.fv-info,.fv-desc){display:none}
-/* OUTSIDE the video (Dex): fixed, in the dead space to its right, centred
-   across that gap and level with the video's top. placeClose() measures it;
-   a gap too narrow for it puts it back inside the corner. */
+/* OUTSIDE the video (Dex): fixed, in the dead space to its right, one column
+   centred both ways -- the eye, the X, the download -- placed by placeClose().
+   .is-side is the gap being wide enough; without it the X goes back inside the
+   corner and the two buttons stay with the card. The column's gap leaves the
+   X's slot open between them. */
 .fv-item:popover-open .fv-close{display:grid;position:fixed;top:14px;right:auto;left:auto;z-index:5;
-  width:46px;height:46px;border-radius:12px;background:rgba(8,11,15,.72);color:#c9d0d6}
-.fv-item:popover-open .fv-close svg{width:21px;height:21px}
+  width:52px;height:52px;border-radius:14px;background:rgba(8,11,15,.72);color:#c9d0d6}
+.fv-item:popover-open .fv-close svg{width:22px;height:22px}
+.fv-item.is-side:popover-open .fv-actions{display:flex;position:fixed;flex-direction:column;gap:80px;
+  z-index:5;opacity:1;pointer-events:auto;transition:none}
+.fv-item.is-side:popover-open .fv-eye{order:-1;display:grid}
 @media(prefers-reduced-motion:reduce){.fv-item:popover-open{animation:none}.fv-vol-pop,.fv-has-video .card-meta,.fv-actions,.fv-has-video .fv-mute{transition:none}}
 /* Before a source exists there is nothing to scrub. */
 .fv-has-video:not([data-src^="https"]) :is(.fv-bar,.fv-play){display:none}
