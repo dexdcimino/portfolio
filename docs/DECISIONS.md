@@ -50,6 +50,34 @@ change**, so the reasoning cannot drift away from the diff it explains.
 
 ---
 
+## 2026-10-09 — The work gallery is laid out like the wallpaper lightbox
+
+**Decided:** the work overlay (the portfolio's eight tabs and every featured
+set, Proto Isles today) is a full-screen dialog with no panel: tabs centred
+along the top, the picture as large as the screen allows in a box the
+picture's own shape with its title on it at the top left, the strip centred
+along the bottom at eight thumbnails a page with its arrows either side and
+the count to its right, hover-only arrows on the picture, and the enlarged
+Mobius video's 52px X centred in the dead space to the picture's right. The
+wheel steps one piece a tick; a thumbnail hover previews; a click in the
+dark closes.
+
+**Replaced:** a bordered panel with a fixed 3:2 hatched matte every piece
+letterboxed into, arrows in their own columns beside it, a caption row under
+it (title, category, count), a scrolling filmstrip of 96px thumbs, the X in
+the tab bar and a BROWSE / ESC CLOSE hint. The 3:2 box existed so the caption
+and strip would not jump; with the title on the picture and the strip
+pinned to the bottom row, nothing below the picture depends on its shape.
+
+**Why:** Dex, 2026-10-09: "a lot of dead space", and the wallpaper lightbox
+is "almost exactly how we want" it. The arrows on the art were moved off it
+on 2026-09-02 because they were easy to lose while always shown; hover-only
+with the strip's own arrows always there answers both.
+
+**Reverse it if:** the title on the art turns out unreadable on real pieces
+(it carries the wallpaper plate's two shadows), or a set needs a caption
+longer than one line.
+
 ## 2026-10-09 — AI Lab titles go to the app; the code is a badge, and sizes are measured
 
 **Decided:** every AI Lab title links to the app or its store page (Mobius 3D's

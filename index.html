@@ -5003,79 +5003,91 @@
   </dialog>
 
   <dialog class="work-modal" id="workModal" data-music-remote aria-labelledby="work-dialog-title">
+    <!-- THE WALLPAPER LIGHTBOX'S LAYOUT (Dex, 2026-10-09): no panel, no matte,
+         no hatching. The picture is as large as the screen allows, with its
+         title ON it at the top left; the tabs are centred along the top; the
+         strip is centred along the bottom with its arrows either side and the
+         count just right of it; the X sits in the dead space right of the
+         picture, the same X the enlarged Mobius video uses. Three columns:
+         a gutter, the work, a gutter -- the right gutter is the X's. -->
     <div class="work-shell">
       <h2 class="sr-only" id="work-dialog-title">Selected work</h2>
 
       <div class="work-head">
         <div class="work-tabs" id="workTabs" role="tablist" aria-label="Work categories"></div>
-        <button class="contact-close work-close" type="button" id="workClose" aria-label="Close work">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
-        </button>
       </div>
+      <button class="contact-close work-close" type="button" id="workClose" aria-label="Close work">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+      </button>
 
-      <!-- One panel serves all five tabs, so every tab aria-controls it and its
+      <!-- One panel serves every tab, so every tab aria-controls it and its
            label follows whichever tab is selected. -->
       <div class="work-stage" id="workPanel" role="tabpanel" tabindex="0">
-        <!-- The arrows are SIBLINGS of the image box, not children of it.
-             Sitting on top of the artwork they were easy to lose: the hero
-             letterboxes every shape into one fixed box, so the picture edge
-             moves under them on every press while they do not (Dex,
-             2026-09-02). A three-column flex row gives them their own
-             gutters at every width instead of only at wide ones.
-
-             .work-hero-area, not .work-frame, is the container the hero
-             measures itself against now -- the frame is the row, and cqw
-             there would include the arrows. -->
         <div class="work-frame">
-          <!-- Each arrow sits in a column the arrow's own size, so the
-               category button above it (.work-jump, a set with icons only)
-               hangs out of the top of that column and never moves the arrow.
-               It shows the NEIGHBOURING tab's icon and jumps there; it comes
-               up when the pointer is within two arrow-widths of the arrow
-               (Dex, 2026-10-09). -->
-          <div class="work-nav-col prev">
-            <button class="work-jump" type="button" id="workJumpPrev" hidden>
-              <span class="icon" aria-hidden="true"></span>
-            </button>
-            <button class="work-nav prev" type="button" id="workPrev" aria-label="Previous image">
-              <span class="icon" data-icon="arrow-right" aria-hidden="true"></span>
-            </button>
-          </div>
           <div class="work-hero-area">
+            <!-- #workHero is sized to the PICTURE (its aspect ratio, fitted to
+                 the area), so its corners are the picture's corners. A very
+                 tall sheet keeps a 3:2 box and scrolls instead. -->
             <div class="work-hero" id="workHero">
               <!-- A <picture>, not a bare <img>, so the hero can take the AVIF
-                   rows work.json carries — an <img srcset> can pick a width but
-                   never a format. Both <source> srcsets and the sizes are written
-                   by paintPicture() from strings tools/bake_work.py generated;
-                   nothing here assembles a URL. Empty at rest: the first
-                   showWorkItem() fills all three. -->
+                   rows work.json carries. Both <source> srcsets and the sizes
+                   are written by paintPicture() from strings
+                   tools/bake_work.py generated; nothing here assembles a URL. -->
               <picture class="work-hero-pic">
                 <source id="workHeroAvif" type="image/avif">
                 <source id="workHeroWebp" type="image/webp">
                 <img class="work-hero-img" id="workHeroImg" src="" alt="" width="16" height="9" decoding="async">
               </picture>
             </div>
-          </div>
-          <div class="work-nav-col next">
-            <button class="work-jump" type="button" id="workJumpNext" hidden>
-              <span class="icon" aria-hidden="true"></span>
-            </button>
-            <button class="work-nav next" type="button" id="workNext" aria-label="Next image">
-              <span class="icon" data-icon="arrow-right" aria-hidden="true"></span>
-            </button>
+            <!-- The furniture ON the picture, in a box the same size as the
+                 hero but outside it, so a tall piece scrolling under it does
+                 not take the title or the arrows along. -->
+            <div class="work-over">
+              <p class="work-plate" aria-live="polite">
+                <span class="work-cap-title" id="workCapTitle"></span>
+              </p>
+              <!-- Hover-only arrows on the picture's edges (always shown on
+                   touch). Each sits in a column the arrow's own size, so the
+                   category button above it (.work-jump, a set with icons
+                   only) hangs out of the top and never moves the arrow. It
+                   shows the NEIGHBOURING tab's icon and jumps there; it comes
+                   up when the pointer is within two arrow-widths of the
+                   arrow (Dex, 2026-10-09). -->
+              <div class="work-nav-col prev">
+                <button class="work-jump" type="button" id="workJumpPrev" hidden>
+                  <span class="icon" aria-hidden="true"></span>
+                </button>
+                <button class="work-nav prev" type="button" id="workPrev" aria-label="Previous image">
+                  <span class="icon" data-icon="arrow-right" aria-hidden="true"></span>
+                </button>
+              </div>
+              <div class="work-nav-col next">
+                <button class="work-jump" type="button" id="workJumpNext" hidden>
+                  <span class="icon" aria-hidden="true"></span>
+                </button>
+                <button class="work-nav next" type="button" id="workNext" aria-label="Next image">
+                  <span class="icon" data-icon="arrow-right" aria-hidden="true"></span>
+                </button>
+              </div>
+            </div>
           </div>
         </div>
-
-        <p class="work-cap" aria-live="polite">
-          <span class="work-cap-title" id="workCapTitle"></span>
-          <span class="work-cap-desc" id="workCapDesc"></span>
-          <span class="work-cap-index" id="workCapIndex"></span>
-        </p>
       </div>
 
+      <!-- Eight to a page; the track slides to whichever page holds the
+           selection. The count sits just right of the strip, out of flow, so
+           it never pulls the strip off centre. -->
       <div class="work-strip-wrap">
-        <div class="work-strip" id="workStrip" role="group" aria-label="Thumbnails"></div>
-        <p class="work-hint" aria-hidden="true"><b>&#8592; &#8594;</b> BROWSE &nbsp;·&nbsp; <b>ESC</b> CLOSE</p>
+        <div class="work-strip-row">
+          <button class="wp-arrow work-step prev" type="button" id="workStripPrev" aria-label="Previous image">
+            <span class="icon" data-icon="chevron" aria-hidden="true"></span>
+          </button>
+          <div class="work-strip" id="workStrip" role="group" aria-label="Thumbnails"></div>
+          <button class="wp-arrow work-step next" type="button" id="workStripNext" aria-label="Next image">
+            <span class="icon" data-icon="chevron" aria-hidden="true"></span>
+          </button>
+          <span class="work-cap-index" id="workCapIndex"></span>
+        </div>
       </div>
     </div>
   </dialog>

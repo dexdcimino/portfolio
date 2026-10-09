@@ -1928,9 +1928,11 @@ const workHero = document.getElementById('workHero');
 const workHeroImg = document.getElementById('workHeroImg');
 const workHeroPic = document.querySelector('.work-hero-pic');
 const workHeroSources = workHeroPic ? [...workHeroPic.querySelectorAll('source')] : [];
+const workHeroArea = document.querySelector('.work-hero-area');
 const workCapTitle = document.getElementById('workCapTitle');
-const workCapDesc = document.getElementById('workCapDesc');
 const workCapIndex = document.getElementById('workCapIndex');
+const workStripPrev = document.getElementById('workStripPrev');
+const workStripNext = document.getElementById('workStripNext');
 const workPrevBtn = document.getElementById('workPrev');
 const workNextBtn = document.getElementById('workNext');
 const workJumpPrev = document.getElementById('workJumpPrev');
@@ -2037,8 +2039,15 @@ function nearWorkJumps(event) {
 /* ---------- filmstrip ---------------------------------------------------- */
 
 // Takes a list, not a category: the only thing it needs is { title, src, w, h }.
+/* The thumbnails live on a TRACK inside the strip, so a category longer than
+   a page slides rather than scrolling or wrapping -- the wallpaper strip's
+   mechanism. Every thumbnail stays in the DOM; only the visible page is in
+   the window. */
+let workTrack = null;
+let workPerPage = 8;
 function buildWorkStrip(items) {
-  const frag = document.createDocumentFragment();
+  workTrack = document.createElement('div');
+  workTrack.className = 'work-track';
   items.forEach((item, i) => {
     const thumb = document.createElement('button');
     thumb.className = 'work-thumb';
@@ -2054,9 +2063,46 @@ function buildWorkStrip(items) {
     thumb.appendChild(picture);
 
     thumb.addEventListener('click', () => showWorkItem(i));
-    frag.appendChild(thumb);
+    /* Hovering a thumbnail shows that piece in the big picture WITHOUT
+       selecting it, exactly as the wallpaper strip does: sweeping the strip
+       is the fastest way to look through a set. Leaving the strip puts the
+       selection back. Not on touch, where the tap that follows selects. */
+    thumb.addEventListener('pointerenter', event => {
+      if (event.pointerType !== 'touch') previewWorkItem(i);
+    });
+    workTrack.appendChild(thumb);
   });
-  workStripEl.replaceChildren(frag);
+  workStripEl.replaceChildren(workTrack);
+  layoutWorkStrip();
+}
+
+/* EIGHT A PAGE (Dex, 2026-10-09: "six or eight"), fewer where eight would
+   not fit beside the arrows with room for the count on BOTH sides -- the
+   count hangs off the right, so the same room is kept on the left or the
+   strip would sit off centre. Measured off a real thumbnail and the real
+   controls rather than assumed. */
+const WORK_PAGE_MAX = 8;
+function layoutWorkStrip() {
+  if (!workTrack || !workModal?.open) return;
+  const wrap = workStripEl.closest('.work-strip-wrap');
+  const thumb = workTrack.firstElementChild;
+  const room = wrap?.clientWidth || 0;
+  if (!thumb || !room) return;
+  const tw = thumb.getBoundingClientRect().width;
+  const gap = parseFloat(getComputedStyle(workTrack).columnGap) || 0;
+  const rowGap = parseFloat(getComputedStyle(workStripEl.parentElement).columnGap) || 0;
+  const step = workStripPrev && getComputedStyle(workStripPrev).display !== 'none'
+    ? 2 * (workStripPrev.offsetWidth + rowGap) : 0;
+  const count = getComputedStyle(workCapIndex).position === 'absolute'
+    ? 2 * (workCapIndex.offsetWidth + 16) : workCapIndex.offsetWidth + rowGap;
+  const fit = Math.max(1, Math.floor((room - step - count + gap) / (tw + gap)));
+  workPerPage = Math.min(WORK_PAGE_MAX, fit, workTrack.children.length || 1);
+  workStripEl.style.setProperty('--per-page', workPerPage);
+  showWorkPage();
+}
+// The page follows the selection, so walking the set carries the strip along.
+function showWorkPage() {
+  workStripEl.style.setProperty('--page', Math.floor(workIdx / workPerPage));
 }
 
 /* ---------- hero --------------------------------------------------------- */
@@ -2080,6 +2126,7 @@ const TALL_RATIO = 0.75;
 
 function paintWorkHero(item) {
   const token = ++workHeroToken;
+  workCapTitle.textContent = item.title;
   workHeroImg.classList.add('is-fading');
 
   const warm = warmPicture(workHeroPic, item, 'hero');
@@ -2089,6 +2136,9 @@ function paintWorkHero(item) {
     workHeroImg.alt = item.title;
     const tall = item.w && item.h && item.w / item.h <= TALL_RATIO;
     workHero.classList.toggle('is-tall', !!tall);
+    // The box is the picture's own shape, so its corners are the picture's
+    // and the title sits on the art. A tall sheet keeps 3:2 and scrolls.
+    workHeroArea?.style.setProperty('--hero-ar', tall || !item.w || !item.h ? '1.5' : String(item.w / item.h));
     // Every piece starts at its top. Carrying the last one's scroll position
     // into a different image lands somewhere arbitrary in the middle of it.
     if (tall) workHero.scrollTop = 0;
@@ -2128,8 +2178,9 @@ function showWorkItem(index) {
   if (!items.length) {
     ++workHeroToken;
     workHero.dataset.empty = galleryCats()[workCat].empty || 'SHOTS COMING';
+    workHero.classList.remove('is-tall');
+    workHeroArea?.style.setProperty('--hero-ar', String(16 / 9));
     workCapTitle.textContent = 'Coming soon';
-    workCapDesc.textContent = galleryCats()[workCat].label;
     workCapIndex.replaceChildren();
     return;
   }
@@ -2137,8 +2188,6 @@ function showWorkItem(index) {
   const item = items[workIdx];
 
   paintWorkHero(item);
-  workCapTitle.textContent = item.title;
-  workCapDesc.textContent = item.desc;
   // Built from nodes, not innerHTML — same rule as setStatus.
   const position = document.createElement('b');
   position.textContent = pad2(workIdx + 1);
@@ -2148,11 +2197,15 @@ function showWorkItem(index) {
   // that just went dead -- which is what the two lines that used to be here
   // existed to rescue.
 
-  [...workStripEl.children].forEach((thumb, i) => thumb.setAttribute('aria-current', String(i === workIdx)));
-  // behavior:'auto' defers to the strip's CSS scroll-behavior, which the
-  // reduced-motion block already flattens — same trick as scrollToY.
-  workStripEl.children[workIdx]?.scrollIntoView({ inline: 'center', block: 'nearest' });
+  [...(workTrack?.children || [])].forEach((thumb, i) => thumb.setAttribute('aria-current', String(i === workIdx)));
+  showWorkPage();
   preloadWorkNeighbours(items, workIdx);
+}
+
+// A hovered thumbnail in the big picture; the selection and the count stay.
+function previewWorkItem(index) {
+  const item = workItems()[index];
+  if (item) paintWorkHero(item);
 }
 
 /* ---------- open / close ------------------------------------------------- */
@@ -2174,6 +2227,7 @@ async function openWork(catId, index, trigger, set = null) {
     : cats.findIndex(cat => cat.id === catId));                            // unknown id -> first tab
   openModal(workModal, null, () => {
     selectWorkCategory(catIndex, index);
+    layoutWorkStrip();   // the strip had no width until the dialog was up
     // The panel, not a control: it is the thing that just appeared, and it
     // leaves Left/Right free to browse images instead of switching tabs.
     // Muted, because a ring drawn around the whole stage the instant the
@@ -2189,6 +2243,48 @@ if (workModal) {
   document.getElementById('workClose')?.addEventListener('click', () => closeModal(workModal));
   workPrevBtn.addEventListener('click', () => showWorkItem(workIdx - 1));
   workNextBtn.addEventListener('click', () => showWorkItem(workIdx + 1));
+  workStripPrev?.addEventListener('click', () => showWorkItem(workIdx - 1));
+  workStripNext?.addEventListener('click', () => showWorkItem(workIdx + 1));
+  // Off the strip, the selection comes back into the big picture.
+  workStripEl.addEventListener('pointerleave', () => {
+    const item = workItems()[workIdx];
+    if (item) paintWorkHero(item);
+  });
+  window.addEventListener('resize', layoutWorkStrip);
+
+  /* A click in the dark round the picture closes, as it does round a
+     wallpaper: the dialog fills the screen now, so its own backdrop is never
+     what is clicked. Only the empty layout boxes count -- the picture, the
+     tabs, the strip and every control are not them. */
+  workModal.addEventListener('click', event => {
+    if (event.target.matches('.work-shell, .work-head, .work-stage, .work-frame, .work-hero-area, .work-strip-wrap'))
+      closeModal(workModal);
+  });
+
+  /* THE SCROLL WHEEL WALKS THE SET (Dex, 2026-10-09), one piece a tick:
+     down or right is next, up or left is back. A trackpad sends a stream of
+     small deltas, so they add up to a tick's worth before a step, and a step
+     waits out a short gap so one fling is not ten pieces. Over a tall piece
+     that can still scroll that way, the wheel scrolls the piece instead, and
+     over the tab row it is the row's own. */
+  let wheelSum = 0, wheelAt = 0;
+  workModal.addEventListener('wheel', event => {
+    if (event.ctrlKey || event.target.closest('.work-tabs')) return;
+    const d = Math.abs(event.deltaY) >= Math.abs(event.deltaX) ? event.deltaY : event.deltaX;
+    if (!d) return;
+    if (workHero.classList.contains('is-tall') && workHero.contains(event.target)) {
+      const room = d > 0 ? workHero.scrollHeight - workHero.clientHeight - workHero.scrollTop : workHero.scrollTop;
+      if (room > 1) return;
+    }
+    event.preventDefault();
+    if (!workItems().length) return;
+    wheelSum += event.deltaMode === 1 ? d * 40 : d;
+    const now = performance.now();
+    if (Math.abs(wheelSum) < 40 || now - wheelAt < 90) return;
+    showWorkItem(workIdx + (wheelSum > 0 ? 1 : -1));
+    wheelSum = 0;
+    wheelAt = now;
+  }, { passive: false });
   [workJumpPrev, workJumpNext].forEach(btn => btn?.addEventListener('click', () =>
     selectWorkCategory(Number(btn.dataset.index))));
   workModal.addEventListener('pointermove', event => {
@@ -5781,7 +5877,7 @@ function initGallery({ id, root: rootId, panel: panelId }) {
      Three columns, growing a row at a time as art lands — the last row is short
      until it is not. Paging goes in here when there is enough art to need it. */
 
-  /* A page of thumbnails is five at most, fewer when five would not be legible
+  /* A page of thumbnails is eight at most, fewer when eight would not be legible
      at the width available. Past that the set does not wrap — the track slides
      the next page in, and the page follows whatever is selected, so walking the
      set with the arrows carries the strip along without a control of its own.
@@ -5790,7 +5886,10 @@ function initGallery({ id, root: rootId, panel: panelId }) {
      to be 100% of the strip: the thumbnails are capped at their designed size,
      so a page can be narrower than the window it sits in, and a percentage
      would drift by that slack on every page. */
-  const PAGE_MAX = 5;                      // five across, per Dex
+  /* Eight, not five (Dex, 2026-10-09: "not all of the wallpapers are
+     showing"). Five a page hid three of the eight wallpapers until the
+     arrows happened to walk onto them; eight shows the whole set. */
+  const PAGE_MAX = 8;
   const THUMB_MIN = 70;                    // below this a thumbnail stops reading
   function layoutStrip(view) {
     const strip = view.strip, track = view.track;

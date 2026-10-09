@@ -176,7 +176,7 @@ img{max-width:100%}
 [data-icon="pi-brand"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 188.4 256'%3E%3Cg fill='%23fff'%3E%3Ccircle cx='94.6' cy='22.7' r='18.6'/%3E%3Cpath d='M113.2,82.8c-13.9-4.3-27.6-3.5-40.8,1.6-16.4,6.3-33.2,18.9-43.7,33-1.6,2.1-2.4,4.1-2.1,6.8.6,7.1,2.1,13.8,3.9,20.7l6.9,27.7c-2-.9-3.2-2.5-4.5-4.2-10.8-13.2-24.9-34.2-29.4-50.3-.9-3.3-.5-6.3,1.1-9.3,3.3-6.2,7.4-11.6,12.2-16.9,16.7-18.6,39.5-33.3,64.1-38.5,10.4-2.2,20.6-2.1,30.9.3,21.4,4.9,40.8,16.8,55.9,32.4,6.5,6.7,12.1,13.8,16.4,22.1,1.4,2.8,1.7,5.6.9,8.6-1.1,3.9-2.5,7.5-4.4,11.3-6.8,13.8-15,26.6-24.7,38.5-1.6,2-2.8,3.9-5.4,5.1l6.3-23.7,4.8-21.6c.5-2.2,1-5.1-.2-7.1-4.1-6.8-9.5-12.3-15.4-17.6-9.5-8.6-20.3-15.1-32.8-19h0Z'/%3E%3Cpath d='M114.9,143.8c0-6.1-3.6-11.3-8.6-14.5-8.4-5.5-19.4-4.4-26.7,2.1-4.7,4.2-6.3,9.3-6.3,15.5v105c-2.6-3.5-3.7-7.4-4.9-11.5-6.5-22.5-11.4-45.2-15.1-68.4-1.4-9.1-2.3-17.7-2.7-26.9-.4-9.8,2.3-19,8.8-26.5,8.7-10.1,21.4-16.5,35.1-16.6,22.6-.2,44.1,17.5,43.4,41-.2,7.2-.6,13.9-1.8,20.9l-5.4,30.1c-3.5,16.3-7,32.3-12,48.2-1.1,3.4-1.9,6.7-4.5,9.5l.5-55.4.2-52.4h0Z'/%3E%3C/g%3E%3C/svg%3E")} /* src: assets/icons/proto-isles/pi-brand.svg */
 [data-icon="pi-player"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 386.6206 386.6206'%3E%3Cpath fill='%23fff' fill-rule='evenodd' d='M193.3103,0C86.5481,0,0,86.5481,0,193.3103s86.5481,193.3103,193.3103,193.3103,193.3103-86.5481,193.3103-193.3103S300.0725,0,193.3103,0ZM106.3647,218.2444c-3.0725-15.0527,6.2678-30.7427,21.6191-33.7837,16.9583-3.3594,32.1694,9.3909,34.0193,26.1233,1.6562,14.98-7.3413,29.2183-22.9536,31.6235-15.8347,2.4397-29.584-8.7729-32.6848-23.9631ZM260.9749,320.509l-135.3689-.1389c-3.4429-.0037-5.7217-3.5798-5.7305-5.7712-.0122-3.0747,2.3174-6.2075,6.1897-6.208l134.1665-.0149c3.5986-.0002,5.9111,2.8804,6.1829,5.4009.3589,3.3274-1.3123,5.3513-5.4397,6.7322ZM252.3625,242.0151c-15.8875,0-28.7668-12.8794-28.7668-28.7668s12.8794-28.7671,28.7668-28.7671,28.7671,12.8794,28.7671,28.7671-12.8794,28.7668-28.7671,28.7668Z'/%3E%3C/svg%3E")} /* src: assets/icons/proto-isles/pi-player.svg */
 [data-icon="pi-sword"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cg fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21 3l-.8 4.3-9.8 9.8-3.5-3.5 9.8-9.8z'/%3E%3Cpath d='M5.2 12.4l6.4 6.4M8.7 15.3 4.6 19.4'/%3E%3Ccircle cx='3.6' cy='20.4' r='.9'/%3E%3C/g%3E%3C/svg%3E")} /* src: assets/icons/proto-isles/pi-sword.svg */
-[data-icon="pi-tree"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cg fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M9 16.5H7.2a4.2 4.2 0 0 1-1.5-8.1 6.3 6.3 0 0 1 12.1-1.6 4.9 4.9 0 0 1-.9 9.7H15'/%3E%3Cpath d='M12 21.5V11.5M12 16l-2.8-2.4M12 14l2.4-2'/%3E%3C/g%3E%3C/svg%3E")} /* src: assets/icons/proto-isles/pi-tree.svg */
+[data-icon="pi-tree"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cg fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 2.5 7.2 8.6h2.6l-4.3 5.3h2.9L4.5 19h15l-3.9-5.1h2.9l-4.3-5.3h2.6z'/%3E%3Cpath d='M12 19v2.5'/%3E%3C/g%3E%3C/svg%3E")} /* src: assets/icons/proto-isles/pi-tree.svg */
 [data-icon="pi-ui"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cg fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='2.5' y='4' width='19' height='16' rx='2.6'/%3E%3Cpath d='M2.5 8.5h19M6.5 13h11M6.5 16.6h5'/%3E%3C/g%3E%3Ccircle cx='13.5' cy='13' r='1.9' fill='%23fff'/%3E%3C/svg%3E")} /* src: assets/icons/proto-isles/pi-ui.svg */
 [data-icon="pi-video"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cg fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='2.5' y='6.5' width='13' height='11' rx='2.6'/%3E%3Cpath d='M15.5 10.4 21.5 7v10l-6-3.4'/%3E%3C/g%3E%3C/svg%3E")} /* src: assets/icons/proto-isles/pi-video.svg */
 [data-icon="question"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='none' stroke='%23fff' stroke-width='2.6' stroke-linecap='round' d='M8.3 8.7a3.75 3.75 0 1 1 5 3.54c-.95.36-1.4 1.1-1.4 2.06v.85'/%3E%3Ccircle fill='%23fff' cx='11.9' cy='18.7' r='1.55'/%3E%3C/svg%3E")} /* src: assets/icons/question.svg */
@@ -4327,150 +4327,113 @@ body.modal-open{overflow:hidden}
 }
 
 /* ==========================================================================
-   WORK OVERLAY  —  MOCKUP (filler images, see script.js)
-   Shell geometry, backdrop wash, blur, curve and accent left rule are the
-   resume overlay's, so the two read as one component family.
-   The one genuinely new idea is the stage: a FIXED 3:2 matte that every image
-   letterboxes into. A hero box that tracked each image's aspect ratio would
-   shove the caption and filmstrip up and down on every arrow press, which is
-   the single worst thing about naive gallery layouts.
+   WORK OVERLAY
+   THE WALLPAPER LIGHTBOX'S LAYOUT (Dex, 2026-10-09): "a lot cleaner ... take
+   up a lot more real estate of just the important things." No panel, no fill,
+   no hatched matte: the dialog is the whole viewport over a dark blurred
+   backdrop, and the picture is as large as what is left.
+
+   Three columns -- a gutter, the work, a gutter -- and three rows -- the tabs,
+   the picture, the strip. The right gutter is where the X lives, centred in
+   it, the same 52px X the enlarged Mobius video puts in its dead space; the
+   left gutter is its twin so the picture stays centred on the screen.
    ========================================================================== */
 .work-modal{
   border:0;padding:0;background:transparent;color:var(--text);
-  width:min(96vw,1500px);max-width:none;
-  height:min(94vh,1180px);margin:auto;overflow:visible;
+  width:100vw;max-width:100vw;height:100dvh;max-height:100dvh;margin:0;overflow:hidden;
 }
 .work-modal::backdrop{
-  background:rgba(9,13,24,.86);
-  backdrop-filter:blur(7px);-webkit-backdrop-filter:blur(7px);
+  background:rgba(3,5,7,.9);
+  backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
 }
 .work-modal[open]{animation:contactIn .24s cubic-bezier(.22,.61,.36,1)}
 
 .work-shell{
-  position:relative;display:flex;flex-direction:column;height:100%;
-  border-radius:18px;overflow:hidden;
-  background:linear-gradient(160deg,#161c24,#0e1319);
-  border:1px solid var(--line);border-left:3px solid var(--accent);
-  box-shadow:0 30px 90px rgba(0,0,0,.6);
-  transition:border-color var(--accent-ease);
+  --gut:clamp(76px,7vw,124px);
+  position:relative;height:100%;display:grid;
+  grid-template-columns:var(--gut) minmax(0,1fr) var(--gut);
+  grid-template-rows:auto minmax(0,1fr) auto;
 }
 
 /* --- tab row ------------------------------------------------------------- */
-/* The X lives outside the scroller so it stays pinned at the end while the
-   tabs scroll under it on a narrow screen. */
+/* Centred along the top, no bar behind it. On a screen too narrow for every
+   tab the row scrolls from its first tab rather than clipping both ends. */
 .work-head{
-  flex:none;display:flex;align-items:stretch;gap:8px;
-  padding-left:clamp(10px,1.6vw,18px);padding-right:10px;
-  border-bottom:1px solid var(--line);background:rgba(10,13,17,.72);
+  grid-column:1/-1;grid-row:1;min-width:0;
+  display:flex;justify-content:center;padding:8px 16px 4px;
 }
 .work-tabs{
-  flex:0 1 auto;min-width:0;display:flex;align-items:stretch;gap:2px;
+  flex:0 1 auto;min-width:0;display:flex;align-items:stretch;gap:4px;
   overflow-x:auto;overscroll-behavior-x:contain;scroll-behavior:smooth;
   scrollbar-width:none;-ms-overflow-style:none;
 }
 .work-tabs::-webkit-scrollbar{display:none}
 .work-tab{
-  flex:0 0 auto;min-height:58px;padding:0 14px;cursor:pointer;white-space:nowrap;
+  flex:0 0 auto;min-height:48px;padding:0 12px;cursor:pointer;white-space:nowrap;
   display:inline-flex;align-items:center;gap:7px;
   border:0;border-bottom:2px solid transparent;background:none;
   color:var(--icon-idle);font:inherit;font-size:12px;font-weight:900;letter-spacing:.12em;
   user-select:none;-webkit-user-select:none;
-  transition:color var(--accent-ease),border-color var(--accent-ease),background .2s ease;
+  transition:color var(--accent-ease),border-color var(--accent-ease),transform .18s ease;
 }
-.work-tab:hover{color:var(--text);background:rgba(255,255,255,.04)}
+/* The lift the wallpaper thumbnails have, small. */
+.work-tab:hover{color:var(--text);transform:translateY(-2px)}
 .work-tab:focus-visible{outline:2px solid var(--accent);outline-offset:-4px;border-radius:0}
-.work-tab[aria-selected="true"]{
-  color:var(--accent);border-bottom-color:var(--accent);
-  background:color-mix(in srgb,var(--accent) 9%,transparent);
-}
+.work-tab[aria-selected="true"]{color:var(--accent);border-bottom-color:var(--accent)}
 .work-tab-count{font-size:11px;font-weight:700;letter-spacing:.06em;opacity:.5;font-variant-numeric:tabular-nums}
-/* Reuses .contact-close for colour, size and hover; only the anchoring changes. */
-.work-close{position:static;flex:0 0 auto;align-self:center;margin-left:auto}
+
+/* The enlarged Mobius video's X: 52px, 14px corners, dark glass. Centred in
+   the right gutter, level with the middle of the picture's row. */
+.work-close{
+  grid-column:3;grid-row:2;position:relative;top:auto;right:auto;
+  justify-self:center;align-self:center;z-index:3;
+  width:52px;height:52px;border-radius:14px;background:rgba(8,11,15,.72);color:#c9d0d6;
+}
+.work-close svg{width:22px;height:22px}
 
 /* --- stage --------------------------------------------------------------- */
 .work-stage{
-  flex:1 1 auto;min-height:0;display:grid;grid-template-rows:minmax(0,1fr) auto;
-  gap:clamp(9px,1.5vh,15px);padding:clamp(11px,1.9vh,20px) clamp(12px,2vw,24px);
+  grid-column:2;grid-row:2;min-height:0;min-width:0;
+  display:grid;grid-template-rows:minmax(0,1fr);padding:6px 0;
 }
-.work-stage:focus-visible{outline:2px solid var(--accent);outline-offset:-4px;border-radius:12px}
-
-/* .work-frame is whatever vertical space the panel has left over; .work-hero is
-   the fixed 3:2 box centred inside it. Sized in container-query units so both
-   axes are stated explicitly — an `aspect-ratio` box with max-width/max-height
-   is over-constrained and silently stops being 3:2 at some sizes.
-   A browser without container queries drops the two min() declarations, the
-   hero falls back to inset:0 and simply fills the frame: still a fixed box,
-   just not exactly 3:2. */
-/* THREE COLUMNS: arrow, picture, arrow. The arrows used to be absolutely
-   positioned on top of the artwork, where they were easy to lose track of --
-   the hero letterboxes every shape into one fixed box, so the edge of the
-   picture moves under them on every press while they stay put (Dex,
-   2026-09-02). Giving them their own columns reserves the space at every
-   width, rather than only at the wide ones where the matte happened to leave
-   a gutter.
-   align-items:stretch, not center: .work-hero-area needs a definite height
-   for container-type:size to resolve against, and a centred flex item has
-   none. The arrows centre themselves instead. */
-.work-frame{position:relative;min-height:0;display:flex;align-items:stretch;gap:clamp(4px,1.1vw,14px)}
-/* The container the hero measures itself in. It has to be this rather than
-   .work-frame: cqw on the row would include both arrow columns, and the 3:2
-   box would overhang them. */
-.work-hero-area{position:relative;flex:1 1 auto;min-width:0;min-height:0;container-type:size}
-/* A tab with nothing in it yet (Proto Isles' placeholders): the matte, a
-   line saying so, and no arrows that would walk nothing. */
+.work-stage:focus-visible{outline:none}
+.work-frame{position:relative;min-height:0;display:flex;align-items:stretch}
+/* The container the picture measures itself in: both axes are stated in
+   container units, so the box is the picture's own shape fitted to the area
+   -- an aspect-ratio box with max-width and max-height is over-constrained
+   and silently stops keeping its ratio. --hero-ar is the piece's w/h, written
+   by script.js when its picture lands. */
+.work-hero-area{--hero-ar:1.5;position:relative;flex:1 1 auto;min-width:0;min-height:0;container-type:size}
+.work-hero,.work-over{
+  position:absolute;inset:0;margin:auto;
+  width:min(100cqw,calc(100cqh * var(--hero-ar)));
+  height:min(100cqh,calc(100cqw / var(--hero-ar)));
+}
+.work-hero{
+  overflow:hidden;border-radius:12px;
+  box-shadow:0 30px 90px rgba(0,0,0,.6);
+}
+.work-hero-pic{display:block;width:100%;height:100%}
+.work-hero-img{
+  width:100%;height:100%;object-fit:contain;display:block;
+  transition:opacity .16s ease;
+}
+/* A tab with nothing in it yet (Proto Isles' Video): a quiet box, a line
+   saying so, and no title or arrows that would walk nothing. */
+.work-stage.is-empty .work-hero{background:rgba(255,255,255,.03);border:1px solid var(--line);box-shadow:none}
 .work-stage.is-empty .work-hero-img{visibility:hidden}
 .work-stage.is-empty .work-hero::after{
   content:attr(data-empty);position:absolute;inset:0;display:grid;place-items:center;
   font-weight:900;letter-spacing:.2em;font-size:clamp(16px,4cqw,40px);color:var(--text);opacity:.85}
-.work-stage.is-empty .work-nav{visibility:hidden}
-.work-hero{
-  --hero-ar:1.5;
-  position:absolute;inset:0;margin:auto;
-  width:min(100cqw,calc(100cqh * var(--hero-ar)));
-  height:min(100cqh,calc(100cqw / var(--hero-ar)));
-  overflow:hidden;
-  border:1px solid var(--line);border-radius:12px;
-  /* The visible cost of a fixed box is empty space around tall images. A very
-     low contrast accent hatch makes it read as an intentional matte rather than
-     an image that has not finished loading — 3% is the ceiling here, above that
-     it stops being a surface and starts competing with the artwork. */
-  background:
-    radial-gradient(120% 100% at 50% 42%,rgba(255,255,255,.026),transparent 72%),
-    repeating-linear-gradient(45deg,
-      color-mix(in srgb,var(--accent) 3%,transparent) 0 12px,
-      transparent 12px 24px),
-    linear-gradient(160deg,#12171d,#0a0d11);
-  transition:background var(--accent-ease),border-color var(--accent-ease);
-}
-/* Absolutely positioned and centred with auto margins, NOT a centred grid item:
-   a grid row sizes itself to the image's intrinsic height, which leaves
-   max-height:100% resolving against an indefinite area, so a 900x1600 portrait
-   renders at 1600px tall and hangs straight out of the matte. Against an
-   absolutely positioned box the percentages resolve against the hero itself,
-   which is definite by construction. */
-.work-hero-img{
-  position:absolute;inset:0;margin:auto;
-  max-width:100%;max-height:100%;width:auto;height:auto;
-  object-fit:contain;display:block;
-  filter:drop-shadow(0 16px 38px rgba(0,0,0,.45));
-  transition:opacity .16s ease;
-}
+.work-stage.is-empty :is(.work-nav,.work-plate){visibility:hidden}
 
 /* A VERY TALL PIECE FILLS THE WIDTH AND SCROLLS instead of being fitted to the
-   height. Fitting a 400x1600 sheet into a 3:2 box leaves it using 16% of the
-   frame width -- a column of unreadable thumbnail in the middle of a large
-   empty box. At or past the threshold in script.js (w/h <= 0.75, which is
-   every piece that would otherwise get half the frame or less) the image
-   goes full width, the frame scrolls, and each swap starts at the top.
-
-   position:static is the load-bearing part: the fitted rule centres the image
-   with absolute inset and auto margins, and an absolutely positioned child
-   gives its scroll container nothing to scroll. */
+   height. At or past the threshold in script.js (w/h <= 0.75) the box is 3:2
+   rather than the piece's own shape, the image goes full width inside it, the
+   box scrolls, and each swap starts at the top. */
 .work-hero.is-tall{overflow-y:auto;overscroll-behavior:contain}
-.work-hero.is-tall .work-hero-img{
-  position:static;margin:0;
-  width:100%;height:auto;max-width:100%;max-height:none;
-}
+.work-hero.is-tall .work-hero-pic{height:auto}
+.work-hero.is-tall .work-hero-img{width:100%;height:auto}
 /* Thumb only, in the accent, matching the notes overlay's bar. */
 .work-hero.is-tall::-webkit-scrollbar{width:10px;background:transparent}
 .work-hero.is-tall::-webkit-scrollbar-track{background:transparent}
@@ -4487,13 +4450,36 @@ body.modal-open{overflow:hidden}
    strobing when the arrow key is held down. */
 .work-hero-img.is-fading{opacity:.25}
 
+/* What sits ON the picture, in a box the picture's size laid over it. It
+   takes no pointer itself, so the picture under it still scrolls. */
+.work-over{z-index:2;pointer-events:none}
+/* The title, top left, white with the wallpaper plate's two shadows: a tight
+   dark one for edge contrast on light art and a wide soft one off busy detail. */
+.work-plate{position:absolute;left:0;right:0;top:0;margin:0;padding:18px 22px;pointer-events:none}
+.work-cap-title{
+  display:block;color:#fff;
+  text-shadow:0 1px 2px rgba(0,0,0,.85), 0 4px 22px rgba(0,0,0,.65);
+  font-size:clamp(20px,2.2vw,32px);font-weight:800;letter-spacing:-.02em;line-height:1.15;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+
+/* The arrows on the picture's edges: up while the pointer is on the picture
+   (or within reach of one, or focus is on it), always up on touch. */
+.work-nav-col{
+  position:absolute;top:50%;translate:0 -50%;display:grid;pointer-events:auto;
+  opacity:0;transition:opacity .2s ease;
+}
+.work-nav-col.prev{left:16px}
+.work-nav-col.next{right:16px}
+.work-hero.is-tall ~ .work-over .work-nav-col.next{right:22px}
+.work-hero-area:hover .work-nav-col,.work-nav-col.is-near,.work-nav-col:focus-within{opacity:1}
+@media (hover:none) and (pointer:coarse){ .work-nav-col{opacity:1} }
 .work-nav{
-  flex:0 0 auto;align-self:center;
   width:46px;height:46px;display:grid;place-items:center;padding:0;cursor:pointer;
   border:var(--stroke) solid var(--line);border-radius:50%;
   background:rgba(8,11,15,.74);backdrop-filter:blur(5px);-webkit-backdrop-filter:blur(5px);
   color:var(--text);
-  transition:color var(--accent-ease),border-color var(--accent-ease),background .2s ease,transform .2s ease,opacity .2s ease;
+  transition:color var(--accent-ease),border-color var(--accent-ease),background .2s ease,transform .2s ease;
 }
 .work-nav .icon{width:19px;height:19px}
 /* One arrow mask, mirrored — no second icon to bake. */
@@ -4502,14 +4488,12 @@ body.modal-open{overflow:hidden}
 .work-nav.prev:hover{transform:translateX(-2px)}
 .work-nav.next:hover{transform:translateX(2px)}
 .work-nav:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
-/* No :disabled rule: the ends wrap now, so neither arrow is ever dead. */
 
-/* The column each arrow sits in is exactly the arrow's size, so the category
-   button can hang off its top (bottom:100%) without moving the arrow a pixel.
-   Same circle, same glass, the next tab's icon in it. Faded out until the
-   pointer comes within two arrow-widths (script.js, nearWorkJumps), shown by
-   keyboard focus too, and always shown where there is no hover to reveal it. */
-.work-nav-col{position:relative;flex:0 0 auto;align-self:center;display:grid}
+/* The category button hangs off the top of its arrow's column
+   (bottom:100%) without moving the arrow a pixel. Same circle, same glass,
+   the next tab's icon in it. Faded out until the pointer comes within two
+   arrow-widths (script.js, nearWorkJumps), shown by keyboard focus too, and
+   always shown where there is no hover to reveal it. */
 .work-jump{
   position:absolute;left:0;bottom:calc(100% + 12px);
   width:100%;aspect-ratio:1;display:grid;place-items:center;padding:0;cursor:pointer;
@@ -4527,65 +4511,69 @@ body.modal-open{overflow:hidden}
 .work-jump:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
 @media (hover:none) and (pointer:coarse){ .work-jump{opacity:1;pointer-events:auto;transform:none} }
 
-/* --- caption ------------------------------------------------------------- */
-.work-cap{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;min-height:24px}
-.work-cap-title{font-size:16px;font-weight:800;letter-spacing:.01em}
-.work-cap-desc{color:var(--muted);font-size:12px;letter-spacing:.06em}
-/* Tabular figures so 09/10 -> 10/10 does not shuffle the whole line. */
+/* --- filmstrip ----------------------------------------------------------- */
+/* Eight to a page (fewer where eight would not fit), on a track that slides
+   to the page holding the selection -- the wallpaper strip's mechanism.
+   --per-page comes from script.js, measured; the shift is pure arithmetic on
+   --tw and --tgap because every thumbnail is exactly --tw wide. */
+.work-strip-wrap{
+  grid-column:2;grid-row:3;min-width:0;display:flex;justify-content:center;
+  padding:6px 0 calc(16px + env(safe-area-inset-bottom,0px));
+}
+.work-strip-row{position:relative;display:flex;align-items:center;gap:12px;min-width:0}
+.work-strip{
+  --tw:clamp(64px,7.4vw,132px);--tgap:10px;
+  flex:0 1 auto;min-width:0;overflow:hidden;padding:7px 0 3px;
+  width:calc(var(--per-page,8) * var(--tw) + (var(--per-page,8) - 1) * var(--tgap));
+}
+.work-track{
+  display:flex;gap:var(--tgap);
+  transform:translateX(calc(var(--page,0) * var(--per-page,8) * (var(--tw) + var(--tgap)) * -1));
+  transition:transform .38s cubic-bezier(.22,.61,.36,1);
+}
+@media(prefers-reduced-motion:reduce){ .work-track{transition:none} }
+/* Thumbnails crop (object-fit:cover); only the hero fits the whole piece. A
+   strip of letterboxed thumbs at ten different aspect ratios is unreadable. */
+.work-thumb{
+  flex:0 0 var(--tw);width:var(--tw);aspect-ratio:3/2;padding:0;cursor:pointer;position:relative;
+  border:var(--stroke) solid rgba(255,255,255,.12);border-radius:8px;overflow:hidden;background:#0b0f12;
+  opacity:.82;transition:opacity .18s ease,border-color var(--accent-ease),transform .18s ease;
+}
+.work-thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.work-thumb:hover{opacity:.95;transform:translateY(-4px)}
+.work-thumb[aria-current="true"]{opacity:1;border-color:var(--accent)}
+.work-thumb:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+/* 01 / 08, the current one in the accent. Out of flow, just right of the
+   strip's own arrow, so the strip stays centred whatever it reads. */
 .work-cap-index{
-  margin-left:auto;color:var(--icon-idle);font-size:11px;font-weight:800;
+  position:absolute;left:calc(100% + 16px);top:50%;translate:0 -50%;min-width:72px;
+  color:var(--icon-idle);font-size:13px;font-weight:800;
   letter-spacing:.14em;font-variant-numeric:tabular-nums;white-space:nowrap;
 }
 .work-cap-index b{color:var(--accent);font-weight:800;transition:color var(--accent-ease)}
+.work-stage.is-empty ~ .work-strip-wrap .work-step{visibility:hidden}
 
-/* --- filmstrip ----------------------------------------------------------- */
-/* Thumbnails crop (object-fit:cover); only the hero letterboxes. A strip of
-   letterboxed thumbs at ten different aspect ratios is unreadable. */
-.work-strip-wrap{
-  flex:none;display:flex;align-items:center;gap:18px;
-  border-top:1px solid var(--line);background:rgba(10,13,17,.72);
-  padding:11px clamp(12px,2vw,24px);
-  padding-bottom:calc(11px + env(safe-area-inset-bottom,0px));
-}
-.work-strip{
-  flex:1 1 auto;min-width:0;display:flex;gap:10px;
-  overflow-x:auto;overscroll-behavior-x:contain;scroll-behavior:smooth;
-  padding:4px 2px 8px;
-  scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.2) transparent;
-}
-.work-thumb{
-  flex:0 0 auto;width:96px;height:64px;padding:0;cursor:pointer;position:relative;
-  border:var(--stroke) solid var(--line);border-radius:9px;overflow:hidden;background:#0e1217;
-  transition:border-color var(--accent-ease),transform .18s ease,box-shadow var(--accent-ease);
-}
-.work-thumb img{width:100%;height:100%;object-fit:cover;display:block;opacity:.55;transition:opacity .18s ease}
-.work-thumb:hover{transform:translateY(-2px)}
-.work-thumb:hover img{opacity:.9}
-.work-thumb[aria-current="true"]{
-  border-color:var(--accent);transform:translateY(-2px);
-  box-shadow:0 6px 18px color-mix(in srgb,var(--accent) 24%,transparent);
-}
-.work-thumb[aria-current="true"] img{opacity:1}
-.work-thumb:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-.work-hint{flex:0 0 auto;margin:0;color:var(--icon-idle);font-size:10px;font-weight:800;letter-spacing:.16em;opacity:.65;white-space:nowrap}
-.work-hint b{color:var(--muted);font-weight:800}
-
-@media(max-width:900px){ .work-hint{display:none} }
 @media(max-width:760px){
-  .work-modal{width:100vw;height:100dvh;max-height:none}
-  .work-shell{border-radius:0;border-left-width:3px}
-  .work-tab{min-height:52px;padding:0 12px;font-size:11px;letter-spacing:.1em}
-  /* A phone's stage is tall and narrow, so a 3:2 box would leave a third of it
-     empty above and below the matte. Here the frame IS the box — still one
-     fixed size per viewport, which is the property that keeps the caption and
-     filmstrip still, just without the wasted band. */
-  .work-hero{width:100%;height:100%}
-  .work-cap-title{font-size:14px}
+  /* No gutters on a phone: the picture takes the width, the X goes to the
+     top right corner beside the tabs, the strip's arrows give way to a swipe
+     on the picture, and the count follows the strip in the row. */
+  .work-shell{--gut:0px}
+  .work-head{padding:6px 60px 2px 8px}
+  .work-close{grid-column:1/-1;grid-row:1;justify-self:end;align-self:start;margin:6px 8px 0 0;width:44px;height:44px;border-radius:12px}
+  .work-close svg{width:19px;height:19px}
+  .work-tab{min-height:44px;padding:0 11px;font-size:11px;letter-spacing:.1em}
+  .work-stage{padding:4px 8px}
+  .work-plate{padding:12px 14px}
+  .work-cap-title{font-size:16px}
   .work-nav{width:34px;height:34px}
   .work-nav .icon{width:15px;height:15px}
+  .work-nav-col.prev{left:8px}
+  .work-nav-col.next{right:8px}
   .work-jump .icon{width:17px;height:17px}
   .work-jump{bottom:calc(100% + 8px)}
-  .work-thumb{width:74px;height:52px}
+  .work-strip-row .work-step{display:none}
+  .work-strip-wrap{padding:4px 8px calc(10px + env(safe-area-inset-bottom,0px))}
+  .work-cap-index{position:static;translate:none;min-width:0;font-size:11px}
 }
 
 /* ==========================================================================
@@ -5065,8 +5053,8 @@ body.modal-open{overflow:hidden}
    Listed together rather than per-carousel: scoping the rotation to .wp-prev
    left the overlay and the clips arrows pointing at the floor the moment they
    were added. Any new arrow gets its class added here, not its own rule. */
-.wp-prev .icon,.wp-fullprev .icon,.cl-prev .icon,.app-art-prev .icon,.app-shot-prev .icon,.app-shot-rail-prev .icon{transform:rotate(90deg)}
-.wp-next .icon,.wp-fullnext .icon,.cl-next .icon,.app-art-next .icon,.app-shot-next .icon,.app-shot-rail-next .icon{transform:rotate(-90deg)}
+.wp-prev .icon,.wp-fullprev .icon,.work-step.prev .icon,.cl-prev .icon,.app-art-prev .icon,.app-shot-prev .icon,.app-shot-rail-prev .icon{transform:rotate(90deg)}
+.wp-next .icon,.wp-fullnext .icon,.work-step.next .icon,.cl-next .icon,.app-art-next .icon,.app-shot-next .icon,.app-shot-rail-next .icon{transform:rotate(-90deg)}
 
 /* The overlay's strip, centred under the piece. The panel's is the grid below
    and shares everything here except the container. */
@@ -5178,7 +5166,8 @@ body.modal-open{overflow:hidden}
 }
 .wp-full picture{display:block;width:100%;height:100%}
 .wp-full img{width:100%;height:100%;object-fit:contain;display:block}
-.wp-thumbs-lg{max-width:min(90vw, 900px);margin-top:-2px}
+/* Wide enough for a page of eight at the full 132px (8 x 132 + 7 x 8). */
+.wp-thumbs-lg{width:min(90vw, 1112px);max-width:min(90vw, 1112px);margin-top:-2px}
 @media (max-width:900px){
   .wp-close{top:-46px;right:0}
   .wp-full{width:min(80vw, calc(66dvh * 16 / 10))}

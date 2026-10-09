@@ -94,9 +94,20 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
   overlay + CARD CAROUSEL (343 pieces in eight categories, loaded once from
   `assets/work/work.json` — written by `tools/bake_work.py`, carrying FINISHED
   srcset strings so the same rule holds here; `paintPicture()`/`warmPicture()`
-  fill and pre-negotiate every `<picture>`; hero is a fixed 3:2 box on
-  purpose, with the two arrows OUTSIDE it in their own flex columns and
-  wrapping at both ends; the eight featured cards cross-fade five frames each
+  fill and pre-negotiate every `<picture>`; the overlay is the WALLPAPER
+  LIGHTBOX'S LAYOUT (Dex, 2026-10-09): a full-viewport dialog with no panel
+  or matte, three columns (gutter, work, gutter) and three rows (tabs centred,
+  picture, strip). `#workHero` is sized to the PICTURE's own aspect
+  (`--hero-ar` on `.work-hero-area`, set when the decoded image lands) so the
+  title in `.work-over` sits on the art's top-left corner; a sheet at w/h <=
+  0.75 keeps a 3:2 box and scrolls. The X is the enlarged Mobius video's 52px
+  X, centred in the right gutter. Arrows on the picture show on hover (always
+  on touch), the strip's own arrows sit either side of it, and both wrap; the
+  strip is EIGHT a page on a sliding `.work-track` (fewer when eight do not
+  fit, `layoutWorkStrip()`), the page following the selection, with the count
+  out of flow to its right so the strip stays centred. A thumbnail hover
+  previews in the picture without selecting; the wheel steps one piece a tick;
+  a click in the dark round it closes. The eight featured cards cross-fade five frames each
   on ONE round-robin interval, frame 0 from the markup and 1-4 from the
   manifest. The sweep is THREE COLUMNS, not five items: the video, then the
   left pair of thumbnails, then the right pair, `STEP_MS` 300 apart on a

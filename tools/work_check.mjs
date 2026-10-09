@@ -374,24 +374,156 @@ await page.waitForFunction(
       panelH: Math.round(panel.height),
       boxW: Math.round(box.width), boxH: Math.round(box.height),
       heroW: Math.round(hero.width), heroH: Math.round(hero.height),
-      prevGap: Math.round(box.left - r('workPrev').right),
-      nextGap: Math.round(r('workNext').left - box.right),
       thumbs: document.querySelectorAll('.work-thumb').length,
       tabs: document.querySelectorAll('.work-tab').length,
     };
   });
   console.log(`overlay: panel ${shape.panelDisplay} ${shape.panelH}px, frame ` +
-              `${shape.boxW}x${shape.boxH}, image ${shape.heroW}x${shape.heroH}, ` +
-              `arrows ${shape.prevGap}/${shape.nextGap}px clear, ${shape.thumbs} thumbs`);
+              `${shape.boxW}x${shape.boxH}, image ${shape.heroW}x${shape.heroH}, ${shape.thumbs} thumbs`);
   note(shape.panelDisplay === 'grid', `the overlay panel is display:${shape.panelDisplay}`);
   note(shape.boxH > 300, `the hero frame is only ${shape.boxH}px tall — it has collapsed`);
   note(shape.heroW > 200 && shape.heroH > 200,
        `the hero image renders at ${shape.heroW}x${shape.heroH}`);
-  note(shape.prevGap >= 0 && shape.nextGap >= 0, 'an arrow overlaps the picture');
   note(shape.tabs === 8, `${shape.tabs} tabs, expected 8`);
   note(shape.thumbs > 10, `${shape.thumbs} filmstrip thumbs`);
   await page.screenshot({ path: join(SHOTS, 'work-overlay.png') });
-  await page.keyboard.press('Escape');
+
+  /* ---- 4b. THE WALLPAPER LIGHTBOX'S LAYOUT (Dex, 2026-10-09) ------------
+     No panel and no hatched matte; the picture's box IS the picture, with
+     the title on it at the top left; the tabs centred on the screen; the X
+     in the dead space right of the picture, centred in it, at the enlarged
+     Mobius video's 52px; no BROWSE / ESC CLOSE line; eight thumbnails a page
+     with the strip centred and the count just right of it; arrows on the
+     picture only while the pointer is on it.
+     FALSELY PASSES IF: the box were measured instead of the picture (it is
+     asserted that they are the same box, within a pixel, off the image's
+     own aspect), or the arrows' rest state were read off a class (it is the
+     computed opacity, with the pointer parked off the picture). */
+  await page.mouse.move(3, 3);
+  await new Promise(r => setTimeout(r, 400));
+  const lay = await page.evaluate(() => {
+    const r = (el) => (typeof el === 'string' ? document.querySelector(el) : el).getBoundingClientRect();
+    const img = document.getElementById('workHeroImg');
+    const hero = r('#workHero'), title = r('#workCapTitle'), x = r('#workClose');
+    const strip = r('#workStrip'), count = r('#workCapIndex'), tabs = r('#workTabs');
+    const shown = [...document.querySelectorAll('#workStrip .work-thumb')]
+      .filter(t => { const b = t.getBoundingClientRect(); return b.right > strip.left + 1 && b.left < strip.right - 1; });
+    const shell = getComputedStyle(document.querySelector('.work-shell'));
+    const heroBg = getComputedStyle(document.getElementById('workHero')).backgroundImage;
+    return {
+      vw: document.documentElement.clientWidth,
+      tall: document.getElementById('workHero').classList.contains('is-tall'),
+      boxAr: hero.width / hero.height, imgAr: img.naturalWidth / img.naturalHeight,
+      shellBg: shell.backgroundImage + ' ' + shell.backgroundColor, heroBg,
+      titleIn: title.left >= hero.left && title.top >= hero.top && title.left - hero.left < 40 && title.top - hero.top < 40,
+      titleText: document.getElementById('workCapTitle').textContent,
+      shadow: getComputedStyle(document.getElementById('workCapTitle')).textShadow,
+      tabsMid: Math.round(tabs.left + tabs.width / 2),
+      x: { w: Math.round(x.width), cx: x.left + x.width / 2, cy: x.top + x.height / 2 },
+      hero: { right: hero.right, cy: hero.top + hero.height / 2 },
+      stageRight: r('#workPanel').right,
+      hint: !!document.querySelector('.work-hint'),
+      shown: shown.length, all: document.querySelectorAll('#workStrip .work-thumb').length,
+      stripMid: Math.round(strip.left + strip.width / 2), countGap: Math.round(count.left - strip.right),
+      arrowOp: getComputedStyle(document.getElementById('workNext').parentElement).opacity,
+      index: document.getElementById('workCapIndex').textContent,
+      indexColor: getComputedStyle(document.querySelector('#workCapIndex b')).color,
+      accent: getComputedStyle(document.documentElement).getPropertyValue('--accent').trim(),
+    };
+  });
+  console.log(`layout: box ${lay.boxAr.toFixed(3)} vs image ${lay.imgAr.toFixed(3)}, title "${lay.titleText}" in=${lay.titleIn}, ` +
+              `X ${lay.x.w}px at ${Math.round(lay.x.cx)} (gutter centre ${Math.round((lay.stageRight + lay.vw) / 2)}), ` +
+              `${lay.shown}/${lay.all} thumbs shown, strip centre ${lay.stripMid}, count ${lay.countGap}px right of it, arrows at ${lay.arrowOp}`);
+  note(lay.tall || Math.abs(lay.boxAr - lay.imgAr) < 0.01, `the picture's box is ${lay.boxAr.toFixed(3)} wide for a ${lay.imgAr.toFixed(3)} image -- a matte is back`);
+  note(!/repeating-linear-gradient/.test(lay.heroBg) && lay.heroBg === 'none', `the hero still paints ${lay.heroBg}`);
+  note(/none/.test(lay.shellBg) && /rgba\(0, 0, 0, 0\)/.test(lay.shellBg), `the overlay has a panel fill again: ${lay.shellBg}`);
+  note(lay.titleIn && lay.titleText.length > 0, 'the title is not on the picture at its top left');
+  note(lay.shadow !== 'none', 'the title on the picture has no shadow to read on light art');
+  note(Math.abs(lay.tabsMid - lay.vw / 2) <= 2, `the tabs are centred at ${lay.tabsMid} of ${lay.vw}`);
+  note(lay.x.w === 52, `the X is ${lay.x.w}px, not the enlarged Mobius video's 52`);
+  /* Centred in the right GUTTER, not in whatever gap this picture leaves:
+     the box follows each piece's shape, and an X that followed it would
+     move on every arrow press. */
+  note(lay.x.cx > lay.hero.right + 26 && Math.abs(lay.x.cx - (lay.stageRight + lay.vw) / 2) <= 1,
+       `the X is not centred in the space right of the picture (${Math.round(lay.x.cx)} against ${Math.round(lay.stageRight)}..${lay.vw})`);
+  note(Math.abs(lay.x.cy - lay.hero.cy) <= 2, `the X is ${Math.round(lay.x.cy - lay.hero.cy)}px off the picture's middle`);
+  note(!lay.hint, 'the BROWSE / ESC CLOSE line is still there');
+  note(lay.shown === 8 && lay.all > 8, `${lay.shown} of ${lay.all} thumbnails are in the strip's window, not a page of eight`);
+  note(Math.abs(lay.stripMid - lay.vw / 2) <= 2, `the strip is centred at ${lay.stripMid} of ${lay.vw} -- the count pulled it over`);
+  note(lay.countGap > 0, 'the count is not to the right of the strip');
+  note(/^01 \/ \d\d$/.test(lay.index), `the count reads "${lay.index}"`);
+  note(lay.arrowOp === '0', `with the pointer off the picture its arrows are at opacity ${lay.arrowOp}`);
+
+  // The page follows the selection: the ninth piece slides the next eight in.
+  const paged = await page.evaluate(async () => {
+    document.querySelectorAll('#workStrip .work-thumb')[8].click();
+    await new Promise(r => setTimeout(r, 700));
+    const strip = document.getElementById('workStrip').getBoundingClientRect();
+    const t = document.querySelectorAll('#workStrip .work-thumb')[8].getBoundingClientRect();
+    return { inside: t.left >= strip.left - 1 && t.right <= strip.right + 1,
+             index: document.getElementById('workCapIndex').textContent };
+  });
+  note(paged.inside && /^09 \//.test(paged.index), `the ninth piece did not page the strip: ${JSON.stringify(paged)}`);
+
+  /* A hover on a thumbnail previews it in the big picture and leaving puts
+     the selection back, with the count never moving -- under a REAL pointer. */
+  const thumbAt = await page.evaluate(() => { const b = document.querySelectorAll('#workStrip .work-thumb')[10].getBoundingClientRect();
+    return { x: b.left + b.width / 2, y: b.top + b.height / 2 }; });
+  const titleOf = () => page.evaluate(() => [document.getElementById('workCapTitle').textContent, document.getElementById('workCapIndex').textContent]);
+  const before = await titleOf();
+  await page.mouse.move(thumbAt.x, thumbAt.y, { steps: 4 });
+  await new Promise(r => setTimeout(r, 900));
+  const during = await page.evaluate(() => { const stemOf = u => (u || '').split('/').pop().split('?')[0].replace(/(-\d{3,4})?\.(avif|webp|png|jpe?g)$/i, ''); return [document.getElementById('workCapTitle').textContent, document.getElementById('workCapIndex').textContent,
+    stemOf(document.getElementById('workHeroImg').currentSrc), stemOf(document.querySelectorAll('#workStrip .work-thumb')[10].querySelector('img').src)]; });
+  await page.mouse.move(3, 3, { steps: 4 });
+  await new Promise(r => setTimeout(r, 900));
+  const after = await titleOf();
+  note(during[2] === during[3] && during[1] === before[1], `hovering thumbnail 11 showed ${during[2]} (wanted ${during[3]}) and the count read ${during[1]}`);
+  note(after[0] === before[0] && after[1] === before[1], `leaving the strip left ${JSON.stringify(after)} up, not ${JSON.stringify(before)}`);
+
+  // THE WHEEL: one piece a tick, forward and back.
+  const mid = await page.evaluate(() => { const b = document.getElementById('workHero').getBoundingClientRect();
+    return { x: b.left + b.width / 2, y: b.top + b.height / 2, tall: document.getElementById('workHero').classList.contains('is-tall') }; });
+  const at = async () => page.evaluate(() => parseInt(document.getElementById('workCapIndex').textContent, 10));
+  // Over the right gutter, above the X: nothing tall can claim the wheel there.
+  const gutterAt = await page.evaluate(() => { const b = document.querySelector('.work-close').getBoundingClientRect(); return { x: b.left + b.width / 2, y: b.top - 40 }; });
+  const w0 = await at();
+  await page.mouse.move(gutterAt.x, gutterAt.y);
+  for (let i = 0; i < 3; i++) { await page.mouse.wheel({ deltaY: 100 }); await new Promise(r => setTimeout(r, 160)); }
+  const w3 = await at();
+  await page.mouse.wheel({ deltaY: -100 }); await new Promise(r => setTimeout(r, 160));
+  const w2 = await at();
+  note(w3 === w0 + 3 && w2 === w0 + 2, `three wheel ticks down and one up went ${w0} -> ${w3} -> ${w2}`);
+
+  // A click in the dark beside the picture closes, as round a wallpaper.
+  await page.mouse.click(Math.round(mid.x), 3 + Math.round((await page.evaluate(() => document.querySelector('.work-head').getBoundingClientRect().bottom))));
+  await new Promise(r => setTimeout(r, 400));
+  const closedByDark = await page.evaluate(() => !document.getElementById('workModal').open);
+  note(closedByDark, 'a click in the dark between the tabs and the picture did not close the gallery');
+  console.log(`work layout: paged ${paged.index}, hover ${during[2]}, wheel ${w0}->${w3}->${w2}, dark click closes=${closedByDark}`);
+
+  /* THE WALLPAPER LIGHTBOX SHOWS EVERY WALLPAPER (Dex, 2026-10-09: "not all
+     of the wallpapers are showing"). Five a page hid three of the eight.
+     Counted against the figures in the markup, so a ninth wallpaper makes
+     this the paging case rather than a silent pass. */
+  const wp = await page.evaluate(async () => {
+    document.getElementById('wpFrame').click();
+    await new Promise(r => setTimeout(r, 900));
+    const strip = document.getElementById('wpFullThumbs').getBoundingClientRect();
+    const thumbs = [...document.querySelectorAll('#wpFullThumbs .wp-thumb')];
+    const shown = thumbs.filter(t => { const b = t.getBoundingClientRect(); return b.width > 40 && b.right <= strip.right + 1 && b.left >= strip.left - 1; });
+    const out = { open: document.getElementById('wpModal').open, figures: document.querySelectorAll('#wallpapers .wp-item').length,
+      thumbs: thumbs.length, shown: shown.length, w: Math.round(thumbs[0]?.getBoundingClientRect().width || 0) };
+    document.getElementById('wpModal').close();
+    return out;
+  });
+  console.log(`wallpaper lightbox: ${wp.shown} of ${wp.thumbs} thumbnails shown (${wp.figures} wallpapers), ${wp.w}px each`);
+  note(wp.open, 'the wallpaper lightbox did not open');
+  note(wp.figures >= 8 && wp.thumbs === wp.figures, `${wp.thumbs} thumbnails for ${wp.figures} wallpapers`);
+  note(wp.shown === Math.min(8, wp.figures), `the wallpaper lightbox shows ${wp.shown} of its ${wp.figures} wallpapers`);
+  note(wp.w >= 100, `the wallpaper thumbnails are ${wp.w}px wide`);
+
+  await page.evaluate(() => document.querySelectorAll('dialog[open]').forEach(d => d.close()));
   await new Promise(r => setTimeout(r, 400));
   await page.screenshot({ path: join(SHOTS, 'work-stage.png') });
 }
@@ -1651,8 +1783,13 @@ await page.waitForFunction(
   // read 0.92 once, Chrome stalling the transition between compositor ticks.
   const settle = async () => {
     await new Promise(r => setTimeout(r, 60));
+    /* And until the picture has landed: its box is the picture's own shape
+       now, so the arrows on it move when a tab whose first piece is another
+       shape (Featured's key art is 16:10, the rest 1920x920) finishes
+       decoding -- and the dialog's own opening animation moves everything. */
     await page.waitForFunction(() => !document.getAnimations()
-      .some(a => a.effect?.target?.classList?.contains('work-jump')), { timeout: 3000 }).catch(() => {});
+      .some(a => a.effect?.target?.classList?.contains('work-jump') || a.effect?.target?.id === 'workModal')
+      && !document.getElementById('workHeroImg').classList.contains('is-fading'), { timeout: 3000 }).catch(() => {});
   };
   await page.mouse.move(5, 5); await settle();
   let j = await jumps();
@@ -1697,6 +1834,7 @@ await page.waitForFunction(
   // Wrapping: Featured's right-hand button is Video, and the empty Video tab
   // still has both, so it is not a dead end.
   await page.evaluate(() => document.getElementById('work-tab-featured').click());
+  await settle();
   j = await jumps();
   note(j.prev.icon === 'pi-ui' && j.next.icon === 'pi-video', `on Featured the buttons wear ${j.prev.icon} / ${j.next.icon}`);
   await press('next');
