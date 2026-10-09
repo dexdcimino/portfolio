@@ -2133,19 +2133,48 @@ if (workModal) {
       if (video.videoWidth && video.videoHeight) item.style.setProperty('--fv-ar', video.videoWidth / video.videoHeight);
     });
     const close = item.querySelector('.fv-close');
-    full?.addEventListener('click', () => {
-      if (item.matches(':popover-open')) { item.hidePopover(); return; }
+    const isMax = () => item.matches(':popover-open');
+    const shrink = () => { if (isMax()) item.hidePopover(); };
+    const enlarge = () => {
+      if (isMax()) return;
       if (!item.showPopover) { video.webkitEnterFullscreen?.(); return; }
-      item.setAttribute('popover', 'auto');
+      /* MANUAL, not auto: an auto popover's light dismiss closes it and then
+         lets the same click land on whatever was under it -- another
+         featured thumbnail the visitor cannot even see. Instead the page
+         under it takes no pointer at all (html.fv-maxed), so a click outside
+         reaches only the document, and that click closes it and nothing else. */
+      item.setAttribute('popover', 'manual');
       item.showPopover();
+    };
+    full?.addEventListener('click', () => (isMax() ? shrink() : enlarge()));
+    close?.addEventListener('click', shrink);
+    // A double click on the picture enlarges it (Dex), and in the overlay shrinks it.
+    item.addEventListener('dblclick', e => {
+      if (e.target.closest('.fv-bar, .fv-actions, .fv-info, .fv-desc, .fv-close')) return;
+      isMax() ? shrink() : enlarge();
     });
-    close?.addEventListener('click', () => { if (item.matches(':popover-open')) item.hidePopover(); });
+    const outside = e => {
+      if (!isMax() || item.contains(e.target)) return;
+      e.preventDefault(); e.stopPropagation();
+      if (e.type === 'click') shrink();
+    };
+    const escape = e => {
+      if (e.key !== 'Escape' || !isMax()) return;
+      e.preventDefault(); e.stopPropagation();
+      shrink();
+    };
     item.addEventListener('toggle', e => {
       const on = e.newState === 'open';
       item.classList.toggle('is-max', on);
+      document.documentElement.classList.toggle('fv-maxed', on);
       icon(full, on ? 'fullscreen-exit' : 'fullscreen');
       full?.setAttribute('aria-label', on ? 'Shrink video' : 'Enlarge video');
-      if (!on) item.removeAttribute('popover');
+      for (const type of ['pointerdown', 'mousedown', 'click', 'dblclick']) {
+        if (on) document.addEventListener(type, outside, true);
+        else document.removeEventListener(type, outside, true);
+      }
+      if (on) document.addEventListener('keydown', escape, true);
+      else { document.removeEventListener('keydown', escape, true); item.removeAttribute('popover'); }
     });
 
     new IntersectionObserver(entries => { seen = entries[entries.length - 1].isIntersecting; sync(); }, { threshold: .2 })

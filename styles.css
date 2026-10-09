@@ -1307,6 +1307,10 @@ html.dex-cursor button.app-art-view{cursor:zoom-in}
   color:inherit;background:#0a1821;box-shadow:0 30px 90px rgba(0,0,0,.6);
   animation:fv-max-in .22s cubic-bezier(.2,.8,.3,1);
 }
+/* Nothing under the overlay takes the pointer: no hover, no tip, no click on
+   a thumbnail nobody can see. A click there reaches the document and closes it. */
+html.fv-maxed body{pointer-events:none}
+html.fv-maxed .fv-item:popover-open{pointer-events:auto}
 .fv-item:popover-open::backdrop{background:rgba(3,5,8,.78);backdrop-filter:blur(4px)}
 @keyframes fv-max-in{from{opacity:0;transform:scale(.96)}}
 .fv-item:popover-open :is(.fv-poster img,.fv-video){object-position:50% 50%}
