@@ -3070,9 +3070,9 @@ to `dexnote-d7047.firebaseapp.com` (served with only `frame-ancestors 'self'`,
 SAMEORIGIN and no COOP, as Firebase serves them), so Google's picker says
 "continue to dexcimino.com". Every other host -- previews, harnesses -- keeps
 Firebase's host. Google and Discord list `https://dexcimino.com/__/auth/handler`
-as a redirect; GitHub cannot (one callback per OAuth app, and dexnote.dev still
-uses it), so `signInTo` signs GitHub in on a memory-only second app
-(`site-github`) on Firebase's host and hands the credential to the real one.
+as a redirect, and so does GitHub's OAuth app "DDC" -- as its ONLY callback,
+since GitHub allows one. So GitHub signs in on dexcimino.com alone; a preview or
+a harness can still use Google and Discord but not GitHub.
 
 **Server check, no Admin SDK.** `verify()` checks an ID token the way Firebase
 documents for a third-party JWT library: RS256, a `kid` among Google's

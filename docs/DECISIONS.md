@@ -50,6 +50,26 @@ change**, so the reasoning cannot drift away from the diff it explains.
 
 ---
 
+## 2026-10-09 — GitHub signs in through dexcimino.com too
+
+**Decided:** GitHub uses the same `signInWithPopup` on the site's authDomain as
+Google and Discord. Its OAuth app is a new one, "DDC", whose one callback is
+`https://dexcimino.com/__/auth/handler`.
+
+**Replaced:** the memory-only `site-github` app on Firebase's host (the entry
+below), kept so dexnote.dev's GitHub callback would not move.
+
+**Why:** the first real GitHub sign-in after that change got a 404 from
+github.com on the authorize page: the OAuth app Firebase named no longer
+existed, so GitHub sign-in was already broken everywhere, dexnote.dev included.
+With nothing left to protect, the replacement app takes the address people see.
+
+**Reverse it if:** dexnote.dev needs GitHub sign-in again. Its authDomain is
+Firebase's host, which this callback does not cover; it would need its own
+Firebase project or this site's proxy.
+
+---
+
 ## 2026-10-09 — The sign-in window says dexcimino.com, not dexnote-d7047
 
 **Decided:** on dexcimino.com the Firebase `authDomain` is the site, and

@@ -21,8 +21,8 @@
 
 import { initializeApp, getApps } from '/dexnote/vendor/firebase/firebase-app.js';
 import {
-  getAuth, initializeAuth, onAuthStateChanged, signInWithPopup, signInWithCredential, signOut as fbSignOut,
-  GoogleAuthProvider, GithubAuthProvider, OAuthProvider, inMemoryPersistence, browserPopupRedirectResolver,
+  getAuth, onAuthStateChanged, signInWithPopup, signOut as fbSignOut,
+  GoogleAuthProvider, GithubAuthProvider, OAuthProvider,
   signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail,
 } from '/dexnote/vendor/firebase/firebase-auth.js';
 
@@ -93,25 +93,13 @@ export function provider(which) {
 
 export function signIn(which) { return signInTo(init(), which); }
 
-/* GITHUB STAYS ON FIREBASE'S HOST. A GitHub OAuth app takes ONE callback
-   address, and dexnote.dev still signs in through it at
-   dexnote-d7047.firebaseapp.com, so moving it to dexcimino.com would break
-   dexnote.dev. GitHub signs in on a second, memory-only app that keeps
-   Firebase's host, and the token it gets is handed to the real one: the same
-   uid, signed in here. Google and Discord list both addresses and need none
-   of this. */
-let ghAuth = null;
-export async function signInTo(a, which) {
-  if (which !== 'github' || a.app.options.authDomain === FIREBASE_HOST) return signInWithPopup(a, provider(which));
-  if (!ghAuth) {
-    const app = getApps().find((x) => x.name === 'site-github') || initializeApp({ ...CONFIG, authDomain: FIREBASE_HOST }, 'site-github');
-    ghAuth = initializeAuth(app, { persistence: inMemoryPersistence, popupRedirectResolver: browserPopupRedirectResolver });
-  }
-  const res = await signInWithPopup(ghAuth, provider('github'));
-  const cred = GithubAuthProvider.credentialFromResult(res);
-  fbSignOut(ghAuth).catch(() => {});
-  return signInWithCredential(a, cred);
-}
+/* GitHub goes through dexcimino.com like the others. It used to sign in on a
+   second, memory-only app kept on Firebase's host, because a GitHub OAuth app
+   takes ONE callback and dexnote.dev was using it -- but that app had been
+   deleted (GitHub answered 404), so its replacement, "DDC", has
+   https://dexcimino.com/__/auth/handler as its callback. A preview or a
+   harness, on Firebase's host, cannot sign in with GitHub as a result. */
+export function signInTo(a, which) { return signInWithPopup(a, provider(which)); }
 
 export function signOut() { return fbSignOut(init()); }
 
