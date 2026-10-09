@@ -81,6 +81,8 @@
   --copy-size:18px;
   --accent-ease:.26s cubic-bezier(.22,.61,.36,1);
   --swatch:34px;
+  --dock-top:2px;   /* where the docked picker and the profile button sit */
+  --dock-right:10px;
   --swatch-step:40px;
 }
 
@@ -171,6 +173,12 @@ img{max-width:100%}
 [data-icon="plus"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23fff' d='M10.7 4.8h2.6v5.9h5.9v2.6h-5.9v5.9h-2.6v-5.9H4.8v-2.6h5.9Z'/%3E%3C/svg%3E")} /* src: assets/icons/plus.svg */
 [data-icon="poop"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cg fill='%23fff'%3E%3Cellipse cx='12' cy='18.6' rx='10.4' ry='3.1'/%3E%3Cellipse cx='12' cy='14.2' rx='8.1' ry='2.9'/%3E%3Cellipse cx='12' cy='9.4' rx='5.3' ry='2.7'/%3E%3Cpath d='M12.4 7.1c-1.5 0-2.5-.8-2.5-1.9 0-1.6 2-1.9 2-3.2 0-.4-.1-.8-.4-1.1 2.2.4 3.8 1.9 3.8 3.6 0 1.5-1.2 2.6-2.9 2.6Z'/%3E%3C/g%3E%3C/svg%3E")} /* src: assets/icons/poop.svg */
 [data-icon="preview"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' d='M2.2 12c2.6-3.9 5.8-5.8 9.8-5.8s7.2 1.9 9.8 5.8c-2.6 3.9-5.8 5.8-9.8 5.8S4.8 15.9 2.2 12Z M12 14.4a2.4 2.4 0 1 0 0-4.8 2.4 2.4 0 0 0 0 4.8Z'/%3E%3C/svg%3E")} /* src: assets/icons/preview.svg */
+[data-icon="pi-brand"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 188.4 256'%3E%3Cg fill='%23fff'%3E%3Ccircle cx='94.6' cy='22.7' r='18.6'/%3E%3Cpath d='M113.2,82.8c-13.9-4.3-27.6-3.5-40.8,1.6-16.4,6.3-33.2,18.9-43.7,33-1.6,2.1-2.4,4.1-2.1,6.8.6,7.1,2.1,13.8,3.9,20.7l6.9,27.7c-2-.9-3.2-2.5-4.5-4.2-10.8-13.2-24.9-34.2-29.4-50.3-.9-3.3-.5-6.3,1.1-9.3,3.3-6.2,7.4-11.6,12.2-16.9,16.7-18.6,39.5-33.3,64.1-38.5,10.4-2.2,20.6-2.1,30.9.3,21.4,4.9,40.8,16.8,55.9,32.4,6.5,6.7,12.1,13.8,16.4,22.1,1.4,2.8,1.7,5.6.9,8.6-1.1,3.9-2.5,7.5-4.4,11.3-6.8,13.8-15,26.6-24.7,38.5-1.6,2-2.8,3.9-5.4,5.1l6.3-23.7,4.8-21.6c.5-2.2,1-5.1-.2-7.1-4.1-6.8-9.5-12.3-15.4-17.6-9.5-8.6-20.3-15.1-32.8-19h0Z'/%3E%3Cpath d='M114.9,143.8c0-6.1-3.6-11.3-8.6-14.5-8.4-5.5-19.4-4.4-26.7,2.1-4.7,4.2-6.3,9.3-6.3,15.5v105c-2.6-3.5-3.7-7.4-4.9-11.5-6.5-22.5-11.4-45.2-15.1-68.4-1.4-9.1-2.3-17.7-2.7-26.9-.4-9.8,2.3-19,8.8-26.5,8.7-10.1,21.4-16.5,35.1-16.6,22.6-.2,44.1,17.5,43.4,41-.2,7.2-.6,13.9-1.8,20.9l-5.4,30.1c-3.5,16.3-7,32.3-12,48.2-1.1,3.4-1.9,6.7-4.5,9.5l.5-55.4.2-52.4h0Z'/%3E%3C/g%3E%3C/svg%3E")} /* src: assets/icons/proto-isles/pi-brand.svg */
+[data-icon="pi-player"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 386.6206 386.6206'%3E%3Cpath fill='%23fff' fill-rule='evenodd' d='M193.3103,0C86.5481,0,0,86.5481,0,193.3103s86.5481,193.3103,193.3103,193.3103,193.3103-86.5481,193.3103-193.3103S300.0725,0,193.3103,0ZM106.3647,218.2444c-3.0725-15.0527,6.2678-30.7427,21.6191-33.7837,16.9583-3.3594,32.1694,9.3909,34.0193,26.1233,1.6562,14.98-7.3413,29.2183-22.9536,31.6235-15.8347,2.4397-29.584-8.7729-32.6848-23.9631ZM260.9749,320.509l-135.3689-.1389c-3.4429-.0037-5.7217-3.5798-5.7305-5.7712-.0122-3.0747,2.3174-6.2075,6.1897-6.208l134.1665-.0149c3.5986-.0002,5.9111,2.8804,6.1829,5.4009.3589,3.3274-1.3123,5.3513-5.4397,6.7322ZM252.3625,242.0151c-15.8875,0-28.7668-12.8794-28.7668-28.7668s12.8794-28.7671,28.7668-28.7671,28.7671,12.8794,28.7671,28.7671-12.8794,28.7668-28.7671,28.7668Z'/%3E%3C/svg%3E")} /* src: assets/icons/proto-isles/pi-player.svg */
+[data-icon="pi-sword"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cg fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21 3l-.8 4.3-9.8 9.8-3.5-3.5 9.8-9.8z'/%3E%3Cpath d='M5.2 12.4l6.4 6.4M8.7 15.3 4.6 19.4'/%3E%3Ccircle cx='3.6' cy='20.4' r='.9'/%3E%3C/g%3E%3C/svg%3E")} /* src: assets/icons/proto-isles/pi-sword.svg */
+[data-icon="pi-tree"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cg fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 2.5 7.2 8.6h2.6l-4.3 5.3h2.9L4.5 19h15l-3.9-5.1h2.9l-4.3-5.3h2.6z'/%3E%3Cpath d='M12 19v2.5'/%3E%3C/g%3E%3C/svg%3E")} /* src: assets/icons/proto-isles/pi-tree.svg */
+[data-icon="pi-ui"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cg fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='2.5' y='4' width='19' height='16' rx='2.6'/%3E%3Cpath d='M2.5 8.5h19M6.5 13h11M6.5 16.6h5'/%3E%3C/g%3E%3Ccircle cx='13.5' cy='13' r='1.9' fill='%23fff'/%3E%3C/svg%3E")} /* src: assets/icons/proto-isles/pi-ui.svg */
+[data-icon="pi-video"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cg fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='2.5' y='6.5' width='13' height='11' rx='2.6'/%3E%3Cpath d='M15.5 10.4 21.5 7v10l-6-3.4'/%3E%3C/g%3E%3C/svg%3E")} /* src: assets/icons/proto-isles/pi-video.svg */
 [data-icon="question"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='none' stroke='%23fff' stroke-width='2.6' stroke-linecap='round' d='M8.3 8.7a3.75 3.75 0 1 1 5 3.54c-.95.36-1.4 1.1-1.4 2.06v.85'/%3E%3Ccircle fill='%23fff' cx='11.9' cy='18.7' r='1.55'/%3E%3C/svg%3E")} /* src: assets/icons/question.svg */
 [data-icon="resume"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='none' stroke='%23fff' stroke-width='1.8' stroke-linejoin='round' d='M6 2h8l4 4v16H6zm8 0v5h4M9 11h6M9 15h6M9 19h4'/%3E%3C/svg%3E")} /* src: assets/icons/resume.svg */
 [data-icon="shuffle"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' d='M4 7h3.2c1 0 1.9.5 2.5 1.3l4.6 7.4c.6.8 1.5 1.3 2.5 1.3H20M4 17h3.2c1 0 1.9-.5 2.5-1.3l.9-1.4M13.4 9.7l.9-1.4c.6-.8 1.5-1.3 2.5-1.3H20'/%3E%3Cpath fill='%23fff' d='m17.4 4 3 3-3 3zm0 10 3 3-3 3z'/%3E%3C/svg%3E")} /* src: assets/icons/shuffle.svg */
@@ -179,6 +187,7 @@ img{max-width:100%}
 [data-icon="snail"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cg fill='none' stroke='%23fff' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M2.4 19.6h13'/%3E%3Cpath d='M2.4 19.6C1.3 16 2.3 12.5 5 11.3'/%3E%3Cpath d='M5 11.3 3.4 7.8M6.6 11.1 7.6 7.5'/%3E%3Cpath d='M14.40 19.40L12.44 18.93L10.77 17.90L9.53 16.44L8.83 14.71L8.70 12.90L9.13 11.19L10.05 9.74L11.33 8.68L12.84 8.09L14.40 8.00L15.86 8.39L17.09 9.19L17.98 10.30L18.45 11.58L18.50 12.90L18.15 14.12L17.46 15.12L16.53 15.83L15.47 16.19L14.40 16.20L13.43 15.89L12.65 15.31L12.12 14.56L11.87 13.72L11.90 12.90L12.17 12.18L12.64 11.62L13.21 11.27L13.83 11.13L14.40 11.20L14.88 11.44L15.21 11.78L15.39 12.18L15.41 12.57L15.30 12.90'/%3E%3C/g%3E%3C/svg%3E")} /* src: assets/icons/snail.svg */
 [data-icon="discord"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23fff' d='M20.317 4.3698a19.7913 19.7913 0 0 0-4.8851-1.5152.0741.0741 0 0 0-.0785.0371c-.211.3753-.4447.8648-.6083 1.2495-1.8447-.2762-3.68-.2762-5.4868 0-.1636-.3933-.4058-.8742-.6177-1.2495a.077.077 0 0 0-.0785-.037 19.7363 19.7363 0 0 0-4.8852 1.515.0699.0699 0 0 0-.0321.0277C.5334 9.0458-.319 13.5799.0992 18.0578a.0824.0824 0 0 0 .0312.0561c2.0528 1.5076 4.0413 2.4228 5.9929 3.0294a.0777.0777 0 0 0 .0842-.0276c.4616-.6304.8731-1.2952 1.226-1.9942a.076.076 0 0 0-.0416-.1057c-.6528-.2476-1.2743-.5495-1.8722-.8923a.077.077 0 0 1-.0076-.1277c.1258-.0943.2517-.1923.3718-.2914a.0743.0743 0 0 1 .0776-.0105c3.9278 1.7933 8.18 1.7933 12.0614 0a.0739.0739 0 0 1 .0785.0095c.1202.099.246.198.3728.2924a.077.077 0 0 1-.0066.1276 12.2986 12.2986 0 0 1-1.873.8914.0766.0766 0 0 0-.0407.1067c.3604.698.7719 1.3628 1.225 1.9932a.076.076 0 0 0 .0842.0286c1.961-.6067 3.9495-1.5219 6.0023-3.0294a.077.077 0 0 0 .0313-.0552c.5004-5.177-.8382-9.6739-3.5485-13.6604a.061.061 0 0 0-.0312-.0286zM8.02 15.3312c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9555-2.4189 2.157-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.9555 2.4189-2.1569 2.4189zm7.9748 0c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9554-2.4189 2.1569-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.946 2.4189-2.1568 2.4189z'/%3E%3C/svg%3E")} /* src: assets/icons/social/discord.svg */
 [data-icon="github"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23fff' fill-rule='evenodd' d='M12 .3a12 12 0 0 0-3.79 23.39c.6.11.82-.26.82-.58l-.02-2.04c-3.34.73-4.04-1.6-4.04-1.6-.55-1.39-1.34-1.76-1.34-1.76-1.08-.75.08-.73.08-.73 1.21.09 1.84 1.24 1.84 1.24 1.07 1.83 2.81 1.3 3.5 1 .1-.78.42-1.31.76-1.61-2.67-.3-5.47-1.33-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.13-.3-.54-1.52.11-3.18 0 0 1-.32 3.3 1.23a11.5 11.5 0 0 1 6 0c2.28-1.55 3.28-1.23 3.28-1.23.65 1.66.24 2.88.12 3.18a4.65 4.65 0 0 1 1.23 3.22c0 4.61-2.81 5.62-5.48 5.92.43.36.81 1.1.81 2.22l-.01 3.29c0 .31.21.69.82.57A12 12 0 0 0 12 .3Z'/%3E%3C/svg%3E")} /* src: assets/icons/social/github.svg */
+[data-icon="google"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23fff' d='M12.48 10.92v3.28h7.84c-.24 1.84-.853 3.187-1.787 4.133-1.147 1.147-2.933 2.4-6.053 2.4-4.827 0-8.6-3.893-8.6-8.72s3.773-8.72 8.6-8.72c2.6 0 4.507 1.027 5.907 2.347l2.307-2.307C18.747 1.44 16.133 0 12.48 0 5.867 0 .307 5.387.307 12s5.56 12 12.173 12c3.573 0 6.267-1.173 8.373-3.36 2.16-2.16 2.84-5.213 2.84-7.667 0-.76-.053-1.467-.173-2.053H12.48z'/%3E%3C/svg%3E")} /* src: assets/icons/social/google.svg */
 [data-icon="instagram"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23fff' fill-rule='evenodd' d='M12 2.16c3.2 0 3.58.01 4.85.07 1.17.05 1.8.25 2.23.41.56.22.96.48 1.38.9.42.42.68.82.9 1.38.16.42.36 1.06.41 2.23.06 1.27.07 1.65.07 4.85s-.01 3.58-.07 4.85c-.05 1.17-.25 1.8-.41 2.23-.22.56-.48.96-.9 1.38-.42.42-.82.68-1.38.9-.42.16-1.06.36-2.23.41-1.27.06-1.65.07-4.85.07s-3.58-.01-4.85-.07c-1.17-.05-1.8-.25-2.23-.41-.56-.22-.96-.48-1.38-.9-.42-.42-.68-.82-.9-1.38-.16-.42-.36-1.06-.41-2.23-.06-1.27-.07-1.65-.07-4.85s.01-3.58.07-4.85c.05-1.17.25-1.8.41-2.23.22-.56.48-.96.9-1.38.42-.42.82-.68 1.38-.9.42-.16 1.06-.36 2.23-.41C8.42 2.17 8.8 2.16 12 2.16ZM12 0C8.74 0 8.33.01 7.05.07c-1.28.06-2.15.26-2.91.56-.79.3-1.46.72-2.13 1.38C1.35 2.68.93 3.35.63 4.14c-.3.76-.5 1.63-.56 2.91C.01 8.33 0 8.74 0 12s.01 3.67.07 4.95c.06 1.28.26 2.15.56 2.91.3.79.72 1.46 1.38 2.13.67.67 1.34 1.08 2.13 1.38.76.3 1.63.5 2.91.56C8.33 23.99 8.74 24 12 24s3.67-.01 4.95-.07c1.28-.06 2.15-.26 2.91-.56.79-.3 1.46-.71 2.13-1.38.67-.67 1.08-1.34 1.38-2.13.3-.76.5-1.63.56-2.91.06-1.28.07-1.69.07-4.95s-.01-3.67-.07-4.95c-.06-1.28-.26-2.15-.56-2.91-.3-.79-.71-1.46-1.38-2.13C21.32 1.35 20.65.93 19.86.63c-.76-.3-1.63-.5-2.91-.56C15.67.01 15.26 0 12 0Zm0 5.84a6.16 6.16 0 1 0 0 12.32 6.16 6.16 0 0 0 0-12.32ZM12 16a4 4 0 1 1 0-8 4 4 0 0 1 0 8Zm7.85-10.41a1.44 1.44 0 1 1-2.88 0 1.44 1.44 0 0 1 2.88 0Z'/%3E%3C/svg%3E")} /* src: assets/icons/social/instagram.svg */
 [data-icon="linkedin"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23fff' fill-rule='evenodd' d='M22.23 0H1.77C.79 0 0 .77 0 1.73v20.54C0 23.23.79 24 1.77 24h20.46c.98 0 1.77-.77 1.77-1.73V1.73C24 .77 23.21 0 22.23 0ZM7.12 20.45H3.56V9h3.56v11.45ZM5.34 7.43a2.06 2.06 0 1 1 0-4.13 2.06 2.06 0 0 1 0 4.13Zm15.11 13.02h-3.56v-5.57c0-1.33-.02-3.04-1.85-3.04-1.85 0-2.14 1.45-2.14 2.94v5.67H9.35V9h3.42v1.56h.05c.47-.9 1.63-1.85 3.37-1.85 3.6 0 4.26 2.37 4.26 5.46v6.28Z'/%3E%3C/svg%3E")} /* src: assets/icons/social/linkedin.svg */
 [data-icon="podcast"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cg fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='9' y='2.4' width='6' height='11.2' rx='3'/%3E%3Cpath d='M5.6 11.2a6.4 6.4 0 0 0 12.8 0'/%3E%3Cpath d='M12 17.6V21.4'/%3E%3C/g%3E%3C/svg%3E")} /* src: assets/icons/social/podcast.svg */
@@ -192,6 +201,7 @@ img{max-width:100%}
 [data-icon="vault"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cdefs%3E%3Cmask id='f' maskUnits='userSpaceOnUse' x='0' y='0' width='24' height='24'%3E%3Crect width='24' height='24' fill='%23fff'/%3E%3Cg fill='none' stroke='%23000' stroke-width='1.5' stroke-linecap='round'%3E%3Cpath d='M4.4 10.4C6.8 8.6 8.8 11.3 11.6 9.7 14 8.3 16.3 10.3 19.2 9.1'/%3E%3Cpath d='M4.6 14.2C7 12.6 8.9 15.2 11.6 13.7 14 12.4 16.2 14.2 18.9 13'/%3E%3C/g%3E%3C/mask%3E%3C/defs%3E%3Cpath mask='url(%23f)' fill='%23fff' d='M3.5 10.6C3.4 7.9 5.1 5.7 7.2 4.9 8.5 4.3 9.7 4.9 10.1 5.9 10.8 4.7 12.2 4.2 13.4 4.6 14.3 4.9 14.9 5.5 15.2 6.2 16 5.1 17.5 4.8 18.7 5.4 20.4 6.2 21.4 7.8 21.5 9.6 21.8 11.6 21.1 13.5 19.6 14.7 18.5 16 16.8 16.8 15.1 16.8 13.9 17.6 12.3 17.9 10.8 17.6 11 18.6 11.1 19.6 11.1 20.4 10.6 21.2 9.4 21.3 8.8 20.6 8.3 19.7 8.1 18.6 8 17.3 6.2 16.8 4.7 15.8 3.9 14.3 3.1 13.1 3.2 11.9 3.5 10.6Z'/%3E%3C/svg%3E")} /* src: assets/icons/vault.svg */
 [data-icon="volume-mute"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23fff' d='M4 9.5h3.2L12 5.4v13.2L7.2 14.5H4z'/%3E%3Cpath fill='none' stroke='%23fff' stroke-width='1.8' stroke-linecap='round' d='m16 9.5 5 5m0-5-5 5'/%3E%3C/svg%3E")} /* src: assets/icons/volume-mute.svg */
 [data-icon="volume"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23fff' d='M4 9.5h3.2L12 5.4v13.2L7.2 14.5H4z'/%3E%3Cpath fill='none' stroke='%23fff' stroke-width='1.8' stroke-linecap='round' d='M15.4 9.2a4 4 0 0 1 0 5.6M18 6.6a7.6 7.6 0 0 1 0 10.8'/%3E%3C/svg%3E")} /* src: assets/icons/volume.svg */
+[data-icon="volume-slash"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cdefs%3E%3Cmask id='cut'%3E%3Crect width='24' height='24' fill='%23fff'/%3E%3Cpath d='M3.75 4.25 19.75 20.25' stroke='%23000' stroke-width='3.2' stroke-linecap='round'/%3E%3C/mask%3E%3C/defs%3E%3Cg mask='url(%23cut)'%3E%3Cpath fill='%23fff' d='M4 9.5h3.2L12 5.4v13.2L7.2 14.5H4z'/%3E%3Cpath fill='none' stroke='%23fff' stroke-width='1.8' stroke-linecap='round' d='M15.4 9.2a4 4 0 0 1 0 5.6M18 6.6a7.6 7.6 0 0 1 0 10.8'/%3E%3C/g%3E%3Cpath d='M4.4 3.6 20.4 19.6' stroke='%23fff' stroke-width='1.8' stroke-linecap='round'/%3E%3C/svg%3E")} /* src: assets/icons/volume-slash.svg */
 [data-icon="work"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23fff' d='M4 4h6v6H4zm10 0h6v6h-6zM4 14h6v6H4zm10 0h6v6h-6z'/%3E%3C/svg%3E")} /* src: assets/icons/work.svg */
 [data-icon="yin-yang"]{--icon:url("data:image/svg+xml,%3Csvg id='Layer_2' data-name='Layer 2' xmlns='http://www.w3.org/2000/svg' viewBox='0 0 96.092 128'%3E %3Cg id='Layer_1-2' data-name='Layer 1'%3E %3Cg%3E %3Cpath d='M64.0613,0C28.6812,0,0,28.656,0,64.0051c0,35.0728,28.2356,63.5514,63.2336,63.9949-17.3075-.4387-31.203-14.5941-31.203-31.9922,0-17.6746,14.3406-32.0027,32.0306-32.0027s32.0308-14.328,32.0308-32.0026S81.7513,0,64.0613,0ZM64.0613,41.9c-5.3154,0-9.6244-4.3053-9.6244-9.616s4.309-9.616,9.6244-9.616,9.6244,4.3052,9.6244,9.616-4.309,9.616-9.6244,9.616Z'/%3E %3Cellipse cx='64.0613' cy='96.9691' rx='9.6244' ry='9.616'/%3E %3C/g%3E %3C/g%3E %3C/svg%3E")} /* src: assets/icons/yin-yang.svg */
 [data-icon="zoom-in"]{--icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' d='M10.5 3a7.5 7.5 0 1 0 0 15 7.5 7.5 0 0 0 0-15Zm5.4 12.9L21 21M10.5 7.5v6m-3-3h6'/%3E%3C/svg%3E")} /* src: assets/icons/zoom-in.svg */
@@ -737,6 +747,8 @@ button.button{cursor:pointer;font-family:inherit}
    ========================================================================== */
 .site-shell{margin-left:var(--sidebar);min-height:100vh}
 .topbar{height:62px;display:flex;align-items:center;justify-content:flex-end;padding:0 clamp(24px,4vw,72px);position:relative;z-index:10}
+/* Clear of the profile button, which is fixed at the top right (below). */
+.topbar{padding-right:max(50px,clamp(24px,4vw,72px))}
 
 /* ==========================================================================
    ACCENT PICKER
@@ -768,7 +780,7 @@ button.button{cursor:pointer;font-family:inherit}
 
 /* padding widens the hover target so the pointer can travel down the open
    stack without leaving the picker and collapsing it */
-.accent-picker.compact{position:fixed;top:2px;right:10px;padding:10px;transform:none;gap:0;z-index:90;animation:pickerDock .28s cubic-bezier(.22,.61,.36,1)}
+.accent-picker.compact{position:fixed;top:var(--dock-top);right:var(--dock-right);padding:10px;transform:none;gap:0;z-index:90;animation:pickerDock .28s cubic-bezier(.22,.61,.36,1)}
 .accent-picker.compact .accent-label{opacity:0;width:0;overflow:hidden;pointer-events:none}
 .accent-picker.compact .accent-swatches{
   position:relative;gap:0;
@@ -790,22 +802,25 @@ button.button{cursor:pointer;font-family:inherit}
   transition:transform .34s cubic-bezier(.22,.61,.36,1),opacity .2s ease;
 }
 .accent-picker.compact .swatch svg{transform:rotate(90deg)}
-.accent-picker.compact .swatch.active{opacity:1;pointer-events:auto;transform:none;z-index:3}
+/* The profile button sits on the active swatch's cell and IS the current
+   accent, so the active hex never shows in the dropdown; the one you leave
+   joins the list (paintSwatches gives the rest rows 1..6). */
+.accent-picker.compact .swatch.active{opacity:0 !important;pointer-events:none !important}
 /* Docked, the active hex is the only thing on screen and it lands right on the
    accent wedge — same color, so the ring alone disappears. The rim rides the
    larger RIM_R hexagon, so it hugs the ring's outer edge and adds nothing
    inside the hex. ~3px at the default 34px swatch. */
 .accent-picker.compact .swatch.active .halo{stroke-width:7}
 
-.accent-picker.compact.open .accent-swatches{height:calc(var(--swatch) + var(--rows,6) * var(--swatch-step))}
+.accent-picker.compact.open .accent-swatches{height:calc(var(--swatch) + var(--rows,6) * var(--swatch-step) + 5px)}
 .accent-picker.compact.open .accent-swatches::before{opacity:1;transform:none}
 .accent-picker.compact.open .swatch{
   opacity:1;pointer-events:auto;
-  transform:translateY(calc(var(--row,0) * var(--swatch-step)));
+  transform:translateY(calc(var(--row,0) * var(--swatch-step) + 5px));
   transition-delay:calc(var(--row,0) * 32ms);
 }
 .accent-picker.compact.open .swatch:hover{
-  transform:translateY(calc(var(--row,0) * var(--swatch-step))) scale(1.18);
+  transform:translateY(calc(var(--row,0) * var(--swatch-step) + 5px)) scale(1.18);
   transition-delay:0s;
 }
 
@@ -912,13 +927,39 @@ html.dex-cursor button.app-art-view{cursor:zoom-in}
 .accent-picker.compact .cursor-toggle .ct-hex{transform:rotate(90deg) scale(1.07);transform-origin:38px 38px}
 .accent-picker.compact.open .cursor-toggle{
   opacity:1;pointer-events:auto;
-  transform:translateY(calc(var(--row,7) * var(--swatch-step)));
+  transform:translateY(calc(var(--row,7) * var(--swatch-step) + 5px));
   transition-delay:calc(var(--row,7) * 32ms);
 }
 .accent-picker.compact.open .cursor-toggle:hover{
-  transform:translateY(calc(var(--row,7) * var(--swatch-step))) scale(1.18);
+  transform:translateY(calc(var(--row,7) * var(--swatch-step) + 5px)) scale(1.18);
   transition-delay:0s;
 }
+
+/* THE PROFILE BUTTON — fixed at the top right from the first frame, on the
+   docked swatch's own cell (--dock-top/--dock-right are the docked picker's),
+   so scrolling never moves it; docked, the stack cascades out from under it.
+   Hollow hexagon frame and a person with a hexagonal head, both in the
+   accent; signed in, the frame fills and the person is cut out of it in the
+   page colour. A little larger than a swatch so it reads as the anchor, on a
+   page-coloured backing so it never vanishes into the accent wedge. */
+.profile-btn{
+  --pf:calc(var(--swatch) + 8px);
+  position:fixed;z-index:91;
+  top:calc(var(--dock-top) + 10px + (var(--swatch) - var(--pf)) / 2);
+  right:calc(var(--dock-right) + 10px + (var(--swatch) - var(--pf)) / 2);
+  width:var(--pf);height:var(--pf);padding:0;border:0;background:none;cursor:pointer;
+  display:grid;place-items:center;color:var(--accent);
+  transition:transform var(--accent-ease),color var(--accent-ease);
+}
+.profile-btn svg{display:block;width:100%;height:100%;overflow:visible}
+.profile-btn .pf-back{fill:var(--page-bg)}
+.profile-btn .pf-fill{fill:currentColor;opacity:0;transition:opacity .2s ease}
+.profile-btn .pf-frame{fill:none;stroke:currentColor;stroke-width:5.5}
+.profile-btn .pf-person{fill:currentColor;transition:fill .2s ease}
+.profile-btn.is-signed-in .pf-fill{opacity:1}
+.profile-btn.is-signed-in .pf-person{fill:var(--page-bg)}
+.profile-btn:hover{transform:scale(1.1)}
+.profile-btn:focus-visible{outline:2px solid var(--text);outline-offset:3px;border-radius:8px}
 
 /* ==========================================================================
    HERO
@@ -1183,20 +1224,260 @@ html.dex-cursor button.app-art-view{cursor:zoom-in}
   letter-spacing:.01em;margin-top:8px}
 .fv-dl{right:18px;bottom:18px}
 
+/* --- a slot that is a GALLERY, not a video (Proto Isles) ---
+   The thumbnail is the whole card: 16:10 art made for this frame, so it
+   covers rather than letterboxing. One button under everything opens the work
+   overlay on the game's own tabs; the caption lets clicks through to it, and
+   the download sits on the bottom edge where a video's bar would be. */
+.fv-gallery .fv-poster img{object-fit:cover;object-position:50% 50%;
+  transition:scale .6s cubic-bezier(.22,.61,.36,1)}
+.fv-gallery:is(:hover,:has(.fv-open:focus-visible)) .fv-poster img{scale:1.025}
+.fv-open{position:absolute;inset:0;width:100%;height:100%;padding:0;border:0;
+  background:none;cursor:pointer;z-index:2}
+.fv-open:focus-visible{outline:2px solid var(--accent);outline-offset:-6px;border-radius:14px}
+.fv-gallery .card-meta{pointer-events:none}
+.fv-gallery .fv-actions{bottom:18px}
+@media(prefers-reduced-motion:reduce){.fv-gallery .fv-poster img{transition:none}}
+
+/* --- a slot with a real video in it (Mobius 3D) ---
+   CONTAINED, never cropped: this is a recording of an app, and its controls
+   -- the accent swatches the video is about -- live at the right edge, which
+   a cover crop of a near-square wide-layout frame cut straight off. The
+   letterbox is the viewer's own background (#0a1821, src/background.js in
+   mobius-3d), so the bars read as more of the app. The recording is 4:3, the
+   middle of the 1.15-1.4 the desktop frame runs at; the one-column 16:10 frame
+   pillarboxes. The bar is pinned to the bottom edge, hidden under a playing
+   video until the frame is hovered (rules below), and the caption and the two
+   buttons sit above it rather than over it, which is the whole of "the
+   overlay must not cover the controls". */
+.fv-poster,.fv-poster img,.fv-video{
+  position:absolute;inset:0;width:100%;height:100%;display:block;object-fit:contain;
+}
+.fv-has-video{background:#0a1821}
+/* Up against the top, so the spare height falls at the bottom where the
+   caption, the buttons and the bar already are, and less of the app sits
+   under them. */
+.fv-has-video .fv-poster img,.fv-video{object-position:50% 0}
+.fv-has-video .fv-matte{display:none}
+.fv-video{z-index:0;background:transparent;opacity:0;transition:opacity .4s ease}
+.fv-item.is-live .fv-video{opacity:1}
+.fv-has-video .card-shade{inset:44% 0 0;z-index:1}
+.fv-has-video .card-meta{bottom:76px;right:150px}
+/* Down on the bottom edge while the controls are hidden (Dex: a caption
+   held up over an empty strip looks unanchored), back up as they return. */
+.fv-has-video .card-meta{transition:bottom var(--fv-t)}
+/* No construction tape and no disc once it plays: the picture is the content. */
+.fv-item.is-live .fv-play{opacity:0}
+.fv-item.is-live .fv-play:focus-visible{opacity:1}
+.fv-actions{
+  position:absolute;right:18px;bottom:76px;z-index:4;display:flex;gap:10px;
+}
+/* NOTHING OVER THE VIDEO BLURS (Dex, 2026-10-09: it flickered between HDR
+   and sRGB, most of all when the volume popped up). A backdrop-filter makes
+   the compositor read the video back through an SDR surface, so the picture
+   dropped out of HDR whenever a blurred control was on top of it. These
+   controls are plain near-opaque fills instead. */
+.fv-act{
+  width:52px;height:52px;border-radius:14px;display:grid;place-items:center;padding:0;
+  cursor:pointer;border:0;color:#d4dae0;text-decoration:none;
+  background:rgba(6,8,11,.9);
+  box-shadow:0 6px 20px rgba(0,0,0,.35);
+  transition:background var(--accent-ease),color var(--accent-ease),transform .18s ease;
+}
+.fv-act .icon{width:28px;height:28px}
+.fv-act:hover,.fv-act:focus-visible{background:var(--accent);color:var(--accent-ink,#0b0d12)}
+.fv-act:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+.fv-bar{
+  position:absolute;left:0;right:0;bottom:0;z-index:4;
+  display:flex;align-items:center;gap:12px;padding:20px 14px 12px;
+}
+/* The shade is its own layer so it can fade: a gradient does not interpolate. */
+.fv-bar::before{
+  content:"";position:absolute;inset:0;z-index:-1;pointer-events:none;
+  background:linear-gradient(180deg,transparent,rgba(4,6,9,.6) 40%,rgba(4,6,9,.88));
+  transition:opacity var(--fv-t);
+}
+.fv-bar .cl-scrub{flex:1 1 auto;min-width:60px}
+.fv-bar .cl-time{margin:0;flex:none}
+.fv-bar .cl-btn[hidden]{display:none}
+/* Playing, the bar keeps out of the picture until the pointer is over the
+   frame (or focus is in it): a click anywhere pauses, and paused it is up for
+   good. One slow ease (--fv-t, Dex: twice the old .25s, so hovering on
+   and off does not flail) moves everything together: the bar slides up into
+   its strip and pushes the caption and the download/preview pair up with it.
+   Nothing moves sideways. With a mouse the speaker shows on hover only,
+   muted or not, and never leaves its corner; on touch, where there is no
+   hover, a muted speaker stays in the corner and the rest stays put. */
+.fv-item{--fv-t:.5s cubic-bezier(.33,0,.2,1)}
+/* Two classes deep, or .cl-btn's own transition (later in the sheet, same
+   weight) wins and play, enlarge and the speaker pop in while the rest eases. */
+.fv-item .fv-bar>*{transition:opacity var(--fv-t),transform var(--fv-t),color var(--accent-ease),background var(--accent-ease)}
+.fv-item.is-playing:not(:hover):not(:has(:focus-visible)) .fv-bar::before{opacity:0}
+.fv-item.is-playing:not(:hover):not(:has(:focus-visible)) .fv-bar>*:not(.fv-vol){opacity:0;transform:translateY(22px)}
+.fv-item .fv-mute{transition:opacity var(--fv-t),color var(--accent-ease),background .2s ease}
+.fv-item.is-playing:not(.is-muted):not(:hover):not(:has(:focus-visible)) .fv-mute{opacity:0}
+@media (hover:hover){
+  .fv-item.is-playing:not(:hover):not(:has(:focus-visible)) .fv-mute{opacity:0}
+  .fv-item.is-playing:not(:hover):not(:has(:focus-visible)) :is(.fv-actions,.card-meta){bottom:18px}
+}
+/* Muted, the speaker is grey and struck through (the line lifted off a cut, so it reads as raised). */
+.fv-item.is-muted .fv-mute{color:#9aa3ad}
+/* The volume pops up centred above the speaker on hover (or focus), in the
+   accent with a white handle like every other range on the site. It sits in
+   the bar, in the corner (Dex: so a muted video left alone keeps its one
+   button at the edge, not floating beside an empty space). While it is open
+   the download and preview buttons fade out and take no clicks, so a drag
+   that overshoots cannot start a download. The 12px of padding under
+   the panel is the bridge the pointer crosses from the button to it. Keyboard
+   focus opens it; a mouse drag's leftover focus does not hold it open. */
+.fv-vol{position:relative;display:flex;flex:none}
+.fv-vol:has(.fv-mute[hidden]){display:none}
+.fv-vol-pop{
+  position:absolute;left:50%;bottom:100%;padding:0 0 12px;
+  transform:translate(-50%,8px) scale(.94);transform-origin:50% 100%;
+  opacity:0;visibility:hidden;pointer-events:none;
+  transition:opacity .32s ease,transform .32s cubic-bezier(.2,.8,.3,1.1),visibility 0s linear .32s;
+}
+.fv-vol:is(:hover,:has(:focus-visible)) .fv-vol-pop{
+  opacity:1;visibility:visible;pointer-events:auto;transform:translate(-50%,0) scale(1);
+  transition:opacity .32s ease,transform .32s cubic-bezier(.2,.8,.3,1.1),visibility 0s;
+}
+.fv-actions{transition:opacity .18s ease,bottom var(--fv-t)}
+.fv-item:has(.fv-vol:is(:hover,:has(:focus-visible))) .fv-actions{pointer-events:none;opacity:0}
+.fv-volume{
+  -webkit-appearance:none;appearance:none;display:block;margin:0;cursor:pointer;
+  writing-mode:vertical-lr;direction:rtl;width:20px;height:80px;
+  padding:14px 12px;box-sizing:content-box;border-radius:14px;
+  background:rgba(6,8,11,.94);box-shadow:0 10px 28px rgba(0,0,0,.45);
+}
+.fv-volume::-webkit-slider-runnable-track{
+  width:4px;height:100%;margin:0 auto;border-radius:999px;
+  background:linear-gradient(0deg,var(--accent) var(--fill,100%),rgba(255,255,255,.28) var(--fill,100%));
+}
+.fv-volume::-moz-range-track{
+  width:4px;height:100%;border-radius:999px;
+  background:linear-gradient(0deg,var(--accent) var(--fill,100%),rgba(255,255,255,.28) var(--fill,100%));
+}
+.fv-volume::-webkit-slider-thumb{
+  -webkit-appearance:none;appearance:none;width:14px;height:14px;border-radius:999px;
+  background:#fff;border:0;margin-left:-5px;box-shadow:0 1px 4px rgba(0,0,0,.5);
+}
+.fv-volume::-moz-range-thumb{width:14px;height:14px;border-radius:999px;background:#fff;border:0}
+.fv-volume:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+/* The floating mute: the featured video's sound, reachable from anywhere once
+   the card has scrolled away. Placed every frame under #accentSwatches (JS),
+   so it rides the picker's open and close; flown in from the card's own
+   button with a FLIP transform. */
+.fv-float{
+  position:fixed;left:0;top:0;z-index:89;width:40px;height:40px;padding:0;border:0;cursor:pointer;
+  border-radius:12px;display:grid;place-items:center;color:var(--accent-ink,#0b0d12);
+  background:var(--accent);box-shadow:0 6px 20px rgba(0,0,0,.35);
+  transition:background var(--accent-ease),color var(--accent-ease),filter .15s;
+}
+.fv-float[hidden]{display:none}
+.fv-float .icon{width:20px;height:20px}
+/* Accent by default; muted it turns the red dexnote's dictation ring uses (Dex). */
+.fv-float.is-muted{background:#d6423f;color:#fff}
+.fv-float:hover{filter:brightness(1.12)}
+.fv-float:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+/* ENLARGED (Dex: not real full screen). The slot is a popover in the top layer,
+   centred at the video's own aspect, so the picture fills it with no bars at
+   the sides, rounded like the site's overlays, over a dimmed page. Only the bar
+   and the X come along -- the caption and the buttons belong to the card. */
+/* .fv-item in front: .contact-close sets display:grid later in the sheet at
+   the same weight, and won, so the X showed on the small card. */
+.fv-item .fv-close{display:none}
+/* The attribute outlives the close by a task (the toggle event that removes it
+   is async), and a closed [popover] is display:none in the UA sheet. */
+.fv-item[popover]:not(:popover-open){display:block;width:auto;height:auto;margin:0;padding:0;color:inherit}
+.fv-item:popover-open{
+  position:fixed;inset:0;margin:auto;padding:0;z-index:auto;opacity:1;
+  width:min(94vw,calc((100dvh - 56px) * var(--fv-ar,4/3)));height:auto;aspect-ratio:var(--fv-ar,4/3);
+  border-radius:18px;border:var(--stroke) solid rgba(255,255,255,.18);
+  color:inherit;background:#0a1821;box-shadow:0 30px 90px rgba(0,0,0,.6);
+  animation:fv-max-in .22s cubic-bezier(.2,.8,.3,1);
+}
+/* Nothing under the overlay takes the pointer: no hover, no tip, no click on
+   a thumbnail nobody can see. A click there reaches the document and closes it. */
+html.fv-maxed body{pointer-events:none}
+html.fv-maxed .fv-item:popover-open{pointer-events:auto}
+.fv-item:popover-open::backdrop{background:rgba(3,5,8,.78);backdrop-filter:blur(4px)}
+@keyframes fv-max-in{from{opacity:0;transform:scale(.96)}}
+.fv-item:popover-open :is(.fv-poster img,.fv-video){object-position:50% 50%}
+.fv-item:popover-open :is(.card-meta,.card-shade,.fv-actions,.fv-info,.fv-desc){display:none}
+/* OUTSIDE the video (Dex): fixed, in the dead space to its right, one column
+   centred both ways -- the eye, the X, the download -- placed by placeClose().
+   .is-side is the gap being wide enough; without it the X goes back inside the
+   corner and the two buttons stay with the card. The column's gap leaves the
+   X's slot open between them. */
+.fv-item:popover-open .fv-close{display:grid;position:fixed;top:14px;right:auto;left:auto;z-index:5;
+  width:52px;height:52px;border-radius:14px;background:rgba(8,11,15,.72);color:#c9d0d6}
+.fv-item:popover-open .fv-close svg{width:22px;height:22px}
+.fv-item.is-side:popover-open .fv-actions{display:flex;position:fixed;flex-direction:column;gap:80px;
+  z-index:5;opacity:1;pointer-events:auto;transition:none}
+.fv-item.is-side:popover-open .fv-eye{order:-1;display:grid}
+/* THE PITCH (Dex, 2026-10-09): the description, always up while the video is
+   enlarged, as a portrait card under that column -- outside the video, centred
+   on the download above it. placeAbout() sets where and how wide, and adds
+   .is-on only when it fits; .is-short drops the body and keeps the lead. The
+   head is the accent, bold, 2px over the text. On the small card it is not
+   there at all: the slot has no info icon, and this is where the words went. */
+.fv-about{display:none}
+.fv-item:popover-open .fv-about.is-on{display:block;position:fixed;z-index:5;margin:0;overflow:hidden;
+  padding:16px 16px 18px;border-radius:14px;border:var(--stroke) solid rgba(255,255,255,.14);
+  background:rgba(8,11,15,.9);color:#d7dee8;font-size:14px;line-height:1.5;
+  text-align:left;animation:fv-about-in .3s ease both}
+.fv-about-head{display:block;margin:0 0 8px;font-size:16px;font-weight:800;line-height:1.25;
+  color:var(--accent);transition:color var(--accent-ease)}
+.fv-about p{margin:0}
+.fv-about p+p{margin-top:10px;color:#aeb8c4}
+.fv-about.is-short .fv-about-body{display:none}
+@keyframes fv-about-in{from{opacity:0;transform:translateY(6px)}}
+/* Room for it: at least 200px each side of a slot that has one, so a 1440x900
+   laptop gets the card rather than a gap 40px too narrow to hold it. */
+@media(min-width:900px){.fv-item:has(.fv-about):popover-open{width:min(94vw,calc(100vw - 400px),calc((100dvh - 56px) * var(--fv-ar,4/3)))}}
+@media(prefers-reduced-motion:reduce){.fv-item:popover-open .fv-about.is-on{animation:none}}
+@media(prefers-reduced-motion:reduce){.fv-item:popover-open{animation:none}.fv-vol-pop,.fv-has-video .card-meta,.fv-actions,.fv-item .fv-mute,.fv-item .fv-bar>*,.fv-bar::before{transition:none}}
+/* Before a source exists there is nothing to scrub. */
+.fv-has-video:not([data-src^="https"]) :is(.fv-bar,.fv-play){display:none}
+/* No blue flash on a phone tap: the slot draws its own pressed and focus states. */
+.fv-item,.fv-item *{-webkit-tap-highlight-color:transparent}
+.fv-has-video:not([data-src^="https"]) .card-meta{bottom:18px}
+.fv-has-video:not([data-src^="https"]) .fv-actions{bottom:18px}
+/* The eye's tip carries a picture of what it opens. */
+#tip .tip-thumb{display:block;width:240px;aspect-ratio:16/10;margin:-2px -4px 8px;border-radius:8px;overflow:hidden}
+#tip .tip-thumb img{width:100%;height:100%;object-fit:cover;display:block}
+#tip.has-thumb{text-align:center}
+@media (max-width:767px){
+  /* initAppModal declines a phone, exactly as the AI Lab card's eye does. */
+  .fv-eye{display:none}
+  .fv-act{width:44px;height:44px;border-radius:12px}
+  .fv-act .icon{width:24px;height:24px}
+  .fv-has-video .card-meta{right:70px}
+  .fv-bar .cl-time{display:none}
+}
+
 /* The description is behind an icon rather than always on: it is a paragraph,
    and a paragraph laid over artwork is a caption nobody asked for. Top left,
    opposite the download. */
 .fv-info{
   position:absolute;top:14px;left:14px;z-index:4;
   width:38px;height:38px;display:grid;place-items:center;padding:0;cursor:pointer;
-  border:var(--stroke) solid rgba(255,255,255,.16);border-radius:11px;
-  background:rgba(8,11,15,.74);backdrop-filter:blur(5px);color:#e6ebf2;
+  /* Accent edge at rest too (Dex: grey on grey, it vanished into the picture). */
+  border:var(--stroke) solid var(--accent);border-radius:11px;
+  background:rgba(8,11,15,.88);color:#e6ebf2;
   transition:color var(--accent-ease),border-color var(--accent-ease),background .2s ease;
 }
 .fv-info svg{width:21px;height:21px;display:block}
 .fv-info:hover,.fv-info:focus-visible,.fv-info[aria-expanded="true"]{
   color:var(--accent);border-color:var(--accent);background:rgba(8,11,15,.92)}
 .fv-info:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+/* Only while the card is hovered (Dex), where there is a pointer to hover
+   with; a touch screen keeps it up, or there would be no way to the text. */
+@media (hover:hover){
+  .fv-info{opacity:0;transition:opacity var(--fv-t),color var(--accent-ease),border-color var(--accent-ease),background .2s ease}
+  .fv-item:is(:hover,:has(:focus-visible)) .fv-info,.fv-info[aria-expanded="true"]{opacity:1}
+}
 /* BESIDE THE ICON, not under it. Full width across the top of the frame put
    it straight through the UNDER CONSTRUCTION strip -- two blocks of text on
    top of each other, and the gradient behind it dimmed the strip as well. As
@@ -1206,11 +1487,11 @@ html.dex-cursor button.app-art-view{cursor:zoom-in}
    left: 14 (the icon's own inset) + 38 (its width) + 12. */
 .fv-desc{
   position:absolute;top:14px;left:64px;z-index:3;margin:0;
-  width:max-content;max-width:calc(100% - 86px);min-height:38px;
+  width:max-content;max-width:min(calc(100% - 86px),24em);min-height:38px;
   display:flex;align-items:center;
   padding:9px 15px;border-radius:12px;
-  font-size:14px;line-height:1.45;color:#d7dee8;
-  background:rgba(4,6,9,.9);backdrop-filter:blur(6px);
+  font-size:16px;line-height:1.45;color:#d7dee8;
+  background:rgba(4,6,9,.94);
   /* Slides in FROM the icon rather than down from the top edge, which is no
      longer where it comes from. */
   opacity:0;transform:translateX(-8px);pointer-events:none;
@@ -1301,8 +1582,10 @@ html.dex-cursor button.app-art-view{cursor:zoom-in}
 .card-meta small{display:block;color:var(--accent);font-weight:900;font-size:12px;letter-spacing:.13em;transition:color var(--accent-ease)}
 /* <strong>, not <h3>: a button may only contain phrasing content. */
 .card-meta strong{display:block;font-size:19px;font-weight:700;margin:5px 0 0;letter-spacing:.01em}
-.card-go{position:absolute;right:14px;bottom:15px;width:14px;height:14px;color:var(--text);opacity:.75}
-.work-card:hover .card-go{opacity:1;transform:translate(2px,-2px)}
+/* Hover only (Dex, 2026-10-09): on every card at once the arrows were noise;
+   on the one under the pointer it says "this opens". */
+.card-go{position:absolute;right:14px;bottom:15px;width:14px;height:14px;color:var(--text);opacity:0;transition:opacity .2s ease,transform .25s ease}
+.work-card:is(:hover,:focus-visible) .card-go{opacity:1;transform:translate(2px,-2px)}
 
 /* ---- the card carousel -------------------------------------------------
    Frames STACK AND CROSS-FADE rather than slide. A slide would translate the
@@ -2424,26 +2707,71 @@ html.dex-cursor button.app-art-view{cursor:zoom-in}
    The cost is honest and small: a short wide screenshot floats centred with air
    under it instead of sitting tight above the bar. That is the trade for a
    control that is in the same place every time, which is what was asked for. */
-.app-shot-modal{border:0;padding:0;background:transparent;max-width:none;max-height:none}
+.app-shot-modal{border:0;padding:0;background:transparent;width:100%;height:100%;max-width:none;max-height:none}
 .app-shot-modal::backdrop{background:rgba(3,5,7,.9);backdrop-filter:blur(6px)}
-.app-shot-shell{position:relative;display:grid;justify-items:center;gap:14px}
-.app-shot-close{position:absolute;top:-6px;right:-52px;z-index:4}
-@media (max-width:1200px){.app-shot-close{top:-46px;right:0}}
+/* The dialog fills the screen, so every dark pixel round the picture is part
+   of it and a click there closes (initAppInfo). */
+.app-shot-shell{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px}
 .app-shot-stage{
-  width:min(92vw,1400px);height:76vh;
+  width:100%;height:76vh;container-type:inline-size;
   display:grid;place-items:center;
 }
-/* The caps stay in VIEWPORT UNITS, matching the stage's own two dimensions,
-   rather than becoming max-width/max-height:100% of it. The percentage form
-   looks equivalent and is not: measured, a 900x900 image came out 904x904
-   inside a 687px-tall stage and a 1835x1167 came out 1363x869 — the percentage
-   never constrained the height at all, so tall shots overflowed the fixed box
-   and would have run under the arrow bar. Same two numbers as before this
-   change; only the stage around them is new. */
+/* The frame HUGS the picture (Dex, 2026-10-08): the rails sit just outside
+   its edges and the X centred in what is left to the right of the right rail.
+   Its size comes from the baked aspect ratio (--ar, set per shot) and the
+   same two caps as before, so the box is the same every time a shot is shown
+   and the controls on it do not move while the big rung loads. The width cap
+   leaves room for a rail and the X either side; 100cqw is the stage, which is
+   the screen's width. */
+.app-shot-frame{
+  --rail-w:30px;--rail-gap:14px;--x-zone:84px;
+  --max-w:min(100cqw - 2 * (var(--rail-gap) + var(--rail-w) + var(--x-zone)), 1400px);
+  position:relative;
+}
+.app-shot-pic,.app-shot-pic picture{display:block}
+/* The caps stay in VIEWPORT UNITS rather than max-width/max-height:100% of
+   the stage: measured, the percentage form never constrained the height at
+   all, so tall shots overflowed the box and ran under the arrow bar. */
 .app-shot-stage img{
-  display:block;width:auto;height:auto;
-  max-width:min(92vw,1400px);max-height:76vh;
+  display:block;aspect-ratio:var(--ar,1.6);height:auto;
+  width:min(var(--max-w), 76vh * var(--ar,1.6));
   border-radius:14px;border:var(--stroke) solid rgba(255,255,255,.14);
+}
+/* The side rails: a third of the picture's height, thin, accent chevron.
+   Invisible until the pointer is within 20px (the ::before is that reach),
+   always shown where there is no hover. Hidden outright with one shot. */
+.app-shot-rail{
+  position:absolute;top:50%;height:33.333%;width:var(--rail-w);min-height:72px;
+  transform:translateY(-50%);padding:0;cursor:pointer;
+  display:grid;place-items:center;
+  border:var(--stroke) solid var(--line);border-radius:12px;background:rgba(12,15,18,.72);
+  color:var(--accent);opacity:0;
+  transition:opacity .18s ease,border-color var(--accent-ease),background .2s ease;
+}
+.app-shot-rail::before{content:"";position:absolute;inset:-20px}
+.app-shot-rail[hidden]{display:none}
+.app-shot-rail:hover,.app-shot-rail:focus-visible{opacity:1;border-color:var(--accent);background:rgba(18,22,26,.86)}
+/* Touch, by its pointer as well as its hover: headless Chrome reports
+   (hover:none) with NO pointer at all, and would otherwise test as a phone. */
+@media (hover:none) and (pointer:coarse){.app-shot-rail{opacity:1}}
+.app-shot-rail .icon{width:20px;height:20px}
+.app-shot-rail-prev{right:calc(100% + var(--rail-gap))}
+.app-shot-rail-next{left:calc(100% + var(--rail-gap))}
+/* Centred, both ways, in the space between the right rail and the screen's
+   right edge: the rail's outer edge is 100% + gap + rail, the edge of the
+   screen is 100% + (100cqw - 100%) / 2, and this is halfway between. */
+/* Two classes: .contact-close is later in this file and sets its own corner. */
+.app-shot-frame .app-shot-close{
+  top:50%;right:auto;z-index:4;transform:translate(-50%,-50%);
+  left:calc(100% + (100cqw - 100%) / 4 + (var(--rail-gap) + var(--rail-w)) / 2);
+}
+/* A phone has no room outside the picture: it fills the width, the rails
+   sit just inside its edges, and the X goes back above its top-right corner. */
+@media (max-width:700px){
+  .app-shot-frame{--max-w:calc(100cqw - 24px)}
+  .app-shot-rail-prev{right:auto;left:8px}
+  .app-shot-rail-next{left:auto;right:8px}
+  .app-shot-frame .app-shot-close{top:auto;bottom:calc(100% + 10px);left:auto;right:0;transform:none}
 }
 .app-shot-bar{display:flex;align-items:center;gap:16px}
 .app-shot-count{min-width:52px;text-align:center;font-size:16px;font-weight:700;color:#c3cad0;font-variant-numeric:tabular-nums}
@@ -2580,6 +2908,26 @@ html.dex-cursor button.app-art-view{cursor:zoom-in}
    glyph, and it stays on phones, where installing is the point. */
 .ai-card-dl{text-decoration:none}
 .ai-card-dl + .ai-card-eye{margin-left:-4px}
+/* The source chip (Dex, 2026-10-09): the title goes to the app or its store,
+   and the code sits behind this small GitHub mark, which only comes up while
+   the row is hovered or has focus. It is a BADGE ON THE ICON'S CORNER, out of
+   the row's flow, and not a third chip beside download and eye: in the flow it
+   took 46px from the title, which already wraps at 1440, and pushed "Mobius
+   3D" onto two lines. The 2px ring in the row's own hover grey cuts it off
+   the icon. On a touch screen there is no hover to wait for, so it shows. */
+.ai-card-gh{
+  position:absolute;z-index:3;left:52px;top:calc(50% + 8px);
+  width:28px;height:28px;border-radius:8px;display:grid;place-items:center;
+  color:#c4ccd2;background:#0b0e12;box-shadow:0 0 0 2px #1f262e;text-decoration:none;
+  opacity:0;pointer-events:none;
+  transition:opacity .18s ease,background var(--accent-ease),color var(--accent-ease);
+}
+.ai-card-gh .icon{width:16px;height:16px}
+.ai-card:hover .ai-card-gh,.ai-card:focus-within .ai-card-gh{opacity:1;pointer-events:auto}
+.ai-card-gh:hover{background:var(--accent);color:var(--accent-ink,#0b0d12)}
+.ai-card-gh:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+@media (hover:none) and (pointer:coarse){.ai-card-gh{opacity:1;pointer-events:auto;box-shadow:0 0 0 2px #181d23}}
+@media (max-width:700px){.ai-card-gh{left:40px;top:calc(50% + 2px);width:26px;height:26px}}
 /* WIP treatment, matching the games section's .is-wip pill. */
 .ai-card.is-wip small{
   color:var(--accent);
@@ -3979,143 +4327,113 @@ body.modal-open{overflow:hidden}
 }
 
 /* ==========================================================================
-   WORK OVERLAY  —  MOCKUP (filler images, see script.js)
-   Shell geometry, backdrop wash, blur, curve and accent left rule are the
-   resume overlay's, so the two read as one component family.
-   The one genuinely new idea is the stage: a FIXED 3:2 matte that every image
-   letterboxes into. A hero box that tracked each image's aspect ratio would
-   shove the caption and filmstrip up and down on every arrow press, which is
-   the single worst thing about naive gallery layouts.
+   WORK OVERLAY
+   THE WALLPAPER LIGHTBOX'S LAYOUT (Dex, 2026-10-09): "a lot cleaner ... take
+   up a lot more real estate of just the important things." No panel, no fill,
+   no hatched matte: the dialog is the whole viewport over a dark blurred
+   backdrop, and the picture is as large as what is left.
+
+   Three columns -- a gutter, the work, a gutter -- and three rows -- the tabs,
+   the picture, the strip. The right gutter is where the X lives, centred in
+   it, the same 52px X the enlarged Mobius video puts in its dead space; the
+   left gutter is its twin so the picture stays centred on the screen.
    ========================================================================== */
 .work-modal{
   border:0;padding:0;background:transparent;color:var(--text);
-  width:min(96vw,1500px);max-width:none;
-  height:min(94vh,1180px);margin:auto;overflow:visible;
+  width:100vw;max-width:100vw;height:100dvh;max-height:100dvh;margin:0;overflow:hidden;
 }
 .work-modal::backdrop{
-  background:rgba(9,13,24,.86);
-  backdrop-filter:blur(7px);-webkit-backdrop-filter:blur(7px);
+  background:rgba(3,5,7,.9);
+  backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
 }
 .work-modal[open]{animation:contactIn .24s cubic-bezier(.22,.61,.36,1)}
 
 .work-shell{
-  position:relative;display:flex;flex-direction:column;height:100%;
-  border-radius:18px;overflow:hidden;
-  background:linear-gradient(160deg,#161c24,#0e1319);
-  border:1px solid var(--line);border-left:3px solid var(--accent);
-  box-shadow:0 30px 90px rgba(0,0,0,.6);
-  transition:border-color var(--accent-ease);
+  --gut:clamp(76px,7vw,124px);
+  position:relative;height:100%;display:grid;
+  grid-template-columns:var(--gut) minmax(0,1fr) var(--gut);
+  grid-template-rows:auto minmax(0,1fr) auto;
 }
 
 /* --- tab row ------------------------------------------------------------- */
-/* The X lives outside the scroller so it stays pinned at the end while the
-   tabs scroll under it on a narrow screen. */
+/* Centred along the top, no bar behind it. On a screen too narrow for every
+   tab the row scrolls from its first tab rather than clipping both ends. */
 .work-head{
-  flex:none;display:flex;align-items:stretch;gap:8px;
-  padding-left:clamp(10px,1.6vw,18px);padding-right:10px;
-  border-bottom:1px solid var(--line);background:rgba(10,13,17,.72);
+  grid-column:1/-1;grid-row:1;min-width:0;
+  display:flex;justify-content:center;padding:8px 16px 4px;
 }
 .work-tabs{
-  flex:0 1 auto;min-width:0;display:flex;align-items:stretch;gap:2px;
+  flex:0 1 auto;min-width:0;display:flex;align-items:stretch;gap:4px;
   overflow-x:auto;overscroll-behavior-x:contain;scroll-behavior:smooth;
   scrollbar-width:none;-ms-overflow-style:none;
 }
 .work-tabs::-webkit-scrollbar{display:none}
 .work-tab{
-  flex:0 0 auto;min-height:58px;padding:0 14px;cursor:pointer;white-space:nowrap;
+  flex:0 0 auto;min-height:48px;padding:0 12px;cursor:pointer;white-space:nowrap;
   display:inline-flex;align-items:center;gap:7px;
   border:0;border-bottom:2px solid transparent;background:none;
   color:var(--icon-idle);font:inherit;font-size:12px;font-weight:900;letter-spacing:.12em;
   user-select:none;-webkit-user-select:none;
-  transition:color var(--accent-ease),border-color var(--accent-ease),background .2s ease;
+  transition:color var(--accent-ease),border-color var(--accent-ease),transform .18s ease;
 }
-.work-tab:hover{color:var(--text);background:rgba(255,255,255,.04)}
+/* The lift the wallpaper thumbnails have, small. */
+.work-tab:hover{color:var(--text);transform:translateY(-2px)}
 .work-tab:focus-visible{outline:2px solid var(--accent);outline-offset:-4px;border-radius:0}
-.work-tab[aria-selected="true"]{
-  color:var(--accent);border-bottom-color:var(--accent);
-  background:color-mix(in srgb,var(--accent) 9%,transparent);
-}
+.work-tab[aria-selected="true"]{color:var(--accent);border-bottom-color:var(--accent)}
 .work-tab-count{font-size:11px;font-weight:700;letter-spacing:.06em;opacity:.5;font-variant-numeric:tabular-nums}
-/* Reuses .contact-close for colour, size and hover; only the anchoring changes. */
-.work-close{position:static;flex:0 0 auto;align-self:center;margin-left:auto}
+
+/* The enlarged Mobius video's X: 52px, 14px corners, dark glass. Centred in
+   the right gutter, level with the middle of the picture's row. */
+.work-close{
+  grid-column:3;grid-row:2;position:relative;top:auto;right:auto;
+  justify-self:center;align-self:center;z-index:3;
+  width:52px;height:52px;border-radius:14px;background:rgba(8,11,15,.72);color:#c9d0d6;
+}
+.work-close svg{width:22px;height:22px}
 
 /* --- stage --------------------------------------------------------------- */
 .work-stage{
-  flex:1 1 auto;min-height:0;display:grid;grid-template-rows:minmax(0,1fr) auto;
-  gap:clamp(9px,1.5vh,15px);padding:clamp(11px,1.9vh,20px) clamp(12px,2vw,24px);
+  grid-column:2;grid-row:2;min-height:0;min-width:0;
+  display:grid;grid-template-rows:minmax(0,1fr);padding:6px 0;
 }
-.work-stage:focus-visible{outline:2px solid var(--accent);outline-offset:-4px;border-radius:12px}
-
-/* .work-frame is whatever vertical space the panel has left over; .work-hero is
-   the fixed 3:2 box centred inside it. Sized in container-query units so both
-   axes are stated explicitly — an `aspect-ratio` box with max-width/max-height
-   is over-constrained and silently stops being 3:2 at some sizes.
-   A browser without container queries drops the two min() declarations, the
-   hero falls back to inset:0 and simply fills the frame: still a fixed box,
-   just not exactly 3:2. */
-/* THREE COLUMNS: arrow, picture, arrow. The arrows used to be absolutely
-   positioned on top of the artwork, where they were easy to lose track of --
-   the hero letterboxes every shape into one fixed box, so the edge of the
-   picture moves under them on every press while they stay put (Dex,
-   2026-09-02). Giving them their own columns reserves the space at every
-   width, rather than only at the wide ones where the matte happened to leave
-   a gutter.
-   align-items:stretch, not center: .work-hero-area needs a definite height
-   for container-type:size to resolve against, and a centred flex item has
-   none. The arrows centre themselves instead. */
-.work-frame{position:relative;min-height:0;display:flex;align-items:stretch;gap:clamp(4px,1.1vw,14px)}
-/* The container the hero measures itself in. It has to be this rather than
-   .work-frame: cqw on the row would include both arrow columns, and the 3:2
-   box would overhang them. */
-.work-hero-area{position:relative;flex:1 1 auto;min-width:0;min-height:0;container-type:size}
-.work-hero{
-  --hero-ar:1.5;
+.work-stage:focus-visible{outline:none}
+.work-frame{position:relative;min-height:0;display:flex;align-items:stretch}
+/* The container the picture measures itself in: both axes are stated in
+   container units, so the box is the picture's own shape fitted to the area
+   -- an aspect-ratio box with max-width and max-height is over-constrained
+   and silently stops keeping its ratio. --hero-ar is the piece's w/h, written
+   by script.js when its picture lands. */
+.work-hero-area{--hero-ar:1.5;position:relative;flex:1 1 auto;min-width:0;min-height:0;container-type:size}
+.work-hero,.work-over{
   position:absolute;inset:0;margin:auto;
   width:min(100cqw,calc(100cqh * var(--hero-ar)));
   height:min(100cqh,calc(100cqw / var(--hero-ar)));
-  overflow:hidden;
-  border:1px solid var(--line);border-radius:12px;
-  /* The visible cost of a fixed box is empty space around tall images. A very
-     low contrast accent hatch makes it read as an intentional matte rather than
-     an image that has not finished loading — 3% is the ceiling here, above that
-     it stops being a surface and starts competing with the artwork. */
-  background:
-    radial-gradient(120% 100% at 50% 42%,rgba(255,255,255,.026),transparent 72%),
-    repeating-linear-gradient(45deg,
-      color-mix(in srgb,var(--accent) 3%,transparent) 0 12px,
-      transparent 12px 24px),
-    linear-gradient(160deg,#12171d,#0a0d11);
-  transition:background var(--accent-ease),border-color var(--accent-ease);
 }
-/* Absolutely positioned and centred with auto margins, NOT a centred grid item:
-   a grid row sizes itself to the image's intrinsic height, which leaves
-   max-height:100% resolving against an indefinite area, so a 900x1600 portrait
-   renders at 1600px tall and hangs straight out of the matte. Against an
-   absolutely positioned box the percentages resolve against the hero itself,
-   which is definite by construction. */
+.work-hero{
+  overflow:hidden;border-radius:12px;
+  box-shadow:0 30px 90px rgba(0,0,0,.6);
+}
+.work-hero-pic{display:block;width:100%;height:100%}
 .work-hero-img{
-  position:absolute;inset:0;margin:auto;
-  max-width:100%;max-height:100%;width:auto;height:auto;
-  object-fit:contain;display:block;
-  filter:drop-shadow(0 16px 38px rgba(0,0,0,.45));
+  width:100%;height:100%;object-fit:contain;display:block;
   transition:opacity .16s ease;
 }
+/* A tab with nothing in it yet (Proto Isles' Video): a quiet box, a line
+   saying so, and no title or arrows that would walk nothing. */
+.work-stage.is-empty .work-hero{background:rgba(255,255,255,.03);border:1px solid var(--line);box-shadow:none}
+.work-stage.is-empty .work-hero-img{visibility:hidden}
+.work-stage.is-empty .work-hero::after{
+  content:attr(data-empty);position:absolute;inset:0;display:grid;place-items:center;
+  font-weight:900;letter-spacing:.2em;font-size:clamp(16px,4cqw,40px);color:var(--text);opacity:.85}
+.work-stage.is-empty :is(.work-nav,.work-plate){visibility:hidden}
 
 /* A VERY TALL PIECE FILLS THE WIDTH AND SCROLLS instead of being fitted to the
-   height. Fitting a 400x1600 sheet into a 3:2 box leaves it using 16% of the
-   frame width -- a column of unreadable thumbnail in the middle of a large
-   empty box. At or past the threshold in script.js (w/h <= 0.75, which is
-   every piece that would otherwise get half the frame or less) the image
-   goes full width, the frame scrolls, and each swap starts at the top.
-
-   position:static is the load-bearing part: the fitted rule centres the image
-   with absolute inset and auto margins, and an absolutely positioned child
-   gives its scroll container nothing to scroll. */
+   height. At or past the threshold in script.js (w/h <= 0.75) the box is 3:2
+   rather than the piece's own shape, the image goes full width inside it, the
+   box scrolls, and each swap starts at the top. */
 .work-hero.is-tall{overflow-y:auto;overscroll-behavior:contain}
-.work-hero.is-tall .work-hero-img{
-  position:static;margin:0;
-  width:100%;height:auto;max-width:100%;max-height:none;
-}
+.work-hero.is-tall .work-hero-pic{height:auto}
+.work-hero.is-tall .work-hero-img{width:100%;height:auto}
 /* Thumb only, in the accent, matching the notes overlay's bar. */
 .work-hero.is-tall::-webkit-scrollbar{width:10px;background:transparent}
 .work-hero.is-tall::-webkit-scrollbar-track{background:transparent}
@@ -4132,13 +4450,36 @@ body.modal-open{overflow:hidden}
    strobing when the arrow key is held down. */
 .work-hero-img.is-fading{opacity:.25}
 
+/* What sits ON the picture, in a box the picture's size laid over it. It
+   takes no pointer itself, so the picture under it still scrolls. */
+.work-over{z-index:2;pointer-events:none}
+/* The title, top left, white with the wallpaper plate's two shadows: a tight
+   dark one for edge contrast on light art and a wide soft one off busy detail. */
+.work-plate{position:absolute;left:0;right:0;top:0;margin:0;padding:18px 22px;pointer-events:none}
+.work-cap-title{
+  display:block;color:#fff;
+  text-shadow:0 1px 2px rgba(0,0,0,.85), 0 4px 22px rgba(0,0,0,.65);
+  font-size:clamp(20px,2.2vw,32px);font-weight:800;letter-spacing:-.02em;line-height:1.15;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+
+/* The arrows on the picture's edges: up while the pointer is on the picture
+   (or within reach of one, or focus is on it), always up on touch. */
+.work-nav-col{
+  position:absolute;top:50%;translate:0 -50%;display:grid;pointer-events:auto;
+  opacity:0;transition:opacity .2s ease;
+}
+.work-nav-col.prev{left:16px}
+.work-nav-col.next{right:16px}
+.work-hero.is-tall ~ .work-over .work-nav-col.next{right:22px}
+.work-hero-area:hover .work-nav-col,.work-nav-col.is-near,.work-nav-col:focus-within{opacity:1}
+@media (hover:none) and (pointer:coarse){ .work-nav-col{opacity:1} }
 .work-nav{
-  flex:0 0 auto;align-self:center;
   width:46px;height:46px;display:grid;place-items:center;padding:0;cursor:pointer;
   border:var(--stroke) solid var(--line);border-radius:50%;
   background:rgba(8,11,15,.74);backdrop-filter:blur(5px);-webkit-backdrop-filter:blur(5px);
   color:var(--text);
-  transition:color var(--accent-ease),border-color var(--accent-ease),background .2s ease,transform .2s ease,opacity .2s ease;
+  transition:color var(--accent-ease),border-color var(--accent-ease),background .2s ease,transform .2s ease;
 }
 .work-nav .icon{width:19px;height:19px}
 /* One arrow mask, mirrored — no second icon to bake. */
@@ -4147,65 +4488,92 @@ body.modal-open{overflow:hidden}
 .work-nav.prev:hover{transform:translateX(-2px)}
 .work-nav.next:hover{transform:translateX(2px)}
 .work-nav:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
-/* No :disabled rule: the ends wrap now, so neither arrow is ever dead. */
 
-/* --- caption ------------------------------------------------------------- */
-.work-cap{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;min-height:24px}
-.work-cap-title{font-size:16px;font-weight:800;letter-spacing:.01em}
-.work-cap-desc{color:var(--muted);font-size:12px;letter-spacing:.06em}
-/* Tabular figures so 09/10 -> 10/10 does not shuffle the whole line. */
+/* The category button hangs off the top of its arrow's column
+   (bottom:100%) without moving the arrow a pixel. Same circle, same glass,
+   the next tab's icon in it. Faded out until the pointer comes within two
+   arrow-widths (script.js, nearWorkJumps), shown by keyboard focus too, and
+   always shown where there is no hover to reveal it. */
+.work-jump{
+  position:absolute;left:0;bottom:calc(100% + 12px);
+  width:100%;aspect-ratio:1;display:grid;place-items:center;padding:0;cursor:pointer;
+  border:var(--stroke) solid var(--line);border-radius:50%;
+  background:rgba(8,11,15,.74);backdrop-filter:blur(5px);-webkit-backdrop-filter:blur(5px);
+  color:var(--text);
+  opacity:0;pointer-events:none;transform:translateY(6px) scale(.88);
+  transition:color var(--accent-ease),border-color var(--accent-ease),background .2s ease,transform .2s ease,opacity .2s ease;
+}
+.work-jump[hidden]{display:none}
+.work-jump .icon{width:22px;height:22px}
+.work-nav-col.is-near .work-jump,
+.work-jump:focus-visible{opacity:1;pointer-events:auto;transform:none}
+.work-jump:hover{color:var(--accent);border-color:var(--accent);background:rgba(8,11,15,.92)}
+.work-jump:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+@media (hover:none) and (pointer:coarse){ .work-jump{opacity:1;pointer-events:auto;transform:none} }
+
+/* --- filmstrip ----------------------------------------------------------- */
+/* Eight to a page (fewer where eight would not fit), on a track that slides
+   to the page holding the selection -- the wallpaper strip's mechanism.
+   --per-page comes from script.js, measured; the shift is pure arithmetic on
+   --tw and --tgap because every thumbnail is exactly --tw wide. */
+.work-strip-wrap{
+  grid-column:2;grid-row:3;min-width:0;display:flex;justify-content:center;
+  padding:6px 0 calc(16px + env(safe-area-inset-bottom,0px));
+}
+.work-strip-row{position:relative;display:flex;align-items:center;gap:12px;min-width:0}
+.work-strip{
+  --tw:clamp(64px,7.4vw,132px);--tgap:10px;
+  flex:0 1 auto;min-width:0;overflow:hidden;padding:7px 0 3px;
+  width:calc(var(--per-page,8) * var(--tw) + (var(--per-page,8) - 1) * var(--tgap));
+}
+.work-track{
+  display:flex;gap:var(--tgap);
+  transform:translateX(calc(var(--page,0) * var(--per-page,8) * (var(--tw) + var(--tgap)) * -1));
+  transition:transform .38s cubic-bezier(.22,.61,.36,1);
+}
+@media(prefers-reduced-motion:reduce){ .work-track{transition:none} }
+/* Thumbnails crop (object-fit:cover); only the hero fits the whole piece. A
+   strip of letterboxed thumbs at ten different aspect ratios is unreadable. */
+.work-thumb{
+  flex:0 0 var(--tw);width:var(--tw);aspect-ratio:3/2;padding:0;cursor:pointer;position:relative;
+  border:var(--stroke) solid rgba(255,255,255,.12);border-radius:8px;overflow:hidden;background:#0b0f12;
+  opacity:.82;transition:opacity .18s ease,border-color var(--accent-ease),transform .18s ease;
+}
+.work-thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.work-thumb:hover{opacity:.95;transform:translateY(-4px)}
+.work-thumb[aria-current="true"]{opacity:1;border-color:var(--accent)}
+.work-thumb:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+/* 01 / 08, the current one in the accent. Out of flow, just right of the
+   strip's own arrow, so the strip stays centred whatever it reads. */
 .work-cap-index{
-  margin-left:auto;color:var(--icon-idle);font-size:11px;font-weight:800;
+  position:absolute;left:calc(100% + 16px);top:50%;translate:0 -50%;min-width:72px;
+  color:var(--icon-idle);font-size:13px;font-weight:800;
   letter-spacing:.14em;font-variant-numeric:tabular-nums;white-space:nowrap;
 }
 .work-cap-index b{color:var(--accent);font-weight:800;transition:color var(--accent-ease)}
+.work-stage.is-empty ~ .work-strip-wrap .work-step{visibility:hidden}
 
-/* --- filmstrip ----------------------------------------------------------- */
-/* Thumbnails crop (object-fit:cover); only the hero letterboxes. A strip of
-   letterboxed thumbs at ten different aspect ratios is unreadable. */
-.work-strip-wrap{
-  flex:none;display:flex;align-items:center;gap:18px;
-  border-top:1px solid var(--line);background:rgba(10,13,17,.72);
-  padding:11px clamp(12px,2vw,24px);
-  padding-bottom:calc(11px + env(safe-area-inset-bottom,0px));
-}
-.work-strip{
-  flex:1 1 auto;min-width:0;display:flex;gap:10px;
-  overflow-x:auto;overscroll-behavior-x:contain;scroll-behavior:smooth;
-  padding:4px 2px 8px;
-  scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.2) transparent;
-}
-.work-thumb{
-  flex:0 0 auto;width:96px;height:64px;padding:0;cursor:pointer;position:relative;
-  border:var(--stroke) solid var(--line);border-radius:9px;overflow:hidden;background:#0e1217;
-  transition:border-color var(--accent-ease),transform .18s ease,box-shadow var(--accent-ease);
-}
-.work-thumb img{width:100%;height:100%;object-fit:cover;display:block;opacity:.55;transition:opacity .18s ease}
-.work-thumb:hover{transform:translateY(-2px)}
-.work-thumb:hover img{opacity:.9}
-.work-thumb[aria-current="true"]{
-  border-color:var(--accent);transform:translateY(-2px);
-  box-shadow:0 6px 18px color-mix(in srgb,var(--accent) 24%,transparent);
-}
-.work-thumb[aria-current="true"] img{opacity:1}
-.work-thumb:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-.work-hint{flex:0 0 auto;margin:0;color:var(--icon-idle);font-size:10px;font-weight:800;letter-spacing:.16em;opacity:.65;white-space:nowrap}
-.work-hint b{color:var(--muted);font-weight:800}
-
-@media(max-width:900px){ .work-hint{display:none} }
 @media(max-width:760px){
-  .work-modal{width:100vw;height:100dvh;max-height:none}
-  .work-shell{border-radius:0;border-left-width:3px}
-  .work-tab{min-height:52px;padding:0 12px;font-size:11px;letter-spacing:.1em}
-  /* A phone's stage is tall and narrow, so a 3:2 box would leave a third of it
-     empty above and below the matte. Here the frame IS the box — still one
-     fixed size per viewport, which is the property that keeps the caption and
-     filmstrip still, just without the wasted band. */
-  .work-hero{width:100%;height:100%}
-  .work-cap-title{font-size:14px}
+  /* No gutters on a phone: the picture takes the width, the X goes to the
+     top right corner beside the tabs, the strip's arrows give way to a swipe
+     on the picture, and the count follows the strip in the row. */
+  .work-shell{--gut:0px}
+  .work-head{padding:6px 60px 2px 8px}
+  .work-close{grid-column:1/-1;grid-row:1;justify-self:end;align-self:start;margin:6px 8px 0 0;width:44px;height:44px;border-radius:12px}
+  .work-close svg{width:19px;height:19px}
+  .work-tab{min-height:44px;padding:0 11px;font-size:11px;letter-spacing:.1em}
+  .work-stage{padding:4px 8px}
+  .work-plate{padding:12px 14px}
+  .work-cap-title{font-size:16px}
   .work-nav{width:34px;height:34px}
   .work-nav .icon{width:15px;height:15px}
-  .work-thumb{width:74px;height:52px}
+  .work-nav-col.prev{left:8px}
+  .work-nav-col.next{right:8px}
+  .work-jump .icon{width:17px;height:17px}
+  .work-jump{bottom:calc(100% + 8px)}
+  .work-strip-row .work-step{display:none}
+  .work-strip-wrap{padding:4px 8px calc(10px + env(safe-area-inset-bottom,0px))}
+  .work-cap-index{position:static;translate:none;min-width:0;font-size:11px}
 }
 
 /* ==========================================================================
@@ -4264,7 +4632,14 @@ body.modal-open{overflow:hidden}
   .topbar{padding:0 12px}
   .accent-picker{transform:translate(-4px,12px)}
   .accent-picker .accent-label{display:none}
-  .accent-picker.compact{top:0;right:2px}
+  /* Room for the fixed profile button at a phone's width: the row was already full. */
+  .topbar{padding-right:48px}
+  .accent-picker:not(.compact) .accent-swatches{gap:3px}
+  /* Below 420px it still does not fit beside the sidebar, so the cursor
+     toggle leaves the INLINE row (a phone has no cursor to change); it is
+     still at the bottom of the docked stack. */
+  @media (max-width:420px){.accent-picker:not(.compact) .cursor-toggle{display:none}}
+  :root{--dock-top:0px;--dock-right:2px}
   .hero{min-height:790px;padding:46px 20px 0}
   .hero-copy{width:100%}
   .dex-wordmark{width:min(72vw,379px)}
@@ -4548,6 +4923,8 @@ body.modal-open{overflow:hidden}
    A shade larger and heavier, because "Copied!" is an answer to something the
    visitor just did and a 12px label reads as chrome they are meant to ignore. */
 #tip.is-flash{font-size:13px;font-weight:700;letter-spacing:.01em}
+/* data-tip-big: four points up, for the featured video's two buttons (Dex). */
+#tip.is-big{font-size:16px;padding:9px 14px;border-radius:12px}
 /* LOUD: a headline in the accent with a quieter line under it. The plain
    bubble is a label and is meant to be ignorable; this one is for a control
    that is announcing something -- the game download, which is a placeholder
@@ -4676,8 +5053,8 @@ body.modal-open{overflow:hidden}
    Listed together rather than per-carousel: scoping the rotation to .wp-prev
    left the overlay and the clips arrows pointing at the floor the moment they
    were added. Any new arrow gets its class added here, not its own rule. */
-.wp-prev .icon,.wp-fullprev .icon,.cl-prev .icon,.app-art-prev .icon,.app-shot-prev .icon{transform:rotate(90deg)}
-.wp-next .icon,.wp-fullnext .icon,.cl-next .icon,.app-art-next .icon,.app-shot-next .icon{transform:rotate(-90deg)}
+.wp-prev .icon,.wp-fullprev .icon,.work-step.prev .icon,.cl-prev .icon,.app-art-prev .icon,.app-shot-prev .icon,.app-shot-rail-prev .icon{transform:rotate(90deg)}
+.wp-next .icon,.wp-fullnext .icon,.work-step.next .icon,.cl-next .icon,.app-art-next .icon,.app-shot-next .icon,.app-shot-rail-next .icon{transform:rotate(-90deg)}
 
 /* The overlay's strip, centred under the piece. The panel's is the grid below
    and shares everything here except the container. */
@@ -4789,7 +5166,8 @@ body.modal-open{overflow:hidden}
 }
 .wp-full picture{display:block;width:100%;height:100%}
 .wp-full img{width:100%;height:100%;object-fit:contain;display:block}
-.wp-thumbs-lg{max-width:min(90vw, 900px);margin-top:-2px}
+/* Wide enough for a page of eight at the full 132px (8 x 132 + 7 x 8). */
+.wp-thumbs-lg{width:min(90vw, 1112px);max-width:min(90vw, 1112px);margin-top:-2px}
 @media (max-width:900px){
   .wp-close{top:-46px;right:0}
   .wp-full{width:min(80vw, calc(66dvh * 16 / 10))}
@@ -7132,6 +7510,62 @@ body:has(.sidebar:is(:hover,:has(:focus-visible))) > .music-remote.at-bl{
 .code-modal{border:0;padding:0;background:none;max-width:100vw;display:none}
 .code-modal[open]{display:grid;place-items:center}
 .code-modal::backdrop{background:rgba(3,5,7,.86);backdrop-filter:blur(6px)}
+
+/* --- the site sign-in (~DEXDC, Dex 2026-10-09) ---------------------------
+   The site's one account, so it wears the site's mark (the live favicon in
+   the current accent) and the tilde prompt's panel, not DexNote's. */
+.signin-modal{border:0;padding:0;background:none;max-width:100vw;display:none;color:var(--text,#e8ecf3)}
+.signin-modal[open]{display:grid;place-items:center}
+.signin-modal::backdrop{background:rgba(3,5,7,.86);backdrop-filter:blur(6px)}
+.signin-card{
+  display:flex;flex-direction:column;align-items:stretch;gap:10px;text-align:center;
+  width:min(360px,calc(100vw - 32px));box-sizing:border-box;
+  padding:28px 28px 22px;border-radius:26px;background:#171b25;
+  box-shadow:0 30px 80px rgba(0,0,0,.6);
+}
+.signin-logo{width:64px;height:64px;align-self:center;border-radius:14px}
+.signin-title{margin:4px 0 0;font-size:1.3rem;font-weight:700;letter-spacing:.01em}
+.signin-note{margin:0 0 6px;color:rgba(232,236,243,.62);font-size:.95rem;overflow-wrap:anywhere}
+.signin-providers{display:flex;flex-direction:column;align-items:center;gap:8px}
+.signin-btn{
+  min-height:44px;padding:0 18px;border:1px solid transparent;border-radius:12px;
+  background:#252a37;color:inherit;font:inherit;font-weight:600;cursor:pointer;
+  transition:background-color .15s,border-color .15s;
+}
+.signin-btn:hover{background:#2e3443}
+.signin-btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.signin-btn:disabled{opacity:.55;cursor:default}
+.signin-btn.is-primary{background:var(--accent);color:var(--accent-ink,#0b0d12)}
+.signin-btn.is-primary:hover{filter:brightness(1.08)}
+.signin-btn.is-danger{color:#ff8a80}
+.signin-btn.is-danger:hover{background:rgba(255,90,80,.16)}
+/* Shorter and only as long as the widest name, so the three line up as one
+   column under the title rather than spanning the panel. */
+.signin-provider{
+  display:inline-flex;align-items:center;justify-content:flex-start;gap:10px;
+  min-height:46px;width:225px;padding:0 18px;gap:12px;font-size:1.3rem;
+}
+.signin-mark{width:24px;height:24px}
+/* The fourth way in opens the form; it is a way, not the default, so quieter. */
+.signin-provider.is-quiet{background:transparent;border-color:#323848}
+.signin-provider.is-quiet:hover{background:#252a37}
+.signin-providers[hidden],.signin-form[hidden]{display:none}
+/* Email or Inko name, and a password: the column the buttons were in. */
+.signin-form{display:flex;flex-direction:column;align-items:center;gap:8px}
+.signin-input{
+  width:280px;max-width:100%;box-sizing:border-box;min-height:46px;padding:0 14px;
+  border:1px solid #323848;border-radius:12px;background:#0f121a;color:inherit;
+  font:inherit;font-size:1.05rem;
+}
+.signin-input::placeholder{color:rgba(232,236,243,.42)}
+.signin-input:focus{outline:none;border-color:var(--accent)}
+.signin-form-row{display:flex;gap:8px;width:280px;max-width:100%}
+.signin-form-row .signin-btn{flex:1;min-height:46px;padding:0 8px;white-space:nowrap}
+.signin-link{background:none;min-height:34px;color:rgba(232,236,243,.62);font-weight:500}
+.signin-link:hover{background:none;color:var(--text,#e8ecf3)}
+.signin-error{margin:0;color:#ff8a80;font-size:.9rem}
+.signin-foot{display:flex;justify-content:center;gap:10px;margin-top:10px}
+.signin-foot .signin-btn{min-width:110px}
 /* TIGHTER THAN IT WAS (Dex, 2026-09-09). At 44px top and bottom plus a 14px
    gap either side of the boxes, a five-character prompt was 224px tall for
    66px of input -- most of a panel that exists to hold one word. The bottom
@@ -7264,7 +7698,8 @@ body:has(.sidebar:is(:hover,:has(:focus-visible))) > .music-remote.at-bl{
 .music-remote.at-tl .music-remote-expand svg{transform:rotate(90deg)}
 /* Pill at top-right: hide the accent dropdown instead of offsetting.
    Only the compact (floating) version; the inline one is unaffected. */
-body:has(> .music-remote.at-tr:not([hidden])) .accent-picker.compact{display:none}
+body:has(> .music-remote.at-tr:not([hidden])) .accent-picker.compact,
+body:has(> .music-remote.at-tr:not([hidden])) .profile-btn{display:none}
 /* X button 20% smaller (20px → 16px icon). */
 .music-remote-close svg{width:16px;height:16px}
 
@@ -7462,20 +7897,23 @@ body:has(> .music-remote.at-tr:not([hidden])) .accent-picker.compact{display:non
    color(display-p3 ...) rather than oklch() so no browser has to gamut-map it.
    Phones are P3 too and get the same treatment; there is no pointer gate.
    --accent-deep is the far end of the hero's diagonal grade, top right: darker,
-   and turned toward the hue its shadow would take (lime to emerald, yellow to
-   amber, blue to indigo...) rather than the accent with black mixed in, which
-   is what made the old grade nearly invisible on some accents. In sRGB gamut
-   on purpose, so one value serves every screen.
+   with a SMALL turn of hue (lime a little greener, red a little cooler, blue
+   and purple a few degrees, white a cool steel with some saturation so it is
+   not plain grey). Yellow is the exception and turns all the way to amber,
+   which Dex picked. The first pass turned every hue as far as yellow's and
+   barely darkened them (lime went teal, blue violet, purple magenta); Dex
+   wanted darker with a nudge, not a different colour. In sRGB gamut on
+   purpose, so one value serves every screen.
    Retune an accent: change the hex in script.js AND here, then re-derive its P3
    value (oklch of the hex, chroma + half the gap to P3's edge).
    ========================================================================== */
-:root,:root[data-accent='lime']{--accent:#9EE02B;--accent-deep:#0B8B47}
-:root[data-accent='red']{--accent:#D94727;--accent-deep:#991425}
+:root,:root[data-accent='lime']{--accent:#9EE02B;--accent-deep:#377C07}
+:root[data-accent='red']{--accent:#D94727;--accent-deep:#961114}
 :root[data-accent='yellow']{--accent:#FAAA1E;--accent-deep:#CF630B}
 :root[data-accent='cyan']{--accent:#2CC7F6;--accent-deep:#1774B5}
-:root[data-accent='blue']{--accent:#335DF3;--accent-deep:#3C26A5}
-:root[data-accent='purple']{--accent:#A85CF5;--accent-deep:#771F89}
-:root[data-accent='white']{--accent:#E9EBEC;--accent-deep:#8A9AAE}
+:root[data-accent='blue']{--accent:#335DF3;--accent-deep:#2223A6;--accent-ink:#ffffff}  /* ink before script.js's accentInk() runs; blue is the one white label */
+:root[data-accent='purple']{--accent:#A85CF5;--accent-deep:#5F1D9E}
+:root[data-accent='white']{--accent:#E9EBEC;--accent-deep:#6484A3}
 @media (color-gamut:p3){
   :root,:root[data-accent='lime']{--accent:color(display-p3 0.662 0.879 0.219)}  /* oklch(.832 .232 128.7) */
   :root[data-accent='red']{--accent:color(display-p3 0.823 0.273 0.136)}         /* oklch(.600 .216 33.8) */

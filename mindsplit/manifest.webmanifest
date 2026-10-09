@@ -1,0 +1,18 @@
+{
+  "id": "/mindsplit/",
+  "name": "MindSplit",
+  "short_name": "MindSplit",
+  "start_url": "/mindsplit/",
+  "scope": "/mindsplit/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#FF3668",
+  "theme_color": "#FF3668",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "categories": ["social", "entertainment"],
+  "description": "Swipe through questions, pick a side, and see how everyone else split."
+}

@@ -5,6 +5,66 @@
    sync and no wrong-color flash between themes.
    ========================================================================== */
 
+/* ---------- Dex signed in is admin, everywhere -------------------------- */
+
+/* DEX SIGNED IN IS ADMIN (Dex, 2026-10-08): "being signed in on my account
+   automatically gives me permissions everywhere, every overlay ... dexdc will
+   no more." No code is involved any more. The page shows the server a
+   Firebase ID token and the SERVER says whether it is Dex (lib/owner-auth.js);
+   this file only carries the answer to the overlays.
+
+   Nobody signed in in this browser means no token and no Firebase download:
+   the site-auth mirror flag is read first, so a visitor never pulls in the
+   SDK. */
+window.siteIdToken = async function() {
+  try { if (localStorage.getItem('site:signedIn') !== '1') return null; } catch (e) { return null; }
+  try { return await (await import('/account/site-auth.js')).idToken(); } catch (e) { return null; }
+};
+
+/* window.dexOwner.is: the server's word, held for the page. Every overlay that
+   has an admin side reads it when it opens and listens for 'dex:owner' (on
+   document, detail { owner }) to change while it is open. */
+window.dexOwner = { is: false };
+let ownerCheck = null, ownerAgain = false;
+window.dexOwnerCheck = function() {
+  /* One question at a time; a change that lands while one is out asks again
+     when it comes back, so the last answer is about the last sign-in. */
+  if (ownerCheck) { ownerAgain = true; return ownerCheck; }
+  return (ownerCheck = (async function() {
+    let owner = false;
+    const idToken = await window.siteIdToken();
+    if (idToken) {
+      try {
+        const r = await fetch('/api/auth/unlock', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ idToken: idToken }),
+        });
+        if (r.ok) {
+          const j = await r.json();
+          if (window.DexAuth && j.token) window.DexAuth.setToken(j.token, j.tier);
+          owner = !!j.token;
+        }
+      } catch (e) { /* offline: stays a visitor until the next check */ }
+    }
+    ownerCheck = null;
+    if (ownerAgain) { ownerAgain = false; return window.dexOwnerCheck(); }
+    if (!owner && window.DexAuth) { window.DexAuth.clearToken(); window.DexAuth.lock('work'); }
+    if (owner !== window.dexOwner.is) {
+      window.dexOwner.is = owner;
+      document.dispatchEvent(new CustomEvent('dex:owner', { detail: { owner: owner } }));
+    }
+    return owner;
+  })());
+};
+/* Asked on load, and again whenever who is signed in changes: in another tab
+   (the storage event), or in this one (account/site-auth.js and
+   dexnote/cloud.js both send 'site:user'). */
+window.addEventListener('storage', function(e) {
+  if (e.key === 'site:signedIn') window.dexOwnerCheck();
+});
+window.addEventListener('site:user', function() { window.dexOwnerCheck(); });
+window.addEventListener('load', function() { window.dexOwnerCheck(); }, { once: true });
+
 /* ---------- refresh starts at the top ------------------------------------ */
 
 // A reload restores the old scroll position by default, so refreshing looks
@@ -431,11 +491,109 @@ function onSwatchClick(theme, button) {
     }
     return;
   }
+  /* Picking stays open (Dex, 2026-10-09: "I might want to cycle through and
+     keep clicking them"): the old accent slides back into its row and the
+     new one goes up under the profile. Focus moves to the swatch that now
+     sits where the pick was, since the pick itself is hidden once active. */
+  const row = button.style.getPropertyValue('--row');
+  const hadFocus = document.activeElement === button;
   applyAccent(theme.name);
-  if (isDocked()) {
-    setOpen(false);
-    button.blur();
+  if (isDocked() && hadFocus) {
+    (swatches.find(b => b.style.getPropertyValue('--row') === row) || swatches.find(b => !b.classList.contains('active')))?.focus();
   }
+}
+
+/* THE PROFILE BUTTON (Dex, 2026-10-09): "at the very top right ... a sign in
+   icon ... the exact same thing as just me hitting tilde and typing in Dex
+   DC", and once the page scrolls it "would just replace that swatch at the
+   top" -- hovering it still drops the hexagons down. It is FIXED at the top
+   right from the first frame, exactly where the docked swatch sits, so
+   scrolling never moves it ("it's supposed to already load in that
+   location"); docked, it is the toggle the cascade falls out of. The
+   dropdown never lists the current accent: the hexagon IS the current one,
+   and the accent you leave appears in the list, as the docked stack always
+   worked. It lives on <body>, not in the picker, because the inline picker
+   is transformed and a transformed ancestor would pin it to the row.
+
+   The mark is the site's own shape: a hexagon frame with a person in it whose
+   HEAD is a small hexagon too. Hollow and accent-inked while nobody is signed
+   in; filled with the accent, the person cut out of it, once someone is. The
+   state comes from site-auth's mirror flag, so drawing it never loads
+   Firebase. A click opens the site sign-in (openSiteSignIn), which signed in
+   is the account's own menu. On touch, docked, the first tap opens the
+   swatches (there is no hover) and the second opens the panel. */
+const PROFILE_HEAD = roundedPolygonPath(hexPoints(38, 29, 9.5), 3);
+let profileBtn = null;
+const inPickerOrProfile = (node) => !!node && (picker.contains(node) || !!profileBtn?.contains(node));
+function buildProfileButton() {
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'profile-btn';
+  btn.id = 'profileButton';
+  const ns = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(ns, 'svg');
+  svg.setAttribute('viewBox', '0 0 76 76');
+  svg.setAttribute('aria-hidden', 'true');
+  const el = (tag, attrs) => {
+    const n = document.createElementNS(ns, tag);
+    Object.entries(attrs).forEach(([k, v]) => n.setAttribute(k, v));
+    return n;
+  };
+  const frame = roundedPolygonPath(hexPoints(38, 38, 32), 6);
+  const clip = el('clipPath', { id: 'profileClip' });
+  clip.append(el('path', { d: roundedPolygonPath(hexPoints(38, 38, 29), 5) }));
+  const body = el('g', { 'clip-path': 'url(#profileClip)', class: 'pf-person' });
+  body.append(
+    el('path', { d: PROFILE_HEAD }),
+    el('path', { d: 'M 17 76 L 17 61 C 17 51 26 45 38 45 C 50 45 59 51 59 61 L 59 76 Z' }));
+  svg.append(
+    el('defs', {}),
+    el('path', { class: 'pf-back', d: roundedPolygonPath(hexPoints(38, 38, 38), 8) }),
+    el('path', { class: 'pf-fill', d: frame }),
+    el('path', { class: 'pf-frame', d: frame }),
+    body);
+  svg.firstChild.append(clip);
+  btn.append(svg);
+  document.body.append(btn);
+  profileBtn = btn;
+
+  /* The picker's hover and focus rules, extended over the button: moving
+     between the two is staying inside, not leaving. */
+  const inside = (node) => !!node && (picker.contains(node) || btn.contains(node));
+  btn.addEventListener('pointerenter', () => { if (isDocked() && canHover.matches) setOpen(true); });
+  btn.addEventListener('pointerleave', (event) => {
+    if (isDocked() && canHover.matches && !pickerPinned && !inside(event.relatedTarget)) setOpen(false);
+  });
+  btn.addEventListener('focusin', () => { if (isDocked()) setOpen(true); });
+  btn.addEventListener('focusout', (event) => {
+    if (isDocked() && !inside(event.relatedTarget)) setOpen(false);
+  });
+
+  const paint = () => {
+    let on = false;
+    try { on = localStorage.getItem('site:signedIn') === '1'; } catch (e) { /* private mode */ }
+    btn.classList.toggle('is-signed-in', on);
+    btn.setAttribute('aria-label', on ? 'Your account' : 'Sign in');
+  };
+  paint();
+  window.addEventListener('site:user', paint);
+  window.addEventListener('storage', (e) => { if (e.key === 'site:signedIn') paint(); });
+
+  /* Whether the stack was open when the finger came DOWN: the tap focuses the
+     button, and focusin opens the stack before the click arrives, so reading
+     it at click time would skip straight to the panel. */
+  let openAtPress = null;
+  btn.addEventListener('pointerdown', () => { openAtPress = picker.classList.contains('open'); });
+  btn.addEventListener('click', () => {
+    const wasOpen = openAtPress;
+    openAtPress = null;
+    if (isDocked() && !canHover.matches && wasOpen === false) {
+      setOpen(true, { pin: true });
+      return;
+    }
+    if (isDocked()) setOpen(false);
+    openSiteSignIn(btn);
+  });
 }
 
 function buildAccentPicker() {
@@ -511,6 +669,7 @@ function buildAccentPicker() {
   cSvg.append(cHex, cG);
   cursorBtn.appendChild(cSvg);
   accentHost.appendChild(cursorBtn);
+  buildProfileButton();
 
   const applyCursorPref = (on, persist = true) => {
     document.documentElement.classList.toggle('dex-cursor', on);
@@ -564,14 +723,14 @@ function buildAccentPicker() {
   // Leaving closes a HOVER-open only — a pinned one is waiting on a click,
   // an outside tap or Escape, which is the point of pinning it.
   picker.addEventListener('pointerenter', () => { if (isDocked() && canHover.matches) setOpen(true); });
-  picker.addEventListener('pointerleave', () => {
-    if (isDocked() && canHover.matches && !pickerPinned) setOpen(false);
+  picker.addEventListener('pointerleave', event => {
+    if (isDocked() && canHover.matches && !pickerPinned && !inPickerOrProfile(event.relatedTarget)) setOpen(false);
   });
 
   // Keyboard: focus opens it, arrows walk the stack, Escape closes it.
   picker.addEventListener('focusin', () => { if (isDocked()) setOpen(true); });
   picker.addEventListener('focusout', event => {
-    if (isDocked() && !picker.contains(event.relatedTarget)) setOpen(false);
+    if (isDocked() && !inPickerOrProfile(event.relatedTarget)) setOpen(false);
   });
   picker.addEventListener('keydown', event => {
     const target = event.target.closest?.('.swatch');
@@ -608,7 +767,7 @@ function buildAccentPicker() {
 
   // Outside tap closes the docked stack, pinned or not.
   document.addEventListener('pointerdown', event => {
-    if (isDocked() && !picker.contains(event.target)) setOpen(false);
+    if (isDocked() && !inPickerOrProfile(event.target)) setOpen(false);
   });
 }
 
@@ -1046,6 +1205,241 @@ function bindModal(dialog, onClose) {
   });
 }
 
+/* ---------- the site sign-in ---------------------------------------------- */
+
+/* ~DEXDC IS THE SITE'S SIGN-IN (Dex, 2026-10-09): "anytime I type in Dex DC,
+   it's just signing me into my website ... not specific for the Dex note."
+   Typed into any keypad -- the tilde prompt over any overlay, the Idea Vault,
+   the notes' own box -- it opens THIS: Google, Discord, GitHub, wearing the
+   site's own mark (the accent-coloured favicon, the hexagonal helmet), and
+   nothing else opens. Signed in, the same panel says who and offers Sign out.
+
+   It is account/site-auth.js, the one account every app shares. What being
+   signed in unlocks is decided elsewhere and by the server: Dex's account is
+   admin on every overlay (dexOwnerCheck at the top of this file), and his
+   notes open the next time he asks for them (`notes` at a keypad). A sign-out
+   ends all of it through the same 'site:user' -> 'dex:owner' path.
+
+   Stacked over whatever overlay is up, so backing out of it puts you back
+   where you typed the code. */
+const siteAuthMod = () => import('/account/site-auth.js');
+/* Things that must finish before the account goes away (the notes saving the
+   last keystrokes to it). Each returns a promise; a failure does not stop the
+   sign-out. */
+window.siteSignOutHooks = window.siteSignOutHooks || [];
+
+function siteSignInLabel(u) {
+  if (!u) return 'your account';
+  // A name-and-password account (Inko's kind) signs in to Firebase with an
+  // address made up for it; the person knows it by its @name.
+  if (u.displayName && /@accounts\.dexcimino\.com$/i.test(u.email || '')) return `@${u.displayName}`;
+  return u.email || u.displayName || 'your account';
+}
+const SITE_PROVIDER_NAMES = { 'google.com': 'Google', 'github.com': 'GitHub', 'oidc.discord': 'Discord', password: 'a password' };
+
+/* NAME AND PASSWORD (Dex, 2026-10-09): "letting people sign in without having
+   to use Google or GitHub ... if they created that sign in in the INKO app,
+   then they could enter that same information here and have that same sign
+   in for everything." One box takes either:
+     an email   -> a Firebase email-and-password account, made or signed in to
+                   right here (account/site-auth.js, as MindSplit does)
+     a name     -> an Inko account. The SERVER checks the name and password
+                   (api/sketch.js action 'site-password', lib/sketch-store.js
+                   siteBridge) and answers with the Firebase sign-in that
+                   account owns -- made the first time, linked to the Inko
+                   name, so Inko, DexNote and MindSplit all open the same
+                   person. Creating one makes the Inko account first. */
+async function siteNamePassword(auth, who, password, create) {
+  const name = String(who || '').trim();
+  if (/^[^@\s]+@[^@\s]+$/.test(name)) {
+    return create ? auth.createEmail(name, password) : auth.signInEmail(name, password);
+  }
+  const r = await fetch('/api/sketch', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'site-password', handle: name.replace(/^@/, ''), password, create: !!create }),
+  });
+  let j = {};
+  try { j = await r.json(); } catch (e) { /* not JSON: said below */ }
+  if (!r.ok || !j.email) throw Object.assign(new Error(j.error || `The server said ${r.status}. Try again.`), { said: true });
+  return auth.signInEmail(j.email, j.password);
+}
+
+async function openSiteSignIn(opener) {
+  let dialog = document.getElementById('signinModal');
+  if (!dialog) {
+    dialog = document.createElement('dialog');
+    dialog.className = 'signin-modal';
+    dialog.id = 'signinModal';
+    dialog.setAttribute('aria-labelledby', 'signinTitle');
+    document.body.append(dialog);
+    bindModal(dialog);
+  }
+  if (dialog.open) return;
+
+  const mark = document.createElement('img');
+  mark.className = 'signin-logo';
+  mark.alt = '';
+  mark.src = (faviconSvg && faviconSvg.href) || '/favicon-192.png';
+  const title = document.createElement('h2');
+  title.className = 'signin-title';
+  title.id = 'signinTitle';
+  title.textContent = 'Sign in';
+  const note = document.createElement('p');
+  note.className = 'signin-note';
+  note.textContent = 'Sign in to dexcimino.com.';
+  const error = document.createElement('p');
+  error.className = 'signin-error';
+  error.setAttribute('role', 'alert');
+  error.hidden = true;
+  const providers = document.createElement('div');
+  providers.className = 'signin-providers';
+  const foot = document.createElement('div');
+  foot.className = 'signin-foot';
+  const button = (label, cls, onclick) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = `signin-btn ${cls || ''}`.trim();
+    b.textContent = label;
+    b.addEventListener('click', onclick);
+    return b;
+  };
+  const say = (text) => { error.textContent = text; error.hidden = !text; };
+
+  let auth = null;
+  const busy = (on) => dialog.querySelectorAll('button, input').forEach(b => { b.disabled = on; });
+  const failed = (err) => {
+    const code = (err && err.code) || '';
+    if (/popup-closed|cancelled-popup/.test(code)) return;
+    console.warn('site sign-in failed', err);
+    say(err && err.said ? err.message : (auth ? auth.errorText(err) : 'Sign-in did not work. Try again.'));
+  };
+  const attempt = (fn) => async () => {
+    say('');
+    busy(true);
+    try {
+      auth = auth || await siteAuthMod();
+      await fn();
+      closeModal(dialog);
+    } catch (err) { failed(err); } finally { busy(false); }
+  };
+  const signOut = async () => {
+    busy(true);
+    for (const hook of window.siteSignOutHooks) {
+      try { await hook(); } catch (err) { console.warn('site sign-out: a hook failed', err); }
+    }
+    try {
+      auth = auth || await siteAuthMod();
+      await auth.signOut();
+      closeModal(dialog);
+    } catch (err) {
+      console.warn('site sign-out failed', err);
+      say('Sign-out did not work. Try again.');
+    } finally { busy(false); }
+  };
+
+  /* The provider's own mark beside its name, one colour like the rest of the
+     panel (Dex, 2026-10-09: "just have the logo and then Google"). */
+  const provider = (which, name, cls, onclick) => {
+    const b = button(name, `signin-provider ${cls || ''}`, onclick || attempt(() => auth.signIn(which)));
+    const glyph = document.createElement('span');
+    glyph.className = 'icon signin-mark';
+    glyph.dataset.icon = which;
+    glyph.setAttribute('aria-hidden', 'true');
+    b.prepend(glyph);
+    b.setAttribute('aria-label', onclick ? name : `Sign in with ${name}`);
+    return b;
+  };
+
+  /* The fourth way in: one box for an email OR an Inko name, and a password,
+     in the same column the provider buttons were in -- the panel keeps its
+     layout (Dex: "I really like this window layout"). */
+  const form = document.createElement('form');
+  form.className = 'signin-form';
+  form.hidden = true;
+  const field = (type, placeholder, label, complete) => {
+    const i = document.createElement('input');
+    i.className = 'signin-input';
+    i.type = type;
+    i.placeholder = placeholder;
+    i.setAttribute('aria-label', label);
+    i.autocomplete = complete;
+    i.spellcheck = false;
+    i.setAttribute('autocapitalize', 'none');
+    return i;
+  };
+  const who = field('text', 'Email or Inko name', 'Email or Inko name', 'username');
+  const pass = field('password', 'Password', 'Password', 'current-password');
+  const go = (create) => attempt(() => {
+    if (!who.value.trim()) throw Object.assign(new Error('Type your email or your name.'), { said: true });
+    if (!pass.value) throw Object.assign(new Error('Type a password.'), { said: true });
+    return siteNamePassword(auth, who.value, pass.value, create);
+  });
+  const formRow = document.createElement('div');
+  formRow.className = 'signin-form-row';
+  const signInBtn = button('Sign in', 'is-primary', () => {});
+  signInBtn.type = 'submit';
+  formRow.append(signInBtn, button('Create account', '', go(true)));
+  const back = button('Other ways to sign in', 'signin-link', () => showProviders());
+  form.append(who, pass, formRow, back);
+  form.addEventListener('submit', (e) => { e.preventDefault(); go(false)(); });
+
+  const showProviders = () => {
+    say('');
+    form.hidden = true;
+    providers.hidden = false;
+    providers.querySelector('button')?.focus();
+  };
+  const showForm = () => {
+    say('');
+    providers.hidden = true;
+    form.hidden = false;
+    who.focus();
+  };
+
+  providers.append(
+    provider('google', 'Google', 'is-primary'),
+    provider('discord', 'Discord'),
+    provider('github', 'GitHub'),
+    provider('lock', 'Email or name', 'is-quiet', showForm));
+  const signOutBtn = button('Sign out', 'is-danger', signOut);
+  signOutBtn.hidden = true;
+  const closeBtn = button('Not now', '', () => closeModal(dialog));
+  foot.append(signOutBtn, closeBtn);
+
+  const card = document.createElement('div');
+  card.className = 'signin-card';
+  card.append(mark, title, note, providers, form, error, foot);
+  dialog.replaceChildren(card);
+
+  /* Stacked only over a real overlay; the docked music bar is not one. */
+  const over = [...openDialogs].some(d => d !== dialog && d.open && !isDockedBar(d));
+  openModal(dialog, card, () => providers.querySelector('button')?.focus(), opener, over);
+
+  /* Who is signed in, without fetching Firebase for someone who never has.
+     Signed in, the panel is the account's own menu: who, how, and Sign out
+     -- the start of the profile options. */
+  let signedIn = false;
+  try { signedIn = localStorage.getItem('site:signedIn') === '1'; } catch (e) { /* private mode */ }
+  if (!signedIn) return;
+  try {
+    auth = auth || await siteAuthMod();
+    const u = await auth.currentUser();
+    if (!dialog.open || !u) return;
+    const via = SITE_PROVIDER_NAMES[u.providerData && u.providerData[0] && u.providerData[0].providerId];
+    card.classList.add('is-account');
+    title.textContent = 'Your account';
+    note.textContent = `Signed in as ${siteSignInLabel(u)}${via ? ` with ${via}` : ''}.`
+      + (window.dexOwner && window.dexOwner.is ? ' Admin on every page.' : '');
+    providers.hidden = true;
+    form.hidden = true;
+    signOutBtn.hidden = false;
+    closeBtn.textContent = 'Close';
+    signOutBtn.focus();
+  } catch (err) { console.warn('site sign-in: could not read the account', err); }
+}
+window.openSiteSignIn = openSiteSignIn;
+document.addEventListener('site:signin', (event) => openSiteSignIn((event.detail || {}).opener));
+
 /* ---------- contact modal ------------------------------------------------ */
 
 function openContact() {
@@ -1406,6 +1800,46 @@ function loadWork() {
 
 const workCategories = () => workData?.categories ?? [];
 
+/* A SECOND SET OF TABS in the same overlay. A featured card that names
+   data-work-set (Proto Isles) opens this overlay on its own tabs rather than
+   the portfolio's: the same hero, arrows, strip and keys, so it browses
+   exactly like every other gallery on the page (Dex, 2026-10-09). Its shots
+   are not in work.json -- they are ordinary baked <picture> blocks in the
+   card's .pi-data, and an item is built by READING the srcsets those blocks
+   already carry, so nothing here assembles a URL either. A tab with no
+   figures yet is kept and says its third field (VIDEO COMING), or SHOTS
+   COMING; the set opens on its first tab that has something in it. */
+let workSet = null;          // null = the portfolio; else { name, categories }
+const workSetCache = {};
+
+function readWorkSet(name) {
+  if (workSetCache[name]) return workSetCache[name];
+  const data = document.querySelector(`[data-work-set="${name}"] .pi-data`);
+  if (!data) return null;
+  let tabs = [];
+  let icons = {};
+  try { tabs = JSON.parse(data.dataset.tabs || '[]'); } catch { tabs = []; }
+  try { icons = JSON.parse(data.dataset.tabIcons || '{}'); } catch { icons = {}; }
+  const categories = tabs.map(([id, label, empty]) => ({
+    id, label, empty, icon: icons[id] || null,
+    items: [...data.querySelectorAll(`figure[data-pi-cat="${id}"]`)].map(fig => {
+      const img = fig.querySelector('img');
+      const srcset = {};
+      fig.querySelectorAll('source').forEach(source => {
+        srcset[source.type === 'image/avif' ? 'avif' : 'webp'] = source.getAttribute('srcset');
+      });
+      return {
+        title: fig.dataset.title || '', desc: label,
+        src: img.getAttribute('src'), w: img.width, h: img.height, srcset,
+      };
+    }),
+  }));
+  return (workSetCache[name] = categories.length ? { name, categories } : null);
+}
+
+// What the overlay is showing: the active set, or the portfolio.
+const galleryCats = () => workSet ? workSet.categories : workCategories();
+
 /* TIGHTEN the cover-crop, for the few pieces that need it. object-position can
    only pan, and a piece with a painted border round it (osseous) or a
    three-view turnaround sheet (bone-archer) cannot be fixed by aiming: the
@@ -1494,25 +1928,31 @@ const workHero = document.getElementById('workHero');
 const workHeroImg = document.getElementById('workHeroImg');
 const workHeroPic = document.querySelector('.work-hero-pic');
 const workHeroSources = workHeroPic ? [...workHeroPic.querySelectorAll('source')] : [];
+const workHeroArea = document.querySelector('.work-hero-area');
 const workCapTitle = document.getElementById('workCapTitle');
-const workCapDesc = document.getElementById('workCapDesc');
 const workCapIndex = document.getElementById('workCapIndex');
+const workStripPrev = document.getElementById('workStripPrev');
+const workStripNext = document.getElementById('workStripNext');
 const workPrevBtn = document.getElementById('workPrev');
 const workNextBtn = document.getElementById('workNext');
+const workJumpPrev = document.getElementById('workJumpPrev');
+const workJumpNext = document.getElementById('workJumpNext');
 
 let workTabButtons = [];
+let workTabsFor;      // which set the tab row was built for; undefined = none yet
 let workCat = 0;      // index into workCategories()
 let workIdx = 0;      // index into the active category's items
 let workHeroToken = 0;
 
 const pad2 = value => String(value).padStart(2, '0');
-const workItems = () => workCategories()[workCat].items;
+const workItems = () => galleryCats()[workCat].items;
 
 /* ---------- tabs --------------------------------------------------------- */
 
 function buildWorkTabs() {
   const frag = document.createDocumentFragment();
-  workCategories().forEach((cat, index) => {
+  workTabsFor = workSet?.name ?? null;
+  galleryCats().forEach((cat, index) => {
     const tab = document.createElement('button');
     tab.className = 'work-tab';
     tab.type = 'button';
@@ -1540,7 +1980,7 @@ function buildWorkTabs() {
 // Switching category always resets to the first image and rebuilds the strip;
 // only the openers pass an index, so a featured card can land on its own piece.
 function selectWorkCategory(index, itemIndex = 0) {
-  const cats = workCategories();
+  const cats = galleryCats();
   workCat = Math.max(0, Math.min(cats.length - 1, index));
 
   workTabButtons.forEach((tab, i) => {
@@ -1552,14 +1992,62 @@ function selectWorkCategory(index, itemIndex = 0) {
   workTabButtons[workCat].scrollIntoView({ inline: 'nearest', block: 'nearest' });
 
   buildWorkStrip(cats[workCat].items);
+  paintWorkJumps();
   showWorkItem(itemIndex);
+}
+
+/* ---------- category buttons over the arrows ----------------------------- */
+
+/* A set whose tabs carry icons (Proto Isles) gets a second round button
+   above each arrow: the arrows walk the shots of one tab, these walk the
+   TABS, so the whole gallery can be toured without going back up to the tab
+   row (Dex, 2026-10-09). Each wears the icon of the tab it goes to and wraps
+   like the arrows do -- Featured's right-hand button is Video. The portfolio's
+   own tabs have no icons, so there the buttons stay hidden. */
+function paintWorkJumps() {
+  const cats = galleryCats();
+  const on = !!workSet && cats.length > 1 && cats.every(cat => cat.icon);
+  [[workJumpPrev, -1], [workJumpNext, 1]].forEach(([btn, step]) => {
+    if (!btn) return;
+    btn.hidden = !on;
+    if (!on) return;
+    const index = (workCat + step + cats.length) % cats.length;
+    const cat = cats[index];
+    btn.dataset.index = String(index);
+    btn.dataset.tip = cat.label;
+    btn.setAttribute('aria-label', `${step < 0 ? 'Previous' : 'Next'} category: ${cat.label}`);
+    btn.querySelector('.icon')?.setAttribute('data-icon', cat.icon);
+  });
+}
+
+/* They come up when the pointer is within TWO ARROW-WIDTHS of an arrow's
+   centre, measured off the arrow on every move rather than with a fixed
+   number, so the phone's smaller arrows get a smaller reach. Each side on its
+   own: near the left arrow only the left button shows. On a touch screen
+   there is no hover to reveal them, so CSS shows them outright there. */
+function nearWorkJumps(event) {
+  [workPrevBtn, workNextBtn].forEach(arrow => {
+    const col = arrow?.parentElement;
+    if (!col?.classList.contains('work-nav-col')) return;
+    const r = arrow.getBoundingClientRect();
+    const near = event && r.width > 0 &&
+      Math.hypot(event.clientX - (r.left + r.width / 2), event.clientY - (r.top + r.height / 2)) <= r.width * 2;
+    col.classList.toggle('is-near', !!near);
+  });
 }
 
 /* ---------- filmstrip ---------------------------------------------------- */
 
 // Takes a list, not a category: the only thing it needs is { title, src, w, h }.
+/* The thumbnails live on a TRACK inside the strip, so a category longer than
+   a page slides rather than scrolling or wrapping -- the wallpaper strip's
+   mechanism. Every thumbnail stays in the DOM; only the visible page is in
+   the window. */
+let workTrack = null;
+let workPerPage = 8;
 function buildWorkStrip(items) {
-  const frag = document.createDocumentFragment();
+  workTrack = document.createElement('div');
+  workTrack.className = 'work-track';
   items.forEach((item, i) => {
     const thumb = document.createElement('button');
     thumb.className = 'work-thumb';
@@ -1575,9 +2063,46 @@ function buildWorkStrip(items) {
     thumb.appendChild(picture);
 
     thumb.addEventListener('click', () => showWorkItem(i));
-    frag.appendChild(thumb);
+    /* Hovering a thumbnail shows that piece in the big picture WITHOUT
+       selecting it, exactly as the wallpaper strip does: sweeping the strip
+       is the fastest way to look through a set. Leaving the strip puts the
+       selection back. Not on touch, where the tap that follows selects. */
+    thumb.addEventListener('pointerenter', event => {
+      if (event.pointerType !== 'touch') previewWorkItem(i);
+    });
+    workTrack.appendChild(thumb);
   });
-  workStripEl.replaceChildren(frag);
+  workStripEl.replaceChildren(workTrack);
+  layoutWorkStrip();
+}
+
+/* EIGHT A PAGE (Dex, 2026-10-09: "six or eight"), fewer where eight would
+   not fit beside the arrows with room for the count on BOTH sides -- the
+   count hangs off the right, so the same room is kept on the left or the
+   strip would sit off centre. Measured off a real thumbnail and the real
+   controls rather than assumed. */
+const WORK_PAGE_MAX = 8;
+function layoutWorkStrip() {
+  if (!workTrack || !workModal?.open) return;
+  const wrap = workStripEl.closest('.work-strip-wrap');
+  const thumb = workTrack.firstElementChild;
+  const room = wrap?.clientWidth || 0;
+  if (!thumb || !room) return;
+  const tw = thumb.getBoundingClientRect().width;
+  const gap = parseFloat(getComputedStyle(workTrack).columnGap) || 0;
+  const rowGap = parseFloat(getComputedStyle(workStripEl.parentElement).columnGap) || 0;
+  const step = workStripPrev && getComputedStyle(workStripPrev).display !== 'none'
+    ? 2 * (workStripPrev.offsetWidth + rowGap) : 0;
+  const count = getComputedStyle(workCapIndex).position === 'absolute'
+    ? 2 * (workCapIndex.offsetWidth + 16) : workCapIndex.offsetWidth + rowGap;
+  const fit = Math.max(1, Math.floor((room - step - count + gap) / (tw + gap)));
+  workPerPage = Math.min(WORK_PAGE_MAX, fit, workTrack.children.length || 1);
+  workStripEl.style.setProperty('--per-page', workPerPage);
+  showWorkPage();
+}
+// The page follows the selection, so walking the set carries the strip along.
+function showWorkPage() {
+  workStripEl.style.setProperty('--page', Math.floor(workIdx / workPerPage));
 }
 
 /* ---------- hero --------------------------------------------------------- */
@@ -1601,6 +2126,7 @@ const TALL_RATIO = 0.75;
 
 function paintWorkHero(item) {
   const token = ++workHeroToken;
+  workCapTitle.textContent = item.title;
   workHeroImg.classList.add('is-fading');
 
   const warm = warmPicture(workHeroPic, item, 'hero');
@@ -1610,6 +2136,9 @@ function paintWorkHero(item) {
     workHeroImg.alt = item.title;
     const tall = item.w && item.h && item.w / item.h <= TALL_RATIO;
     workHero.classList.toggle('is-tall', !!tall);
+    // The box is the picture's own shape, so its corners are the picture's
+    // and the title sits on the art. A tall sheet keeps 3:2 and scrolls.
+    workHeroArea?.style.setProperty('--hero-ar', tall || !item.w || !item.h ? '1.5' : String(item.w / item.h));
     // Every piece starts at its top. Carrying the last one's scroll position
     // into a different image lands somewhere arbitrary in the middle of it.
     if (tall) workHero.scrollTop = 0;
@@ -1643,13 +2172,22 @@ function preloadWorkNeighbours(items, index) {
 // The modulo is written to survive a negative index, which -1 from item 0 is.
 function showWorkItem(index) {
   const items = workItems();
-  if (!items.length) return;
+  // An empty tab (a Proto Isles category with no shots yet) says so rather
+  // than leaving the last tab's picture up under a new name.
+  workPanel.classList.toggle('is-empty', !items.length);
+  if (!items.length) {
+    ++workHeroToken;
+    workHero.dataset.empty = galleryCats()[workCat].empty || 'SHOTS COMING';
+    workHero.classList.remove('is-tall');
+    workHeroArea?.style.setProperty('--hero-ar', String(16 / 9));
+    workCapTitle.textContent = 'Coming soon';
+    workCapIndex.replaceChildren();
+    return;
+  }
   workIdx = ((index % items.length) + items.length) % items.length;
   const item = items[workIdx];
 
   paintWorkHero(item);
-  workCapTitle.textContent = item.title;
-  workCapDesc.textContent = item.desc;
   // Built from nodes, not innerHTML — same rule as setStatus.
   const position = document.createElement('b');
   position.textContent = pad2(workIdx + 1);
@@ -1659,16 +2197,20 @@ function showWorkItem(index) {
   // that just went dead -- which is what the two lines that used to be here
   // existed to rescue.
 
-  [...workStripEl.children].forEach((thumb, i) => thumb.setAttribute('aria-current', String(i === workIdx)));
-  // behavior:'auto' defers to the strip's CSS scroll-behavior, which the
-  // reduced-motion block already flattens — same trick as scrollToY.
-  workStripEl.children[workIdx]?.scrollIntoView({ inline: 'center', block: 'nearest' });
+  [...(workTrack?.children || [])].forEach((thumb, i) => thumb.setAttribute('aria-current', String(i === workIdx)));
+  showWorkPage();
   preloadWorkNeighbours(items, workIdx);
+}
+
+// A hovered thumbnail in the big picture; the selection and the count stay.
+function previewWorkItem(index) {
+  const item = workItems()[index];
+  if (item) paintWorkHero(item);
 }
 
 /* ---------- open / close ------------------------------------------------- */
 
-async function openWork(catId, index, trigger) {
+async function openWork(catId, index, trigger, set = null) {
   if (!workModal) return;
   // The manifest is normally already here — the featured grid starts the
   // fetch as it nears the viewport, long before anything is clicked. On a
@@ -1676,11 +2218,16 @@ async function openWork(catId, index, trigger) {
   // page as it was rather than opening an empty dialog.
   try { await loadWork(); }
   catch (error) { console.warn('work gallery unavailable', error); return; }
-  if (!workTabButtons.length) buildWorkTabs();
-  const cats = workCategories();
-  const catIndex = Math.max(0, cats.findIndex(cat => cat.id === catId));   // unknown id -> first tab
+  workSet = set ? readWorkSet(set) : null;
+  if (workTabsFor !== (workSet?.name ?? null)) buildWorkTabs();
+  nearWorkJumps(null);   // nothing is near anything until the pointer moves
+  const cats = galleryCats();
+  const catIndex = Math.max(0, catId == null && workSet
+    ? cats.findIndex(cat => cat.items.length)                              // a set opens on what it has
+    : cats.findIndex(cat => cat.id === catId));                            // unknown id -> first tab
   openModal(workModal, null, () => {
     selectWorkCategory(catIndex, index);
+    layoutWorkStrip();   // the strip had no width until the dialog was up
     // The panel, not a control: it is the thing that just appeared, and it
     // leaves Left/Right free to browse images instead of switching tabs.
     // Muted, because a ring drawn around the whole stage the instant the
@@ -1696,6 +2243,54 @@ if (workModal) {
   document.getElementById('workClose')?.addEventListener('click', () => closeModal(workModal));
   workPrevBtn.addEventListener('click', () => showWorkItem(workIdx - 1));
   workNextBtn.addEventListener('click', () => showWorkItem(workIdx + 1));
+  workStripPrev?.addEventListener('click', () => showWorkItem(workIdx - 1));
+  workStripNext?.addEventListener('click', () => showWorkItem(workIdx + 1));
+  // Off the strip, the selection comes back into the big picture.
+  workStripEl.addEventListener('pointerleave', () => {
+    const item = workItems()[workIdx];
+    if (item) paintWorkHero(item);
+  });
+  window.addEventListener('resize', layoutWorkStrip);
+
+  /* A click in the dark round the picture closes, as it does round a
+     wallpaper: the dialog fills the screen now, so its own backdrop is never
+     what is clicked. Only the empty layout boxes count -- the picture, the
+     tabs, the strip and every control are not them. */
+  workModal.addEventListener('click', event => {
+    if (event.target.matches('.work-shell, .work-head, .work-stage, .work-frame, .work-hero-area, .work-strip-wrap'))
+      closeModal(workModal);
+  });
+
+  /* THE SCROLL WHEEL WALKS THE SET (Dex, 2026-10-09), one piece a tick:
+     down or right is next, up or left is back. A trackpad sends a stream of
+     small deltas, so they add up to a tick's worth before a step, and a step
+     waits out a short gap so one fling is not ten pieces. Over a tall piece
+     that can still scroll that way, the wheel scrolls the piece instead, and
+     over the tab row it is the row's own. */
+  let wheelSum = 0, wheelAt = 0;
+  workModal.addEventListener('wheel', event => {
+    if (event.ctrlKey || event.target.closest('.work-tabs')) return;
+    const d = Math.abs(event.deltaY) >= Math.abs(event.deltaX) ? event.deltaY : event.deltaX;
+    if (!d) return;
+    if (workHero.classList.contains('is-tall') && workHero.contains(event.target)) {
+      const room = d > 0 ? workHero.scrollHeight - workHero.clientHeight - workHero.scrollTop : workHero.scrollTop;
+      if (room > 1) return;
+    }
+    event.preventDefault();
+    if (!workItems().length) return;
+    wheelSum += event.deltaMode === 1 ? d * 40 : d;
+    const now = performance.now();
+    if (Math.abs(wheelSum) < 40 || now - wheelAt < 90) return;
+    showWorkItem(workIdx + (wheelSum > 0 ? 1 : -1));
+    wheelSum = 0;
+    wheelAt = now;
+  }, { passive: false });
+  [workJumpPrev, workJumpNext].forEach(btn => btn?.addEventListener('click', () =>
+    selectWorkCategory(Number(btn.dataset.index))));
+  workModal.addEventListener('pointermove', event => {
+    if (event.pointerType !== 'touch') nearWorkJumps(event);
+  });
+  workModal.addEventListener('pointerleave', () => nearWorkJumps(null));
 
   /* Each featured card opens its own tab ON THE PIECE IT IS SHOWING, which is
      what the card carousel writes into data-work-index every time it turns.
@@ -1709,6 +2304,12 @@ if (workModal) {
   });
   document.getElementById('viewAllWork')?.addEventListener('click', event => {
     openWork(null, 0, event.currentTarget);
+  });
+  // A featured card with its own tabs (Proto Isles): the whole thumbnail is
+  // the button, and it opens on the first tab's first shot.
+  document.querySelectorAll('[data-work-set] .fv-open').forEach(button => {
+    button.addEventListener('click', () =>
+      openWork(null, 0, button, button.closest('[data-work-set]').dataset.workSet));
   });
 
   // Left/Right inside the tab row belong to the tablist; that handler runs
@@ -1801,7 +2402,7 @@ if (workModal) {
          nobody can see. inert would be tidier; it is not old enough to rely on
          here, and this is two lines. */
       items.forEach((item, i) => {
-        item.querySelectorAll('button,a,[tabindex]').forEach(el => {
+        item.querySelectorAll('button,a,input,[tabindex]').forEach(el => {
           if (i === at) el.removeAttribute('tabindex');
           else el.setAttribute('tabindex', '-1');
         });
@@ -1814,6 +2415,438 @@ if (workModal) {
 
     show(0);
     return { show, get at() { return at; } };
+  }
+
+  /* A FEATURED SLOT WITH A REAL VIDEO (Mobius 3D). Muted autoplay while its
+     slot is the one showing and the section is on screen, paused otherwise --
+     a minute of 3D a visitor has scrolled past is battery spent on nobody.
+     The source is attached on first play, not in the markup, so a visitor who
+     never reaches the section never downloads a byte of it.
+
+     data-audio says the upload has a soundtrack; only then is there a mute
+     button, and the first unmute is the visitor's own press. */
+  function initFeaturedVideo(item) {
+    const src = item.dataset.src;
+    const video = item.querySelector('.fv-video');
+    const toggle = item.querySelector('.fv-toggle');
+    const scrub = item.querySelector('.fv-scrub');
+    const time = item.querySelector('.fv-time');
+    const mute = item.querySelector('.fv-mute');
+    const full = item.querySelector('.fv-full');
+    const play = item.querySelector('.fv-play');
+    /* The download is the AI Lab card's own link, read at click time, so this
+       one starts the same installer for this system (initMobiusDownload) --
+       and follows wherever that link is pointed next -- rather than keeping
+       the Releases page the markup falls back to. */
+    item.querySelector('.fv-get')?.addEventListener('click', e => {
+      const own = document.getElementById('mobiusDownload');
+      if (!own) return;
+      e.currentTarget.href = own.href;
+      if (own.hasAttribute('target')) e.currentTarget.target = own.target;
+      else e.currentTarget.removeAttribute('target');
+    });
+    const eye = item.querySelector('[data-open-app]');
+    if (eye) eye.addEventListener('click', () => {
+      // From the enlarged video: put it back first, or the preview opens under it.
+      if (item.matches(':popover-open')) item.hidePopover();
+      /* The AI Lab card's own eye does the opening, so the two can never
+         disagree about what the preview is. Down to the Apps tab first, so
+         the visitor lands where the card lives when they close it. */
+      const card = document.getElementById(eye.dataset.openApp);
+      if (!card) return;
+      document.getElementById('ai-tab-apps')?.click();
+      const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
+      card.scrollIntoView({ behavior: still ? 'instant' : 'smooth', block: 'center' });
+      /* Open only once the page has arrived: a modal opened mid-scroll stops
+         the scroll where it is, and the preview opens over the video it came
+         from with the card nowhere in sight. scrollend where there is one; a
+         timer where there is not, or where nothing needed to move. */
+      let done = false;
+      const open = () => { if (done) return; done = true; card.querySelector('.ai-card-eye')?.click(); };
+      if (still) { open(); return; }
+      window.addEventListener('scrollend', open, { once: true });
+      setTimeout(open, 1100);
+    });
+    if (!src || !/^https:/.test(src) || !video) return;
+
+    const mmss = t => Number.isFinite(t) && t >= 0
+      ? Math.floor(t / 60) + ':' + String(Math.floor(t % 60)).padStart(2, '0') : '0:00';
+    const icon = (btn, name) => btn?.querySelector('.icon')?.setAttribute('data-icon', name);
+    let wanted = true;          // false once the visitor pauses it; a scroll never overrides that
+    let seen = false, scrubbing = false;
+
+    /* SOUND ON WHEN IT GOES BIG (Dex, 2026-10-09): enlarging the video, by
+       double click or by the button, unmutes it -- until the visitor sets the
+       sound themselves. From then on what they chose is what they get, on
+       this visit and the next, so a visitor who muted it is never shouted at
+       again. Only a hand on a control counts: the music muting it through
+       MediaBus is not the visitor's choice. */
+    const HAND = 'fv-sound-by-hand';
+    const byHand = () => { try { localStorage.setItem(HAND, video.muted ? 'muted' : 'on'); } catch {} };
+    const handMuted = () => { try { return localStorage.getItem(HAND) === 'muted'; } catch { return false; } };
+    function soundUp() {
+      if (handMuted() || !mute || !item.hasAttribute('data-audio')) return;
+      if (video.volume === 0) video.volume = .5;
+      video.muted = false;
+      fillLevel();
+      wanted = true;
+      start();
+      paint();
+    }
+    function paint() {
+      const playing = !video.paused && !video.ended;
+      // The bar hides under a playing video until it is hovered; paused, or
+      // still muted with a soundtrack to offer, the bar and the unmute stay up.
+      item.classList.toggle('is-playing', playing);
+      item.classList.toggle('is-muted', video.muted);
+      icon(toggle, playing ? 'pause' : 'play');
+      toggle?.setAttribute('aria-label', playing ? 'Pause' : 'Play');
+      play?.setAttribute('aria-label', playing ? 'Pause Mobius 3D' : 'Play Mobius 3D');
+      if (mute) {
+        icon(mute, video.muted ? 'volume-slash' : 'volume');
+        mute.setAttribute('aria-label', video.muted ? 'Unmute' : 'Mute');
+      }
+      floatPaint();
+      floatUpdate();
+    }
+    function start() {
+      if (!video.src) { video.src = src; video.preload = 'auto'; }
+      video.play().catch(() => {});   // a refused autoplay leaves the poster and the disc up
+    }
+    /* Sound on, the video keeps playing when it scrolls away (Dex), and a copy
+       of the mute flies from the card to just under the accent picker, so it
+       can be silenced from anywhere on the page. Muted from there it stays,
+       still playing, until the card is back in view; muted the ordinary way
+       it pauses off screen as it always did. */
+    let floatHeld = false;
+    const audible = () => !video.muted || floatHeld;
+    /* IN VIEW means scrolled into view, the featured page showing, and no
+       overlay over it. With the sound on, leaving any of the three keeps it
+       playing and sends the speaker out (Dex, 2026-10-09: arrowing to Proto
+       Isles or opening a portfolio overlay was stopping it). */
+    const covered = () => [...document.querySelectorAll('dialog[open]')]
+      .some(d => !d.classList.contains('is-docked') && !d.contains(item));
+    const inView = () => seen && item.classList.contains('is-on') && !covered();
+    function sync() {
+      if (inView()) floatHeld = false;
+      /* With the sound on it plays on in another tab or app too (Dex,
+         2026-10-09); only a pause or a mute stops it. Muted, a hidden tab
+         still pauses it. */
+      if (wanted && (inView() || audible()) && (audible() || !document.hidden)) start();
+      else video.pause();
+      floatUpdate();
+    }
+    let floatBtn = null, floatOn = false, floatRaf = 0;
+    /* A flight between the card's speaker and the spot under the picker is
+       re-aimed every frame at where BOTH ends are now (Dex: aimed at where they
+       were when it started, it landed where the card had scrolled away from). */
+    let fly = null;   // { toSpot, t0, done }
+    const still = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+    function floatSpot() {
+      const sw = document.getElementById('accentSwatches'), size = floatBtn.offsetWidth || 40;
+      const r = sw?.getBoundingClientRect();
+      // Under the picker's open panel too, which hangs 10px below its swatches.
+      if (!r || !r.width) return { left: innerWidth - 14 - size, top: 14 };
+      return { left: r.left + r.width / 2 - size / 2, top: r.bottom + 18 };
+    }
+    function floatTrack() {
+      /* Into the overlay on top, if there is one: a modal makes everything
+         outside it inert, so on the page it would be painted and dead. */
+      const host = [...document.querySelectorAll('dialog[open]')].filter(d => !d.classList.contains('is-docked')).pop() || document.body;
+      if (floatBtn.parentNode !== host) host.append(floatBtn);
+      let at = floatSpot();
+      if (fly) {
+        const c = mute.getBoundingClientRect();
+        /* 650ms, a quarter slower than the 520 it was, and eased in AND out
+           (Dex: it "shoots out and shoots over there"). */
+        const t = Math.min(1, (performance.now() - fly.t0) / 650);
+        const e = t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+        const k = fly.toSpot ? e : 1 - e;
+        at = { left: c.left + (at.left - c.left) * k, top: c.top + (at.top - c.top) * k };
+        /* Home, it fades out over the last 40% of the way and is gone
+           the moment it lands (Dex: it reached the card and then blinked out). */
+        floatBtn.style.opacity = fly.toSpot ? '' : String(Math.min(1, (1 - e) / .4));
+        if (t >= 1) { const done = fly.done; fly = null; done?.(); }
+      }
+      floatBtn.style.left = at.left + 'px';
+      floatBtn.style.top = at.top + 'px';
+      if (!floatBtn.hidden) floatRaf = requestAnimationFrame(floatTrack);
+    }
+    function floatFly(toSpot, done) {
+      fly = still() || !mute.getBoundingClientRect().width ? null : { toSpot, t0: performance.now(), done };
+      cancelAnimationFrame(floatRaf);
+      if (!fly) done?.();
+      if (!floatBtn.hidden) floatTrack();
+    }
+    function floatUpdate() {
+      if (!mute) return;
+      const want = !inView() && !video.paused && audible();
+      if (want === floatOn) return;
+      floatOn = want;
+      if (want) {
+        if (!floatBtn) {
+          floatBtn = document.createElement('button');
+          floatBtn.type = 'button';
+          floatBtn.className = 'fv-float';
+          floatBtn.dataset.tip = 'Mute Mobius 3D';
+          floatBtn.innerHTML = '<span class="icon" data-icon="volume" aria-hidden="true"></span>';
+          floatBtn.addEventListener('click', () => {
+            video.muted = !video.muted;
+            if (!video.muted && video.volume === 0) video.volume = .5;
+            floatHeld = true;
+            byHand();
+            paint(); fillLevel();
+          });
+          document.body.append(floatBtn);
+        }
+        floatBtn.getAnimations().forEach(a => a.cancel());
+        floatBtn.hidden = false;
+        floatBtn.style.opacity = '';
+        floatPaint();
+        floatFly(true);
+      } else if (floatBtn) {
+        const done = () => {
+          if (floatOn) return;
+          floatBtn.hidden = true; cancelAnimationFrame(floatRaf);
+          if (floatBtn.parentNode !== document.body) document.body.append(floatBtn);
+        };
+        if (inView()) floatFly(false, done); else { fly = null; done(); }
+      }
+    }
+    function floatPaint() {
+      if (!floatBtn) return;
+      icon(floatBtn, video.muted ? 'volume-slash' : 'volume');
+      floatBtn.classList.toggle('is-muted', video.muted);
+      floatBtn.setAttribute('aria-label', video.muted ? 'Unmute Mobius 3D' : 'Mute Mobius 3D');
+      floatBtn.dataset.tip = video.muted ? 'Unmute Mobius 3D' : 'Mute Mobius 3D';
+    }
+
+    video.addEventListener('playing', () => { item.classList.add('is-live'); paint(); });
+    video.addEventListener('pause', paint);
+    video.addEventListener('loadedmetadata', () => {
+      if (mute && item.hasAttribute('data-audio')) mute.hidden = false;
+    });
+    video.addEventListener('timeupdate', () => {
+      if (scrubbing || !video.duration) return;
+      const pct = video.currentTime / video.duration * 100;
+      scrub.value = Math.round(pct * 10);
+      scrub.style.setProperty('--fill', pct + '%');
+      time.textContent = `${mmss(video.currentTime)} / ${mmss(video.duration)}`;
+    });
+    scrub.addEventListener('input', () => {
+      scrubbing = true;
+      scrub.style.setProperty('--fill', scrub.value / 10 + '%');
+      if (video.duration) video.currentTime = scrub.value / 1000 * video.duration;
+    });
+    scrub.addEventListener('change', () => { scrubbing = false; });
+    const flip = () => { wanted = video.paused || video.ended; if (wanted) start(); else video.pause(); };
+    toggle?.addEventListener('click', flip);
+    /* A click on the picture waits out a double click before it pauses (Dex:
+       the first half of a double click to enlarge was pausing it). The second
+       click (detail 2) cancels it; a key press (detail 0) acts at once. */
+    let flipLater = 0;
+    play?.addEventListener('click', e => {
+      clearTimeout(flipLater);
+      if (e.detail === 0) flip();
+      else if (e.detail === 1) flipLater = setTimeout(flip, 250);
+    });
+    const level = item.querySelector('.fv-volume');
+    const fillLevel = () => {
+      if (!level) return;
+      const v = video.muted ? 0 : Math.round(video.volume * 100);
+      level.value = v;
+      level.style.setProperty('--fill', v + '%');
+    };
+    mute?.addEventListener('click', () => {
+      video.muted = !video.muted;
+      if (!video.muted && video.volume === 0) video.volume = .5;
+      byHand();
+      paint(); fillLevel();
+    });
+    /* The volume pops up above the speaker on hover. Dragging it to the
+       bottom is the same as muting, and any level above that is sound on. */
+    level?.addEventListener('input', () => {
+      const v = Number(level.value) / 100;
+      if (v > 0) video.volume = v;
+      video.muted = v === 0;
+      byHand();
+      level.style.setProperty('--fill', level.value + '%');
+      paint();
+    });
+    video.volume = .5;   // the first unmute comes in at half (Dex)
+    fillLevel();
+    /* ONE SOUND AT A TIME (Dex): this video with its sound on and the music
+       never play together. Music starting mutes it (and so takes the floating
+       mute away), and its sound coming on pauses the music, through MediaBus
+       like every other player. To the bus it is "playing" only while it is
+       audible, so a muted autoplay is never anyone's business. It stays out of
+       the space bar and the hidden-tab rule (sync() keeps it playing in a
+       hidden tab while it is audible and pauses it there muted; the bus would
+       mute it instead). Registered a tick late: this block
+       runs before the line that defines MediaBus, and touching it here would
+       throw on the temporal dead zone. */
+    let bus = null;
+    queueMicrotask(() => {
+      bus = MediaBus.add({
+        el: { get paused() { return video.paused || video.muted; } },
+        keepPlayingHidden: true,
+        onScreen: () => false,
+        control: () => true,       // the card's speaker, or the floating one
+        touched: () => false,
+        toggle: () => { mute?.click(); },
+        pause: () => {
+          if (video.muted) return;
+          video.muted = true; floatHeld = false;
+          paint(); fillLevel(); sync();
+        },
+      });
+    });
+    const solo = () => { if (bus && !video.paused && !video.muted && video.volume > 0) MediaBus.solo(bus); };
+    video.addEventListener('volumechange', solo);
+    video.addEventListener('playing', solo);
+    /* ENLARGE, NOT FULL SCREEN (Dex): the slot lifts into the top layer as a
+       popover, centred over the page at the video's own aspect so there are
+       no bars either side, rounded like the site's other overlays. The X, a
+       click on the dimmed page around it and Escape all put it back; the
+       popover's light dismiss is what does the last two. Where there is no
+       popover at all, the video's native full screen is what is left. */
+    video.addEventListener('loadedmetadata', () => {
+      if (video.videoWidth && video.videoHeight) item.style.setProperty('--fv-ar', video.videoWidth / video.videoHeight);
+    });
+    const close = item.querySelector('.fv-close');
+    /* offset*, not getBoundingClientRect: the opening animation scales the
+       slot, and the X is placed against where it lands, not where it starts. */
+    /* Dex: in the dead space right of the enlarged video, one column centred
+       both ways -- Functional Preview, the X, Download. Too narrow a gap and
+       the X goes back inside the corner with the other two left out. */
+    const acts = item.querySelector('.fv-actions');
+    /* THE PITCH (Dex, 2026-10-09): the description, always up, in that same
+       dead space under the column -- portrait, centred on it, never inside the
+       video. Its words are the AI Lab card's lead and body. Where the gap is
+       too short for both it keeps the lead, and where it cannot hold even
+       that it is not shown at all rather than clipped. */
+    const about = item.querySelector('.fv-about');
+    const aboutCard = about && document.getElementById(about.dataset.about);
+    if (about && aboutCard) {
+      for (const [key, cls] of [['descLead', 'fv-about-lead'], ['descBody', 'fv-about-body']]) {
+        if (!aboutCard.dataset[key]) continue;
+        const p = document.createElement('p');
+        p.className = cls;
+        p.textContent = aboutCard.dataset[key];
+        about.append(p);
+      }
+    }
+    /* Sized first, placed second: how tall it is decides whether the column
+       has to rise to make room for it. Narrower than 200px it keeps only the
+       lead; with no room even for that, it is not shown. */
+    function sizeAbout(gap, room) {
+      if (!about) return 0;
+      about.classList.remove('is-on', 'is-short');
+      about.style.cssText = '';
+      const width = Math.min(260, gap - 40);
+      if (!isMax() || width < 120 || room < 80) return 0;
+      about.style.width = width + 'px';
+      about.classList.add('is-on');
+      if (width < 200 || about.offsetHeight > room) about.classList.add('is-short');
+      if (about.offsetHeight <= room) return about.offsetHeight;
+      about.classList.remove('is-on', 'is-short');
+      return 0;
+    }
+    function placeClose() {
+      if (!close) return;
+      if (!isMax()) { if (acts) acts.style.cssText = ''; item.classList.remove('is-side'); sizeAbout(0, 0); return; }
+      const size = 52, right = item.offsetLeft + item.offsetWidth;
+      const gap = document.documentElement.clientWidth - right;
+      const inside = gap < size + 24;
+      item.classList.toggle('is-side', !inside);
+      const cx = right + gap / 2, cy = item.offsetTop + item.offsetHeight / 2;
+      if (inside) {
+        sizeAbout(0, 0);
+        close.style.left = (right - 14 - size) + 'px';
+        close.style.top = (item.offsetTop + 14) + 'px';
+        return;
+      }
+      /* The column stays centred on the video unless the pitch under it would
+         run off the bottom; then the two rise together, never above 14px. */
+      const tall = acts ? acts.offsetHeight : size, sep = 28;
+      const panel = sizeAbout(gap, innerHeight - 28 - tall - sep);
+      let top = cy - tall / 2;
+      if (panel) top = Math.max(14, Math.min(top, innerHeight - 14 - panel - sep - tall));
+      close.style.left = (cx - size / 2) + 'px';
+      close.style.top = (top + tall / 2 - size / 2) + 'px';
+      if (acts) acts.style.cssText = `left:${cx - size / 2}px;top:${top}px;right:auto;bottom:auto`;
+      if (panel) {
+        about.style.left = (cx - about.offsetWidth / 2) + 'px';
+        about.style.top = (top + tall + sep) + 'px';
+      }
+    }
+    window.addEventListener('resize', placeClose);
+    const isMax = () => item.matches(':popover-open');
+    const shrink = () => { if (isMax()) item.hidePopover(); };
+    const enlarge = () => {
+      if (isMax()) return;
+      if (!item.showPopover) { video.webkitEnterFullscreen?.(); soundUp(); return; }
+      /* MANUAL, not auto: an auto popover's light dismiss closes it and then
+         lets the same click land on whatever was under it -- another
+         featured thumbnail the visitor cannot even see. Instead the page
+         under it takes no pointer at all (html.fv-maxed), so a click outside
+         reaches only the document, and that click closes it and nothing else. */
+      item.setAttribute('popover', 'manual');
+      item.showPopover();
+      soundUp();
+    };
+    full?.addEventListener('click', () => (isMax() ? shrink() : enlarge()));
+    close?.addEventListener('click', shrink);
+    // A double click on the picture enlarges it (Dex), and in the overlay shrinks it.
+    item.addEventListener('dblclick', e => {
+      if (e.target.closest('.fv-bar, .fv-actions, .fv-info, .fv-desc, .fv-about, .fv-close')) return;
+      clearTimeout(flipLater);
+      isMax() ? shrink() : enlarge();
+    });
+    const outside = e => {
+      if (!isMax() || item.contains(e.target)) return;
+      e.preventDefault(); e.stopPropagation();
+      if (e.type === 'click') shrink();
+    };
+    const escape = e => {
+      if (e.key !== 'Escape' || !isMax()) return;
+      e.preventDefault(); e.stopPropagation();
+      shrink();
+    };
+    item.addEventListener('toggle', e => {
+      const on = e.newState === 'open';
+      item.classList.toggle('is-max', on);
+      document.documentElement.classList.toggle('fv-maxed', on);
+      placeClose();
+      icon(full, on ? 'fullscreen-exit' : 'fullscreen');
+      full?.setAttribute('aria-label', on ? 'Shrink video' : 'Enlarge video');
+      for (const type of ['pointerdown', 'mousedown', 'click', 'dblclick']) {
+        if (on) document.addEventListener(type, outside, true);
+        else document.removeEventListener(type, outside, true);
+      }
+      if (on) document.addEventListener('keydown', escape, true);
+      else { document.removeEventListener('keydown', escape, true); item.removeAttribute('popover'); }
+    });
+
+    /* The speaker leaves once the video is half off screen and comes home
+       only when it is 40% back (Dex, 2026-10-09). Each way is judged by the
+       direction the ratio is moving, so the band between the two cannot make
+       it flap. */
+    let lastRatio = 0;
+    new IntersectionObserver(entries => {
+      const r = entries[entries.length - 1].intersectionRatio;
+      if (seen && r < .5 && r < lastRatio) seen = false;
+      else if (!seen && r >= .4 && r > lastRatio) seen = true;
+      else if (r === 0) seen = false;
+      lastRatio = r;
+      sync();
+    }, { threshold: Array.from({ length: 21 }, (_, i) => i / 20) })
+      .observe(item);
+    new MutationObserver(sync).observe(item, { attributes: true, attributeFilter: ['class'] });
+    // An overlay opening or closing anywhere is a change of view too.
+    new MutationObserver(sync).observe(document.body, { subtree: true, attributes: true, attributeFilter: ['open'] });
+    document.addEventListener('visibilitychange', sync);
+    paint();
   }
 
   const stage = document.querySelector('.fw-stage');
@@ -1838,13 +2871,22 @@ if (workModal) {
        same length drift apart, and the whole point is that these five move as
        one gesture. */
     if (videos) {
-      document.addEventListener('fw:advance-video', () => videos.show(videos.at + 1));
+      /* Except over a video that is playing: a minute-long recording cut off
+         by a timer is a carousel fighting its own content. It moves on when
+         the visitor pauses it or presses an arrow. */
+      document.addEventListener('fw:advance-video', () => {
+        const on = stage.querySelector('.fv-item.is-on');
+        if (on && on.classList.contains('is-live') && !on.querySelector('.fv-video').paused) return;
+        if (on && on.classList.contains('is-max')) return;   // enlarged over the page
+        videos.show(videos.at + 1);
+      });
     }
 
     /* The description. Click rather than hover alone: hover is not available on
        a touch screen, and a paragraph that appears while the pointer is merely
        passing over the corner is a jump scare. Hover opens it too on a device
-       that has one, which is what was asked for. */
+       that has one, which is what was asked for, and only while the pointer is
+       on the icon itself (Dex: not for as long as it is anywhere on the card). */
     stage.querySelectorAll('.fv-item').forEach(item => {
       const button = item.querySelector('.fv-info');
       const desc = item.querySelector('.fv-desc');
@@ -1858,11 +2900,11 @@ if (workModal) {
       button.addEventListener('pointerenter', (event) => {
         if (event.pointerType === 'mouse') set(true);
       });
-      item.addEventListener('pointerleave', (event) => {
+      button.addEventListener('pointerleave', (event) => {
         if (event.pointerType === 'mouse') set(false);
       });
       button.addEventListener('blur', () => {
-        if (!item.matches(':hover')) set(false);
+        if (!button.matches(':hover')) set(false);
       });
     });
 
@@ -1870,9 +2912,12 @@ if (workModal) {
        CLAUDE.md keeps video off this host; these take streaming URLs when they
        exist, and at that point the AI Lab's player gets shared rather than
        copied. */
+    stage.querySelectorAll('.fv-has-video').forEach(initFeaturedVideo);
+
     stage.querySelectorAll('.fv-play').forEach(play => {
       play.addEventListener('click', () => {
         const item = play.closest('.fv-item');
+        if (item.matches('.fv-has-video[data-src^="https"]')) return;   // initFeaturedVideo owns it
         const meta = item && item.querySelector('.card-meta small');
         if (!meta) return;
         if (meta.dataset.said) return;
@@ -2070,6 +3115,7 @@ if (workModal) {
      and its wrap-around. Nothing here needs to know any of that. */
   function sweep() {
     if (held) { deferred = true; return; }
+    if (skips > 0) { skips--; return; }
     waveTimers.forEach(clearTimeout);
     waveTimers = [];
 
@@ -2116,8 +3162,21 @@ if (workModal) {
      freeze the stage for good on a phone. */
   let held = false;
   let deferred = false;
+  /* AN ARROW PRESS SKIPS THE NEXT SKIP_AFTER_ARROW SWEEPS (Dex). The 15s
+     clock does not care when someone clicks, so a press a moment before a
+     sweep was answered by the stage turning again -- on a two-page column,
+     straight back to the page just left. Skipped, not reset: the interval
+     keeps its phase, so after the skips everything turns together again in
+     the same wave. Each press re-arms the count rather than adding to it. */
+  const SKIP_AFTER_ARROW = 2;
+  let skips = 0;
   const stageEl = document.querySelector('.fw-stage');
   if (stageEl) {
+    stageEl.addEventListener('click', (event) => {
+      if (!event.target.closest('[data-fv], [data-wg]')) return;
+      skips = SKIP_AFTER_ARROW;
+      deferred = false;      // a sweep owed from a hover is owed no longer
+    });
     stageEl.addEventListener('pointerenter', (event) => {
       if (event.pointerType === 'mouse') held = true;
     }, true);
@@ -2278,6 +3337,7 @@ if (workModal) {
     let source = null;            // 'vault' | 'guest' | 'account', what is mounted
     let acctBtn = null;
     let ownerAcct = false;        // the account mounted is Dex's, i.e. the DEXDC notes
+    let ownMove = false;          // the overlay's own sign-in or out is moving stores
     const acctMod = () => import('/dexnote/account.js');
 
     /* Shared by every store. With no backend the app talks to the password
@@ -2383,21 +3443,28 @@ if (workModal) {
       ui.menu(anchor, items, { align: 'right' });
     }
 
-    async function signInHere() {
+    async function signInHere(note) {
+      ownMove = true;
+      try { await signInHereNow(note); } finally { ownMove = false; }
+    }
+    async function signInHereNow(note) {
       const acct = await acctMod();
       if (app) app.flush();
-      const u = await acct.signInSheet(editor.querySelector('.nt-app'), source === 'vault'
+      const u = await acct.signInSheet(editor.querySelector('.nt-app'), note || (source === 'vault'
         ? 'Sign in to keep notes in your account, on every device. These password notes stay as they are; the account menu can bring them in.'
-        : 'Sign in and the notes on this device move into your account.');
+        : 'Sign in and the notes on this device move into your account.'));
       if (u && modal.open) await swap(() => mountAccount(u));
     }
 
     async function signOutHere() {
       const acct = await acctMod();
-      if (app) { app.flush(); try { await app.save(); } catch { /* beaconed on unmount */ } }
-      await acct.signOut();
-      if (source === 'account') await swap(async () => { if (!(await mountVault())) await mountGuest(); });
-      else if (acctBtn) acctBtn.replaceWith(acctBtn = acct.accountButton(null, accountMenu));
+      ownMove = true;
+      try {
+        if (app) { app.flush(); try { await app.save(); } catch { /* beaconed on unmount */ } }
+        await acct.signOut();
+        if (source === 'account') await swap(async () => { if (!(await mountVault())) await mountGuest(); });
+        else if (acctBtn) acctBtn.replaceWith(acctBtn = acct.accountButton(null, accountMenu));
+      } finally { ownMove = false; }
     }
 
     /* READ ONLY on the password store. With a token from the keypad the
@@ -2459,11 +3526,55 @@ if (workModal) {
       if (!modal.open) openDemo((event.detail || {}).opener);
     });
 
+    /* YOUR OWN NOTES. ~DEXDC used to land here with the DexNote sign-in
+       over them; it is the SITE sign-in now and opens nothing by itself (Dex,
+       2026-10-09: "it wouldn't automatically open the notes overlay"). This
+       is what `notes` at a keypad does once Dex is signed in: the account's
+       notes, which for his own Google are the DEXDC document (the server
+       decides, api/notes/unlock.js). Signed out it is the AI Lab's open. */
+    document.addEventListener('notes:mine', async (event) => {
+      if (!modal.open) { await openDemo((event.detail || {}).opener); return; }
+      const acct = await acctMod();
+      await acct.whoIsHere().catch(() => null);
+      const u = acct.currentUser();
+      if (!modal.open || !u || source === 'account') return;
+      gate.hidden = true;
+      if (wait) wait.hidden = true;
+      if (frame) frame.classList.add('is-app');
+      demoMode = true;
+      await swap(() => mountAccount(u));
+    });
+
+    /* THE SITE SIGN-IN REACHES AN OPEN OVERLAY. Signed in from the site's
+       panel (~DEXDC over the notes), the guest notes on screen become the
+       account's, as the overlay's own button does it; signed out there, the
+       account's notes go the way the overlay's own Sign out takes them. The
+       overlay's own sign-in and sign-out do their swap themselves and say so
+       with `ownMove`, so this does not do it twice. */
+    window.addEventListener('site:user', async () => {
+      if (!modal.open || !app || ownMove) return;
+      if (source !== 'guest' && source !== 'account') return;
+      const acct = await acctMod();
+      await acct.whoIsHere().catch(() => null);
+      const u = acct.currentUser();
+      if (!modal.open || ownMove) return;
+      if (u && source === 'guest') await swap(() => mountAccount(u));
+      else if (!u && source === 'account') await swap(async () => { if (!(await mountVault())) await mountGuest(); });
+    });
+    /* The last keystrokes reach the account before the site panel signs out
+       of it. */
+    window.siteSignOutHooks = window.siteSignOutHooks || [];
+    window.siteSignOutHooks.push(async () => {
+      if (!modal.open || !app || source !== 'account') return;
+      app.flush();
+      await app.save();
+    });
+
     async function unlock(body) {
-      /* Include universal JWT if available (DexAuth) */
-      if (window.DexAuth && window.DexAuth.isUnlocked()) {
-        body = { ...body, jwt: window.DexAuth.getToken() };
-      }
+      /* A password or a session token, and nothing else. Dex's own notes come
+         through his account (mountAccount), never through this door: a
+         DexAuth token sent along here would turn a restored PUBLIC session
+         into the private one. */
       const response = await fetch('/api/notes/unlock', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
@@ -2494,6 +3605,12 @@ if (workModal) {
       timer: document.getElementById('notesTimer'),
       resting: 'ENTER PASSWORD', passed: 'OPEN',
       async verify(secret) {
+        /* DEXDC opens nothing as a password now (Dex, 2026-10-08); typed
+           here it does what it does from any keypad, the site sign-in, over
+           this box (Dex, 2026-10-09). `notes` with Dex signed in is his own
+           notes rather than the public page. */
+        if (secret.trim().toLowerCase() === 'dexdc') return { ok: true, payload: 'signin' };
+        if (secret.trim().toLowerCase() === 'notes' && window.dexOwner.is) return { ok: true, payload: 'mine' };
         try {
           const data = await unlock({ password: secret.toLowerCase() });
           return data ? { ok: true, payload: data } : { ok: false };
@@ -2509,7 +3626,16 @@ if (workModal) {
           return { ok: false, message: error.detail ? 'SERVER ERROR' : 'OFFLINE' };
         }
       },
-      onPass: opened,
+      onPass(payload) {
+        if (payload === 'signin') {
+          keypad.reset(true);
+          document.dispatchEvent(new CustomEvent('site:signin', { detail: { opener: pins[0] } }));
+          return;
+        }
+        if (payload !== 'mine') { opened(payload); return; }
+        closeModal(modal);
+        setTimeout(() => document.dispatchEvent(new CustomEvent('notes:mine')), 0);
+      },
     });
 
     /* ---- leaving with the microphone on ---------------------------------
@@ -2756,13 +3882,6 @@ if (workModal) {
     }
   }
 
-  // Exposed for the universal padlock: actually unlock Notes (get edit token),
-  // not just flip the mode tag. Mirrors window.dexMusic.unlock.
-  window.dexNotes = window.dexNotes || {};
-  window.dexNotes.unlock = async (password) => {
-    const data = await unlock({ password });
-    return !!data;
-  };
 
   /* Move portfolio buttons INTO the shell so they're positioned relative
      to it (stable), not the frame (shifts when app loads). */
@@ -3296,7 +4415,7 @@ let flashTip = () => {};
      Idea Vault's buttons and the work overlay's copy and download tips, which
      have been labelling themselves to an empty room. */
   const rehome = (el) => {
-    const host = el.closest?.('dialog[open]') || document.body;
+    const host = el.closest?.('dialog[open], :popover-open') || document.body;   // the enlarged featured video is a popover
     if (tip.parentNode !== host) host.append(tip);
   };
 
@@ -3327,7 +4446,11 @@ let flashTip = () => {};
        fallback would fire every time, and a bubble that is sometimes above and
        sometimes below reads as a bug. Above with a fallback to below is the
        same rule the other way round, for a control that lives at the bottom. */
-    if (el.dataset.tipPos === 'above') {
+    /* data-tip-pos-max: where the bubble goes while its control is in the
+       enlarged featured video, whose buttons stand in a column -- above,
+       one would land on the button over it. */
+    const pos = el.dataset.tipPosMax && el.closest(':popover-open') ? el.dataset.tipPosMax : el.dataset.tipPos;
+    if (pos === 'above') {
       const above = r.top - t.height - GAP;
       const at = above >= 6 ? above : r.bottom + GAP;
       const mid = r.left + r.width / 2 - t.width / 2;
@@ -3335,7 +4458,7 @@ let flashTip = () => {};
       tip.style.top = `${Math.round(at)}px`;
       return;
     }
-    if (el.dataset.tipPos === 'right') {
+    if (pos === 'right') {
       const fitsRight = r.right + GAP + t.width <= window.innerWidth - 6;
       const fitsLeft = r.left - GAP - t.width >= 6;
       if (fitsRight || fitsLeft) {
@@ -3370,6 +4493,8 @@ let flashTip = () => {};
     rehome(el);
     // Two-line tips opt in by containing a newline; see #tip.is-multi.
     tip.classList.toggle('is-multi', text.includes('\n'));
+    // data-tip-big: the featured video's two buttons, a few points up (Dex).
+    tip.classList.toggle('is-big', 'tipBig' in el.dataset);
     /* LOUD: a headline in the accent with a quieter line under it, for the one
        or two controls that are announcing something rather than labelling
        themselves. Built from nodes, like flashTip below and for the same
@@ -3388,6 +4513,23 @@ let flashTip = () => {};
                           ...(rest.length ? [line('tip-sub', rest.join(' '))] : []));
     } else {
       tip.textContent = text;
+    }
+    /* data-tip-thumb: a picture of what the control opens, above its label.
+       Cloned from a <picture> already on the page, never built as a URL --
+       a hand-built derivative URL is a second cache entry and goes stale
+       against `sizes` (CLAUDE.md, image pipeline). */
+    const thumbOf = el.dataset.tipThumb && document.querySelector(el.dataset.tipThumb);
+    tip.classList.toggle('has-thumb', !!thumbOf);
+    if (thumbOf) {
+      const pic = thumbOf.cloneNode(true);
+      pic.removeAttribute('class');
+      pic.querySelectorAll('source').forEach(source => source.setAttribute('sizes', '240px'));
+      const img = pic.querySelector('img');
+      if (img) { img.removeAttribute('class'); img.loading = 'eager'; img.alt = ''; }
+      const box = document.createElement('span');
+      box.className = 'tip-thumb';
+      box.append(pic);
+      tip.prepend(box);
     }
     tip.classList.add('is-on');
     // Measure after the text lands, or the first show is positioned off the
@@ -3408,7 +4550,7 @@ let flashTip = () => {};
   flashTip = (el, word, bang = '!') => {
     clearTimeout(flashing);
     rehome(el);
-    tip.classList.remove('is-loud');
+    tip.classList.remove('is-loud', 'has-thumb');
     tip.textContent = word;
     if (bang) {
       const mark = document.createElement('span');
@@ -3933,7 +5075,8 @@ function createKeypad({ root, pins, status, timer, resting, verify, onPass,
   });
   /* ============================================================
      DexAuth: universal overlay unlock system.
-     One password (snail) unlocks editing across ALL overlays.
+     One token, minted for Dex SIGNED IN (dexOwnerCheck at the top of this
+     file; Dex, 2026-10-08), unlocks editing across ALL overlays. No code.
      To add a new overlay:
        1. Add a padlock button with data-ovlock in the overlay HTML
        2. Call DexAuth.register('myoverlay', { onUnlock, onLock, iframe })
@@ -3945,19 +5088,15 @@ function createKeypad({ root, pins, status, timer, resting, verify, onPass,
     var tier = null;
     var overlays = {};
     
-    async function unlock(password) {
-      try {
-        var r = await fetch('/api/auth/unlock', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ password: password })
-        });
-        if (!r.ok) return false;
-        var j = await r.json();
-        token = j.token;
-        tier = j.tier;
-        return true;
-      } catch (e) { return false; }
+    /* Asks whether Dex is signed in; the answer sets the token. */
+    async function unlock() {
+      await window.dexOwnerCheck();
+      return !!token;
+    }
+
+    function setToken(t, tr) {
+      token = t;
+      tier = tr || 'admin';
     }
     
     function register(id, handlers) {
@@ -4002,7 +5141,7 @@ function createKeypad({ root, pins, status, timer, resting, verify, onPass,
     function isUnlocked() { return !!token; }
     
     return { unlock: unlock, register: register, applyTo: applyTo,
-             lock: lock, clearToken: clearToken,
+             lock: lock, clearToken: clearToken, setToken: setToken,
              getToken: getToken, getTier: getTier,
              isUnlocked: isUnlocked };
   })();
@@ -4020,6 +5159,17 @@ function createKeypad({ root, pins, status, timer, resting, verify, onPass,
         onLock: function() {
           window.setModeTag('dashModeTag', false);
         }
+      });
+      /* Dex signed in: Mission Control gets the token whenever there is a
+         page in the frame to take it -- when it loads (it is lazy, and a
+         message posted before then is lost), and when he signs in or out
+         with it already up. */
+      var hand = function() {
+        if (window.dexOwner.is && window.DexAuth.isUnlocked()) window.DexAuth.applyTo('work');
+      };
+      frame.addEventListener('load', hand);
+      document.addEventListener('dex:owner', function(e) {
+        if (e.detail && e.detail.owner) hand(); else window.DexAuth.lock('work');
       });
     }
   })();
@@ -4049,6 +5199,10 @@ function createKeypad({ root, pins, status, timer, resting, verify, onPass,
       if (dd) {
         var now = new Date();
         dd.textContent = now.toLocaleDateString('en-GB', {weekday:'long', day:'numeric', month:'long'});
+      }
+      if (window.dexOwner.is && window.DexAuth && window.DexAuth.isUnlocked()) {
+        window.DexAuth.applyTo('work');
+        window.setModeTag('dashModeTag', true);
       }
     }
     openModal(dialog, dialog.querySelector('.vault-modal-shell'), null, opener);
@@ -4139,10 +5293,14 @@ function createKeypad({ root, pins, status, timer, resting, verify, onPass,
       /* Same plain keyword as the tilde keypad: `work` opens Mission Control
          from here too, not just from the overlay. */
       if (secret.trim().toLowerCase() === 'work') return { ok: true, payload: 'show:dash' };
-      /* If it's a valid notes password, open notes directly with it.
-         This lets Dex type his password here to go straight to his notes.
-         ('snail' is 5 chars but it's the vault code, not a notes password --
-         exclude it or the server will hijack it into Notes.) */
+      /* DEXDC: the site sign-in (see the tilde keypad below; Dex,
+         2026-10-09). */
+      if (secret.trim().toLowerCase() === 'dexdc') return { ok: true, payload: 'site:signin' };
+      /* `notes` with Dex signed in: HIS notes, not the public page ("then if I
+         typed in notes, it would bring up my notes", Dex 2026-10-09). */
+      if (secret.trim().toLowerCase() === 'notes' && window.dexOwner.is) return { ok: true, payload: 'notes:mine' };
+      /* A notes code ('notes', the public page) opens the notes directly.
+         ('snail' is 5 chars but it is a vault code, so it is not sent.) */
       const trimmed = secret.trim();
       if (trimmed.length === 5 && trimmed.toLowerCase() !== 'snail') {
         try {
@@ -4153,7 +5311,6 @@ function createKeypad({ root, pins, status, timer, resting, verify, onPass,
           });
           if (resp.ok) {
             const data = await resp.json();
-            // Valid notes password: open notes overlay with the data
             document.dispatchEvent(new CustomEvent('notes:open', {
               detail: { opener: section, code: trimmed, unlockedData: data }
             }));
@@ -4169,6 +5326,11 @@ function createKeypad({ root, pins, status, timer, resting, verify, onPass,
       // If it was a notes password, the overlay is already opening; just reset
       if (payload === 'notes:direct') {
         keypad.reset(true);
+        return;
+      }
+      if (payload === 'notes:mine' || payload === 'site:signin') {
+        keypad.reset(true);
+        document.dispatchEvent(new CustomEvent(payload, { detail: { opener: section } }));
         return;
       }
       reveal(payload, secret);
@@ -4240,24 +5402,15 @@ const codeModal = document.getElementById('codeModal');
         const normalized = secret.trim().toLowerCase();
         console.log('codepad verify:', normalized);
         if (normalized === 'work') return { ok: true, payload: 'show:dash' };
-        /* 'snail' is 5 chars but it's the universal code, not a notes password.
-           Exclude it here or the server's passwordOk (which accepts snail)
-           will hijack it into Notes instead of upgrading the current overlay. */
-        /* Notes password (DEXDC): if valid, check for an open overlay first.
-           DEXDC is the universal unlock: in Music/Work/etc it upgrades that
-           overlay to editor mode. Only opens Notes if no overlay is open,
-           or if already in Notes. */
+        /* DEXDC is not a code any more (Dex, 2026-10-08): it is the site's
+           sign-in, from anywhere, over anything (Dex, 2026-10-09). Nothing
+           is sent to a server for it -- the account is what opens anything. */
+        if (normalized === 'dexdc') return { ok: true, payload: 'site:signin' };
+        /* `notes` with Dex signed in opens his own notes. */
+        if (normalized === 'notes' && window.dexOwner.is) return { ok: true, payload: 'notes:mine' };
+        /* A 5-letter code the notes server knows: the public page ('notes').
+           'snail' is 5 letters too but is a vault code, so it is not sent. */
         const trimmed = secret.trim();
-        // Helper: find the open overlay (not the keypad itself)
-        const findUpgradeOverlay = () => {
-          var oid = window._padlockOverlay;
-          if (oid) {
-            var ov = document.getElementById(oid);
-            if (ov) return ov;
-          }
-          var allOpen = [...document.querySelectorAll(OVERLAY_OPEN)];
-          return allOpen.find(d => d.id !== 'codeModal') || null;
-        };
         if (trimmed.length === 5 && normalized !== 'snail') {
           try {
             const resp = await fetch('/api/notes/unlock', {
@@ -4266,64 +5419,12 @@ const codeModal = document.getElementById('codeModal');
               body: JSON.stringify({ password: trimmed }),
             });
             if (resp.ok) {
-              var upOverlay = findUpgradeOverlay();
-              // If there's an open overlay that's NOT Notes, upgrade it
-              // instead of redirecting to Notes.
-              if (upOverlay && upOverlay.id !== 'notesModal') {
-                // Fall through to the universal upgrade logic below by
-                // treating this as the universal code.
-                secret = 'snail';
-              } else {
-                document.dispatchEvent(new CustomEvent('notes:open', {
-                  detail: { opener: codeModal, code: trimmed }
-                }));
-                return { ok: true, payload: 'notes:direct' };
-              }
+              document.dispatchEvent(new CustomEvent('notes:open', {
+                detail: { opener: codeModal, code: trimmed }
+              }));
+              return { ok: true, payload: 'notes:direct' };
             }
           } catch (e) { /* not a notes password */ }
-        }
-        /* Phase 2: the universal code upgrades the overlay underneath instead
-           of opening the vault, when there is one. Main page + snail still
-           opens the markdown vault as before. */
-        // Re-normalize in case DEXDC was rewritten to the universal code above
-        var effectiveNormalized = secret.trim().toLowerCase();
-        if (effectiveNormalized === 'snail' || normalized === 'snail') {
-          // Use the stored overlay ID (the keypad itself is now topmost).
-          // If no stored ID (tilde pressed directly), find the open dialog
-          // that is NOT the keypad itself.
-          var overlayId = window._padlockOverlay;
-          var overlay;
-          if (overlayId) {
-            overlay = document.getElementById(overlayId);
-          } else {
-            var allOpen = [...document.querySelectorAll(OVERLAY_OPEN)];
-            overlay = allOpen.find(d => d.id !== 'codeModal') || null;
-          }
-          var oid = overlay ? overlay.id : 'none';
-          console.log('snail: overlay found:', oid, '(stored:', overlayId + ')');
-          if (oid === 'musicModal') {
-            // Get JWT via DexAuth first, then unlock music with it
-            if (!window.DexAuth) {
-              console.error('music unlock: DexAuth not available');
-              return { ok: false };
-            }
-            const authOk = await window.DexAuth.unlock('snail');
-            if (!authOk) {
-              console.error('music unlock: DexAuth.unlock failed');
-              return { ok: false };
-            }
-            if (!window.dexMusic) {
-              console.error('music unlock: dexMusic not available');
-              return { ok: false };
-            }
-            const ok = await window.dexMusic.unlock('snail');
-            if (!ok) {
-              console.error('music unlock: dexMusic.unlock failed');
-            }
-            if (ok) return { ok: true, payload: 'upgraded:music' };
-            return { ok: false };
-          }
-          if (overlay) return { ok: true, payload: 'noop:overlay' };
         }
         return tryCode(secret);
       },
@@ -4334,47 +5435,10 @@ const codeModal = document.getElementById('codeModal');
           window._padlockOverlay = null;
           return;
         }
-        /* Music was already unlocked in verify() via DexAuth + dexMusic.unlock.
-           Just close the keypad. */
-        if (payload === 'upgraded:music') {
+        if (payload === 'notes:mine' || payload === 'site:signin') {
           closeModal(codeModal);
           window._padlockOverlay = null;
-          return;
-        }
-        /* Other overlays (work, etc.): unlock via DexAuth and apply. */
-        if (payload === 'noop:overlay') {
-          closeModal(codeModal);
-          window._padlockOverlay = null;
-          (async function() {
-            // Exclude the keypad itself (in case close hasn't applied yet)
-            var allOpen = [...document.querySelectorAll(OVERLAY_OPEN)];
-            var overlay = allOpen.find(d => d.id !== 'codeModal') || null;
-            var overlayId = overlay ? overlay.id : '';
-            var ok = await window.DexAuth.unlock('snail');
-            if (ok) {
-              if (overlayId === 'dashModal' || overlayId === 'workModal') {
-                window.DexAuth.applyTo('work');
-                window.setModeTag('dashModeTag', true);
-                /* The dashboard is an iframe with its own passcode gate.
-                   Tell it to unlock editing via postMessage. */
-                try {
-                  var dashFrame = document.getElementById('dashFrame');
-                  if (dashFrame && dashFrame.contentWindow) {
-                    dashFrame.contentWindow.postMessage({type:'dex-unlock', code:'snail'}, '*');
-                  }
-                } catch(e) {}
-              } else if (overlayId === 'musicModal') {
-                /* Actually unlock music (not just the tag) so editor
-                   buttons appear. */
-                var musicOk = await window.dexMusic?.unlock('snail');
-                if (!musicOk) window.setModeTag('musicModeTag', true);
-              } else if (overlayId === 'notesModal') {
-                /* Actually unlock Notes (not just the tag) so editing works. */
-                var notesOk = await window.dexNotes?.unlock('snail');
-                if (!notesOk) window.setModeTag('notesModeTag', true);
-              }
-            }
-          })();
+          document.dispatchEvent(new CustomEvent(payload, { detail: { opener: codeOpener } }));
           return;
         }
         if (codeLabel) codeLabel.textContent = 'OPEN';
@@ -4403,6 +5467,23 @@ const codeModal = document.getElementById('codeModal');
 
     document.getElementById('codeClose')?.addEventListener('click',
       () => closeModal(codeModal));
+    /* A LOCKED DOWNLOAD ([data-code-lock], the Proto Isles card): the keypad,
+       wearing the button's own words in place of ENTER CODE, until there is a
+       launcher to hand out. It is the same keypad as ` -- every code it knows
+       still works from here -- and closing it puts ENTER CODE back (the
+       bindModal reset above). */
+    document.querySelectorAll('[data-code-lock]').forEach((lock) => {
+      lock.addEventListener('click', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        if (codeModal.open) return;
+        codeOpener = lock;
+        if (codeLabel) codeLabel.textContent = lock.dataset.codeLock;
+        openModal(codeModal, codeModal.querySelector('.code-shell'), null, codeOpener,
+                  !!document.querySelector(OVERLAY_OPEN));
+        codepad.focus();
+      });
+    });
     /* Overlay lock buttons ([lock][x] chrome): open the tilde keypad stacked
        over the open overlay, exactly as if the user had pressed `. The
        editor-upgrade step (the universal code unlocking the overlay beneath)
@@ -4516,14 +5597,11 @@ const codeModal = document.getElementById('codeModal');
   // and the padlock are its job now, and these two are here for the focus
   // hand-off reset(moveFocus) does on the way out.
   document.getElementById('musicModal')?.addEventListener('close', relock);
-  /* Work overlay: when it closes, lock it, clear the token, and tell the
-     iframe to revert to viewer. Password must be re-entered next time. */
+  /* Work overlay: opening it hands Mission Control the token when Dex is
+     signed in -- signed in IS the key (Dex, 2026-10-08), so nothing is asked
+     for and nothing is cleared when it closes; signing out is what locks. */
   document.getElementById('dashModal')?.addEventListener('close', function() {
-    if (window.DexAuth) {
-      window.DexAuth.lock('work');
-      window.DexAuth.clearToken();
-    }
-    window.setModeTag('dashModeTag', false);
+    if (!window.dexOwner.is) window.setModeTag('dashModeTag', false);
   });
 })();
 
@@ -4799,7 +5877,7 @@ function initGallery({ id, root: rootId, panel: panelId }) {
      Three columns, growing a row at a time as art lands — the last row is short
      until it is not. Paging goes in here when there is enough art to need it. */
 
-  /* A page of thumbnails is five at most, fewer when five would not be legible
+  /* A page of thumbnails is eight at most, fewer when eight would not be legible
      at the width available. Past that the set does not wrap — the track slides
      the next page in, and the page follows whatever is selected, so walking the
      set with the arrows carries the strip along without a control of its own.
@@ -4808,7 +5886,10 @@ function initGallery({ id, root: rootId, panel: panelId }) {
      to be 100% of the strip: the thumbnails are capped at their designed size,
      so a page can be narrower than the window it sits in, and a percentage
      would drift by that slack on every page. */
-  const PAGE_MAX = 5;                      // five across, per Dex
+  /* Eight, not five (Dex, 2026-10-09: "not all of the wallpapers are
+     showing"). Five a page hid three of the eight wallpapers until the
+     arrows happened to walk onto them; eight shows the whole set. */
+  const PAGE_MAX = 8;
   const THUMB_MIN = 70;                    // below this a thumbnail stops reading
   function layoutStrip(view) {
     const strip = view.strip, track = view.track;
@@ -7388,10 +8469,12 @@ const MediaBus = (() => {
     if (!admin) { closeAdd(); closeBackups(); disarm(); closePlaylistForm(); }
   }
 
-  async function unlock(code) {
+  /* EDITING IS DEX SIGNED IN (Dex, 2026-10-08), asked for whenever the list
+     opens for him; no code goes with it. The server checks the sign-in. */
+  async function unlock() {
     let response;
     try {
-      var unlockBody = { action: 'unlock', code: String(code || '') };
+      var unlockBody = { action: 'unlock', idToken: await window.siteIdToken() };
       if (window.DexAuth && window.DexAuth.isUnlocked()) {
         unlockBody.jwt = window.DexAuth.getToken();
       }
@@ -7414,7 +8497,7 @@ const MediaBus = (() => {
     toast(response.status === 503
       ? 'Editing is not set up on this deploy.'
       : response.status === 404 ? 'There is no playlist server here — read-only.'
-      : 'That code does not unlock editing.');
+      : 'Editing did not open. Sign in again to edit.');
     return false;
   }
 
@@ -7721,6 +8804,7 @@ const MediaBus = (() => {
     modal.classList.remove('is-hidden-bar');
     if (expandBtn) expandBtn.hidden = true;
     openModal(modal, modal.querySelector('.music-shell'), null, trigger);
+    if (window.dexOwner.is && !admin) unlock();
     if (!loaded && !(await fetchTracks())) return;
     render();
     /* Live while it is open (docked counts): an edit made in TUNES reaches an
@@ -7778,7 +8862,7 @@ const MediaBus = (() => {
     if (expandBtn) expandBtn.hidden = true;
     stop();
     stopSync();
-    // Editing ends with the overlay. The next open is through a code again.
+    // Editing ends with the overlay; the next open asks the server again.
     setAdmin(false);
     searchEl.value = '';
     query = '';
@@ -7798,9 +8882,8 @@ const MediaBus = (() => {
      reason the notes overlay is: it has its own opener, which has to fetch the
      manifest before there is anything to show. */
   document.addEventListener('music:open', async (event) => {
-    /* MUSIC is the read-only door, whatever was open before it: typing MUSIC
-       after TUNES in the same tab is asking for the listener's view. */
-    if (admin) { setAdmin(false); if (loaded) render(); }
+    /* MUSIC and TUNES are one door now: read-only for everyone, editing for
+       Dex signed in (open() asks). */
     // If another modal is open, don't close it. The pill is the music interface
     // there (Dex, 2026-10-05) — typing music in Notes/Work/etc keeps you there.
     // The keypad itself doesn't count (it's the thing you typed into).
@@ -7840,13 +8923,19 @@ const MediaBus = (() => {
     if (!modal.open || isDockedBar(modal) || hiddenBar) open((event.detail || {}).opener);
   });
 
-  /* TUNES: the same overlay, then the code is traded for an edit token. It
-     opens first and unlocks second, so a server that says no still leaves a
-     working music player on screen rather than nothing. */
+  /* TUNES: the same overlay. It used to trade its code for editing; editing
+     is Dex signed in now, which open() asks about on its own, so TUNES is
+     MUSIC by another name -- read-only for anyone else. */
   document.addEventListener('tunes:open', async (event) => {
     const detail = event.detail || {};
     if (!modal.open || isDockedBar(modal)) await open(detail.opener);
-    await unlock(detail.code);
+    else if (window.dexOwner.is && !admin) await unlock();
+  });
+  /* Signing in or out with the list up changes it there and then. */
+  document.addEventListener('dex:owner', (event) => {
+    const owner = !!(event.detail && event.detail.owner);
+    if (owner && modal.open && !isDockedBar(modal) && !admin) unlock();
+    else if (!owner && admin) { setAdmin(false); if (window.setModeTag) window.setModeTag('musicModeTag', false); if (loaded) render(); }
   });
 
   addBtn?.addEventListener('click', () => (addPanel.hidden ? openAdd() : closeAdd()));
@@ -7900,10 +8989,10 @@ const MediaBus = (() => {
   lastVolume = startVolume || 0.4;
   applyVolume(startVolume, false);
 
-  /* Phase 2: the universal code (snail) upgrades the music overlay to edit
-     mode from the tilde keypad. Exposed so the keypad can reach it. */
+  /* Exposed: unlock asks for editing as Dex signed in; lock ends it. */
   window.dexMusic = window.dexMusic || {};
   window.dexMusic.unlock = unlock;
+  window.dexMusic.lock = () => { setAdmin(false); if (window.setModeTag) window.setModeTag('musicModeTag', false); };
   // Exposed for the pill's X button (stops music and hides pill).
   window.dexMusic.stopAll = () => {
     stopping = true;
@@ -9482,6 +10571,8 @@ let openReader = () => {};
     const lbCount = document.getElementById('appShotCount');
     const lbPrev = document.getElementById('appShotPrev');
     const lbNext = document.getElementById('appShotNext');
+    const lbFrame = document.getElementById('appShotFrame');
+    const lbRails = [document.getElementById('appShotRailPrev'), document.getElementById('appShotRailNext')];
     let lbIdx = 0;
     const lbPaint = () => {
       const set = setFor();
@@ -9494,12 +10585,18 @@ let openReader = () => {};
         img.sizes = '92vw';
         img.loading = 'eager';
         if (img.decode) img.decode().catch(() => {});
+        /* The frame is sized from the baked width/height BEFORE a byte of
+           the big rung arrives, so the rails and the X are where they will
+           stay from the first frame rather than jumping when it loads. */
+        const w = +img.getAttribute('width'), h = +img.getAttribute('height');
+        if (w && h) lbFrame.style.setProperty('--ar', (w / h).toFixed(4));
       }
       lbStage.replaceChildren(clone);
       lbCount.textContent = `${lbIdx + 1}/${set.length}`;
       const single = set.length < 2;
       lbPrev.disabled = single;
       lbNext.disabled = single;
+      for (const rail of lbRails) rail.hidden = single;
       // the inline frame keeps step, so closing lands where you left off
       idx = lbIdx;
       paintShots();
@@ -9512,6 +10609,15 @@ let openReader = () => {};
     });
     lbPrev.addEventListener('click', () => { lbIdx -= 1; lbPaint(); });
     lbNext.addEventListener('click', () => { lbIdx += 1; lbPaint(); });
+    lbRails[0].addEventListener('click', () => { lbIdx -= 1; lbPaint(); });
+    lbRails[1].addEventListener('click', () => { lbIdx += 1; lbPaint(); });
+    /* Anything that is not the picture or a control closes it (Dex,
+       2026-10-08). bindModal's backdrop test only sees a click on the
+       <dialog> itself, and the stage and shell cover most of the screen, so
+       a click in the dark round the picture closed it only sometimes. */
+    lb.addEventListener('click', (event) => {
+      if (!event.target.closest('img, button')) closeModal(lb);
+    });
     lb.addEventListener('keydown', (event) => {
       if (event.key === 'ArrowLeft') { event.preventDefault(); lbIdx -= 1; lbPaint(); }
       if (event.key === 'ArrowRight') { event.preventDefault(); lbIdx += 1; lbPaint(); }
@@ -9738,6 +10844,38 @@ const MOBIUS_STORE = 'https://apps.microsoft.com/detail/9NBX324THQ1V';
   if (!file) return;
   link.href = `https://github.com/dexdcimino/mobius-3d/releases/latest/download/${file}`;
   link.removeAttribute('target');
+
+  /* THE SIZE IN THE TIP, READ OFF THE RELEASE ITSELF (Dex, 2026-10-09). The
+     installer's real byte count comes from GitHub's API for the latest
+     release, so it is never a number typed here and never a release behind.
+     If GitHub does not answer (offline, rate limited, the file renamed), the
+     tip stays as the markup wrote it: a size we could not read is left out,
+     not guessed. The install line is per system and has no number in it,
+     because install time was not measured. Kept for the tab's life in
+     sessionStorage, so hovering twice is one request. Both download buttons
+     carry it: the AI Lab card's and the featured video's. */
+  const how = { exe: 'installs in under a minute', dmg: 'drag it into Applications',
+                AppImage: 'no install, just run it' }[file.split('.').pop()];
+  const mb = bytes => `${Math.max(1, Math.round(bytes / 1048576))} MB`;
+  const label = size => {
+    const tail = [size && mb(size), how].filter(Boolean).join(' · ');
+    document.querySelectorAll('#mobiusDownload, .fv-get').forEach(btn => {
+      btn.dataset.tip = `Download Mobius 3D\n${tail}`;
+    });
+  };
+  const KEY = 'mobius-release-sizes';
+  let cached = null;
+  try { cached = JSON.parse(sessionStorage.getItem(KEY) || 'null'); } catch {}
+  if (cached) { label(cached[file]); return; }
+  fetch('https://api.github.com/repos/dexdcimino/mobius-3d/releases/latest', { headers: { Accept: 'application/vnd.github+json' } })
+    .then(r => (r.ok ? r.json() : Promise.reject(r.status)))
+    .then(release => {
+      const sizes = {};
+      (release.assets || []).forEach(a => { if (a.name && a.size > 0) sizes[a.name] = a.size; });
+      try { sessionStorage.setItem(KEY, JSON.stringify(sizes)); } catch {}
+      label(sizes[file]);
+    })
+    .catch(() => label(null));
 })();
 
 /* --- AI Lab app overlay --------------------------------------------------- */
@@ -11802,4 +12940,21 @@ const PORTRAIT_LABEL = {
       modalStatePushed = false;
     }
   });
+})();
+
+/* ==========================================================================
+   The hero's front fade breathes between two reaches by SMIL (index.html,
+   #bgFrontFade). SMIL does not read prefers-reduced-motion, so stop it here:
+   with the preference on, the fade holds where it starts.
+   ========================================================================== */
+(() => {
+  const svg = document.querySelector('.bg-front svg');
+  if (!svg || !svg.pauseAnimations) return;
+  const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
+  const sync = () => {
+    if (mq.matches) { svg.pauseAnimations(); svg.setCurrentTime(0); }
+    else svg.unpauseAnimations();
+  };
+  sync();
+  mq.addEventListener('change', sync);
 })();

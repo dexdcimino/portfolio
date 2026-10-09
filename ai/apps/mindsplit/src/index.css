@@ -1,4 +1,6 @@
-@import "tailwindcss";
+/* Classes come from src/ only: Tailwind v4 otherwise scans every file in the
+   project, and prose in CLAUDE.md changed the built CSS. */
+@import "tailwindcss" source(".");
 @import "./fonts.css";
 
 /* ── Moved out of App.jsx's <style> block, verbatim ───────────────────────────
@@ -16,6 +18,10 @@
 :root {
   --disp: 'Bricolage Grotesque', ui-sans-serif, system-ui, sans-serif;
   --mono: 'DM Mono', ui-monospace, monospace;
+  /* Running text (bylines, hints, sub-titles). Bricolage ships 600-800 only,
+     which is right for headlines and too heavy for a sentence at 14px, so
+     the phone's own UI face carries those. */
+  --body: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
 }
 
 @keyframes uvIn { to { opacity: .55 } }
@@ -47,4 +53,23 @@ html, body, #root {
 }
 body {
   overscroll-behavior: none;
+}
+
+/* ── 2026-10 revamp ───────────────────────────────────────────────────── */
+body { -webkit-tap-highlight-color: transparent; }
+button { -webkit-user-select: none; user-select: none; }
+.ms-press { transition: transform 120ms ease, filter 120ms ease; }
+.ms-press:active:not(:disabled) { transform: scale(.96); filter: brightness(.96); }
+.ms-band:active:not(:disabled) { filter: brightness(.94); }
+.ms-balance { text-wrap: balance; }
+@keyframes msPulse { 0%,100% { opacity: 1; transform: scale(1) } 50% { opacity: .35; transform: scale(.8) } }
+.ms-live { animation: msPulse 1.8s ease-in-out infinite; }
+@keyframes msSpin { to { transform: rotate(360deg) } }
+.ms-spin { animation: msSpin 800ms linear infinite; }
+/* The wordmark's mark: the icon's two halves, cyan and lime. */
+.ms-logo { display: inline-flex; width: 20px; height: 20px; border-radius: 50%; overflow: hidden; }
+.ms-logo > span { flex: 1; }
+@media (prefers-reduced-motion: reduce) {
+  .ms-live, .ms-spin { animation: none; }
+  .ms-press { transition: none; }
 }

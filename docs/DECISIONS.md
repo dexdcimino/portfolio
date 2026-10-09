@@ -50,6 +50,262 @@ change**, so the reasoning cannot drift away from the diff it explains.
 
 ---
 
+## 2026-10-09 — The work gallery is laid out like the wallpaper lightbox
+
+**Decided:** the work overlay (the portfolio's eight tabs and every featured
+set, Proto Isles today) is a full-screen dialog with no panel: tabs centred
+along the top, the picture as large as the screen allows in a box the
+picture's own shape with its title on it at the top left, the strip centred
+along the bottom at eight thumbnails a page with its arrows either side and
+the count to its right, hover-only arrows on the picture, and the enlarged
+Mobius video's 52px X centred in the dead space to the picture's right. The
+wheel steps one piece a tick; a thumbnail hover previews; a click in the
+dark closes.
+
+**Replaced:** a bordered panel with a fixed 3:2 hatched matte every piece
+letterboxed into, arrows in their own columns beside it, a caption row under
+it (title, category, count), a scrolling filmstrip of 96px thumbs, the X in
+the tab bar and a BROWSE / ESC CLOSE hint. The 3:2 box existed so the caption
+and strip would not jump; with the title on the picture and the strip
+pinned to the bottom row, nothing below the picture depends on its shape.
+
+**Why:** Dex, 2026-10-09: "a lot of dead space", and the wallpaper lightbox
+is "almost exactly how we want" it. The arrows on the art were moved off it
+on 2026-09-02 because they were easy to lose while always shown; hover-only
+with the strip's own arrows always there answers both.
+
+**Reverse it if:** the title on the art turns out unreadable on real pieces
+(it carries the wallpaper plate's two shadows), or a set needs a caption
+longer than one line.
+
+## 2026-10-09 — AI Lab titles go to the app; the code is a badge, and sizes are measured
+
+**Decided:** every AI Lab title links to the app or its store page (Mobius 3D's
+to `/mobius/`, until its Microsoft Store listing is live). A row whose code is
+public carries a small GitHub badge on its icon's corner that shows on hover
+(always on a touch screen). Download tips state a size: Mobius 3D's is read at
+load from GitHub's API for the latest release; Inko, dexnote and MindSplit's
+are what each app's service worker actually caches, re-measured by
+`work_check`. No install time is a number, because none was measured.
+
+**Replaced:** Mobius 3D's title going to its GitHub repo, and download tips
+that said only "Download" or "Install".
+
+**Why:** Dex, 2026-10-09: a visitor clicking a name wants the thing, not the
+source. The badge sits on the icon rather than beside the buttons because in
+the flow it took 46px from titles that already wrap at 1440. A typed installer
+size would be a release behind after the next version bump.
+
+**Reverse it if:** the AI Lab drops its icons (the badge needs a corner to sit
+on), or GitHub's unauthenticated rate limit starts failing real visitors.
+## 2026-10-09 — One @name per account, and Inko's server holds it
+
+**Decided:** MindSplit's @handle IS the account's Inko name. Inko's server
+(`/api/sketch`, Blob) is the only authority: MindSplit reads the name through
+action `site`, makes a first one through `claim` and renames through `rename`,
+and then copies the answer into Firestore (`msUsers.handle`, `msHandles`),
+because the rules check a question's `by` against that copy and cannot call out.
+A copy that differs from Inko's (a rename made in Inko) is rewritten on the next
+launch. Follows are Inko's follow graph too, and a profile picture is the Inko
+picture, else initials. A name claimed in MindSplit before this is offered to
+Inko on its owner's next launch and kept if it is free there.
+
+**Replaced:** MindSplit's own names in `msHandles`, first come first served,
+which only borrowed the Inko name as a suggestion, so one person could be
+@pat in Inko and @pat2 in MindSplit, and someone else could hold @pat in one.
+
+**Why:** Dex, 2026-10-09, approving "one universal @handle per account across
+every app". Inko already had the hard parts (reserved names, rename moving
+everything, the uid links), so moving names the other way, into Firestore,
+would have meant rebuilding them and migrating Inko. Without a service account
+the server cannot write Firestore, hence the client-written copy.
+
+**Reverse it if:** a Firebase service account is configured (then the server
+writes the copy itself and the rules can trust it), or Inko's accounts move to
+Firestore. The known gap meanwhile: a copy is written by the client, so
+someone who goes around the app could take a name in `msHandles` before its
+Inko owner first opens MindSplit; that owner then cannot ask under their name
+until it is cleared.
+
+## 2026-10-09 — An Inko name and password is a site account too
+
+**Decided:** the site sign-in (`openSiteSignIn`) takes an email OR an Inko name
+with a password. An email is a Firebase email-and-password account. A name is
+checked by Inko's own server (`/api/sketch` action `site-password`), which then
+gives that Inko account a Firebase email-and-password user of its own
+(`siteBridge` in `lib/sketch-store.js`): a random address under
+`accounts.dexcimino.com`, a password derived from that address and the server's
+secret, made through Firebase's REST API with the public web key, and its uid
+linked to the name as `firebase-<uid>`. The browser signs in to Firebase with
+what the server hands back.
+
+**Replaced:** Inko's name-and-password accounts living only on Inko's server,
+with no Firebase uid, so DexNote and MindSplit could not see them.
+
+**Why:** Dex, 2026-10-09: "if they created that sign in in the INKO app ...
+same sign in for everything". Minting Firebase custom tokens needs a service
+account key nobody has configured; this needs no new secret. The address is
+random so nobody can register it before the owner does, and the password is
+never stored.
+
+**Reverse it if:** a Firebase service account is configured (then mint custom
+tokens and drop the made-up address), or Inko moves its accounts onto Firebase
+outright.
+
+---
+
+## 2026-10-09 — The sign-in window says dexcimino.com, not dexnote-d7047
+
+**Decided:** on dexcimino.com the Firebase `authDomain` is the site, and
+`vercel.json` proxies `/__/auth/*` and `/__/firebase/*` to
+`dexnote-d7047.firebaseapp.com`. GitHub keeps Firebase's host through a second,
+memory-only app whose credential is handed to the real sign-in.
+
+**Replaced:** `authDomain: 'dexnote-d7047.firebaseapp.com'` everywhere, which put
+"continue to dexnote-d7047.firebaseapp.com" on Google's account picker.
+
+**Why:** Dex, 2026-10-09: people signing in should not see "dexnote-d7047". The
+Firebase project's name is never shown; the authDomain is. Moving to a new
+Firebase project would cost an account migration for a label. GitHub stays on
+the old host because an OAuth app has one callback and dexnote.dev still uses it.
+
+**Reverse it if:** dexnote.dev stops signing in with GitHub (then move GitHub's
+callback to dexcimino.com and drop `site-github`), or the site moves to a
+different domain, which needs that domain added to every provider first.
+
+---
+
+## 2026-10-09 — MindSplit's votes are real, in Firestore, on the site account
+
+**Decided:** MindSplit stores polls, votes and counts in Firestore in `dexnote-d7047`,
+the same project as the site account, through `mindsplit/cloud.js`. A vote is one
+batch writing `msVotes/<poll>_<uid>` and incrementing `msCounts/<poll>`, and the rules
+make each side refuse to move without the other. Signed-out phones vote as an
+anonymous Firebase user on a separate named app. Asking a question needs a real
+account (Google, Discord, GitHub, or email and password, which `site-auth.js` now
+exports) and a handle in `msHandles`. Three reports hide a question; its author or
+Dex can delete it. The app is an installable PWA scoped to `/mindsplit/`.
+
+**Replaced:** localStorage-only votes with a fake `setInterval` drift on the visible
+card, preloaded counts invented per poll, a report button that sent nothing, and
+Task 3's sketch of `polls/{id}` with a counts array.
+
+**Why:** Dex, 2026-10-09: the point is to "see what other people's opinions are", on
+"the same accounts" as Inko, installable, "almost ready for deployment on the App
+Store". Invented numbers cannot do the first. Vercel Blob was the other store on
+hand and is the wrong one: Hobby is 2,000 writes a month and a vote is a write.
+Firestore counts with `increment` and the rules can hold one vote per account
+without a server. A counts ARRAY would make two simultaneous votes on different
+answers collide; one field per answer does not.
+
+**Reverse it if:** votes outgrow Firestore's free tier, or anonymous voting is abused
+enough that a vote needs a real account. The first moves the counts behind an API
+route; the second is one rule (`msSigned` to `msAccount` on msVotes and msCounts).
+
+---
+
+## 2026-10-09 — ~DEXDC is the site's sign-in, not DexNote's
+
+**Decided:** DEXDC, typed into any keypad (the tilde prompt over any overlay, the
+Idea Vault, the notes' own box), opens one site sign-in panel built in `script.js`
+(`openSiteSignIn`, event `site:signin`) on `account/site-auth.js`. It shows the
+site's mark (the live accent favicon, the hexagonal helmet), Google, GitHub and
+Discord, and no DexNote branding. Signed in, the same panel says who and offers
+Sign out. It opens nothing else. `notes` at a keypad with Dex signed in opens his
+own notes rather than the public page. An open notes overlay follows a sign-in or
+sign-out made from the panel.
+
+**Replaced:** the 2026-10-08 `notes:mine` route, which opened the notes overlay and
+put the DexNote sign-in sheet over it.
+
+**Why:** Dex, 2026-10-09: "If I hit tilde and I type in Dex DC, that should be just a
+sign in overlay, not specific to Dex note ... it wouldn't automatically open the
+notes overlay." The site is the umbrella account, and admin follows the account.
+
+**Reverse it if:** the site's account and DexNote's ever stop being one Firebase
+account; then the panel would have to say which it signs in to.
+
+---
+
+## 2026-10-09 — The hero's front fade breathes between two reaches
+
+**Decided:** `#bgFrontFade` fades along the band (top right solid, gone toward the bottom
+left) and moves by SMIL between two reaches over a 14s loop. One reach is about half
+way down the mascot, the other just a little of him. It holds at each end and eases
+between them. Under reduced motion `script.js` pauses it on the first reach.
+
+**Replaced:** the original up-the-page ramp restored earlier the same day, and the
+temporary 1-2-3-4 picker (`fade-picker.js`/`.css`), now deleted. Dex picked 3 and 4:
+"slowly pulsate between three and four ... pretty slow and not super noticeable."
+
+**Why:** Dex liked both, and a slow swing shows both without choosing.
+
+**Reverse it if:** the motion reads as distracting. In that case, freeze it on either
+end by deleting the four `<animate>` elements.
+
+---
+
+## 2026-10-09 — The hero's diagonal fade is the original one again
+
+**Decided:** the front band over the mascot fades exactly as it did before 2026-10-08
+(the ramp from `02ac85e`, 0 at the bottom left to solid at the top right, along
+1361.7,1355.8 to 1752.8,-29.3), and the back wedge has no cut mask again. The new
+per-gamut accents, the darker grade and the top-right gradient (`#bgWedge`) are kept;
+the front band is filled with that grade and faded by a mask carrying the old ramp.
+
+**Replaced:** four reworks of the fade made between 2026-10-08 and 2026-10-09
+(`#bgFrontAlong`, `#bgFrontEdge` and `#bgWedgeCut`), each moving a steep fade line across
+the mascot. Dex: "the fade is going the wrong direction. It's supposed to go from the top
+right to the bottom left. Just bring back the fade of the diagonals that we had."
+
+**Why:** the original ramp is what Dex wants. The reworks answered complaints about
+specific spots and lost the overall direction.
+
+**Reverse it if:** Dex asks for a different fade again. In that case, start from this ramp,
+not from the masks it replaced.
+
+---
+
+## 2026-10-09 — The front band reaches further down-left over the mascot
+
+**Decided:** `#bgFrontAlongFade` starts at viewBox 1040,720 and is solid by 1280,530, and
+the band's edge feather (`#bgFrontEdgeFade`) is 80 units deep instead of 200. The band now
+covers his lower right side, from his hip toward his middle.
+
+**Replaced:** the earlier 2026-10-09 ramp (1240,520 to 1400,394) with a 200-unit feather.
+Dex: "it's not coming down and to the left far enough. It's not covering enough of the
+character." The deep feather also hid the band for a long way inside its own edge, and
+that is exactly where it crosses him.
+
+**Why:** the band (`.bg-front`, polygon `2244,0 211.9,1080 ...`) is the only layer drawn
+over him, and its upper-left edge only reaches his lower right half, so the fade has to
+start low and the feather has to be thin, or nothing of it lands on him.
+
+**Reverse it if:** the band's polygon is moved to cross more of him. A thin feather would
+then show as a hard line.
+
+---
+
+## 2026-10-09 — The front band shows over the mascot and fades out halfway across him
+
+**Decided:** `#bgFrontAlongFade` in `index.html` is a short ramp (zero at viewBox
+1240,520, solid by 1400,394), so the front band is plainly over his lower right side and
+gone by about the middle of his body, well above where it would reach his waist.
+
+**Replaced:** the 2026-10-08 ramp, zero at 1300,470 and solid only at 1720,138 with a slow
+curve. Over the mascot it never rose above about a quarter, so it read as fading out before
+it touched him. Dex: "it should show up in front of the character, just a little bit, like
+midway through it should be totally gone."
+
+**Why:** the band only crosses him below his shoulders, so the ramp has to happen there,
+inside a short distance, or none of it is visible on him. The back wedge's cut under his
+arm (`#bgWedgeCut`) and the band's edge feather are unchanged.
+
+**Reverse it if:** the mascot art or the band's polygon moves, since the ramp is placed
+against where the band crosses him now.
+
+---
+
 ## 2026-10-08 — Inko: a canvas change is a gentle crossfade, not a diagonal wipe
 
 **Decided.** `snapPad()` lays a copy of the old canvas over the pad and the two crossfade: the
@@ -68,6 +324,31 @@ frame is even all over and between 55% and 97% as bright as the finished canvas.
 
 **Reverse it if** Dex asks for a stronger or directional transition again, or a same-colour
 swap is reported as invisible on a real phone.
+
+---
+
+## 2026-10-08 — The hero's wedges end at a line through the mascot, and the grade darkens more than it turns
+
+**Decided.** Both accent wedges are masked off along one steep line that runs from the
+inside of the mascot's shoulder down through the middle of his belt (`#bgWedgeCut` on the
+back wedge, `#bgFrontAlong` on the front one, plus `#bgFrontEdge` feathering the front
+band's own edge). Left of the line neither wedge exists. `--accent-deep` is now mostly
+darker with a few degrees of hue (lime `#377C07`, red `#961114`, blue `#2223A6`, purple
+`#5F1D9E`, white a saturated steel `#6484A3`). Yellow (`#CF630B`) and cyan (`#1774B5`) keep
+their first-pass values.
+
+**Replaced.** The first pass (same day) only faded the front band, and turned every hue as
+far as yellow's (lime to teal, blue to violet, purple to magenta) while barely darkening it.
+
+**Why.** The mascot PNG fades to transparent over its lower half, so the BACK wedge showed
+through his legs as a bright accent triangle under his arm. No front-band fade could fix
+that, which is why the first pass looked unchanged there. Dex drew the line the wedges
+should stop at on a screenshot. On the grade, Dex judged that yellow's amber worked because
+amber is a neighbour of yellow, and the others had moved to a different colour.
+
+**Reverse it if.** The mascot art is re-exported without its bottom fade (then the back
+wedge can run to its corner again), or the mascot moves in the hero. The line is in
+viewBox units, so it was checked at 1280, 1440, 1728 and 1920 wide.
 
 ---
 
@@ -100,6 +381,33 @@ further), or Dex judges the halfway point on his own screens and wants it moved,
 constant per accent.
 
 ---
+
+## 2026-10-08 — Admin is Dex signed in; DEXDC is no longer a key
+
+**Decided.** Signed in as Dex's own Google is admin everywhere, automatically: music editing,
+Mission Control's private half, Inko moderation, and the DEXDC notes. No code opens any of it.
+`lib/owner-auth.js` decides on the server from a Firebase ID token; `/api/auth/unlock`,
+`/api/notes/unlock` and `/api/music/playlist` unlock all read the sign-in and never a code.
+Tokens minted for him carry `owner`, and every verifier (notes, music, Inko moderation,
+`/api/auth/verify`, the work repo's `api/_auth.js`) refuses one without it. Typing DEXDC now
+opens his notes, with the sign-in sheet first when he is signed out.
+
+**Replaced.** A five-letter code alone being admin everywhere (the universal code is spelled
+out in `script.js`, so anyone reading the page source was admin). A first build that kept the
+codes but required the sign-in as well was never shipped: Dex chose this instead.
+
+**Why.** Dex: "being signed in on my account automatically gives me permissions everywhere,
+every overlay, max admin / editor on all automatically. dexdc will no more. maybe have dexdc
+open the sign in for me from anywhere." A code on top of the sign-in added nothing the sign-in
+did not already prove. Stamping `owner` on minted tokens ends every session a code opened
+before the deploy, instead of waiting out up to 24 hours of them. The notes data did not move:
+the private store is the same, only its door changed. The public code `notes` still opens the
+public page for anyone, and other people may get codes of their own later, opening stores of
+their own. The client-side Idea Vault codes are left alone: what they decrypt ships in the
+page and is public by construction.
+
+**Reverse it if** someone other than Dex needs admin -- then owners should be a list on the
+server, not one address.
 
 ## 2026-10-08 — Dex's Google account opens the DEXDC notes themselves, decided by the server
 

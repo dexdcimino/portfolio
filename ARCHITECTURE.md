@@ -21,6 +21,13 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
   backlog list — see below), contact. Eight native `<dialog>`
   overlays (app embed, wallpaper lightbox, document reader, vault, shared
   game/app gallery, work gallery, resume, contact)
+- `accent-boot.js` — the saved accent on FIRST paint. Loaded twice as a
+  blocking `<script src>` (the CSP is `script-src 'self'`, so inline scripts
+  never run): in `<head>` it sets `data-accent` on `<html>` from
+  `dex-accent-name`, so a refresh is never lime first; right after the hero
+  `<picture>` it rewrites the mascot stems before a source is picked. Names
+  only, no hexes — the palette stays in `script.js`. Blue's white
+  `--accent-ink` is in `styles.css` for the same reason.
 - `script.js` — plain script, feature blocks as IIFEs, executes top-to-bottom
   with `<script>` at the end of body. Major blocks: accent/theme system
   (7 accents; `applyAccent` sets `--accent`, rebuilds the SVG favicon,
@@ -58,6 +65,9 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
   real pointer is never true — pointerenter has already opened it — so the
   click fell through to re-picking the accent already on and then closing:
   the dropdown shut in your face and would not reopen under the cursor.
+  Picking another accent while docked leaves it open (Dex, 2026-10-09): the
+  old accent slides back into its row and focus moves to whatever now sits
+  where the pick was.
   Escape is a document listener for the same reason (the hover path leaves
   focus on `<body>`, where a listener bound to the swatches never hears
   it), and the arrow keys open the stack before walking it, because a
@@ -84,14 +94,28 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
   overlay + CARD CAROUSEL (343 pieces in eight categories, loaded once from
   `assets/work/work.json` — written by `tools/bake_work.py`, carrying FINISHED
   srcset strings so the same rule holds here; `paintPicture()`/`warmPicture()`
-  fill and pre-negotiate every `<picture>`; hero is a fixed 3:2 box on
-  purpose, with the two arrows OUTSIDE it in their own flex columns and
-  wrapping at both ends; the eight featured cards cross-fade five frames each
+  fill and pre-negotiate every `<picture>`; the overlay is the WALLPAPER
+  LIGHTBOX'S LAYOUT (Dex, 2026-10-09): a full-viewport dialog with no panel
+  or matte, three columns (gutter, work, gutter) and three rows (tabs centred,
+  picture, strip). `#workHero` is sized to the PICTURE's own aspect
+  (`--hero-ar` on `.work-hero-area`, set when the decoded image lands) so the
+  title in `.work-over` sits on the art's top-left corner; a sheet at w/h <=
+  0.75 keeps a 3:2 box and scrolls. The X is the enlarged Mobius video's 52px
+  X, centred in the right gutter. Arrows on the picture show on hover (always
+  on touch), the strip's own arrows sit either side of it, and both wrap; the
+  strip is EIGHT a page on a sliding `.work-track` (fewer when eight do not
+  fit, `layoutWorkStrip()`), the page following the selection, with the count
+  out of flow to its right so the strip stays centred. A thumbnail hover
+  previews in the picture without selecting; the wheel steps one piece a tick;
+  a click in the dark round it closes. The eight featured cards cross-fade five frames each
   on ONE round-robin interval, frame 0 from the markup and 1-4 from the
   manifest. The sweep is THREE COLUMNS, not five items: the video, then the
   left pair of thumbnails, then the right pair, `STEP_MS` 300 apart on a
   15 s hold, so the whole wave crosses the stage in about 600 ms while each
-  `.85s` cross-fade is still running. And a frame LEAVING keeps opacity 1 one
+  `.85s` cross-fade is still running. A press on either column's arrow
+  skips the next two sweeps (`SKIP_AFTER_ARROW`) without resetting the
+  interval, so a manual page change is never flipped straight back and the
+  stage rejoins the same wave afterwards. And a frame LEAVING keeps opacity 1 one
   layer down (`.is-leaving`) instead of fading out under the new one: two
   matched ease curves composite to `1-(1-a)(1-b)`, which is 0.75 at the
   midpoint, and that quarter of panel showing through was the flicker in the
@@ -104,7 +128,93 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
   ONLY in the card: a filmstrip thumb has to look like the piece it opens.
   Inside a `.fv-item` the fade is put BACK under everything at `z-index:1` --
   there the frames are the items themselves, and 4 landed it on top of the
-  caption and the download button), one `initTabs()`
+  caption and the download button. A `.fv-has-video` item (Mobius 3D, the
+  first) is a real video: `initFeaturedVideo()` attaches its `data-src` (a
+  bunny.net URL, never this host) on first play, plays it MUTED while the
+  item is the one showing and on screen, and pauses it otherwise ("on
+  screen" leaves once half of it is off and comes back at 40%, judged by
+  the direction the ratio moves so the band between cannot flap);
+  with the sound ON it keeps playing whenever it is not IN VIEW (`inView()`:
+  scrolled into view, its featured page showing, and no open `<dialog>`
+  over it), which also sends the speaker out, so arrowing to Proto Isles or
+  opening any overlay neither stops it nor hides its control; the carousel's advance skips a video that is playing. It is
+  `object-fit:contain` on the viewer's own background, because a cover crop
+  of the wide layout's near-square frame cut off the app's controls; its bar
+  (the AI Lab player's `.cl-*` controls, shared) hides under a playing
+  video until the frame is hovered, and the caption and the eye/download pair
+  sit above it. The second item, `.fv-gallery` (Proto Isles), is NOT a
+  video: its 16:10 thumbnail covers the frame, one `.fv-open` button under
+  everything opens the WORK OVERLAY on the card's own tabs
+  (`openWork(..., set)` with `data-work-set`; `readWorkSet()` builds the
+  categories from the baked `<picture>` blocks in the card's hidden
+  `.pi-data`, reading their srcsets, so the portfolio's `work.json` is not
+  touched; a tab with no figures says its own third `data-tabs` field, VIDEO
+  COMING, or SHOTS COMING, and the set opens on its first tab with shots; one
+  versionless master per shot, so a newer take replaces its file; a set whose
+  `.pi-data` carries `data-tab-icons` also gets a `.work-jump` circle above
+  each arrow, in a `.work-nav-col` the arrow's own size so the arrow never
+  moves, wearing the neighbouring tab's icon and walking the tabs with
+  wrapping -- `paintWorkJumps()`, revealed by `nearWorkJumps()` within two
+  arrow-widths, always on for a coarse pointer; the icons are masks under
+  `assets/icons/proto-isles/` plus the keypad's `snail`), and its always-visible
+  download is `[data-code-lock]`: the ` keypad, labelled DOWNLOAD LOCKED,
+  until there is a launcher. Hover and the bar slides up into its strip, pushing the
+  caption and the pair up with it, all on one slow ease (`--fv-t`, .5s);
+  unhovered they sit on the bottom row. Nothing moves sideways. With a mouse
+  the unmute (`data-audio`) shows on hover only, muted or not, and never
+  leaves the bar's corner; on touch a muted one stays in that corner and the
+  caption and pair stay up. A click anywhere on the frame pauses or plays it. Muted, the
+  speaker is the grey struck-through `volume-slash`, in the bar's corner, and
+  hovering it pops a vertical `.fv-volume` up above it while the eye/download
+  pair fades out and takes no clicks. Left of it `.fv-full` ENLARGES rather than
+  going full screen (a double click on the picture does the same): the slot
+  becomes a `popover="manual"` in the top layer, with `html.fv-maxed` taking
+  the pointer off everything under it,
+  centred at the video's own aspect (`--fv-ar`, so no side bars) over a dimmed
+  page, closed by its `.fv-close` X, a click outside or Escape. In the gap to
+  the video's right `placeClose()` stands the eye, the X and the download in
+  one fixed column centred both ways (`.is-side`; a gap too narrow puts the X
+  back in the corner), their tips going beside them (`data-tip-pos-max`) and
+  into the popover with them. Under that column, in the same gap, a portrait
+  `.fv-about` card ("The pitch", the accent, bold, 2px over its 14px text)
+  holds `#mobiusCard`'s `data-desc-lead` and `data-desc-body`, copied in at
+  init so the two never disagree; `placeAbout`/`sizeAbout` keep only the lead
+  under 200px wide, hide it where even that will not fit, and raise the column
+  rather than let it run off the bottom. A slot with a `.fv-about` keeps 200px
+  either side when enlarged (from 900px wide) so a 1440x900 laptop has room.
+  The Mobius slot has no info icon: this card is its description. Enlarging,
+  by either route, UNMUTES it (`soundUp()`) until the visitor sets the sound
+  by hand (the card's speaker, its volume or the floating mute), which is
+  kept in `localStorage` `fv-sound-by-hand`; the music muting it through
+  MediaBus does not count. Where there is no popover it is the video's own
+  player. Only the bar comes along. Both buttons'
+  tips carry `data-tip-big`. The download copies `#mobiusDownload`'s href
+  and target at click time, so it starts the same per-system installer
+  (`initMobiusDownload`). Proto Isles' info button shows only while the card
+  is hovered, on a device with hover. Nothing drawn over the video uses
+  `backdrop-filter` (`.fv-act`, `.fv-volume`, `.fv-info`, `.fv-desc`,
+  `.fv-about` are near-opaque fills): a blur over it made the compositor read
+  the video back through an SDR surface, so it flickered between HDR and sRGB
+  whenever a blurred control was on top (Dex, 2026-10-09). With the sound on it
+  keeps playing in another tab or app until it is paused or muted (`sync()`;
+  muted, a hidden tab still pauses it), and when it
+  scrolls out of view, and a `.fv-float` copy of the mute flies from the
+  card to just under `#accentSwatches`, re-placed every frame so it follows
+  the picker open and shut (the flight too is worked out per frame between
+  where the card's speaker and that spot are NOW, so a scroll mid-flight
+  cannot send it to a stale spot), and moved into the top open
+  `<dialog>` (the Functional Preview's included) so a modal never leaves it
+  inert; muted from there it keeps
+  playing until the card is back, when the copy flies home, fading out over
+  the last 40% of the way so it is gone as it lands. Each flight is 650ms,
+  eased in and out. The copy is filled with the accent, and red (`#d6423f`,
+  dexnote's dictation ring) while muted. Its sound and
+  the music are one at a time: the slot registers with `MediaBus` (a tick
+  late, past the bus's temporal dead zone) as a player that is "playing" only
+  while audible, so music starting mutes it (taking the float away) and its
+  sound coming on pauses the music. The eye presses the AI
+  Lab card's own eye once the scroll there has ended, and its tip clones the
+  first Mobius gallery `<picture>` via `data-tip-thumb`), one `initTabs()`
   behind four tablists, `initGallery({id, root, panel})` — ONE carousel +
   lightbox, self-building from `.wp-item` figures, instantiated TWICE:
   Wallpapers (`wp`) and Concepts (`cn`). The ids are a prefix and the arrows
@@ -182,7 +292,13 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
   description and tags; clicking the shot enlarges it in `#appShotModal` —
   a wallpaper-style lightbox with a centred x/x between arrows that grey
   out on single shots — NOT the games' gallery modal, which apps no longer
-  touch; the panel's min-height is measured across all cards (and on
+  touch. It is the ONE gallery every AI Lab app opens: `.app-shot-frame`
+  hugs the picture (sized from the baked `width`/`height` as `--ar` before
+  the big rung loads) and carries a rail either side (revealed within 20px
+  of the pointer, always shown on `(hover:none) and (pointer:coarse)`,
+  inside the picture's edges at ≤700px) and the X centred in the space
+  right of the right rail; any click that is not on the picture or a
+  button closes it; the panel's min-height is measured across all cards (and on
   resize) so hover never changes the section's height; the eyeball hides
   below 768px where the overlay declines),
   `initCollabInfo()` (fills the Collab panel and builds
@@ -638,7 +754,25 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
   root-absolute: Vercel serves both `/name` and `/name/`
 - `mindsplit/` — Vite build **output** served directly (source at
   `ai/apps/mindsplit/`; the one build-step exception). `ai/apps/` contract is in
-  its README
+  its README. An installable PWA scoped to `/mindsplit/` (`manifest.webmanifest`,
+  `sw.js`, `?install=1` opens the install sheet, the AI Lab card has the download
+  button left of the eye). Polls and votes are SHARED through Firestore in
+  `dexnote-d7047` (`cloud.js`, copied verbatim from `public/`, imports the vendored
+  SDK and `/account/site-auth.js` by runtime URL so the page shares the site
+  account): `msCounts`, `msVotes`, `msPolls`, `msUsers`, `msHandles`, `msReports`.
+  A vote is one batch that moves the vote doc and the count together, which is how
+  the rules in `docs/mindsplit.rules` hold one vote per account; signed-out phones
+  vote as an anonymous Firebase user on a separate named app, so the site's own
+  sign-in is never touched by it. Asking needs a real account and a handle. The
+  handle is the account's ONE site-wide @name, held by Inko's server
+  (`/api/sketch` actions `site`, `claim`, `rename`); `msUsers`/`msHandles` are a
+  copy cloud.js rewrites whenever it differs, because the rules read it. A
+  profile (`person`, `pollsBy`, `follow`, `following` in cloud.js) is an Inko
+  one: its picture or initials, Inko's followers and following, and the
+  questions the uid asked under a name (anonymous ones never). The
+  390 built-in questions live in `src/data/polls.js` and carry no counts. Checked
+  by `tools/mindsplit_check.mjs` against a fake `cloud.js` — the rules are not
+  exercised by anything here
 - `inko/` — **Inko**, the sketch pad: a plain web app (`index.html`, `app.js`,
   `app.css`, `sw.js`) that installs to a phone's home screen and opens in the
   AI Lab overlay with `?embed=1`. Three invariants, each the fix for something
@@ -898,7 +1032,8 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
   - **Moderation is in from the start**, because the app stores require it for
     anything users share: report (three different people hide a post), hide
     an artist (this device only), and `moderate` (hide / restore / delete),
-    which accepts Dex's universal admin JWT from `api/auth/unlock`.
+    which accepts Dex's universal admin JWT from `api/auth/unlock` (only one
+    minted for him signed in: `lib/owner-auth.js` `adminOk`).
   - **One reaction per person per post**, 🔥 or 💩, switchable; counts are
     recomputed from the vote file on every change, never incremented.
   - **Profiles.** A picture is `sketch/avatars/<handle>-<v>.jpg`, public
@@ -1008,7 +1143,15 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
   `#mobiusDownload` links the desktop app: `initMobiusDownload` in `script.js`
   points it at this system's installer under `releases/latest/download/`
   (the release names carry no version), Windows at the Microsoft Store listing
-  (signed, so no SmartScreen warning), and a phone keeps the Releases page. It is a
+  (signed, so no SmartScreen warning; its tip says so and carries no size), and a
+  phone keeps the Releases page.
+  Its tip (and the featured video's download) carries that installer's size,
+  read at load from GitHub's release API (`connect-src https://api.github.com`
+  on the site's CSP) and left out if GitHub does not answer. The card's title
+  goes to `/mobius/`, not the repo: every AI Lab title goes to the app or its
+  store, and a row whose code is public carries `.ai-card-gh`, a GitHub badge
+  on the icon's corner that shows on hover. The PWA install tips state a size
+  that `work_check` re-measures from what each app's service worker caches. It is a
   BUILT COPY of `dist/` from its own repository, github.com/dexdcimino/mobius-3d,
   written here by that repo's `npm run site` and **never edited here**: an edit
   belongs in that repo's `src/`, and the same build is what its desktop app
@@ -1181,8 +1324,9 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
   bunny.net pull zone the AI Lab clips stream from — an exact host, never a
   `*.b-cdn.net` wildcard, which would be every bunny customer's zone);
   `/games/*` adds `'unsafe-inline' blob:` + Photon websockets +
-  `frame-ancestors 'self'`; `/mindsplit/*` and `/themedock/*` strict but
-  frameable. `assets/derived/` is `immutable` for a year — hence
+  `frame-ancestors 'self'`; `/themedock/*` strict but frameable;
+  `/mindsplit/*` frameable with Inko's Firebase allowances (Firestore, Identity
+  Toolkit, the sign-in popups' frames, `same-origin-allow-popups`). `assets/derived/` is `immutable` for a year — hence
   the `?v=<8 hex of the master's bytes>` stamp on every generated URL
 
 ## Collab (shared builds)
@@ -2798,7 +2942,8 @@ notes exactly as before.
 
 ```
 dexnote/index.html   the page: notes.css, dexnote.css, main.js. Nothing else.
-dexnote/account.js   who is signed in, the sign-in card, the account button,
+dexnote/account.js   who is signed in, the sign-in card (the site sign-in's
+                     layout with dexnote's mark), the account button,
                      the move on first sign-in, bringing in the password
                      notes -- shared by this page and the homepage overlay
 dexnote/main.js      this page: the gate, guest/account switching, its menu
@@ -2943,6 +3088,12 @@ dexnote/manifest.webmanifest  standalone, scope /dexnote/, the AI Lab card's
                               maskable and monochrome
 dexnote/sw.js        network-first for code, cache-first for fonts, the emoji
                      table, the vendored SDK and icons; never /api/
+dexnote/icons/       the PNGs rendered from assets/icons/apps/dexnote.svg (the
+                     fire mark, 2026-10-09) by tools/dexnote_icons.mjs, which
+                     also renders the AI Lab card's PNG and renames every
+                     reference. Cache-first means a changed icon needs a NEW
+                     NAME (the -v2 suffix), never new bytes under the old one:
+                     an installed app would keep the old icon
 dexnote/mobile.js    the phone shell: the header's controls re-homed
 dexnote/mobile.css   everything scoped to .nt-app.is-mobile
 ```
@@ -2982,9 +3133,10 @@ Each app keeps its own data under it; the account is the parent, not any app.
 
 ```
 account/site-auth.js   the client: onUser, currentUser, signIn(provider),
-                       signOut, idToken, errorText. The ONE place a page
-                       signs in from. Imports the SDK by the same URLs as
-                       dexnote/cloud.js, so a page loading both shares one app.
+                       signOut, idToken, errorText, and CONFIG + signInTo,
+                       which dexnote/cloud.js imports so the two always make
+                       one app with identical options. The ONE place a page
+                       signs in from.
 account/index.html     the account page: sign in, who you are, sign out.
 account/main.js        Its card is DexNote's (notes.css + dexnote.css).
 lib/site-identity.js   the server: verify(idToken) -> claims, person(claims)
@@ -2998,6 +3150,16 @@ Inko      Vercel Blob, keyed by handle; the handle linked to the uid as
           sketch/identities/firebase-<uid>.json           (sketch-store identifySite)
 later     users/{uid}/data/<app>* -- prefs, games, music
 ```
+
+**The sign-in window runs on dexcimino.com.** On that host `CONFIG.authDomain`
+is the site itself and `vercel.json` forwards `/__/auth/*` and `/__/firebase/*`
+to `dexnote-d7047.firebaseapp.com` (served with only `frame-ancestors 'self'`,
+SAMEORIGIN and no COOP, as Firebase serves them), so Google's picker says
+"continue to dexcimino.com". Every other host -- previews, harnesses -- keeps
+Firebase's host. Google and Discord list `https://dexcimino.com/__/auth/handler`
+as a redirect; GitHub cannot (one callback per OAuth app, and dexnote.dev still
+uses it), so `signInTo` signs GitHub in on a memory-only second app
+(`site-github`) on Firebase's host and hands the credential to the real one.
 
 **Server check, no Admin SDK.** `verify()` checks an ID token the way Firebase
 documents for a third-party JWT library: RS256, a `kid` among Google's
@@ -3299,9 +3461,11 @@ tools/music_probe.mjs    asks YouTube whether every link still plays. --cases
 **THE LIST IS LIVE, AND ONLY `TUNES` EDITS IT** (Dex, 2026-09-15). The playlist
 is one JSON document in the same Blob store the notes use, `music/playlist.json`,
 seeded from the baked `tracks.json` the first time it is read. Both codes open
-the SAME overlay: `MUSIC` reads it, `TUNES` also sends the typed code to
-`/api/music/playlist`, which checks it against `TUNES_PASSWORD` with scrypt and
-hands back a twelve-hour token. Admin is that token and nothing else -- the
+the SAME overlay, read-only for anyone. With Dex signed in, opening it sends
+his Firebase ID token to `/api/music/playlist`, which checks it with
+`lib/owner-auth.js` and hands back a twelve-hour token; no code is read (see
+"Admin is Dex signed in"). `TUNES_PASSWORD` lives on only as the key that
+token is signed with. Admin is that token and nothing else -- the
 vault code only chooses the door, and the page's source is public, so the
 server is the only place a "may this edit" answer can live. Without the token
 every tick is `disabled`, the Add and Backups buttons are hidden and the rows
@@ -4045,14 +4209,94 @@ ladder, rules, guides, contracts, funding) is served by its `/api/private`
 only to a DexAuth token, and that repo must stay private on GitHub because
 the private text sits in the function source.
 
-The padlock over the overlay takes Dex's password, mints the universal JWT
-(`api/auth/unlock`) and posts it into the frame as `dex-auth`; closing the
-overlay posts `dex-lock`. The work deployment checks the token with its own
+With Dex signed in the page holds the universal JWT (`api/auth/unlock`, minted
+for his sign-in) and posts it into the frame as `dex-auth` when the frame
+loads, when the overlay opens, and when he signs in with it up; signing out
+posts `dex-lock`. The work deployment checks the token with its own
 `AUTH_SECRET` when that is set, and otherwise asks **`api/auth/verify`**,
 which is why that file has a default handler: GET with `Authorization:
-Bearer <jwt>` answers `{ ok, tier, exp }` or 401. It holds no data and grants
+Bearer <jwt>` answers `{ ok, tier, owner, exp }` or 401, and the work repo
+refuses a token without `owner: true` either way. It holds no data and grants
 nothing a token did not already grant. It was a function slot before (a file
 in `api/` with no handler), so it costs no extra slot.
+
+### Admin is Dex signed in
+
+Since 2026-10-08 (Dex: "being signed in on my account automatically gives me
+permissions everywhere ... dexdc will no more") admin is ONE thing: a Firebase
+ID token that `lib/owner-auth.js` `ownerOf()` says is Dex's (`isOwner()`:
+verified `dexdcimino@gmail.com`, through Google). No code opens anything of
+his. `api/auth/unlock` mints the DexAuth JWT for that token alone,
+`api/music/playlist` unlock takes it (or the JWT), and `api/notes/unlock`
+opens the private store -- the DEXDC notes, same store, same bytes -- for it,
+the JWT, or a session token one of those opened. A password there reaches
+only the public page (`notes`). An outage at Google's certificate server is a
+502, never a way in.
+
+Everything minted for Dex says so, and every check refuses what does not: the
+DexAuth JWT carries `owner: true` (`mintAdmin` / `adminOk`), a private notes
+session token carries `owner: true`, a TUNES token is `owner:<expiry>`. That
+retired, on deploy, every token a code minted before.
+
+On the page (top of `script.js`): `window.dexOwnerCheck()` asks
+`/api/auth/unlock` with `window.siteIdToken()` on load and whenever the
+sign-in changes (the `storage` event from another tab, `site:user` from
+`account/site-auth.js` and `dexnote/cloud.js` in this one), keeps the JWT in
+`DexAuth`, and sets `window.dexOwner.is`, firing `dex:owner` on `document`
+when it flips. Music asks for editing whenever it opens for Dex and drops it
+when he signs out; Mission Control gets the JWT as above. `siteIdToken()`
+reads the site-auth mirror flag first, so a visitor never downloads Firebase.
+
+**DEXDC is the site's sign-in, not a key** (Dex, 2026-10-09). Typed in the
+tilde keypad, the Idea Vault or the notes keypad it fires `site:signin`, and
+`openSiteSignIn()` in `script.js` opens `#signinModal` (built on first use) on
+`account/site-auth.js`: the site's own mark (the live favicon SVG, in the
+accent), Google / GitHub / Discord, and, when someone is signed in, who and a
+Sign out. It is stacked over whatever overlay is up and opens nothing else.
+Before signing out it runs `window.siteSignOutHooks` (the notes overlay saves
+its last keystrokes there). `notes` at a keypad with `dexOwner.is` fires
+`notes:mine` instead of opening the public page: the notes overlay on the
+account's notes, which for Dex's Google are the DEXDC notes (the server
+decides). An open notes overlay follows `site:user`: a sign-in from the panel
+over the AI Lab's guest notes swaps to the account's, a sign-out swaps the
+account's away; its own account menu marks its moves with `ownMove` so they
+are not done twice. `dexnote/account.js` `whoIsHere()` reads the site's
+`site:signedIn` flag too, since a sign-in from the panel is the same Firebase
+account. Nothing is sent to a server for the code itself.
+
+The panel's fourth button, **Email or name**, swaps the provider column for one
+box (an email or an Inko name) and a password, with Sign in and Create account.
+An email goes straight to Firebase (`signInEmail` / `createEmail`). A name goes
+to `/api/sketch` action `site-password`, which runs Inko's `login` or `signup`
+and then `siteBridge()`: the Inko account's own Firebase email-and-password user
+(random address `inko-<24 hex>@accounts.dexcimino.com`, password an HMAC of the
+address, made through Firebase's REST API by `idp()` in `lib/site-identity.js`,
+`displayName` set to the name), recorded on the user as `bridge: { email, uid,
+name }` and linked as `firebase-<uid>`, so Inko's `identifySite` opens the same
+account and DexNote and MindSplit see one uid. Signed in, the panel is the
+account's menu: "Your account", who and how, and Sign out; no sign-in buttons.
+
+**The profile button** (`#profileButton`, `buildProfileButton()` in
+`script.js`) is a hexagon frame with a person whose head is a small hexagon,
+in the accent, filled once `site:signedIn` is set. A click opens
+`openSiteSignIn`. It is `position:fixed` on `<body>` (a transformed ancestor
+would pin it) at the docked toggle's own spot, `--dock-top` / `--dock-right`,
+from the first frame: scrolling never moves it, it only docks the swatches
+under it. The inline row ends left of it (`.topbar` padding). Docked, the
+active swatch is hidden and the other six take rows 1..6
+(`--row * --swatch-step + 5px`), so the dropdown never lists the current
+accent; hover on either the button or the stack opens it
+(`inPickerOrProfile`), and on touch the first tap opens it and the second
+opens the panel.
+
+The client-side Idea Vault codes are NOT behind this: their payloads ship in
+the page and are public by construction (the backlog and the doors), so a
+check in the browser would be decoration. Every door that leads to data checks
+on the server.
+
+**Checked by** `tools/owner_gate_check.mjs` (every door, in-process, no
+server) and `tools/music_admin_check.mjs` (the music overlay editing for Dex
+signed in and for nobody else, and a sign-out ending it with the list up).
 
 ## Known-outstanding
 

@@ -47,11 +47,11 @@ let entering = 0;
 /* Built from the app's own modal classes inside an .nt-app, so it wears the
    app's colours, type and buttons rather than a second design. On a phone it
    is the intro: the mark, then the site's sign-in under it. */
-function gate(note) {
+function gate(error) {
   unmountApp();
   listen();                          // so the sign-in these buttons make is heard
   const card = signInCard({
-    note,
+    error,
     extra: [
       el('div', { class: 'nt-modal-btns' }, el('button', { type: 'button', class: 'nt-btn', text: 'Continue as guest', onclick: () => { remember('guest'); enterGuest(); } })),
       el('p', { class: 'nt-modal-sub', text: 'Guest notes stay on this device. Sign in any time and they move into your account.' }),
@@ -67,7 +67,7 @@ function busy(text) {
   unmountApp();
   host.replaceChildren(el('div', { class: 'nt-app dn-gate', 'data-theme': 'dark' },
     el('div', { class: 'nt-modal' }, el('div', { class: 'nt-modal-card dn-card dn-loading' },
-      el('img', { class: 'dn-logo', src: '/dexnote/icons/logo.svg', alt: '' }),
+      el('img', { class: 'dn-logo', src: '/dexnote/icons/logo-v2.svg', alt: '' }),
       el('p', { class: 'nt-modal-msg', text })))));
 }
 
@@ -117,7 +117,7 @@ function fillProfile(sheet, { close, who, actions }) {
   actions.replaceChildren(...[
     user ? null : act('Sign in', signInNow, 'is-primary'),
     user && !owner ? act('Bring in the password notes…', bringInVault) : null,
-    !STANDALONE ? act('Install DexNote on this device', () => showInstall()) : null,
+    !STANDALONE ? act('Install dexnote on this device', () => showInstall()) : null,
     user ? act('Sign out', signOutNow, 'is-danger') : null,
   ].filter(Boolean));
   sheet.append(el('p', { class: 'dm-build', text: running ? `build ${label(running)}` : '' }));
@@ -149,11 +149,11 @@ async function enterAccount(u) {
 }
 
 async function signInNow() {
-  if (!app) { gate('Sign in and the notes on this device move into your account.'); return; }
+  if (!app) { gate(); return; }
   app.flush();
   listen();              // a guest who went straight in has no listener yet
   // Over the app rather than instead of it: backing out leaves you where you were.
-  const u = await signInSheet(host.querySelector('.nt-app'), 'Sign in and the notes on this device move into your account.');
+  const u = await signInSheet(host.querySelector('.nt-app'));
   void u;                // the account listener opens the account
 }
 
@@ -204,17 +204,17 @@ function showInstall(inOtherApp = false) {
      hands every DexNote link to it and will not install DexNote beside it. */
   const steps = inOtherApp
     ? el('div', {},
-      el('p', { class: 'nt-modal-msg', text: 'This opened inside the dexcimino.com app. While that app is on your home screen, it takes over DexNote, so DexNote cannot install on its own.' }),
+      el('p', { class: 'nt-modal-msg', text: 'This opened inside the dexcimino.com app. While that app is on your home screen, it takes over dexnote, so dexnote cannot install on its own.' }),
       el('ol', { class: 'dn-steps' },
         el('li', { html: 'Hold the <b>dexcimino.com</b> icon on your home screen and tap <b>Uninstall</b>' }),
         el('li', { html: 'Open <b>dexcimino.com/dexnote</b> in Chrome and tap <b>Install</b>' }),
         el('li', { html: 'Add the site back afterwards if you want it' })))
     : deferredPrompt
-      ? el('p', { class: 'nt-modal-msg', text: 'DexNote goes on your home screen and opens full screen, like any other app.' })
+      ? el('p', { class: 'nt-modal-msg', text: 'dexnote goes on your home screen and opens full screen, like any other app.' })
       : el('ol', { class: 'dn-steps' }, ...(ios
         ? [el('li', { html: 'Tap the <b>Share</b> button in Safari' }), el('li', { html: 'Tap <b>Add to Home Screen</b>' })]
         : [el('li', { html: 'Open the browser <b>menu</b> (⋮)' }), el('li', { html: 'Tap <b>Install app</b> or <b>Add to Home screen</b>' }),
-          el('li', { html: 'Nothing happens? If the <b>dexcimino.com</b> app is on your home screen, uninstall it first: it takes over DexNote' })]));
+          el('li', { html: 'Nothing happens? If the <b>dexcimino.com</b> app is on your home screen, uninstall it first: it takes over dexnote' })]));
   const close = () => wrap.remove();
   const go = el('button', {
     type: 'button', class: 'nt-btn is-primary', text: deferredPrompt && !inOtherApp ? 'Install' : 'Got it',
@@ -225,8 +225,8 @@ function showInstall(inOtherApp = false) {
   });
   const wrap = el('div', { class: 'nt-app dn-install', 'data-theme': 'dark', onclick: (e) => { if (e.target === wrap || e.target.classList.contains('nt-modal')) close(); } },
     el('div', { class: 'nt-modal' }, el('div', { class: 'nt-modal-card dn-card' },
-      el('img', { class: 'dn-logo', src: '/dexnote/icons/logo.svg', alt: '' }),
-      el('h3', { class: 'nt-modal-title', text: 'Install DexNote' }),
+      el('img', { class: 'dn-logo', src: '/dexnote/icons/logo-v2.svg', alt: '' }),
+      el('h3', { class: 'nt-modal-title', text: 'Install dexnote' }),
       steps,
       el('div', { class: 'nt-modal-btns' }, go))));
   document.body.append(wrap);

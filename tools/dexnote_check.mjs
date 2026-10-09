@@ -30,7 +30,7 @@ const CHROME = [
   'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',
 ].find(p => p && existsSync(p));
 if (!CHROME) throw new Error('no Chrome or Edge found — set CHROME=<path to the exe>');
-const EXPECTED = 44;
+const EXPECTED = 66;
 
 const FAKE_CLOUD = `// Stand-in for dexnote/cloud.js: same exports, the "server" is a localStorage key.
 import { keyFor } from '/dexnote/local.js';
@@ -41,7 +41,13 @@ const listeners = [];
 const userOf = (uid) => uid ? { uid, email: \`\${uid}@example.com\`, displayName: uid, photoURL: null } : null;
 let current = userOf(all().signedIn);
 export function onUser(fn) { listeners.push(fn); setTimeout(() => fn(current), 50); return () => {}; }
-const emit = () => listeners.forEach((f) => f(current));
+const emit = () => {
+  listeners.forEach((f) => f(current));
+  // As the real cloud.js does: the site's cheap flag and the page's event.
+  current ? localStorage.setItem('site:signedIn', '1') : localStorage.removeItem('site:signedIn');
+  window.dispatchEvent(new CustomEvent('site:user', { detail: { signedIn: !!current } }));
+};
+export const _current = () => current;
 export async function signIn(which) { const s = all(); s.signedIn = 'dex-' + which; put(s); current = userOf(s.signedIn); emit(); return { user: current }; }
 export async function signOut() { const s = all(); s.signedIn = null; put(s); current = null; emit(); }
 export async function backupCurrent(user, cur) { const s = all(); const u = s.users[user.uid] ||= {}; (u.backups ||= []).push(cur); put(s); return 'b'; }
@@ -62,6 +68,19 @@ export function cloudBackend(user) {
   };
 }
 `;
+/* Stand-in for account/site-auth.js, the SITE's sign-in (~DEXDC). The real
+   one shares cloud.js's Firebase app, so this one shares the fake's state by
+   importing it: a sign-in here is a sign-in there, as it is for real. No ID
+   token, so nobody is Dex here -- owner_gate_check covers that door. */
+const FAKE_SITE_AUTH = `import * as cloud from '/dexnote/cloud.js';
+export const LOCAL_FLAG = 'site:signedIn';
+export const onUser = (fn) => cloud.onUser(fn);
+export const currentUser = async () => cloud._current();
+export const signIn = (which) => cloud.signIn(which);
+export const signOut = () => cloud.signOut();
+export const idToken = async () => null;
+export const errorText = (e) => String((e && e.code) || e);
+`;
 const b = await puppeteer.launch({ executablePath: CHROME, headless: 'new', args: ['--no-first-run', '--no-default-browser-check'] });
 const p = await b.newPage();
 await p.setViewport({ width: 1300, height: 850 });
@@ -75,7 +94,10 @@ p.on('pageerror', (e) => errors.push('pageerror ' + e.message));
    is where the worker itself is checked. */
 await p.setBypassServiceWorker(true);
 await p.setRequestInterception(true);
-p.on('request', (r) => r.url().endsWith('/dexnote/cloud.js') ? r.respond({ status: 200, contentType: 'text/javascript', body: FAKE_CLOUD }) : r.continue());
+p.on('request', (r) => {
+  const fake = r.url().endsWith('/dexnote/cloud.js') ? FAKE_CLOUD : r.url().endsWith('/account/site-auth.js') ? FAKE_SITE_AUTH : null;
+  return fake ? r.respond({ status: 200, contentType: 'text/javascript', body: fake }) : r.continue();
+});
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 let n = 0, bad = 0;
 const ok = (cond, what) => { n++; if (!cond) bad++; console.log(`${cond ? 'ok  ' : 'FAIL'} ${what}`); };
@@ -88,7 +110,18 @@ await p.goto(`${BASE}/dexnote/`, { waitUntil: 'networkidle2' });
 await p.evaluate(() => { localStorage.clear(); indexedDB.deleteDatabase('dexnote-guest'); });
 await p.reload({ waitUntil: 'networkidle2' });
 const gate = await p.evaluate(() => [...document.querySelectorAll('.dn-card button')].map((b) => b.textContent));
-ok(gate.length === 4 && gate.includes('Continue with Google') && gate.includes('Continue as guest'), `gate shows 3 providers + guest: ${JSON.stringify(gate)}`);
+ok(gate.join('|') === 'Google|Discord|GitHub|Continue as guest', `gate shows 3 providers + guest, no "Continue with": ${JSON.stringify(gate)}`);
+/* The card is the site's sign-in panel with dexnote's mark (Dex, 2026-10-09):
+   lowercase name, two lines, each provider its mark and its name at the
+   site's 195x46 with a 24px mark that actually draws (a mask with no image
+   paints a solid square, so the mask is asserted, not just the box). */
+const look = await p.evaluate(() => {
+  const c = document.querySelector('.dn-card');
+  const btns = [...c.querySelectorAll('.dn-provider')].map((b) => { const r = b.getBoundingClientRect(); const m = b.querySelector('.dn-mark'); const mr = m.getBoundingClientRect(); const cs = getComputedStyle(m); return [Math.round(r.width), Math.round(r.height), Math.round(mr.width), /url\(/.test(cs.maskImage || cs.webkitMaskImage)]; });
+  return { title: c.querySelector('.dn-title')?.textContent, lines: [...c.querySelectorAll('.dn-note > span')].map((x) => x.textContent), logo: c.querySelector('.dn-logo')?.getAttribute('src'), btns };
+});
+ok(look.title === 'dexnote' && look.lines.length === 2 && look.logo === '/dexnote/icons/logo-v2.svg', `the card says dexnote in lowercase over two lines, under the new mark: ${JSON.stringify({ title: look.title, lines: look.lines, logo: look.logo })}`);
+ok(look.btns.length === 3 && look.btns.every(([w, h, m, mask]) => w === 195 && h === 46 && m === 24 && mask), `the three provider buttons are the site's size with their marks drawn: ${JSON.stringify(look.btns)}`);
 
 ok(await clickText('Continue as guest'), 'guest button pressed');
 await p.waitForSelector('.nt-body', { timeout: 10000 });
@@ -115,7 +148,7 @@ ok((await text()).includes('guest marker one'), 'guest goes straight back in aft
 await p.click('.dn-account'); await sleep(300);
 ok(await clickText('Sign in…'), 'menu offers Sign in…');
 await sleep(300);
-ok(await clickText('Continue with Google'), 'Google pressed');
+ok(await clickText('Google'), 'Google pressed');
 await p.waitForFunction(() => document.querySelector('.dn-account') && !localStorage.getItem('dexnote:guest:v1'), { timeout: 15000 }).catch(() => {});
 await p.waitForSelector('.nt-body', { timeout: 10000 });
 const cloud1 = await p.evaluate(() => JSON.parse(localStorage.getItem('fakecloud')));
@@ -208,7 +241,7 @@ ok((await overlayText()).includes('lab guest marker'), 'reopened from the AI Lab
 await p.click('#notesEditor .dn-account'); await sleep(300);
 ok(await clickText('Sign in…'), 'the overlay account menu offers Sign in…');
 await p.waitForSelector('#notesEditor .dn-card', { timeout: 5000 }).catch(() => {});
-ok(await clickText('Continue with Google'), 'Google pressed inside the overlay');
+ok(await clickText('Google'), 'Google pressed inside the overlay');
 await p.waitForFunction(() => /vault fixture/.test(document.querySelector('#notesEditor .nt-app')?.textContent || ''), { timeout: 15000 }).catch(() => {});
 const cloud3 = await p.evaluate(() => JSON.parse(localStorage.getItem('fakecloud')).users['dex-google']);
 ok(JSON.stringify(cloud3.doc).includes('lab guest marker') && JSON.stringify(cloud3.doc).includes('vault fixture'), 'signing in from the overlay moved the guest notes into the account');
@@ -243,6 +276,131 @@ await p.click('#notesEditor .dn-account'); await sleep(300);
 ok(await clickText('Sign out'), 'Sign out pressed in the overlay');
 await p.waitForFunction(() => document.querySelector('#notesEditor .nt-app') && !/acct marker/.test(document.querySelector('#notesEditor .nt-app').textContent), { timeout: 15000 }).catch(() => {});
 ok(await p.evaluate(() => !JSON.parse(localStorage.getItem('fakecloud')).signedIn) && !/acct marker/.test(await overlayText()) && /vault fixture/.test(await overlayText() + await p.evaluate(() => document.querySelector('#notesEditor .nt-app')?.textContent || '')), 'signing out puts the password notes back, not the account\'s');
+
+// ~DEXDC is the SITE's sign-in (Dex, 2026-10-09): from any keypad it opens
+// one panel -- the site's own mark, Google / GitHub / Discord, no DexNote --
+// and opens nothing else. Signed in, the same panel says who and offers Sign
+// out. Over an open overlay it stacks, and the notes on screen follow the
+// account it signs in to or out of. Nothing goes to the notes server for the
+// code itself.
+await p.click('#notesEditor .nt-close').catch(() => {});
+await overlayGone();
+await p.goto(`${BASE}/`, { waitUntil: 'networkidle2' });
+errors.splice(beforeHome);
+let codeCalls = 0;
+p.on('request', (r) => { if (r.url().includes('/api/notes/unlock') && /dexdc/i.test(r.postData() || '')) codeCalls++; });
+const tilde = async (word) => {
+  await p.evaluate(() => { if (document.activeElement && document.activeElement !== document.body) document.activeElement.blur(); });
+  await p.keyboard.press('`');
+  await p.waitForSelector('#codeModal[open] .vault-pin', { timeout: 5000 }).catch(() => {});
+  await p.focus('#codeModal .vault-pin').catch(() => {});
+  for (const ch of word) { await p.keyboard.type(ch); await sleep(40); }
+};
+const panel = () => p.evaluate(() => {
+  const d = document.querySelector('#signinModal');
+  if (!d || !d.open) return null;
+  const visible = (b) => !!b && b.getClientRects().length > 0;
+  const btn = (t) => [...d.querySelectorAll('button')].find((x) => x.textContent.trim() === t);
+  return {
+    text: d.textContent, logo: d.querySelector('.signin-logo')?.getAttribute('src') || '',
+    google: visible(btn('Google')), github: visible(btn('GitHub')), discord: visible(btn('Discord')),
+    signOut: visible(btn('Sign out')), notesOpen: !!document.querySelector('#notesModal[open]'),
+  };
+});
+const panelPress = (t) => p.evaluate((t) => { const b = [...document.querySelectorAll('#signinModal button')].find((x) => x.textContent.trim() === t); if (!b || b.hidden) return false; b.click(); return true; }, t);
+const panelShut = () => p.waitForFunction(() => !document.querySelector('#signinModal[open]'), { timeout: 10000 }).then(() => true, () => false);
+const signedInAs = () => p.evaluate(() => JSON.parse(localStorage.getItem('fakecloud') || '{}').signedIn || null);
+
+await tilde('dexdc');
+await p.waitForSelector('#signinModal[open]', { timeout: 10000 }).catch(() => {});
+let sp = await panel();
+ok(sp && sp.google && sp.github && sp.discord && !sp.signOut && /^data:image\/svg\+xml/.test(sp.logo) && !/DexNote/i.test(sp.text) && /dexcimino\.com/.test(sp.text),
+  `~dexdc signed out opens the SITE sign-in: its own mark, three providers, no Sign out, no DexNote: ${JSON.stringify(sp && { ...sp, logo: sp.logo.slice(0, 30), text: sp.text.slice(0, 80) })}`);
+ok(sp && !sp.notesOpen && !(await p.evaluate(() => !!document.querySelector('#notesEditor .nt-app'))), 'and the notes did not open');
+const order = await p.evaluate(() => [...document.querySelectorAll('#signinModal .signin-provider')].map((b) => b.textContent.trim()));
+ok(order.join() === 'Google,Discord,GitHub,Email or name', `the buttons run Google, Discord, GitHub (Dex, 2026-10-09): ${order.join(', ')}`);
+// The fourth way in: one box for an email or an Inko name, in the same column.
+await panelPress('Email or name');
+const form = await p.evaluate(() => {
+  const d = document.querySelector('#signinModal');
+  const f = d.querySelector('.signin-form');
+  return { form: !!f && !f.hidden && getComputedStyle(f).display !== 'none', providers: !d.querySelector('.signin-providers').hidden,
+    inputs: [...d.querySelectorAll('.signin-form input')].map((i) => i.type + ':' + i.placeholder), focused: document.activeElement && document.activeElement.placeholder };
+});
+ok(form.form && !form.providers && form.inputs.join() === 'text:Email or Inko name,password:Password' && form.focused === 'Email or Inko name',
+  `Email or name swaps the buttons for an email-or-name box and a password, with the caret in it: ${JSON.stringify(form)}`);
+await panelPress('Other ways to sign in');
+ok(await p.evaluate(() => { const d = document.querySelector('#signinModal'); return !d.querySelector('.signin-providers').hidden && d.querySelector('.signin-form').hidden; }),
+  'and Other ways to sign in puts the buttons back');
+const profileState = () => p.evaluate(() => { const b = document.querySelector('#profileButton'); return b && { on: b.classList.contains('is-signed-in'), label: b.getAttribute('aria-label') }; });
+ok(await panelPress('Google'), 'Google pressed on the site panel');
+ok(await panelShut() && await signedInAs() === 'dex-google' && !(await p.evaluate(() => !!document.querySelector('#notesModal[open]'))),
+  'the sign-in closes the panel, signs in, and still opens no notes');
+await p.waitForFunction(() => document.querySelector('#profileButton')?.classList.contains('is-signed-in'), { timeout: 5000 }).catch(() => {});
+ok(JSON.stringify(await profileState()) === JSON.stringify({ on: true, label: 'Your account' }), `the profile button at the top right fills in once signed in: ${JSON.stringify(await profileState())}`);
+await tilde('dexdc');
+await p.waitForSelector('#signinModal[open]', { timeout: 10000 }).catch(() => {});
+await p.waitForFunction(() => /Signed in as/.test(document.querySelector('#signinModal')?.textContent || ''), { timeout: 10000 }).catch(() => {});
+sp = await panel();
+ok(sp && /Your account/.test(sp.text) && /Signed in as dex-google@example\.com/.test(sp.text) && !sp.google && !sp.github && sp.signOut,
+  `~dexdc signed in is the account's own menu: who, a Sign out, and no sign-in buttons: "${sp && sp.text.slice(0, 90)}"`);
+ok(await panelPress('Sign out'), 'Sign out pressed on that panel');
+ok(await panelShut() && await signedInAs() === null, 'and it signs out and closes');
+await p.waitForFunction(() => !document.querySelector('#profileButton')?.classList.contains('is-signed-in'), { timeout: 5000 }).catch(() => {});
+ok(JSON.stringify(await profileState()) === JSON.stringify({ on: false, label: 'Sign in' }), `and the profile button goes back to Sign in: ${JSON.stringify(await profileState())}`);
+// The button itself opens the same panel. It is fixed where the docked toggle
+// sits from the first frame, so scrolling must not move it by a pixel.
+const atTop = await p.evaluate(() => { const r = document.querySelector('#profileButton').getBoundingClientRect(); return [Math.round(r.left), Math.round(r.top)]; });
+await p.evaluate(() => { document.documentElement.style.scrollBehavior = 'auto'; window.scrollTo(0, 1600); });
+await p.waitForFunction(() => document.querySelector('#accentPicker')?.classList.contains('compact'), { timeout: 5000 }).catch(() => {});
+await sleep(400);
+const docked = await p.evaluate(() => {
+  const r = document.querySelector('#profileButton').getBoundingClientRect();
+  const act = document.querySelector('#accentSwatches .swatch.active');
+  const hit = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
+  return { right: Math.round(innerWidth - r.right), top: Math.round(r.top), w: Math.round(r.width), hit: !!hit && !!hit.closest('#profileButton'), activeShown: getComputedStyle(act).opacity };
+});
+ok(docked.right < 40 && docked.top < 30 && docked.w >= 36 && docked.hit && docked.activeShown === '0',
+  `scrolled, the profile button stays at the top right in place of the active swatch: ${JSON.stringify(docked)}`);
+const scrolledAt = await p.evaluate(() => { const r = document.querySelector('#profileButton').getBoundingClientRect(); return [Math.round(r.left), Math.round(r.top)]; });
+ok(JSON.stringify(atTop) === JSON.stringify(scrolledAt), `and it is exactly where it was at the top of the page: ${JSON.stringify(atTop)} then ${JSON.stringify(scrolledAt)}`);
+// Headless Chrome has no hover, so this is the TOUCH path: the first tap opens
+// the swatches (there is no hover to do it), the second opens the panel.
+await p.click('#profileButton');
+await sleep(400);
+const firstTap = await p.evaluate(() => [document.querySelector('#accentPicker').classList.contains('open'), !!document.querySelector('#signinModal[open]')]);
+const listed = await p.evaluate(() => [...document.querySelectorAll('#accentSwatches .swatch')]
+  .map((s) => ({ active: s.classList.contains('active'), shown: getComputedStyle(s).opacity !== '0' })));
+ok(listed.length === 7 && listed.filter((s) => s.shown).length === 6 && listed.every((s) => s.shown !== s.active),
+  `the open stack lists the six other accents and never the current one: ${JSON.stringify(listed)}`);
+await p.click('#profileButton');
+await p.waitForSelector('#signinModal[open]', { timeout: 5000 }).catch(() => {});
+sp = await panel();
+ok(firstTap[0] && !firstTap[1] && sp && sp.google && !sp.signOut, `a first tap drops the swatches, a second opens the site sign-in (${JSON.stringify(firstTap)})`);
+await panelPress('Not now');
+await panelShut();
+await p.evaluate(() => window.scrollTo(0, 0));
+
+// Over an open overlay: the AI Lab's notes (a guest, signed out).
+await pressLab();
+await p.waitForSelector('#notesEditor .nt-body', { timeout: 15000 });
+await tilde('dexdc');
+await p.waitForSelector('#signinModal[open]', { timeout: 10000 }).catch(() => {});
+sp = await panel();
+ok(sp && sp.notesOpen && sp.google, 'typed over the notes, the panel stacks on them and the notes stay open underneath');
+await panelPress('Google');
+await panelShut();
+await p.waitForFunction(() => /acct marker/.test(document.querySelector('#notesEditor .nt-app')?.textContent || ''), { timeout: 15000 }).catch(() => {});
+ok(/acct marker/.test(await overlayText()) && await p.evaluate(() => !!document.querySelector('#notesModal[open]')), 'signing in there puts the account\'s notes on screen in the open overlay');
+await tilde('dexdc');
+await p.waitForSelector('#signinModal[open]', { timeout: 10000 }).catch(() => {});
+await p.waitForFunction(() => /Signed in as/.test(document.querySelector('#signinModal')?.textContent || ''), { timeout: 10000 }).catch(() => {});
+await panelPress('Sign out');
+await panelShut();
+await p.waitForFunction(() => document.querySelector('#notesEditor .nt-app') && !/acct marker/.test(document.querySelector('#notesEditor .nt-app').textContent), { timeout: 15000 }).catch(() => {});
+ok(await signedInAs() === null && !/acct marker/.test(await overlayText()) && await p.evaluate(() => !!document.querySelector('#notesEditor .nt-app')),
+  'signing out there takes the account\'s notes off the screen and leaves the overlay up');
+ok(codeCalls === 0, `the code itself was sent to the notes server ${codeCalls} times`);
 
 const real = errors.filter((e) => !/favicon|Failed to load resource/.test(e));
 ok(real.length === 0, `no console errors (${real.length})${real.length ? ': ' + real.join(' || ') : ''}`);

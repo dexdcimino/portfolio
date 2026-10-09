@@ -21,14 +21,31 @@
 
 import { initializeApp, getApps } from '/dexnote/vendor/firebase/firebase-app.js';
 import {
-  getAuth, onAuthStateChanged, signInWithPopup, signOut as fbSignOut,
-  GoogleAuthProvider, GithubAuthProvider, OAuthProvider,
+  getAuth, initializeAuth, onAuthStateChanged, signInWithPopup, signInWithCredential, signOut as fbSignOut,
+  GoogleAuthProvider, GithubAuthProvider, OAuthProvider, inMemoryPersistence, browserPopupRedirectResolver,
+  signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail,
 } from '/dexnote/vendor/firebase/firebase-auth.js';
 
-/* Public identifiers, not secrets; the same object as dexnote/cloud.js. */
+/* WHERE THE SIGN-IN WINDOW RUNS. Google's account picker says "continue to
+   <authDomain>", and Firebase's default is dexnote-d7047.firebaseapp.com.
+   On dexcimino.com the authDomain is the site itself: vercel.json forwards
+   /__/auth/* and /__/firebase/* to Firebase's handler, so the window says
+   "continue to dexcimino.com" (Google's own "redirect best practices",
+   option 3). Each provider must list https://dexcimino.com/__/auth/handler
+   as a redirect address or it refuses the sign-in. Anywhere else -- a
+   preview deploy, a harness on 127.0.0.1 -- there is no proxy, so it stays
+   on Firebase's host. */
+const FIREBASE_HOST = 'dexnote-d7047.firebaseapp.com';
+const SITE_HOST = 'dexcimino.com';
+function authDomain() {
+  try { return location.hostname === SITE_HOST ? SITE_HOST : FIREBASE_HOST; } catch { return FIREBASE_HOST; }
+}
+
+/* Public identifiers, not secrets. dexnote/cloud.js imports this object, so a
+   page that loads both initialises one app with identical options. */
 export const CONFIG = {
   apiKey: 'AIzaSyCU7xuhuILTkbdcP-E2qBH3EnNKT_eWTjA',
-  authDomain: 'dexnote-d7047.firebaseapp.com',
+  authDomain: authDomain(),
   projectId: 'dexnote-d7047',
   storageBucket: 'dexnote-d7047.firebasestorage.app',
   messagingSenderId: '981706581411',
@@ -44,6 +61,8 @@ function init() {
     auth = getAuth(app);
     onAuthStateChanged(auth, (u) => {
       try { u ? localStorage.setItem(LOCAL_FLAG, '1') : localStorage.removeItem(LOCAL_FLAG); } catch { /* private mode */ }
+      // The homepage asks the server whether this is Dex (script.js dexOwnerCheck).
+      window.dispatchEvent(new CustomEvent('site:user', { detail: { signedIn: !!u } }));
     });
   }
   return auth;
@@ -72,9 +91,38 @@ export function provider(which) {
   throw new Error(`no such sign-in: ${which}`);
 }
 
-export function signIn(which) { return signInWithPopup(init(), provider(which)); }
+export function signIn(which) { return signInTo(init(), which); }
+
+/* GITHUB STAYS ON FIREBASE'S HOST. A GitHub OAuth app takes ONE callback
+   address, and dexnote.dev still signs in through it at
+   dexnote-d7047.firebaseapp.com, so moving it to dexcimino.com would break
+   dexnote.dev. GitHub signs in on a second, memory-only app that keeps
+   Firebase's host, and the token it gets is handed to the real one: the same
+   uid, signed in here. Google and Discord list both addresses and need none
+   of this. */
+let ghAuth = null;
+export async function signInTo(a, which) {
+  if (which !== 'github' || a.app.options.authDomain === FIREBASE_HOST) return signInWithPopup(a, provider(which));
+  if (!ghAuth) {
+    const app = getApps().find((x) => x.name === 'site-github') || initializeApp({ ...CONFIG, authDomain: FIREBASE_HOST }, 'site-github');
+    ghAuth = initializeAuth(app, { persistence: inMemoryPersistence, popupRedirectResolver: browserPopupRedirectResolver });
+  }
+  const res = await signInWithPopup(ghAuth, provider('github'));
+  const cred = GithubAuthProvider.credentialFromResult(res);
+  fbSignOut(ghAuth).catch(() => {});
+  return signInWithCredential(a, cred);
+}
 
 export function signOut() { return fbSignOut(init()); }
+
+/* An account of your own, with an email and a password, for someone who
+   would rather not sign in through Google, GitHub or Discord. MindSplit was
+   the first to offer it (2026-10). It needs Email/Password switched on under
+   Authentication > Sign-in method in the dexnote-d7047 console; until it is,
+   Firebase answers auth/operation-not-allowed and errorText() says so. */
+export function signInEmail(email, password) { return signInWithEmailAndPassword(init(), String(email).trim(), password); }
+export function createEmail(email, password) { return createUserWithEmailAndPassword(init(), String(email).trim(), password); }
+export function resetPassword(email) { return sendPasswordResetEmail(init(), String(email).trim()); }
 
 /* What a server is shown to prove who this is (lib/site-identity.js). */
 export async function idToken() {
@@ -89,6 +137,14 @@ export function errorText(err) {
   if (code === 'auth/unauthorized-domain') return 'This address is not allowed to sign in yet.';
   if (code === 'auth/popup-blocked') return 'The sign-in window was blocked. Allow pop-ups for this site and try again.';
   if (code === 'auth/account-exists-with-different-credential') return 'That email already signs in with a different provider. Use the one you used before.';
+  if (code === 'auth/operation-not-allowed') return 'Email accounts are not switched on yet. Use Google, GitHub or Discord for now.';
+  if (code === 'auth/invalid-email') return 'That does not look like an email address.';
+  if (code === 'auth/missing-password') return 'Type a password.';
+  if (code === 'auth/weak-password') return 'Use a password of at least 6 characters.';
+  if (code === 'auth/email-already-in-use') return 'There is already an account with that email. Sign in instead.';
+  if (code === 'auth/invalid-credential' || code === 'auth/wrong-password' || code === 'auth/user-not-found') return 'That email and password do not match an account.';
+  if (code === 'auth/too-many-requests') return 'Too many tries. Wait a minute and try again.';
+  if (code === 'auth/network-request-failed') return 'No connection. Check your internet and try again.';
   return `Sign-in did not work (${code || (err && err.message) || 'unknown error'}). Try again.`;
 }
 

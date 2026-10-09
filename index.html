@@ -6,6 +6,8 @@
      cursor. The main script updates these with the user's actual accent. -->
 <style>html.dex-cursor{--dex-cursor-arrow:url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A//www.w3.org/2000/svg%27%20width%3D%2732%27%20height%3D%2732%27%20viewBox%3D%270%200%2032%2032%27%3E%3Cg%20fill%3D%27none%27%20stroke%3D%27%23000%27%20stroke-opacity%3D%27.55%27%20stroke-width%3D%274.5%27%20stroke-linejoin%3D%27round%27%20stroke-linecap%3D%27round%27%3E%3Cpath%20d%3D%27M6%204l2.95%2022.17%205.13-7.22L22.93%2019.34z%27/%3E%3C/g%3E%3Cg%20fill%3D%27none%27%20stroke%3D%27%239EE02B%27%20stroke-width%3D%272%27%20stroke-linejoin%3D%27round%27%20stroke-linecap%3D%27round%27%3E%3Cpath%20d%3D%27M6%204l2.95%2022.17%205.13-7.22L22.93%2019.34z%27/%3E%3C/g%3E%3C/svg%3E") 6 4, auto;--dex-cursor-pointer:url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A//www.w3.org/2000/svg%27%20width%3D%2732%27%20height%3D%2732%27%20viewBox%3D%270%200%2032%2032%27%3E%3Cg%20fill%3D%27none%27%20stroke%3D%27%23000%27%20stroke-opacity%3D%27.55%27%20stroke-width%3D%274.5%27%20stroke-linejoin%3D%27round%27%20stroke-linecap%3D%27round%27%3E%3Cpath%20d%3D%27M12.9%203.3a1.7%201.7%200%200%201%201.7%201.7v5.3a1.55%201.55%200%200%201%203.1.2v.9a1.5%201.5%200%200%201%203%20.3v.9a1.45%201.45%200%200%201%202.9.5l-.2%206.7a6.8%206.8%200%200%201-6.7%206.1h-1.5a6.4%206.4%200%200%201-4.6-2l-3.4-4.1a1.85%201.85%200%200%201%202.6-2.6l1.4%201.2V5a1.7%201.7%200%200%201%201.7-1.7zM14.6%2012.4v-1.9M17.7%2012.9v-1.4M20.6%2013.4v-.9%27/%3E%3C/g%3E%3Cg%20fill%3D%27none%27%20stroke%3D%27%239EE02B%27%20stroke-width%3D%272%27%20stroke-linejoin%3D%27round%27%20stroke-linecap%3D%27round%27%3E%3Cpath%20d%3D%27M12.9%203.3a1.7%201.7%200%200%201%201.7%201.7v5.3a1.55%201.55%200%200%201%203.1.2v.9a1.5%201.5%200%200%201%203%20.3v.9a1.45%201.45%200%200%201%202.9.5l-.2%206.7a6.8%206.8%200%200%201-6.7%206.1h-1.5a6.4%206.4%200%200%201-4.6-2l-3.4-4.1a1.85%201.85%200%200%201%202.6-2.6l1.4%201.2V5a1.7%201.7%200%200%201%201.7-1.7zM14.6%2012.4v-1.9M17.7%2012.9v-1.4M20.6%2013.4v-.9%27/%3E%3C/g%3E%3C/svg%3E") 13 3, pointer;--dex-cursor-text:url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A//www.w3.org/2000/svg%27%20width%3D%2732%27%20height%3D%2732%27%20viewBox%3D%270%200%2032%2032%27%3E%3Cg%20fill%3D%27none%27%20stroke%3D%27%23000%27%20stroke-opacity%3D%27.55%27%20stroke-width%3D%274.5%27%20stroke-linejoin%3D%27round%27%20stroke-linecap%3D%27round%27%3E%3Cpath%20d%3D%27M12.5%206.5h7M16%206.5v19M12.5%2025.5h7%27/%3E%3C/g%3E%3Cg%20fill%3D%27none%27%20stroke%3D%27%239EE02B%27%20stroke-width%3D%272%27%20stroke-linejoin%3D%27round%27%20stroke-linecap%3D%27round%27%3E%3Cpath%20d%3D%27M12.5%206.5h7M16%206.5v19M12.5%2025.5h7%27/%3E%3C/g%3E%3C/svg%3E") 16 16, text}</style>
 <script>(function(){try{if(localStorage.getItem('dex-cursor')!=='off')document.documentElement.classList.add('dex-cursor')}catch(e){}})();</script>
+<!-- The saved accent before first paint; see accent-boot.js. -->
+<script src="accent-boot.js?v=1"></script>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="description" content="Dex Cimino — 2D / 3D Design, Creative Technologist, AI-Assisted Builder" />
@@ -32,7 +34,8 @@
   <link rel="icon" id="faviconSvg" type="image/svg+xml" href="" />
   <link rel="preload" as="image" href="assets/logos/DEX.svg" />
   <link rel="preload" as="image" href="assets/logos/CIMINO.svg" />
-  <link rel="stylesheet" href="styles.css?v=213" />
+  <link rel="stylesheet" href="styles.css?v=220" />
+  <link rel="stylesheet" href="border-picker.css?v=1">
   <!-- preload src="assets/mascots/mascot_limegreen.png" slot="hero-mascot" -->
   <link rel="preload" as="image" fetchpriority="high"
         href="assets/derived/mascots/mascot_limegreen-900.avif?v=6edad5f9"
@@ -93,23 +96,25 @@
   </div>
 
   <!-- Front wedge: the only layer that sits OVER the mascot, exactly as in the
-       source art. It is painted with the back wedge's own grade (#bgWedge) and
-       FADED by a mask that runs ALONG the band, bottom left to top right:
-       clear over the mascot's lower left, half-there across his chest, solid
-       by the top right corner. The fade used to run nearly straight up the
-       page and reach full strength at the hero's bottom edge, so almost all of
-       it happened below the fold and the band sat solid over his legs. -->
+       source art. It fills with the back wedge's grade (#bgWedge), so where the
+       two overlap the colour cannot disagree, and fades ALONG the band, solid at
+       the top right and gone toward the bottom left. The fade breathes slowly
+       between two reaches (Dex picked both, 2026-10-09): about half way down him
+       and just a little of him, holding at each end with an eased swing between,
+       14s a loop. Under reduced motion script.js stops it on the first. -->
   <div class="bg-front" aria-hidden="true">
     <svg viewBox="0 0 1920 1080" preserveAspectRatio="none">
       <defs>
-        <linearGradient id="bgFrontFade" x1="1010" y1="680" x2="1900" y2="150" gradientUnits="userSpaceOnUse">
+        <linearGradient id="bgFrontFade" x1="701.2" y1="820" x2="1453.8" y2="420" gradientUnits="userSpaceOnUse">
           <stop offset="0" stop-color="#fff" stop-opacity="0"/>
-          <stop offset=".18" stop-color="#fff" stop-opacity=".04"/>
-          <stop offset=".36" stop-color="#fff" stop-opacity=".16"/>
-          <stop offset=".52" stop-color="#fff" stop-opacity=".36"/>
-          <stop offset=".68" stop-color="#fff" stop-opacity=".62"/>
-          <stop offset=".84" stop-color="#fff" stop-opacity=".86"/>
+          <stop offset=".25" stop-color="#fff" stop-opacity=".12"/>
+          <stop offset=".5" stop-color="#fff" stop-opacity=".4"/>
+          <stop offset=".75" stop-color="#fff" stop-opacity=".75"/>
           <stop offset="1" stop-color="#fff" stop-opacity="1"/>
+          <animate attributeName="x1" values="701.2;701.2;1115.1;1115.1;701.2" dur="14s" repeatCount="indefinite" keyTimes="0;.2;.5;.7;1" calcMode="spline" keySplines="0 0 1 1;.45 0 .55 1;0 0 1 1;.45 0 .55 1"/>
+          <animate attributeName="y1" values="820;820;600;600;820" dur="14s" repeatCount="indefinite" keyTimes="0;.2;.5;.7;1" calcMode="spline" keySplines="0 0 1 1;.45 0 .55 1;0 0 1 1;.45 0 .55 1"/>
+          <animate attributeName="x2" values="1453.8;1453.8;1679.55;1679.55;1453.8" dur="14s" repeatCount="indefinite" keyTimes="0;.2;.5;.7;1" calcMode="spline" keySplines="0 0 1 1;.45 0 .55 1;0 0 1 1;.45 0 .55 1"/>
+          <animate attributeName="y2" values="420;420;300;300;420" dur="14s" repeatCount="indefinite" keyTimes="0;.2;.5;.7;1" calcMode="spline" keySplines="0 0 1 1;.45 0 .55 1;0 0 1 1;.45 0 .55 1"/>
         </linearGradient>
         <mask id="bgFrontMask" maskUnits="userSpaceOnUse" x="0" y="0" width="1920" height="1080">
           <rect width="1920" height="1080" fill="url(#bgFrontFade)"/>
@@ -287,6 +292,7 @@
           <img id="heroMascot" src="assets/mascots/mascot_limegreen.png" alt="Clayweld mascot artwork by Dex Cimino" width="1303" height="1193" fetchpriority="high" decoding="async">
         </picture>
         <!-- /img -->
+        <script src="accent-boot.js?v=1"></script><!-- the saved accent's mascot, before a source is picked -->
       </div>
 
       <div class="hero-goblin reveal" aria-hidden="true">
@@ -367,9 +373,8 @@
            script.js. -->
       <div class="fw-stage reveal">
         <div class="wk-pager">
-          <span class="wk-dots" id="fvDots" role="status" aria-label="video, page 1 of 3">
+          <span class="wk-dots" id="fvDots" role="status" aria-label="video, page 1 of 2">
             <i class="wk-dot is-on" aria-hidden="true"></i>
-            <i class="wk-dot" aria-hidden="true"></i>
             <i class="wk-dot" aria-hidden="true"></i>
           </span>
           <span class="wk-arrows">
@@ -388,71 +393,600 @@
              a worse placeholder than none, and the real one is the AI Lab
              player, to be shared rather than copied when the clips land. -->
         <div class="fv" id="featVideo">
-          <article class="fv-item is-on" data-video="0">
+          <!-- MOBIUS 3D, the first video and so the one on screen at load.
+               About a minute of the real viewer being used, recorded by the
+               mobius-3d repo's tools/video.mjs on a virtual clock. It streams
+               from bunny.net like the AI Lab's clips (CLAUDE.md: no video on
+               this host); data-src is the play_720p.mp4 URL, and until it is
+               set the poster stands in and the play button says so.
+               Muted autoplay, because that is the only autoplay a browser
+               allows. data-audio marks an upload with a soundtrack and brings
+               the mute button; without it there is no sound to offer.
+               The bar runs along the bottom edge, and everything else that
+               sits low -- the caption, the eye, the download -- sits ABOVE it,
+               so nothing ever covers the scrubber. -->
+          <article class="fv-item fv-has-video is-on" data-video="0" data-src="https://vz-f98421b2-da0.b-cdn.net/6b7c42d7-5f86-4992-abb7-45a7946b55cc/play_720p.mp4" data-audio>
             <span class="fv-matte" aria-hidden="true"></span>
-            <!-- The Collab section's hazard strip, reused rather than redrawn:
-                 these are slots with no video in them yet, and a play button
-                 that does nothing is a worse answer than saying so. -->
-            <div class="fv-soon" aria-hidden="true">
-              <span class="collab-soon-tape"></span>
-              <strong>UNDER CONSTRUCTION</strong>
-              <span class="collab-soon-tape"></span>
-            </div>
-            <button class="fv-info" type="button" aria-expanded="false"
-                    aria-label="About TITLE COMING!"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 10.6v5.6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><circle cx="12" cy="7.4" r="1.35" fill="currentColor"/></svg></button>
-            <p class="fv-desc" hidden>Placeholder for this item&#8217;s future description.</p>
-            <button class="fv-play" type="button" aria-label="Play TITLE COMING!">
+            <!-- img src="assets/featured/mobius-3d.png" slot="clip-poster" alt="" picture-class="fv-poster" -->
+            <picture class="fv-poster">
+              <source type="image/avif" srcset="assets/derived/featured/mobius-3d-1280.avif?v=80ddf1c7 1280w,
+                                                assets/derived/featured/mobius-3d-900.avif?v=80ddf1c7 900w,
+                                                assets/derived/featured/mobius-3d-600.avif?v=80ddf1c7 600w,
+                                                assets/derived/featured/mobius-3d-400.avif?v=80ddf1c7 400w,
+                                                assets/derived/featured/mobius-3d-240.avif?v=80ddf1c7 240w"
+                      sizes="(max-width:1100px) 92vw, min(56vw, 900px)">
+              <source type="image/webp" srcset="assets/derived/featured/mobius-3d-1280.webp?v=80ddf1c7 1280w,
+                                                assets/derived/featured/mobius-3d-900.webp?v=80ddf1c7 900w,
+                                                assets/derived/featured/mobius-3d-600.webp?v=80ddf1c7 600w,
+                                                assets/derived/featured/mobius-3d-400.webp?v=80ddf1c7 400w,
+                                                assets/derived/featured/mobius-3d-240.webp?v=80ddf1c7 240w"
+                      sizes="(max-width:1100px) 92vw, min(56vw, 900px)">
+              <img src="assets/featured/mobius-3d.png" alt="" width="1440" height="1080" loading="lazy" decoding="async">
+            </picture>
+            <!-- /img -->
+            <video class="fv-video" muted playsinline loop preload="none"
+                   aria-label="Mobius 3D in use: a violet trefoil knot animating, changing accent colour, orbiting and being reshaped with a blend shape, to a chillstep soundtrack"></video>
+            <!-- NO INFO ICON ON THIS SLOT (Dex, 2026-10-09). Its description is
+                 always up instead, and only in the ENLARGED video: a portrait
+                 panel in the dead space to its right, centred under the eye,
+                 the X and the download. The words are the AI Lab card's own
+                 (#mobiusCard's data-desc-lead and data-desc-body, read by
+                 initFeaturedVideo), so the two can never say different things. -->
+            <aside class="fv-about" data-about="mobiusCard" aria-label="About Mobius 3D">
+              <strong class="fv-about-head">The pitch</strong>
+            </aside>
+            <button class="fv-play" type="button" aria-label="Play Mobius 3D">
               <span class="fv-disc"><span class="icon" data-icon="play" aria-hidden="true"></span></span>
             </button>
             <span class="card-shade"></span>
-            <span class="card-meta"><small>Current Game Project</small><strong>TITLE COMING!</strong></span>
-            <!-- The wallpaper download button at its large size. A
-                 <button>, not an <a>: an href makes the browser print the
-                 whole asset URL in its status bubble on every hover, and
-                 that bubble is chrome no page can style. -->
-            <button class="wp-dl wp-dl-lg fv-dl" type="button"
-                    aria-label="Download the game" data-tip="Download the Game&#10;Placeholder"
-                    data-tip-pos="above" data-tip-kind="loud">
-              <span class="icon" data-icon="download" aria-hidden="true"></span>
+            <span class="card-meta"><small>Desktop + Web App</small><strong>Mobius 3D</strong></span>
+            <!-- The AI Lab card's two buttons, in the same order: the
+                 download left of the eye. The eye does what the card's does,
+                 by pressing it: down to the AI Lab, then the preview opens.
+                 Its tip carries the first Apps-gallery shot, cloned from the
+                 page rather than built as a URL (CLAUDE.md, image pipeline). -->
+            <div class="fv-actions">
+              <a class="fv-act fv-get" href="https://github.com/dexdcimino/mobius-3d/releases/latest"
+                 target="_blank" rel="noopener" data-tip="Download&#10;Mobius 3D" data-tip-pos="above" data-tip-big data-tip-pos-max="right"
+                 aria-label="Download the Mobius 3D desktop app">
+                <span class="icon" data-icon="download" aria-hidden="true"></span>
+              </a>
+              <button class="fv-act fv-eye" type="button" data-open-app="mobiusCard"
+                      data-tip="Functional Preview" data-tip-pos="above" data-tip-big data-tip-pos-max="right"
+                      data-tip-thumb='figure.gal-item[data-game="mobius"] picture'
+                      aria-label="Open a functional preview of Mobius 3D">
+                <span class="icon" data-icon="eye" aria-hidden="true"></span>
+              </button>
+            </div>
+            <div class="fv-bar">
+              <button class="cl-btn cl-play fv-toggle" type="button" aria-label="Pause"><span class="icon" data-icon="pause" aria-hidden="true"></span></button>
+              <input class="cl-scrub fv-scrub" type="range" min="0" max="1000" value="0" step="1" aria-label="Seek">
+              <span class="cl-time fv-time">0:00 / 0:00</span>
+              <button class="cl-btn fv-full" type="button" aria-label="Enlarge video"><span class="icon" data-icon="fullscreen" aria-hidden="true"></span></button>
+              <div class="fv-vol">
+                <button class="cl-btn fv-mute" type="button" aria-label="Unmute" hidden><span class="icon" data-icon="volume-slash" aria-hidden="true"></span></button>
+                <div class="fv-vol-pop"><input class="fv-volume" type="range" min="0" max="100" value="50" step="1" aria-label="Volume"></div>
+              </div>
+            </div>
+            <button class="contact-close fv-close" type="button" aria-label="Close enlarged video">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
             </button>
           </article>
-          <article class="fv-item" data-video="1">
+          <!-- PROTO ISLES, the game Dex is building now. Not a video: the
+               thumbnail is the whole card, and a click anywhere on it opens
+               the WORK OVERLAY on this game's own tabs (initProtoIsles in
+               script.js reads them out of .pi-data below). The download is
+               always up, bottom right, and opens the code keypad saying
+               DOWNLOAD LOCKED until the launcher exists. -->
+          <article class="fv-item fv-gallery" data-video="1" data-work-set="proto-isles">
             <span class="fv-matte" aria-hidden="true"></span>
-            <!-- The Collab section's hazard strip, reused rather than redrawn:
-                 these are slots with no video in them yet, and a play button
-                 that does nothing is a worse answer than saying so. -->
-            <div class="fv-soon" aria-hidden="true">
-              <span class="collab-soon-tape"></span>
-              <strong>UNDER CONSTRUCTION</strong>
-              <span class="collab-soon-tape"></span>
-            </div>
+            <!-- img src="assets/featured/proto-isles.png" slot="clip-poster" alt="" picture-class="fv-poster" -->
+            <picture class="fv-poster">
+              <source type="image/avif" srcset="assets/derived/featured/proto-isles-1920.avif?v=3e626345 1920w,
+                                                assets/derived/featured/proto-isles-1280.avif?v=3e626345 1280w,
+                                                assets/derived/featured/proto-isles-900.avif?v=3e626345 900w,
+                                                assets/derived/featured/proto-isles-600.avif?v=3e626345 600w,
+                                                assets/derived/featured/proto-isles-400.avif?v=3e626345 400w,
+                                                assets/derived/featured/proto-isles-240.avif?v=3e626345 240w"
+                      sizes="(max-width:1100px) 92vw, min(56vw, 900px)">
+              <source type="image/webp" srcset="assets/derived/featured/proto-isles-1920.webp?v=3e626345 1920w,
+                                                assets/derived/featured/proto-isles-1280.webp?v=3e626345 1280w,
+                                                assets/derived/featured/proto-isles-900.webp?v=3e626345 900w,
+                                                assets/derived/featured/proto-isles-600.webp?v=3e626345 600w,
+                                                assets/derived/featured/proto-isles-400.webp?v=3e626345 400w,
+                                                assets/derived/featured/proto-isles-240.webp?v=3e626345 240w"
+                      sizes="(max-width:1100px) 92vw, min(56vw, 900px)">
+              <img src="assets/featured/proto-isles.png" alt="" width="1920" height="1200" loading="lazy" decoding="async">
+            </picture>
+            <!-- /img -->
+            <button class="fv-open" type="button" aria-label="Open the Proto Isles gallery"></button>
             <button class="fv-info" type="button" aria-expanded="false"
-                    aria-label="About CHARACTER EDITOR"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 10.6v5.6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><circle cx="12" cy="7.4" r="1.35" fill="currentColor"/></svg></button>
-            <p class="fv-desc" hidden>Placeholder for this item&#8217;s future description.</p>
-            <button class="fv-play" type="button" aria-label="Play CHARACTER EDITOR">
-              <span class="fv-disc"><span class="icon" data-icon="play" aria-hidden="true"></span></span>
-            </button>
+                    aria-label="About Proto Isles"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 10.6v5.6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><circle cx="12" cy="7.4" r="1.35" fill="currentColor"/></svg></button>
+            <p class="fv-desc" hidden>The game I am building now: a bright low-poly world of islands, with a character editor full of hats, hair and faces to mix.</p>
             <span class="card-shade"></span>
-            <span class="card-meta"><small>In-Game Tool</small><strong>CHARACTER EDITOR</strong></span>
-          </article>
-          <article class="fv-item" data-video="2">
-            <span class="fv-matte" aria-hidden="true"></span>
-            <!-- The Collab section's hazard strip, reused rather than redrawn:
-                 these are slots with no video in them yet, and a play button
-                 that does nothing is a worse answer than saying so. -->
-            <div class="fv-soon" aria-hidden="true">
-              <span class="collab-soon-tape"></span>
-              <strong>UNDER CONSTRUCTION</strong>
-              <span class="collab-soon-tape"></span>
+            <span class="card-meta"><small>Current Game Project</small><strong>Proto Isles</strong></span>
+            <div class="fv-actions">
+              <button class="fv-act fv-lock" type="button" data-code-lock="DOWNLOAD LOCKED"
+                      data-tip="Download Proto Isles&#10;Locked for now" data-tip-pos="above" data-tip-big data-tip-pos-max="right"
+                      aria-label="Download Proto Isles (locked)">
+                <span class="icon" data-icon="download" aria-hidden="true"></span>
+              </button>
             </div>
-            <button class="fv-info" type="button" aria-expanded="false"
-                    aria-label="About WORLD EDITOR"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 10.6v5.6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><circle cx="12" cy="7.4" r="1.35" fill="currentColor"/></svg></button>
-            <p class="fv-desc" hidden>Placeholder for this item&#8217;s future description.</p>
-            <button class="fv-play" type="button" aria-label="Play WORLD EDITOR">
-              <span class="fv-disc"><span class="icon" data-icon="play" aria-hidden="true"></span></span>
-            </button>
-            <span class="card-shade"></span>
-            <span class="card-meta"><small>In-Game Tool</small><strong>WORLD EDITOR</strong></span>
+            <!-- THE GALLERY'S DATA. Each figure is one shot; data-pi-cat is
+                 the tab it goes under, and the tabs themselves, in order, are
+                 data-tabs ([id, label, what an empty tab says]), and
+                 data-tab-icons names the icon each tab wears on the category
+                 buttons above the gallery's arrows. ONE COPY OF
+                 EACH SHOT, the newest (Dex, 2026-10-09): masters carry no
+                 version in their names, so a newer take REPLACES its file and
+                 never sits beside it. The shots are 1920x920 like the Mobius
+                 gallery's and baked on the game-shot slot like every other
+                 gallery picture; hidden, so nothing here loads until the
+                 overlay paints it. Featured re-uses the card's own thumbnail
+                 master rather than a copy of it. -->
+            <div class="pi-data" hidden
+                 data-tabs='[["video","VIDEO","VIDEO COMING"],["characters","CHARACTERS"],["environment","ENVIRONMENT"],["items","ITEMS"],["pets","PETS"],["ui","UI"],["featured","FEATURED"]]'
+                 data-tab-icons='{"video":"pi-video","characters":"pi-player","environment":"pi-tree","items":"pi-sword","pets":"snail","ui":"pi-ui","featured":"pi-brand"}'>
+              <figure data-pi-cat="characters" data-title="Playful cosmetics">
+                <!-- img src="assets/gallery/proto-isles/cosmetics-playful.png" slot="game-shot" alt="Five Proto Isles characters lined up in a low-poly town at sunset: an afro with sunglasses, a frog hood with its tongue out, a VR headset with a brain on top, a blue cowboy hat with heart glasses, and a traffic cone hat" -->
+                <picture>
+                  <source type="image/avif" srcset="assets/derived/gallery/proto-isles/cosmetics-playful-1600.avif?v=93d77154 1600w,
+                                                    assets/derived/gallery/proto-isles/cosmetics-playful-1200.avif?v=93d77154 1200w,
+                                                    assets/derived/gallery/proto-isles/cosmetics-playful-900.avif?v=93d77154 900w,
+                                                    assets/derived/gallery/proto-isles/cosmetics-playful-600.avif?v=93d77154 600w"
+                          sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+                  <source type="image/webp" srcset="assets/derived/gallery/proto-isles/cosmetics-playful-1600.webp?v=93d77154 1600w,
+                                                    assets/derived/gallery/proto-isles/cosmetics-playful-1200.webp?v=93d77154 1200w,
+                                                    assets/derived/gallery/proto-isles/cosmetics-playful-900.webp?v=93d77154 900w,
+                                                    assets/derived/gallery/proto-isles/cosmetics-playful-600.webp?v=93d77154 600w"
+                          sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+                  <img src="assets/gallery/proto-isles/cosmetics-playful.png" alt="Five Proto Isles characters lined up in a low-poly town at sunset: an afro with sunglasses, a frog hood with its tongue out, a VR headset with a brain on top, a blue cowboy hat with heart glasses, and a traffic cone hat" width="1920" height="920" loading="lazy" decoding="async">
+                </picture>
+                <!-- /img -->
+              </figure>
+              <figure data-pi-cat="characters" data-title="Expressive cosmetics">
+                <!-- img src="assets/gallery/proto-isles/cosmetics-expressive.png" slot="game-shot" alt="Five Proto Isles characters in town: a viking helmet and red beard, a plunger hat blowing gum, long purple hair with a rose, a braided ponytail with glowing eyes, and an orange face with an eyepatch and a blue crest" -->
+                <picture>
+                  <source type="image/avif" srcset="assets/derived/gallery/proto-isles/cosmetics-expressive-1600.avif?v=385b317d 1600w,
+                                                    assets/derived/gallery/proto-isles/cosmetics-expressive-1200.avif?v=385b317d 1200w,
+                                                    assets/derived/gallery/proto-isles/cosmetics-expressive-900.avif?v=385b317d 900w,
+                                                    assets/derived/gallery/proto-isles/cosmetics-expressive-600.avif?v=385b317d 600w"
+                          sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+                  <source type="image/webp" srcset="assets/derived/gallery/proto-isles/cosmetics-expressive-1600.webp?v=385b317d 1600w,
+                                                    assets/derived/gallery/proto-isles/cosmetics-expressive-1200.webp?v=385b317d 1200w,
+                                                    assets/derived/gallery/proto-isles/cosmetics-expressive-900.webp?v=385b317d 900w,
+                                                    assets/derived/gallery/proto-isles/cosmetics-expressive-600.webp?v=385b317d 600w"
+                          sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+                  <img src="assets/gallery/proto-isles/cosmetics-expressive.png" alt="Five Proto Isles characters in town: a viking helmet and red beard, a plunger hat blowing gum, long purple hair with a rose, a braided ponytail with glowing eyes, and an orange face with an eyepatch and a blue crest" width="1920" height="920" loading="lazy" decoding="async">
+                </picture>
+                <!-- /img -->
+              </figure>
+              <figure data-pi-cat="characters" data-title="Fantasy cosmetics">
+                <!-- img src="assets/gallery/proto-isles/cosmetics-fantasy.png" slot="game-shot" alt="Five Proto Isles characters in town: wild white hair and green goggles, black horns with glowing eyes, a top hat and ski goggles, a flowered sun hat and moustache, and a wizard hat and long beard" -->
+                <picture>
+                  <source type="image/avif" srcset="assets/derived/gallery/proto-isles/cosmetics-fantasy-1600.avif?v=e753a337 1600w,
+                                                    assets/derived/gallery/proto-isles/cosmetics-fantasy-1200.avif?v=e753a337 1200w,
+                                                    assets/derived/gallery/proto-isles/cosmetics-fantasy-900.avif?v=e753a337 900w,
+                                                    assets/derived/gallery/proto-isles/cosmetics-fantasy-600.avif?v=e753a337 600w"
+                          sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+                  <source type="image/webp" srcset="assets/derived/gallery/proto-isles/cosmetics-fantasy-1600.webp?v=e753a337 1600w,
+                                                    assets/derived/gallery/proto-isles/cosmetics-fantasy-1200.webp?v=e753a337 1200w,
+                                                    assets/derived/gallery/proto-isles/cosmetics-fantasy-900.webp?v=e753a337 900w,
+                                                    assets/derived/gallery/proto-isles/cosmetics-fantasy-600.webp?v=e753a337 600w"
+                          sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+                  <img src="assets/gallery/proto-isles/cosmetics-fantasy.png" alt="Five Proto Isles characters in town: wild white hair and green goggles, black horns with glowing eyes, a top hat and ski goggles, a flowered sun hat and moustache, and a wizard hat and long beard" width="1920" height="920" loading="lazy" decoding="async">
+                </picture>
+                <!-- /img -->
+              </figure>
+              <figure data-pi-cat="characters" data-title="The wizard and the scientist">
+                <!-- img src="assets/gallery/proto-isles/wizard-scientist.png" slot="game-shot" alt="Two full-length Proto Isles characters in the town square: a wizard in a purple hat and blue robe, and a scientist with green goggles and a white lab coat, glowing portal doors behind them" -->
+                <picture>
+                  <source type="image/avif" srcset="assets/derived/gallery/proto-isles/wizard-scientist-1600.avif?v=4a401360 1600w,
+                                                    assets/derived/gallery/proto-isles/wizard-scientist-1200.avif?v=4a401360 1200w,
+                                                    assets/derived/gallery/proto-isles/wizard-scientist-900.avif?v=4a401360 900w,
+                                                    assets/derived/gallery/proto-isles/wizard-scientist-600.avif?v=4a401360 600w"
+                          sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+                  <source type="image/webp" srcset="assets/derived/gallery/proto-isles/wizard-scientist-1600.webp?v=4a401360 1600w,
+                                                    assets/derived/gallery/proto-isles/wizard-scientist-1200.webp?v=4a401360 1200w,
+                                                    assets/derived/gallery/proto-isles/wizard-scientist-900.webp?v=4a401360 900w,
+                                                    assets/derived/gallery/proto-isles/wizard-scientist-600.webp?v=4a401360 600w"
+                          sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+                  <img src="assets/gallery/proto-isles/wizard-scientist.png" alt="Two full-length Proto Isles characters in the town square: a wizard in a purple hat and blue robe, and a scientist with green goggles and a white lab coat, glowing portal doors behind them" width="1920" height="920" loading="lazy" decoding="async">
+                </picture>
+                <!-- /img -->
+              </figure>
+              <figure data-pi-cat="characters" data-title="Blend shapes: the skeleton and the droplet">
+                <!-- img src="assets/gallery/proto-isles/skeleton-droplet.png" slot="game-shot" alt="A cartoon skeleton and a smooth blue droplet-headed body with big dark eyes standing by a lake, two body shapes from the character editor" -->
+                <picture>
+                  <source type="image/avif" srcset="assets/derived/gallery/proto-isles/skeleton-droplet-1600.avif?v=3eb2d453 1600w,
+                                                    assets/derived/gallery/proto-isles/skeleton-droplet-1200.avif?v=3eb2d453 1200w,
+                                                    assets/derived/gallery/proto-isles/skeleton-droplet-900.avif?v=3eb2d453 900w,
+                                                    assets/derived/gallery/proto-isles/skeleton-droplet-600.avif?v=3eb2d453 600w"
+                          sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+                  <source type="image/webp" srcset="assets/derived/gallery/proto-isles/skeleton-droplet-1600.webp?v=3eb2d453 1600w,
+                                                    assets/derived/gallery/proto-isles/skeleton-droplet-1200.webp?v=3eb2d453 1200w,
+                                                    assets/derived/gallery/proto-isles/skeleton-droplet-900.webp?v=3eb2d453 900w,
+                                                    assets/derived/gallery/proto-isles/skeleton-droplet-600.webp?v=3eb2d453 600w"
+                          sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+                  <img src="assets/gallery/proto-isles/skeleton-droplet.png" alt="A cartoon skeleton and a smooth blue droplet-headed body with big dark eyes standing by a lake, two body shapes from the character editor" width="1920" height="920" loading="lazy" decoding="async">
+                </picture>
+                <!-- /img -->
+              </figure>
+              <figure data-pi-cat="environment" data-title="The molten moon gate">
+                <!-- img src="assets/gallery/proto-isles/molten-moon-gate.png" slot="game-shot" alt="A huge stone ring framing a molten red moon at sunset, over a dark hill dotted with pine trees" -->
+                <picture>
+                  <source type="image/avif" srcset="assets/derived/gallery/proto-isles/molten-moon-gate-1600.avif?v=f5d53f92 1600w,
+                                                    assets/derived/gallery/proto-isles/molten-moon-gate-1200.avif?v=f5d53f92 1200w,
+                                                    assets/derived/gallery/proto-isles/molten-moon-gate-900.avif?v=f5d53f92 900w,
+                                                    assets/derived/gallery/proto-isles/molten-moon-gate-600.avif?v=f5d53f92 600w"
+                          sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+                  <source type="image/webp" srcset="assets/derived/gallery/proto-isles/molten-moon-gate-1600.webp?v=f5d53f92 1600w,
+                                                    assets/derived/gallery/proto-isles/molten-moon-gate-1200.webp?v=f5d53f92 1200w,
+                                                    assets/derived/gallery/proto-isles/molten-moon-gate-900.webp?v=f5d53f92 900w,
+                                                    assets/derived/gallery/proto-isles/molten-moon-gate-600.webp?v=f5d53f92 600w"
+                          sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+                  <img src="assets/gallery/proto-isles/molten-moon-gate.png" alt="A huge stone ring framing a molten red moon at sunset, over a dark hill dotted with pine trees" width="1920" height="920" loading="lazy" decoding="async">
+                </picture>
+                <!-- /img -->
+              </figure>
+              <figure data-pi-cat="environment" data-title="Lakeside, morning">
+                <!-- img src="assets/gallery/proto-isles/lakeside-morning.png" slot="game-shot" alt="A blue lake under a bright cloudy sky, low-poly pines and a tall standing stone on the far shore" -->
+                <picture>
+                  <source type="image/avif" srcset="assets/derived/gallery/proto-isles/lakeside-morning-1600.avif?v=0882e3d9 1600w,
+                                                    assets/derived/gallery/proto-isles/lakeside-morning-1200.avif?v=0882e3d9 1200w,
+                                                    assets/derived/gallery/proto-isles/lakeside-morning-900.avif?v=0882e3d9 900w,
+                                                    assets/derived/gallery/proto-isles/lakeside-morning-600.avif?v=0882e3d9 600w"
+                          sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+                  <source type="image/webp" srcset="assets/derived/gallery/proto-isles/lakeside-morning-1600.webp?v=0882e3d9 1600w,
+                                                    assets/derived/gallery/proto-isles/lakeside-morning-1200.webp?v=0882e3d9 1200w,
+                                                    assets/derived/gallery/proto-isles/lakeside-morning-900.webp?v=0882e3d9 900w,
+                                                    assets/derived/gallery/proto-isles/lakeside-morning-600.webp?v=0882e3d9 600w"
+                          sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+                  <img src="assets/gallery/proto-isles/lakeside-morning.png" alt="A blue lake under a bright cloudy sky, low-poly pines and a tall standing stone on the far shore" width="1920" height="920" loading="lazy" decoding="async">
+                </picture>
+                <!-- /img -->
+              </figure>
+              <figure data-pi-cat="environment" data-title="The meadow at midday">
+                <!-- img src="assets/gallery/proto-isles/lake-midday.png" slot="game-shot" alt="A grassy meadow with grey low-poly boulders, round shrubs and a pine tree under a midday sky" -->
+                <picture>
+                  <source type="image/avif" srcset="assets/derived/gallery/proto-isles/lake-midday-1600.avif?v=8bef2ba0 1600w,
+                                                    assets/derived/gallery/proto-isles/lake-midday-1200.avif?v=8bef2ba0 1200w,
+                                                    assets/derived/gallery/proto-isles/lake-midday-900.avif?v=8bef2ba0 900w,
+                                                    assets/derived/gallery/proto-isles/lake-midday-600.avif?v=8bef2ba0 600w"
+                          sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+                  <source type="image/webp" srcset="assets/derived/gallery/proto-isles/lake-midday-1600.webp?v=8bef2ba0 1600w,
+                                                    assets/derived/gallery/proto-isles/lake-midday-1200.webp?v=8bef2ba0 1200w,
+                                                    assets/derived/gallery/proto-isles/lake-midday-900.webp?v=8bef2ba0 900w,
+                                                    assets/derived/gallery/proto-isles/lake-midday-600.webp?v=8bef2ba0 600w"
+                          sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+                  <img src="assets/gallery/proto-isles/lake-midday.png" alt="A grassy meadow with grey low-poly boulders, round shrubs and a pine tree under a midday sky" width="1920" height="920" loading="lazy" decoding="async">
+                </picture>
+                <!-- /img -->
+              </figure>
+              <figure data-pi-cat="environment" data-title="The lily pond">
+                <!-- img src="assets/gallery/proto-isles/pond-lily-pads.png" slot="game-shot" alt="A lily-pad pond with a wooden jetty inside a stone castle wall, the sky orange at sunset" -->
+                <picture>
+                  <source type="image/avif" srcset="assets/derived/gallery/proto-isles/pond-lily-pads-1600.avif?v=fab1ddcd 1600w,
+                                                    assets/derived/gallery/proto-isles/pond-lily-pads-1200.avif?v=fab1ddcd 1200w,
+                                                    assets/derived/gallery/proto-isles/pond-lily-pads-900.avif?v=fab1ddcd 900w,
+                                                    assets/derived/gallery/proto-isles/pond-lily-pads-600.avif?v=fab1ddcd 600w"
+                          sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+                  <source type="image/webp" srcset="assets/derived/gallery/proto-isles/pond-lily-pads-1600.webp?v=fab1ddcd 1600w,
+                                                    assets/derived/gallery/proto-isles/pond-lily-pads-1200.webp?v=fab1ddcd 1200w,
+                                                    assets/derived/gallery/proto-isles/pond-lily-pads-900.webp?v=fab1ddcd 900w,
+                                                    assets/derived/gallery/proto-isles/pond-lily-pads-600.webp?v=fab1ddcd 600w"
+                          sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+                  <img src="assets/gallery/proto-isles/pond-lily-pads.png" alt="A lily-pad pond with a wooden jetty inside a stone castle wall, the sky orange at sunset" width="1920" height="920" loading="lazy" decoding="async">
+                </picture>
+                <!-- /img -->
+              </figure>
+              <figure data-pi-cat="environment" data-title="The commons plaza at dusk">
+                <!-- img src="assets/gallery/proto-isles/commons-plaza-dusk.png" slot="game-shot" alt="The town plaza at dusk: a round stone square with glowing portal doors, lamps and rocks, hills and pines behind" -->
+                <picture>
+                  <source type="image/avif" srcset="assets/derived/gallery/proto-isles/commons-plaza-dusk-1600.avif?v=ca354be3 1600w,
+                                                    assets/derived/gallery/proto-isles/commons-plaza-dusk-1200.avif?v=ca354be3 1200w,
+                                                    assets/derived/gallery/proto-isles/commons-plaza-dusk-900.avif?v=ca354be3 900w,
+                                                    assets/derived/gallery/proto-isles/commons-plaza-dusk-600.avif?v=ca354be3 600w"
+                          sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+                  <source type="image/webp" srcset="assets/derived/gallery/proto-isles/commons-plaza-dusk-1600.webp?v=ca354be3 1600w,
+                                                    assets/derived/gallery/proto-isles/commons-plaza-dusk-1200.webp?v=ca354be3 1200w,
+                                                    assets/derived/gallery/proto-isles/commons-plaza-dusk-900.webp?v=ca354be3 900w,
+                                                    assets/derived/gallery/proto-isles/commons-plaza-dusk-600.webp?v=ca354be3 600w"
+                          sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+                  <img src="assets/gallery/proto-isles/commons-plaza-dusk.png" alt="The town plaza at dusk: a round stone square with glowing portal doors, lamps and rocks, hills and pines behind" width="1920" height="920" loading="lazy" decoding="async">
+                </picture>
+                <!-- /img -->
+              </figure>
+              <figure data-pi-cat="items" data-title="Frog grapple">
+                <!-- img src="assets/gallery/proto-isles/frog-grapple.png" slot="game-shot" alt="A teal Proto Isles character holding a frog-shaped grappling gun in the town" -->
+                <picture>
+                  <source type="image/avif" srcset="assets/derived/gallery/proto-isles/frog-grapple-1600.avif?v=1d6d106f 1600w,
+                                                    assets/derived/gallery/proto-isles/frog-grapple-1200.avif?v=1d6d106f 1200w,
+                                                    assets/derived/gallery/proto-isles/frog-grapple-900.avif?v=1d6d106f 900w,
+                                                    assets/derived/gallery/proto-isles/frog-grapple-600.avif?v=1d6d106f 600w"
+                          sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+                  <source type="image/webp" srcset="assets/derived/gallery/proto-isles/frog-grapple-1600.webp?v=1d6d106f 1600w,
+                                                    assets/derived/gallery/proto-isles/frog-grapple-1200.webp?v=1d6d106f 1200w,
+                                                    assets/derived/gallery/proto-isles/frog-grapple-900.webp?v=1d6d106f 900w,
+                                                    assets/derived/gallery/proto-isles/frog-grapple-600.webp?v=1d6d106f 600w"
+                          sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+                  <img src="assets/gallery/proto-isles/frog-grapple.png" alt="A teal Proto Isles character holding a frog-shaped grappling gun in the town" width="1920" height="920" loading="lazy" decoding="async">
+                </picture>
+                <!-- /img -->
+              </figure>
+              <figure data-pi-cat="items" data-title="Sniper">
+                <!-- img src="assets/gallery/proto-isles/sniper.png" slot="game-shot" alt="A teal Proto Isles character holding a chunky blue and gold sniper rifle" -->
+                <picture>
+                  <source type="image/avif" srcset="assets/derived/gallery/proto-isles/sniper-1600.avif?v=eff34d6f 1600w,
+                                                    assets/derived/gallery/proto-isles/sniper-1200.avif?v=eff34d6f 1200w,
+                                                    assets/derived/gallery/proto-isles/sniper-900.avif?v=eff34d6f 900w,
+                                                    assets/derived/gallery/proto-isles/sniper-600.avif?v=eff34d6f 600w"
+                          sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+                  <source type="image/webp" srcset="assets/derived/gallery/proto-isles/sniper-1600.webp?v=eff34d6f 1600w,
+                                                    assets/derived/gallery/proto-isles/sniper-1200.webp?v=eff34d6f 1200w,
+                                                    assets/derived/gallery/proto-isles/sniper-900.webp?v=eff34d6f 900w,
+                                                    assets/derived/gallery/proto-isles/sniper-600.webp?v=eff34d6f 600w"
+                          sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+                  <img src="assets/gallery/proto-isles/sniper.png" alt="A teal Proto Isles character holding a chunky blue and gold sniper rifle" width="1920" height="920" loading="lazy" decoding="async">
+                </picture>
+                <!-- /img -->
+              </figure>
+              <figure data-pi-cat="items" data-title="Submachine gun">
+                <!-- img src="assets/gallery/proto-isles/submachine-gun.png" slot="game-shot" alt="A teal Proto Isles character holding a red and black submachine gun" -->
+                <picture>
+                  <source type="image/avif" srcset="assets/derived/gallery/proto-isles/submachine-gun-1600.avif?v=559858f3 1600w,
+                                                    assets/derived/gallery/proto-isles/submachine-gun-1200.avif?v=559858f3 1200w,
+                                                    assets/derived/gallery/proto-isles/submachine-gun-900.avif?v=559858f3 900w,
+                                                    assets/derived/gallery/proto-isles/submachine-gun-600.avif?v=559858f3 600w"
+                          sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+                  <source type="image/webp" srcset="assets/derived/gallery/proto-isles/submachine-gun-1600.webp?v=559858f3 1600w,
+                                                    assets/derived/gallery/proto-isles/submachine-gun-1200.webp?v=559858f3 1200w,
+                                                    assets/derived/gallery/proto-isles/submachine-gun-900.webp?v=559858f3 900w,
+                                                    assets/derived/gallery/proto-isles/submachine-gun-600.webp?v=559858f3 600w"
+                          sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+                  <img src="assets/gallery/proto-isles/submachine-gun.png" alt="A teal Proto Isles character holding a red and black submachine gun" width="1920" height="920" loading="lazy" decoding="async">
+                </picture>
+                <!-- /img -->
+              </figure>
+              <figure data-pi-cat="items" data-title="Bow and arrow">
+                <!-- img src="assets/gallery/proto-isles/bow-and-arrow.png" slot="game-shot" alt="A teal Proto Isles character holding a blue and gold bow" -->
+                <picture>
+                  <source type="image/avif" srcset="assets/derived/gallery/proto-isles/bow-and-arrow-1600.avif?v=592d6624 1600w,
+                                                    assets/derived/gallery/proto-isles/bow-and-arrow-1200.avif?v=592d6624 1200w,
+                                                    assets/derived/gallery/proto-isles/bow-and-arrow-900.avif?v=592d6624 900w,
+                                                    assets/derived/gallery/proto-isles/bow-and-arrow-600.avif?v=592d6624 600w"
+                          sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+                  <source type="image/webp" srcset="assets/derived/gallery/proto-isles/bow-and-arrow-1600.webp?v=592d6624 1600w,
+                                                    assets/derived/gallery/proto-isles/bow-and-arrow-1200.webp?v=592d6624 1200w,
+                                                    assets/derived/gallery/proto-isles/bow-and-arrow-900.webp?v=592d6624 900w,
+                                                    assets/derived/gallery/proto-isles/bow-and-arrow-600.webp?v=592d6624 600w"
+                          sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+                  <img src="assets/gallery/proto-isles/bow-and-arrow.png" alt="A teal Proto Isles character holding a blue and gold bow" width="1920" height="920" loading="lazy" decoding="async">
+                </picture>
+                <!-- /img -->
+              </figure>
+              <figure data-pi-cat="items" data-title="Backpack">
+                <!-- img src="assets/gallery/proto-isles/backpack.png" slot="game-shot" alt="A teal Proto Isles character seen from behind wearing a navy backpack with a glowing face" -->
+                <picture>
+                  <source type="image/avif" srcset="assets/derived/gallery/proto-isles/backpack-1600.avif?v=539130d2 1600w,
+                                                    assets/derived/gallery/proto-isles/backpack-1200.avif?v=539130d2 1200w,
+                                                    assets/derived/gallery/proto-isles/backpack-900.avif?v=539130d2 900w,
+                                                    assets/derived/gallery/proto-isles/backpack-600.avif?v=539130d2 600w"
+                          sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+                  <source type="image/webp" srcset="assets/derived/gallery/proto-isles/backpack-1600.webp?v=539130d2 1600w,
+                                                    assets/derived/gallery/proto-isles/backpack-1200.webp?v=539130d2 1200w,
+                                                    assets/derived/gallery/proto-isles/backpack-900.webp?v=539130d2 900w,
+                                                    assets/derived/gallery/proto-isles/backpack-600.webp?v=539130d2 600w"
+                          sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+                  <img src="assets/gallery/proto-isles/backpack.png" alt="A teal Proto Isles character seen from behind wearing a navy backpack with a glowing face" width="1920" height="920" loading="lazy" decoding="async">
+                </picture>
+                <!-- /img -->
+              </figure>
+              <figure data-pi-cat="pets" data-title="Green dragon">
+                <!-- img src="assets/gallery/proto-isles/green-dragon.png" slot="game-shot" alt="A small lime-green dragon pet with bat wings flying over the grass in the town" -->
+                <picture>
+                  <source type="image/avif" srcset="assets/derived/gallery/proto-isles/green-dragon-1600.avif?v=9f83c4c7 1600w,
+                                                    assets/derived/gallery/proto-isles/green-dragon-1200.avif?v=9f83c4c7 1200w,
+                                                    assets/derived/gallery/proto-isles/green-dragon-900.avif?v=9f83c4c7 900w,
+                                                    assets/derived/gallery/proto-isles/green-dragon-600.avif?v=9f83c4c7 600w"
+                          sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+                  <source type="image/webp" srcset="assets/derived/gallery/proto-isles/green-dragon-1600.webp?v=9f83c4c7 1600w,
+                                                    assets/derived/gallery/proto-isles/green-dragon-1200.webp?v=9f83c4c7 1200w,
+                                                    assets/derived/gallery/proto-isles/green-dragon-900.webp?v=9f83c4c7 900w,
+                                                    assets/derived/gallery/proto-isles/green-dragon-600.webp?v=9f83c4c7 600w"
+                          sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+                  <img src="assets/gallery/proto-isles/green-dragon.png" alt="A small lime-green dragon pet with bat wings flying over the grass in the town" width="1920" height="920" loading="lazy" decoding="async">
+                </picture>
+                <!-- /img -->
+              </figure>
+              <figure data-pi-cat="pets" data-title="Red snail">
+                <!-- img src="assets/gallery/proto-isles/red-snail.png" slot="game-shot" alt="A red snail pet with a navy shell and big eyes on the grass" -->
+                <picture>
+                  <source type="image/avif" srcset="assets/derived/gallery/proto-isles/red-snail-1600.avif?v=cbe5c30f 1600w,
+                                                    assets/derived/gallery/proto-isles/red-snail-1200.avif?v=cbe5c30f 1200w,
+                                                    assets/derived/gallery/proto-isles/red-snail-900.avif?v=cbe5c30f 900w,
+                                                    assets/derived/gallery/proto-isles/red-snail-600.avif?v=cbe5c30f 600w"
+                          sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+                  <source type="image/webp" srcset="assets/derived/gallery/proto-isles/red-snail-1600.webp?v=cbe5c30f 1600w,
+                                                    assets/derived/gallery/proto-isles/red-snail-1200.webp?v=cbe5c30f 1200w,
+                                                    assets/derived/gallery/proto-isles/red-snail-900.webp?v=cbe5c30f 900w,
+                                                    assets/derived/gallery/proto-isles/red-snail-600.webp?v=cbe5c30f 600w"
+                          sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+                  <img src="assets/gallery/proto-isles/red-snail.png" alt="A red snail pet with a navy shell and big eyes on the grass" width="1920" height="920" loading="lazy" decoding="async">
+                </picture>
+                <!-- /img -->
+              </figure>
+              <figure data-pi-cat="pets" data-title="Blue snail">
+                <!-- img src="assets/gallery/proto-isles/blue-snail.png" slot="game-shot" alt="A blue snail pet with big eyes on stalks in the long grass" -->
+                <picture>
+                  <source type="image/avif" srcset="assets/derived/gallery/proto-isles/blue-snail-1600.avif?v=0a50403c 1600w,
+                                                    assets/derived/gallery/proto-isles/blue-snail-1200.avif?v=0a50403c 1200w,
+                                                    assets/derived/gallery/proto-isles/blue-snail-900.avif?v=0a50403c 900w,
+                                                    assets/derived/gallery/proto-isles/blue-snail-600.avif?v=0a50403c 600w"
+                          sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+                  <source type="image/webp" srcset="assets/derived/gallery/proto-isles/blue-snail-1600.webp?v=0a50403c 1600w,
+                                                    assets/derived/gallery/proto-isles/blue-snail-1200.webp?v=0a50403c 1200w,
+                                                    assets/derived/gallery/proto-isles/blue-snail-900.webp?v=0a50403c 900w,
+                                                    assets/derived/gallery/proto-isles/blue-snail-600.webp?v=0a50403c 600w"
+                          sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+                  <img src="assets/gallery/proto-isles/blue-snail.png" alt="A blue snail pet with big eyes on stalks in the long grass" width="1920" height="920" loading="lazy" decoding="async">
+                </picture>
+                <!-- /img -->
+              </figure>
+              <figure data-pi-cat="pets" data-title="Gold dragon">
+                <!-- img src="assets/gallery/proto-isles/gold-dragon.png" slot="game-shot" alt="A small golden dragon pet gliding low over the town square" -->
+                <picture>
+                  <source type="image/avif" srcset="assets/derived/gallery/proto-isles/gold-dragon-1600.avif?v=38ad7751 1600w,
+                                                    assets/derived/gallery/proto-isles/gold-dragon-1200.avif?v=38ad7751 1200w,
+                                                    assets/derived/gallery/proto-isles/gold-dragon-900.avif?v=38ad7751 900w,
+                                                    assets/derived/gallery/proto-isles/gold-dragon-600.avif?v=38ad7751 600w"
+                          sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+                  <source type="image/webp" srcset="assets/derived/gallery/proto-isles/gold-dragon-1600.webp?v=38ad7751 1600w,
+                                                    assets/derived/gallery/proto-isles/gold-dragon-1200.webp?v=38ad7751 1200w,
+                                                    assets/derived/gallery/proto-isles/gold-dragon-900.webp?v=38ad7751 900w,
+                                                    assets/derived/gallery/proto-isles/gold-dragon-600.webp?v=38ad7751 600w"
+                          sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+                  <img src="assets/gallery/proto-isles/gold-dragon.png" alt="A small golden dragon pet gliding low over the town square" width="1920" height="920" loading="lazy" decoding="async">
+                </picture>
+                <!-- /img -->
+              </figure>
+              <figure data-pi-cat="pets" data-title="Two dragons">
+                <!-- img src="assets/gallery/proto-isles/dragon-pair.png" slot="game-shot" alt="The gold dragon and the green dragon pets side by side in the town" -->
+                <picture>
+                  <source type="image/avif" srcset="assets/derived/gallery/proto-isles/dragon-pair-1600.avif?v=f808b180 1600w,
+                                                    assets/derived/gallery/proto-isles/dragon-pair-1200.avif?v=f808b180 1200w,
+                                                    assets/derived/gallery/proto-isles/dragon-pair-900.avif?v=f808b180 900w,
+                                                    assets/derived/gallery/proto-isles/dragon-pair-600.avif?v=f808b180 600w"
+                          sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+                  <source type="image/webp" srcset="assets/derived/gallery/proto-isles/dragon-pair-1600.webp?v=f808b180 1600w,
+                                                    assets/derived/gallery/proto-isles/dragon-pair-1200.webp?v=f808b180 1200w,
+                                                    assets/derived/gallery/proto-isles/dragon-pair-900.webp?v=f808b180 900w,
+                                                    assets/derived/gallery/proto-isles/dragon-pair-600.webp?v=f808b180 600w"
+                          sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+                  <img src="assets/gallery/proto-isles/dragon-pair.png" alt="The gold dragon and the green dragon pets side by side in the town" width="1920" height="920" loading="lazy" decoding="async">
+                </picture>
+                <!-- /img -->
+              </figure>
+              <figure data-pi-cat="ui" data-title="Main menu">
+                <!-- img src="assets/gallery/proto-isles/main-menu-general.png" slot="game-shot" alt="The Worldhop menu over a blurred town: general settings toggles, a graphics quality switch, and Exit game and Resume buttons" -->
+                <picture>
+                  <source type="image/avif" srcset="assets/derived/gallery/proto-isles/main-menu-general-1600.avif?v=7c6782b3 1600w,
+                                                    assets/derived/gallery/proto-isles/main-menu-general-1200.avif?v=7c6782b3 1200w,
+                                                    assets/derived/gallery/proto-isles/main-menu-general-900.avif?v=7c6782b3 900w,
+                                                    assets/derived/gallery/proto-isles/main-menu-general-600.avif?v=7c6782b3 600w"
+                          sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+                  <source type="image/webp" srcset="assets/derived/gallery/proto-isles/main-menu-general-1600.webp?v=7c6782b3 1600w,
+                                                    assets/derived/gallery/proto-isles/main-menu-general-1200.webp?v=7c6782b3 1200w,
+                                                    assets/derived/gallery/proto-isles/main-menu-general-900.webp?v=7c6782b3 900w,
+                                                    assets/derived/gallery/proto-isles/main-menu-general-600.webp?v=7c6782b3 600w"
+                          sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+                  <img src="assets/gallery/proto-isles/main-menu-general.png" alt="The Worldhop menu over a blurred town: general settings toggles, a graphics quality switch, and Exit game and Resume buttons" width="1920" height="920" loading="lazy" decoding="async">
+                </picture>
+                <!-- /img -->
+              </figure>
+              <figure data-pi-cat="ui" data-title="Backpack, head tab">
+                <!-- img src="assets/gallery/proto-isles/backpack-head-tab.png" slot="game-shot" alt="The backpack panel open on its head tab, a grid of hats and hair beside a purple character, with the hotbar along the bottom" -->
+                <picture>
+                  <source type="image/avif" srcset="assets/derived/gallery/proto-isles/backpack-head-tab-1600.avif?v=1c7a385c 1600w,
+                                                    assets/derived/gallery/proto-isles/backpack-head-tab-1200.avif?v=1c7a385c 1200w,
+                                                    assets/derived/gallery/proto-isles/backpack-head-tab-900.avif?v=1c7a385c 900w,
+                                                    assets/derived/gallery/proto-isles/backpack-head-tab-600.avif?v=1c7a385c 600w"
+                          sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+                  <source type="image/webp" srcset="assets/derived/gallery/proto-isles/backpack-head-tab-1600.webp?v=1c7a385c 1600w,
+                                                    assets/derived/gallery/proto-isles/backpack-head-tab-1200.webp?v=1c7a385c 1200w,
+                                                    assets/derived/gallery/proto-isles/backpack-head-tab-900.webp?v=1c7a385c 900w,
+                                                    assets/derived/gallery/proto-isles/backpack-head-tab-600.webp?v=1c7a385c 600w"
+                          sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+                  <img src="assets/gallery/proto-isles/backpack-head-tab.png" alt="The backpack panel open on its head tab, a grid of hats and hair beside a purple character, with the hotbar along the bottom" width="1920" height="920" loading="lazy" decoding="async">
+                </picture>
+                <!-- /img -->
+              </figure>
+              <figure data-pi-cat="ui" data-title="Backpack, body tab">
+                <!-- img src="assets/gallery/proto-isles/backpack-body-tab.png" slot="game-shot" alt="The backpack panel open on its body tab, a grid of outfits beside a teal character, with the hotbar along the bottom" -->
+                <picture>
+                  <source type="image/avif" srcset="assets/derived/gallery/proto-isles/backpack-body-tab-1600.avif?v=bf1e5fd2 1600w,
+                                                    assets/derived/gallery/proto-isles/backpack-body-tab-1200.avif?v=bf1e5fd2 1200w,
+                                                    assets/derived/gallery/proto-isles/backpack-body-tab-900.avif?v=bf1e5fd2 900w,
+                                                    assets/derived/gallery/proto-isles/backpack-body-tab-600.avif?v=bf1e5fd2 600w"
+                          sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+                  <source type="image/webp" srcset="assets/derived/gallery/proto-isles/backpack-body-tab-1600.webp?v=bf1e5fd2 1600w,
+                                                    assets/derived/gallery/proto-isles/backpack-body-tab-1200.webp?v=bf1e5fd2 1200w,
+                                                    assets/derived/gallery/proto-isles/backpack-body-tab-900.webp?v=bf1e5fd2 900w,
+                                                    assets/derived/gallery/proto-isles/backpack-body-tab-600.webp?v=bf1e5fd2 600w"
+                          sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+                  <img src="assets/gallery/proto-isles/backpack-body-tab.png" alt="The backpack panel open on its body tab, a grid of outfits beside a teal character, with the hotbar along the bottom" width="1920" height="920" loading="lazy" decoding="async">
+                </picture>
+                <!-- /img -->
+              </figure>
+              <figure data-pi-cat="ui" data-title="World editor">
+                <!-- img src="assets/gallery/proto-isles/world-editor.png" slot="game-shot" alt="The world editor panel: daytime, sky colour, clouds, stars and weather controls over a sky with a castle wall" -->
+                <picture>
+                  <source type="image/avif" srcset="assets/derived/gallery/proto-isles/world-editor-1600.avif?v=716eedce 1600w,
+                                                    assets/derived/gallery/proto-isles/world-editor-1200.avif?v=716eedce 1200w,
+                                                    assets/derived/gallery/proto-isles/world-editor-900.avif?v=716eedce 900w,
+                                                    assets/derived/gallery/proto-isles/world-editor-600.avif?v=716eedce 600w"
+                          sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+                  <source type="image/webp" srcset="assets/derived/gallery/proto-isles/world-editor-1600.webp?v=716eedce 1600w,
+                                                    assets/derived/gallery/proto-isles/world-editor-1200.webp?v=716eedce 1200w,
+                                                    assets/derived/gallery/proto-isles/world-editor-900.webp?v=716eedce 900w,
+                                                    assets/derived/gallery/proto-isles/world-editor-600.webp?v=716eedce 600w"
+                          sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+                  <img src="assets/gallery/proto-isles/world-editor.png" alt="The world editor panel: daytime, sky colour, clouds, stars and weather controls over a sky with a castle wall" width="1920" height="920" loading="lazy" decoding="async">
+                </picture>
+                <!-- /img -->
+              </figure>
+              <figure data-pi-cat="ui" data-title="Character editor">
+                <!-- img src="assets/gallery/proto-isles/character-editor.png" slot="game-shot" alt="The character editor panel: proportion sliders, material choices and blend shapes beside a character standing at dusk" -->
+                <picture>
+                  <source type="image/avif" srcset="assets/derived/gallery/proto-isles/character-editor-1600.avif?v=09204001 1600w,
+                                                    assets/derived/gallery/proto-isles/character-editor-1200.avif?v=09204001 1200w,
+                                                    assets/derived/gallery/proto-isles/character-editor-900.avif?v=09204001 900w,
+                                                    assets/derived/gallery/proto-isles/character-editor-600.avif?v=09204001 600w"
+                          sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+                  <source type="image/webp" srcset="assets/derived/gallery/proto-isles/character-editor-1600.webp?v=09204001 1600w,
+                                                    assets/derived/gallery/proto-isles/character-editor-1200.webp?v=09204001 1200w,
+                                                    assets/derived/gallery/proto-isles/character-editor-900.webp?v=09204001 900w,
+                                                    assets/derived/gallery/proto-isles/character-editor-600.webp?v=09204001 600w"
+                          sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+                  <img src="assets/gallery/proto-isles/character-editor.png" alt="The character editor panel: proportion sliders, material choices and blend shapes beside a character standing at dusk" width="1920" height="920" loading="lazy" decoding="async">
+                </picture>
+                <!-- /img -->
+              </figure>
+              <figure data-pi-cat="featured" data-title="Proto Isles, key art">
+                <!-- img src="assets/featured/proto-isles.png" slot="game-shot" alt="Proto Isles key art: the PROTOISLES logo over a town square, with the cast posing in front: the afro, the cone hat, the frog hood, the blue droplet with big eyes, a skeleton, the VR brain, the cowboy and the scientist" -->
+                <picture>
+                  <source type="image/avif" srcset="assets/derived/featured/proto-isles-1600.avif?v=3e626345 1600w,
+                                                    assets/derived/featured/proto-isles-1200.avif?v=3e626345 1200w,
+                                                    assets/derived/featured/proto-isles-900.avif?v=3e626345 900w,
+                                                    assets/derived/featured/proto-isles-600.avif?v=3e626345 600w"
+                          sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+                  <source type="image/webp" srcset="assets/derived/featured/proto-isles-1600.webp?v=3e626345 1600w,
+                                                    assets/derived/featured/proto-isles-1200.webp?v=3e626345 1200w,
+                                                    assets/derived/featured/proto-isles-900.webp?v=3e626345 900w,
+                                                    assets/derived/featured/proto-isles-600.webp?v=3e626345 600w"
+                          sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+                  <img src="assets/featured/proto-isles.png" alt="Proto Isles key art: the PROTOISLES logo over a town square, with the cast posing in front: the afro, the cone hat, the frog hood, the blue droplet with big eyes, a skeleton, the VR brain, the cowboy and the scientist" width="1920" height="1200" loading="lazy" decoding="async">
+                </picture>
+                <!-- /img -->
+              </figure>
+              <figure data-pi-cat="featured" data-title="Brand: logos and icon">
+                <!-- img src="assets/gallery/proto-isles/brand-sheet.png" slot="game-shot" alt="The Proto Isles brand sheet on a teal gradient: the stone sphere logo used on the loading screen, the rune stone desktop icon with two floating rocks, and the flat cyan figure icon, with the cyan and slate colours and two small app badges" -->
+                <picture>
+                  <source type="image/avif" srcset="assets/derived/gallery/proto-isles/brand-sheet-1600.avif?v=9b201b04 1600w,
+                                                    assets/derived/gallery/proto-isles/brand-sheet-1200.avif?v=9b201b04 1200w,
+                                                    assets/derived/gallery/proto-isles/brand-sheet-900.avif?v=9b201b04 900w,
+                                                    assets/derived/gallery/proto-isles/brand-sheet-600.avif?v=9b201b04 600w"
+                          sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+                  <source type="image/webp" srcset="assets/derived/gallery/proto-isles/brand-sheet-1600.webp?v=9b201b04 1600w,
+                                                    assets/derived/gallery/proto-isles/brand-sheet-1200.webp?v=9b201b04 1200w,
+                                                    assets/derived/gallery/proto-isles/brand-sheet-900.webp?v=9b201b04 900w,
+                                                    assets/derived/gallery/proto-isles/brand-sheet-600.webp?v=9b201b04 600w"
+                          sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
+                  <img src="assets/gallery/proto-isles/brand-sheet.png" alt="The Proto Isles brand sheet on a teal gradient: the stone sphere logo used on the loading screen, the rune stone desktop icon with two floating rocks, and the flat cyan figure icon, with the cyan and slate colours and two small app badges" width="1920" height="920" loading="lazy" decoding="async">
+                </picture>
+                <!-- /img -->
+              </figure>
+            </div>
           </article>
         </div>
 
@@ -855,9 +1389,9 @@
              so initAppInfo hides this grid whenever that panel is hidden,
              exactly as #wpThumbs follows Wallpapers. -->
         <div class="ai-grid ai-grid-side" id="aiApps">
-          <!-- Order is DOM order — there is no sort key. ThemeDock leads (it
-               also seeds the description panel via initAppInfo), then
-               MindSplit, DexNote, NodeBlast, dexddc. The icon block in each
+          <!-- Order is DOM order — there is no sort key. After the placeholder:
+               Mobius 3D, Inko, dexnote, MindSplit, ThemeDock, NodeBlast,
+               dexddc (dexnote and ThemeDock swapped, Dex 2026-10-09). The icon block in each
                card is generated from the one-line directive by
                tools/bake_markup.py; never typed. -->
           <!-- PLACEHOLDER, and the only card with nowhere to go: no
@@ -889,7 +1423,10 @@
                the trefoil sample, so a visitor with no model file of their own
                still sees it work. data-app-downloads lets its Save screenshot
                button through the overlay's sandbox (see initAppModal). The
-               title link is the repo, which is where the desktop builds are.
+               title link is the app itself, /mobius/ (Dex, 2026-10-09: every
+               title goes to the app or its store, the code goes behind the
+               GitHub chip); it moves to the Microsoft Store listing once that
+               is live, with portfolio#45.
                Second in the list (Dex, 2026-10-07), which makes it the app the
                panel RESTS on: the first card that is not the placeholder. -->
           <article class="ai-card" id="mobiusCard"
@@ -898,30 +1435,37 @@
              data-desc-lead="Windows 3D Viewer sucks and I couldn't find one I liked, so I made my own."
              data-desc-body="A 3D model viewer for the desktop and the web, from one codebase. Drop in a GLB, FBX, OBJ, STL, USDZ and more, play its animations and blend shapes, and inspect its materials and normals. Big files load off the main thread, nothing leaves your machine, and on the desktop it is an Open with app too."
              data-desc-link="https://github.com/dexdcimino/mobius-3d"
-             data-desc-link-label="GITHUB"><a class="ai-card-link" href="https://github.com/dexdcimino/mobius-3d" target="_blank" rel="noopener noreferrer"><strong>Mobius 3D</strong><span>3D model viewer<span class="icon inline-arrow" data-icon="arrow-ne" aria-hidden="true"></span></span></a>
+             data-desc-link-label="GITHUB"><a class="ai-card-link" href="/mobius/" target="_blank" rel="noopener noreferrer"><strong>Mobius 3D</strong><span>3D model viewer<span class="icon inline-arrow" data-icon="arrow-ne" aria-hidden="true"></span></span></a>
             <!-- img src="assets/icons/apps/mobius.png" slot="ai-icon" alt="" class="ai-card-icon" picture-class="ai-card-iconwrap" -->
             <picture class="ai-card-iconwrap">
-              <source type="image/avif" srcset="assets/derived/icons/apps/mobius-420.avif?v=59c62894 420w,
-                                                assets/derived/icons/apps/mobius-200.avif?v=59c62894 200w,
-                                                assets/derived/icons/apps/mobius-84.avif?v=59c62894 84w"
+              <source type="image/avif" srcset="assets/derived/icons/apps/mobius-420.avif?v=d626242e 420w,
+                                                assets/derived/icons/apps/mobius-200.avif?v=d626242e 200w,
+                                                assets/derived/icons/apps/mobius-84.avif?v=d626242e 84w"
                       sizes="(max-width:700px) 64px, 84px">
-              <source type="image/webp" srcset="assets/derived/icons/apps/mobius-420.webp?v=59c62894 420w,
-                                                assets/derived/icons/apps/mobius-200.webp?v=59c62894 200w,
-                                                assets/derived/icons/apps/mobius-84.webp?v=59c62894 84w"
+              <source type="image/webp" srcset="assets/derived/icons/apps/mobius-420.webp?v=d626242e 420w,
+                                                assets/derived/icons/apps/mobius-200.webp?v=d626242e 200w,
+                                                assets/derived/icons/apps/mobius-84.webp?v=d626242e 84w"
                       sizes="(max-width:700px) 64px, 84px">
               <img class="ai-card-icon" src="assets/icons/apps/mobius.png" alt="" width="512" height="512" loading="lazy" decoding="async">
             </picture>
             <!-- /img -->
+            <!-- The source, as a small chip that shows while the row is hovered
+                 (Dex, 2026-10-09). The title is the app; this is the code. Only
+                 on rows whose code is public: dexddc's repo is private. -->
+            <a class="ai-card-gh" href="https://github.com/dexdcimino/mobius-3d" target="_blank" rel="noopener noreferrer"
+               data-tip="Source on GitHub" data-tip-pos="above" aria-label="Mobius 3D source on GitHub">
+              <span class="icon" data-icon="github" aria-hidden="true"></span>
+            </a>
             <!-- Download the desktop app (Dex, 2026-10-08), left of the eye as
                  Inko's install is. The href is the Releases page, which is what
                  a phone or an unknown system gets; initMobiusDownload points it
                  straight at this system's installer, whose name carries no
                  version, so releases/latest/download never goes stale. -->
             <a class="ai-card-dl" id="mobiusDownload" href="https://github.com/dexdcimino/mobius-3d/releases/latest"
-               target="_blank" rel="noopener" data-tip="Download Mobius 3D" aria-label="Download the Mobius 3D desktop app">
+               target="_blank" rel="noopener" data-tip="Download Mobius 3D" data-tip-pos="above" aria-label="Download the Mobius 3D desktop app">
               <span class="icon" data-icon="download" aria-hidden="true"></span>
             </a>
-            <button class="ai-card-eye" type="button" data-tip="Functional preview"
+            <button class="ai-card-eye" type="button" data-tip="Functional preview" data-tip-pos="above"
                     aria-label="Open a functional preview of Mobius 3D">
               <span class="icon" data-icon="eye" aria-hidden="true"></span>
             </button>
@@ -932,16 +1476,96 @@
             <picture class="ai-card-iconwrap">
               <img class="ai-card-icon" src="/inko/icon.svg" alt="" width="512" height="512" loading="lazy" decoding="async">
             </picture>
+            <a class="ai-card-gh" href="https://github.com/dexdcimino/portfolio/tree/main/inko" target="_blank" rel="noopener noreferrer"
+               data-tip="Source on GitHub" data-tip-pos="above" aria-label="Inko source on GitHub">
+              <span class="icon" data-icon="github" aria-hidden="true"></span>
+            </a>
             <!-- Install Inko straight from here, no app store (Dex, 2026-10-08).
                  Opens the app with ?install=1, which offers the browser's own
                  install prompt or the Add to Home Screen steps. Shown on
                  phones too, where the eye is hidden. -->
             <a class="ai-card-dl" href="/inko/?install=1" target="_blank" rel="noopener"
-               data-tip="Install Inko" aria-label="Install Inko on this device">
+               data-tip="Install Inko&#10;Under 1 MB · installs in seconds" data-tip-pos="above" data-install-size="<1" aria-label="Install Inko on this device">
               <span class="icon" data-icon="download" aria-hidden="true"></span>
             </a>
-            <button class="ai-card-eye" type="button" data-tip="Functional preview"
+            <button class="ai-card-eye" type="button" data-tip="Functional preview" data-tip-pos="above"
                     aria-label="Open a functional preview of Inko">
+              <span class="icon" data-icon="eye" aria-hidden="true"></span>
+            </button>
+          </article>
+          <article class="ai-card" data-gallery="dexnote" data-kind="WEB APP" data-stack="PLATFORM"
+             data-desc-lead="AI-assisted notes, built as a working product rather than a demo."
+             data-desc-body="Notes that summarise, link and resurface themselves. The largest of these, and the one with users."><a class="ai-card-link" href="/dexnote/" target="_blank" rel="noopener noreferrer"><strong>dexnote</strong><span>AI-assisted notes platform<span class="icon inline-arrow" data-icon="arrow-ne" aria-hidden="true"></span></span></a>
+            <!-- img src="assets/icons/apps/dexnote.png" slot="ai-icon" alt="" class="ai-card-icon" picture-class="ai-card-iconwrap" -->
+            <picture class="ai-card-iconwrap">
+              <source type="image/avif" srcset="assets/derived/icons/apps/dexnote-420.avif?v=04502da1 420w,
+                                                assets/derived/icons/apps/dexnote-200.avif?v=04502da1 200w,
+                                                assets/derived/icons/apps/dexnote-84.avif?v=04502da1 84w"
+                      sizes="(max-width:700px) 64px, 84px">
+              <source type="image/webp" srcset="assets/derived/icons/apps/dexnote-420.webp?v=04502da1 420w,
+                                                assets/derived/icons/apps/dexnote-200.webp?v=04502da1 200w,
+                                                assets/derived/icons/apps/dexnote-84.webp?v=04502da1 84w"
+                      sizes="(max-width:700px) 64px, 84px">
+              <img class="ai-card-icon" src="assets/icons/apps/dexnote.png" alt="" width="512" height="512" loading="lazy" decoding="async">
+            </picture>
+            <!-- /img -->
+            <!-- The one eyeball that opens no iframe: initNotesDemo in
+                 script.js asks the notes overlay to mount its app as a
+                 SANDBOX, so the preview is the editor itself, with an
+                 in-memory document and no token. It cannot see or touch
+                 the real notes behind the passcode, and everything typed
+                 into it dies with the window. -->
+            <a class="ai-card-gh" href="https://github.com/dexdcimino/portfolio/tree/main/dexnote" target="_blank" rel="noopener noreferrer"
+               data-tip="Source on GitHub" data-tip-pos="above" aria-label="dexnote source on GitHub">
+              <span class="icon" data-icon="github" aria-hidden="true"></span>
+            </a>
+            <!-- Install the DexNote phone app (Dex, 2026-10-08), left of the eye
+                 as Inko's is: /dexnote/ with ?install=1, which offers the
+                 browser's own install prompt or the Add to Home Screen steps.
+                 Shown on phones too, where the eye is hidden. -->
+            <a class="ai-card-dl" href="/dexnote/?install=1" target="_blank" rel="noopener"
+               data-tip="Install dexnote&#10;About 2 MB · installs in seconds" data-tip-pos="above" data-install-size="2" aria-label="Install dexnote on this device">
+              <span class="icon" data-icon="download" aria-hidden="true"></span>
+            </a>
+            <button class="ai-card-eye" type="button" data-notes-demo data-tip="Functional preview" data-tip-pos="above"
+                    aria-label="Open a functional preview of the notes app">
+              <span class="icon" data-icon="eye" aria-hidden="true"></span>
+            </button>
+          </article>
+          <!-- data-link-preview: until MindSplit is live somewhere real, its title
+               link opens the same on-site overlay the eyeball does instead of
+               navigating. Drop the attribute when the app has a public home
+               and the link will simply follow its href again. -->
+          <article class="ai-card" id="mindsplitCard" data-app-modal="/mindsplit/" data-link-preview data-app-title="MindSplit" data-gallery="mindsplit" data-kind="WEB APP" data-stack="REACT"
+             data-desc-lead="Swipe through questions, pick a side, see how everyone split."
+             data-desc-body="A phone app of quick polls: tap an answer and the live split opens up under it. Sign in with Google, Discord, GitHub or an email to ask questions of your own."><a class="ai-card-link" href="/mindsplit/" target="_blank" rel="noopener noreferrer"><strong>MindSplit</strong><span>Swipe-to-vote polls<span class="icon inline-arrow" data-icon="arrow-ne" aria-hidden="true"></span></span></a>
+            <!-- img src="assets/icons/apps/mindsplit.png" slot="ai-icon" alt="" class="ai-card-icon" picture-class="ai-card-iconwrap" -->
+            <picture class="ai-card-iconwrap">
+              <source type="image/avif" srcset="assets/derived/icons/apps/mindsplit-420.avif?v=b403ad3c 420w,
+                                                assets/derived/icons/apps/mindsplit-200.avif?v=b403ad3c 200w,
+                                                assets/derived/icons/apps/mindsplit-84.avif?v=b403ad3c 84w"
+                      sizes="(max-width:700px) 64px, 84px">
+              <source type="image/webp" srcset="assets/derived/icons/apps/mindsplit-420.webp?v=b403ad3c 420w,
+                                                assets/derived/icons/apps/mindsplit-200.webp?v=b403ad3c 200w,
+                                                assets/derived/icons/apps/mindsplit-84.webp?v=b403ad3c 84w"
+                      sizes="(max-width:700px) 64px, 84px">
+              <img class="ai-card-icon" src="assets/icons/apps/mindsplit.png" alt="" width="512" height="512" loading="lazy" decoding="async">
+            </picture>
+            <!-- /img -->
+            <a class="ai-card-gh" href="https://github.com/dexdcimino/portfolio/tree/main/ai/apps/mindsplit" target="_blank" rel="noopener noreferrer"
+               data-tip="Source on GitHub" data-tip-pos="above" aria-label="MindSplit source on GitHub">
+              <span class="icon" data-icon="github" aria-hidden="true"></span>
+            </a>
+            <!-- Install MindSplit on a phone (Dex, 2026-10), left of the eye as
+                 Inko's and DexNote's are: /mindsplit/ with ?install=1, which
+                 offers the browser's own install prompt or the Add to Home
+                 Screen steps. Shown on phones too, where the eye is hidden. -->
+            <a class="ai-card-dl" href="/mindsplit/?install=1" target="_blank" rel="noopener"
+               data-tip="Install MindSplit&#10;Under 1 MB · installs in seconds" data-tip-pos="above" data-install-size="<1" aria-label="Install MindSplit on this device">
+              <span class="icon" data-icon="download" aria-hidden="true"></span>
+            </a>
+            <button class="ai-card-eye" type="button" data-tip="Functional preview" data-tip-pos="above"
+                    aria-label="Open a functional preview of MindSplit">
               <span class="icon" data-icon="eye" aria-hidden="true"></span>
             </button>
           </article>
@@ -972,68 +1596,12 @@
               <img class="ai-card-icon" src="assets/icons/apps/themedock.png" alt="" width="512" height="512" loading="lazy" decoding="async">
             </picture>
             <!-- /img -->
-            <button class="ai-card-eye" type="button" data-tip="Functional preview"
-                    aria-label="Open a functional preview of ThemeDock">
-              <span class="icon" data-icon="eye" aria-hidden="true"></span>
-            </button>
-          </article>
-          <!-- data-link-preview: until MindSplit is live somewhere real, its title
-               link opens the same on-site overlay the eyeball does instead of
-               navigating. Drop the attribute when the app has a public home
-               and the link will simply follow its href again. -->
-          <article class="ai-card" id="mindsplitCard" data-app-modal="/mindsplit/" data-link-preview data-app-title="MindSplit" data-gallery="mindsplit" data-kind="WEB APP" data-stack="REACT"
-             data-desc-lead="Swipe-to-vote polls, one question at a time."
-             data-desc-body="A phone-shaped voting app: swipe a card to answer, and the next question slides straight in."><a class="ai-card-link" href="/mindsplit/" target="_blank" rel="noopener noreferrer"><strong>MindSplit</strong><span>Swipe-to-vote polls<span class="icon inline-arrow" data-icon="arrow-ne" aria-hidden="true"></span></span></a>
-            <!-- img src="assets/icons/apps/mindsplit.png" slot="ai-icon" alt="" class="ai-card-icon" picture-class="ai-card-iconwrap" -->
-            <picture class="ai-card-iconwrap">
-              <source type="image/avif" srcset="assets/derived/icons/apps/mindsplit-420.avif?v=b403ad3c 420w,
-                                                assets/derived/icons/apps/mindsplit-200.avif?v=b403ad3c 200w,
-                                                assets/derived/icons/apps/mindsplit-84.avif?v=b403ad3c 84w"
-                      sizes="(max-width:700px) 64px, 84px">
-              <source type="image/webp" srcset="assets/derived/icons/apps/mindsplit-420.webp?v=b403ad3c 420w,
-                                                assets/derived/icons/apps/mindsplit-200.webp?v=b403ad3c 200w,
-                                                assets/derived/icons/apps/mindsplit-84.webp?v=b403ad3c 84w"
-                      sizes="(max-width:700px) 64px, 84px">
-              <img class="ai-card-icon" src="assets/icons/apps/mindsplit.png" alt="" width="512" height="512" loading="lazy" decoding="async">
-            </picture>
-            <!-- /img -->
-            <button class="ai-card-eye" type="button" data-tip="Functional preview"
-                    aria-label="Open a functional preview of MindSplit">
-              <span class="icon" data-icon="eye" aria-hidden="true"></span>
-            </button>
-          </article>
-          <article class="ai-card" data-gallery="dexnote" data-kind="WEB APP" data-stack="PLATFORM"
-             data-desc-lead="AI-assisted notes, built as a working product rather than a demo."
-             data-desc-body="Notes that summarise, link and resurface themselves. The largest of these, and the one with users."><a class="ai-card-link" href="https://dexnote.dev" target="_blank" rel="noopener noreferrer"><strong>dexnote.dev</strong><span>AI-assisted notes platform<span class="icon inline-arrow" data-icon="arrow-ne" aria-hidden="true"></span></span></a>
-            <!-- img src="assets/icons/apps/dexnote.png" slot="ai-icon" alt="" class="ai-card-icon" picture-class="ai-card-iconwrap" -->
-            <picture class="ai-card-iconwrap">
-              <source type="image/avif" srcset="assets/derived/icons/apps/dexnote-420.avif?v=6a2d0169 420w,
-                                                assets/derived/icons/apps/dexnote-200.avif?v=6a2d0169 200w,
-                                                assets/derived/icons/apps/dexnote-84.avif?v=6a2d0169 84w"
-                      sizes="(max-width:700px) 64px, 84px">
-              <source type="image/webp" srcset="assets/derived/icons/apps/dexnote-420.webp?v=6a2d0169 420w,
-                                                assets/derived/icons/apps/dexnote-200.webp?v=6a2d0169 200w,
-                                                assets/derived/icons/apps/dexnote-84.webp?v=6a2d0169 84w"
-                      sizes="(max-width:700px) 64px, 84px">
-              <img class="ai-card-icon" src="assets/icons/apps/dexnote.png" alt="" width="512" height="512" loading="lazy" decoding="async">
-            </picture>
-            <!-- /img -->
-            <!-- The one eyeball that opens no iframe: initNotesDemo in
-                 script.js asks the notes overlay to mount its app as a
-                 SANDBOX, so the preview is the editor itself, with an
-                 in-memory document and no token. It cannot see or touch
-                 the real notes behind the passcode, and everything typed
-                 into it dies with the window. -->
-            <!-- Install the DexNote phone app (Dex, 2026-10-08), left of the eye
-                 as Inko's is: /dexnote/ with ?install=1, which offers the
-                 browser's own install prompt or the Add to Home Screen steps.
-                 Shown on phones too, where the eye is hidden. -->
-            <a class="ai-card-dl" href="/dexnote/?install=1" target="_blank" rel="noopener"
-               data-tip="Install DexNote" aria-label="Install DexNote on this device">
-              <span class="icon" data-icon="download" aria-hidden="true"></span>
+            <a class="ai-card-gh" href="https://github.com/dexdcimino/themedock" target="_blank" rel="noopener noreferrer"
+               data-tip="Source on GitHub" data-tip-pos="above" aria-label="ThemeDock source on GitHub">
+              <span class="icon" data-icon="github" aria-hidden="true"></span>
             </a>
-            <button class="ai-card-eye" type="button" data-notes-demo data-tip="Functional preview"
-                    aria-label="Open a functional preview of the notes app">
+            <button class="ai-card-eye" type="button" data-tip="Functional preview" data-tip-pos="above"
+                    aria-label="Open a functional preview of ThemeDock">
               <span class="icon" data-icon="eye" aria-hidden="true"></span>
             </button>
           </article>
@@ -1053,6 +1621,10 @@
               <img class="ai-card-icon" src="assets/icons/apps/nodeblast.png" alt="" width="512" height="512" loading="lazy" decoding="async">
             </picture>
             <!-- /img -->
+            <a class="ai-card-gh" href="https://github.com/dexdcimino/nodeblast" target="_blank" rel="noopener noreferrer"
+               data-tip="Source on GitHub" data-tip-pos="above" aria-label="NodeBlast source on GitHub">
+              <span class="icon" data-icon="github" aria-hidden="true"></span>
+            </a>
           </article>
           <article class="ai-card" data-gallery="dexddc" data-kind="WEB APP" data-stack="SITE"
              data-desc-lead="The portfolio this one replaced."
@@ -3609,7 +4181,7 @@
              takes away the one thing a compromised frame would reach for first —
              navigating the page around it to somewhere else. -->
         <iframe class="app-frame" id="appFrame" title="MindSplit" src="about:blank"
-                allow="clipboard-write" referrerpolicy="same-origin"></iframe>
+                allow="clipboard-write; web-share" referrerpolicy="same-origin"></iframe>
       </div>
       <p class="app-hint">Esc or click outside to close</p>
     </div>
@@ -3619,14 +4191,31 @@
        one image large, the x/x counter centred under it between two arrows
        (greyed out when there is nothing to step to). Fed by initAppInfo from
        the same .gal-item pictures the inline frame shows, cloned at overlay
-       sizes at open so nobody downloads the big rungs early. -->
+       sizes at open so nobody downloads the big rungs early.
+       The one overlay EVERY AI Lab app's gallery opens in, so all of them
+       behave the same. The frame hugs the picture and carries what hangs off
+       it: a rail either side (shown when the pointer comes near it, always on
+       touch) and the X centred in the space right of the right rail. Clicking
+       anything that is not the picture or a button closes it. -->
   <dialog class="app-shot-modal" id="appShotModal" aria-labelledby="appshot-dialog-title">
     <div class="app-shot-shell">
-      <button class="contact-close app-shot-close" type="button" id="appShotClose" aria-label="Close screenshot">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
-      </button>
       <h2 class="sr-only" id="appshot-dialog-title">App screenshots</h2>
-      <div class="app-shot-stage" id="appShotStage"></div>
+      <div class="app-shot-stage">
+        <div class="app-shot-frame" id="appShotFrame">
+          <span class="app-shot-pic" id="appShotStage"></span>
+          <!-- First in the frame, so the dialog's first focus is the X and not
+               a rail lighting up on open. -->
+          <button class="contact-close app-shot-close" type="button" id="appShotClose" aria-label="Close screenshot">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+          </button>
+          <button class="app-shot-rail app-shot-rail-prev" id="appShotRailPrev" type="button" aria-label="Previous screenshot">
+            <span class="icon" data-icon="chevron" aria-hidden="true"></span>
+          </button>
+          <button class="app-shot-rail app-shot-rail-next" id="appShotRailNext" type="button" aria-label="Next screenshot">
+            <span class="icon" data-icon="chevron" aria-hidden="true"></span>
+          </button>
+        </div>
+      </div>
       <div class="app-shot-bar">
         <button class="wp-arrow app-shot-prev" id="appShotPrev" type="button" aria-label="Previous screenshot">
           <span class="icon" data-icon="chevron" aria-hidden="true"></span>
@@ -4273,7 +4862,7 @@
              the raw 439x1158 capture is narrower than every rung of the
              gallery ladder, so unmerged it would bake nothing. -->
         <figure class="gal-item" data-game="dexnote" data-title="The editor, light">
-          <!-- img src="assets/gallery/dexnote-1.png" slot="game-shot" alt="DexNote editor in light mode: an example session with Notes and Layouts and Autolists categories, showing checkbox, numbered and lettered lists" -->
+          <!-- img src="assets/gallery/dexnote-1.png" slot="game-shot" alt="dexnote editor in light mode: an example session with Notes and Layouts and Autolists categories, showing checkbox, numbered and lettered lists" -->
           <picture>
             <source type="image/avif" srcset="assets/derived/gallery/dexnote-1-1600.avif?v=a9abdbdd 1600w,
                                               assets/derived/gallery/dexnote-1-1200.avif?v=a9abdbdd 1200w,
@@ -4285,12 +4874,12 @@
                                               assets/derived/gallery/dexnote-1-900.webp?v=a9abdbdd 900w,
                                               assets/derived/gallery/dexnote-1-600.webp?v=a9abdbdd 600w"
                     sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
-            <img src="assets/gallery/dexnote-1.png" alt="DexNote editor in light mode: an example session with Notes and Layouts and Autolists categories, showing checkbox, numbered and lettered lists" width="2490" height="1429" loading="lazy" decoding="async">
+            <img src="assets/gallery/dexnote-1.png" alt="dexnote editor in light mode: an example session with Notes and Layouts and Autolists categories, showing checkbox, numbered and lettered lists" width="2490" height="1429" loading="lazy" decoding="async">
           </picture>
           <!-- /img -->
         </figure>
         <figure class="gal-item" data-game="dexnote" data-title="The same session, dark">
-          <!-- img src="assets/gallery/dexnote-2.png" slot="game-shot" alt="DexNote editor in dark mode showing the same example session" -->
+          <!-- img src="assets/gallery/dexnote-2.png" slot="game-shot" alt="dexnote editor in dark mode showing the same example session" -->
           <picture>
             <source type="image/avif" srcset="assets/derived/gallery/dexnote-2-1600.avif?v=65ef8447 1600w,
                                               assets/derived/gallery/dexnote-2-1200.avif?v=65ef8447 1200w,
@@ -4302,12 +4891,12 @@
                                               assets/derived/gallery/dexnote-2-900.webp?v=65ef8447 900w,
                                               assets/derived/gallery/dexnote-2-600.webp?v=65ef8447 600w"
                     sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
-            <img src="assets/gallery/dexnote-2.png" alt="DexNote editor in dark mode showing the same example session" width="2483" height="1430" loading="lazy" decoding="async">
+            <img src="assets/gallery/dexnote-2.png" alt="dexnote editor in dark mode showing the same example session" width="2483" height="1430" loading="lazy" decoding="async">
           </picture>
           <!-- /img -->
         </figure>
         <figure class="gal-item" data-game="dexnote" data-title="Account and sharing">
-          <!-- img src="assets/gallery/dexnote-3.png" slot="game-shot" alt="DexNote account panel in two columns: profile with level bar and a session card, then member and people lists for sharing" -->
+          <!-- img src="assets/gallery/dexnote-3.png" slot="game-shot" alt="dexnote account panel in two columns: profile with level bar and a session card, then member and people lists for sharing" -->
           <picture>
             <source type="image/avif" srcset="assets/derived/gallery/dexnote-3-900.avif?v=8127b7cc 900w,
                                               assets/derived/gallery/dexnote-3-600.avif?v=8127b7cc 600w"
@@ -4315,7 +4904,7 @@
             <source type="image/webp" srcset="assets/derived/gallery/dexnote-3-900.webp?v=8127b7cc 900w,
                                               assets/derived/gallery/dexnote-3-600.webp?v=8127b7cc 600w"
                     sizes="(max-width:1100px) 92vw, min(1200px, 78vw)">
-            <img src="assets/gallery/dexnote-3.png" alt="DexNote account panel in two columns: profile with level bar and a session card, then member and people lists for sharing" width="926" height="662" loading="lazy" decoding="async">
+            <img src="assets/gallery/dexnote-3.png" alt="dexnote account panel in two columns: profile with level bar and a session card, then member and people lists for sharing" width="926" height="662" loading="lazy" decoding="async">
           </picture>
           <!-- /img -->
         </figure>
@@ -4414,63 +5003,91 @@
   </dialog>
 
   <dialog class="work-modal" id="workModal" data-music-remote aria-labelledby="work-dialog-title">
+    <!-- THE WALLPAPER LIGHTBOX'S LAYOUT (Dex, 2026-10-09): no panel, no matte,
+         no hatching. The picture is as large as the screen allows, with its
+         title ON it at the top left; the tabs are centred along the top; the
+         strip is centred along the bottom with its arrows either side and the
+         count just right of it; the X sits in the dead space right of the
+         picture, the same X the enlarged Mobius video uses. Three columns:
+         a gutter, the work, a gutter -- the right gutter is the X's. -->
     <div class="work-shell">
       <h2 class="sr-only" id="work-dialog-title">Selected work</h2>
 
       <div class="work-head">
         <div class="work-tabs" id="workTabs" role="tablist" aria-label="Work categories"></div>
-        <button class="contact-close work-close" type="button" id="workClose" aria-label="Close work">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
-        </button>
       </div>
+      <button class="contact-close work-close" type="button" id="workClose" aria-label="Close work">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+      </button>
 
-      <!-- One panel serves all five tabs, so every tab aria-controls it and its
+      <!-- One panel serves every tab, so every tab aria-controls it and its
            label follows whichever tab is selected. -->
       <div class="work-stage" id="workPanel" role="tabpanel" tabindex="0">
-        <!-- The arrows are SIBLINGS of the image box, not children of it.
-             Sitting on top of the artwork they were easy to lose: the hero
-             letterboxes every shape into one fixed box, so the picture edge
-             moves under them on every press while they do not (Dex,
-             2026-09-02). A three-column flex row gives them their own
-             gutters at every width instead of only at wide ones.
-
-             .work-hero-area, not .work-frame, is the container the hero
-             measures itself against now -- the frame is the row, and cqw
-             there would include the arrows. -->
         <div class="work-frame">
-          <button class="work-nav prev" type="button" id="workPrev" aria-label="Previous image">
-            <span class="icon" data-icon="arrow-right" aria-hidden="true"></span>
-          </button>
           <div class="work-hero-area">
+            <!-- #workHero is sized to the PICTURE (its aspect ratio, fitted to
+                 the area), so its corners are the picture's corners. A very
+                 tall sheet keeps a 3:2 box and scrolls instead. -->
             <div class="work-hero" id="workHero">
               <!-- A <picture>, not a bare <img>, so the hero can take the AVIF
-                   rows work.json carries — an <img srcset> can pick a width but
-                   never a format. Both <source> srcsets and the sizes are written
-                   by paintPicture() from strings tools/bake_work.py generated;
-                   nothing here assembles a URL. Empty at rest: the first
-                   showWorkItem() fills all three. -->
+                   rows work.json carries. Both <source> srcsets and the sizes
+                   are written by paintPicture() from strings
+                   tools/bake_work.py generated; nothing here assembles a URL. -->
               <picture class="work-hero-pic">
                 <source id="workHeroAvif" type="image/avif">
                 <source id="workHeroWebp" type="image/webp">
                 <img class="work-hero-img" id="workHeroImg" src="" alt="" width="16" height="9" decoding="async">
               </picture>
             </div>
+            <!-- The furniture ON the picture, in a box the same size as the
+                 hero but outside it, so a tall piece scrolling under it does
+                 not take the title or the arrows along. -->
+            <div class="work-over">
+              <p class="work-plate" aria-live="polite">
+                <span class="work-cap-title" id="workCapTitle"></span>
+              </p>
+              <!-- Hover-only arrows on the picture's edges (always shown on
+                   touch). Each sits in a column the arrow's own size, so the
+                   category button above it (.work-jump, a set with icons
+                   only) hangs out of the top and never moves the arrow. It
+                   shows the NEIGHBOURING tab's icon and jumps there; it comes
+                   up when the pointer is within two arrow-widths of the
+                   arrow (Dex, 2026-10-09). -->
+              <div class="work-nav-col prev">
+                <button class="work-jump" type="button" id="workJumpPrev" hidden>
+                  <span class="icon" aria-hidden="true"></span>
+                </button>
+                <button class="work-nav prev" type="button" id="workPrev" aria-label="Previous image">
+                  <span class="icon" data-icon="arrow-right" aria-hidden="true"></span>
+                </button>
+              </div>
+              <div class="work-nav-col next">
+                <button class="work-jump" type="button" id="workJumpNext" hidden>
+                  <span class="icon" aria-hidden="true"></span>
+                </button>
+                <button class="work-nav next" type="button" id="workNext" aria-label="Next image">
+                  <span class="icon" data-icon="arrow-right" aria-hidden="true"></span>
+                </button>
+              </div>
+            </div>
           </div>
-          <button class="work-nav next" type="button" id="workNext" aria-label="Next image">
-            <span class="icon" data-icon="arrow-right" aria-hidden="true"></span>
-          </button>
         </div>
-
-        <p class="work-cap" aria-live="polite">
-          <span class="work-cap-title" id="workCapTitle"></span>
-          <span class="work-cap-desc" id="workCapDesc"></span>
-          <span class="work-cap-index" id="workCapIndex"></span>
-        </p>
       </div>
 
+      <!-- Eight to a page; the track slides to whichever page holds the
+           selection. The count sits just right of the strip, out of flow, so
+           it never pulls the strip off centre. -->
       <div class="work-strip-wrap">
-        <div class="work-strip" id="workStrip" role="group" aria-label="Thumbnails"></div>
-        <p class="work-hint" aria-hidden="true"><b>&#8592; &#8594;</b> BROWSE &nbsp;·&nbsp; <b>ESC</b> CLOSE</p>
+        <div class="work-strip-row">
+          <button class="wp-arrow work-step prev" type="button" id="workStripPrev" aria-label="Previous image">
+            <span class="icon" data-icon="chevron" aria-hidden="true"></span>
+          </button>
+          <div class="work-strip" id="workStrip" role="group" aria-label="Thumbnails"></div>
+          <button class="wp-arrow work-step next" type="button" id="workStripNext" aria-label="Next image">
+            <span class="icon" data-icon="chevron" aria-hidden="true"></span>
+          </button>
+          <span class="work-cap-index" id="workCapIndex"></span>
+        </div>
       </div>
     </div>
   </dialog>
@@ -4593,7 +5210,7 @@
             <p class="cv-greeting">Hello,</p>
             <p>I'm Dex Cimino, a multidisciplinary 3D artist and creative technologist who works comfortably across visual production, game development, and AI-assisted building. I began my education in engineering before shifting toward the arts, a path that continues to shape how I approach creative and technical work. I do my best work where strong creative judgment, technical curiosity, and the ability to turn an idea into something real all matter.</p>
             <p>My professional background spans 3D characters, props, creatures, environments, texturing, rigging, animation, optimization, and graphic design. I have created production assets for Roblox adaptations of major film properties, supported independent game and Minecraft projects, and led art production across a team of eight artists. That range taught me how to adapt quickly, communicate clearly, and deliver within real technical and visual constraints.</p>
-            <p>I have also pushed beyond a traditional art role. I integrated AI into Roblox Studio production work and independently built <a href="https://dexnote.dev" target="_blank" rel="noreferrer">DexNote</a> and <a href="https://nodeblast.dev" target="_blank" rel="noreferrer">NodeBlast</a> using Claude Code. I use AI as a practical extension of the creative process: to prototype faster, explore options, solve unfamiliar problems, automate repetitive work, and move projects toward a finished result.</p>
+            <p>I have also pushed beyond a traditional art role. I integrated AI into Roblox Studio production work and independently built <a href="https://dexnote.dev" target="_blank" rel="noreferrer">dexnote</a> and <a href="https://nodeblast.dev" target="_blank" rel="noreferrer">NodeBlast</a> using Claude Code. I use AI as a practical extension of the creative process: to prototype faster, explore options, solve unfamiliar problems, automate repetitive work, and move projects toward a finished result.</p>
             <p>What I bring is a broad but connected skill set: visual judgment, hands-on production experience, independent ownership, and a habit of learning whatever the work requires. Whether the immediate need is creating assets, evaluating visual output, improving a workflow, prototyping a tool, or helping a team solve an unusual problem, I can contribute quickly and keep moving without losing sight of quality.</p>
             <p>I would welcome the opportunity to bring that mix of creativity, adaptability, and execution to your team. Thank you for your time and consideration.</p>
             <p>Best,</p>
@@ -5372,6 +5989,7 @@
     </form>
   </dialog>
 
-  <script src="script.js?v=209"></script>
+  <script src="script.js?v=219"></script>
+  <script src="border-picker.js?v=1"></script>
 </body>
 </html>

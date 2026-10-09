@@ -102,12 +102,15 @@ RASTER_EXTS = {".png", ".jpg", ".jpeg", ".webp"}
 # dexnote: the accounts page's PWA icons, served as-is at /dexnote/icons/.
 SKIP_DIRS = {"derived", "_resources", "_archive", "games", ".git", "node_modules",
              ".vercel", ".notes-dev", "icon-test", "inko", "mobius",
-             "dexnote"}
+             "dexnote", "mindsplit"}
 # inko/ and mobius/ are APP BUILDS served as-is at their own paths, the same
 # reason games/ is here: they ship their own icons and textures, and baking
 # them would write derivatives nothing references. mobius/ is a built copy
 # of the mobius-3d repo's dist/ (its `npm run site`); it has no rasters
 # today and is listed so it never has to be the reason the gate goes down.
+# mindsplit/ (the build) and ai/apps/mindsplit/ (its source, public/icons/)
+# carry the installed app's own icons since 2026-10, made once from
+# assets/icons/apps/mindsplit.png at the exact sizes the manifest names.
 
 # Discovery is by extension and repo-wide, so the favicon rasters at the web root
 # would otherwise be treated as masters and blown up into six widths of AVIF/WebP

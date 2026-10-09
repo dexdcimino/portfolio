@@ -22,8 +22,8 @@
 const CACHE = 'dexnote-shell';
 const SHELL = ['/dexnote/', '/dexnote/manifest.webmanifest', '/dexnote/main.js', '/dexnote/mobile.js', '/dexnote/mobile.css',
   '/dexnote/dexnote.css', '/dexnote/account.js', '/dexnote/local.js', '/notes/app.js', '/notes/notes.css'];
-const ICONS = ['/dexnote/icons/icon-192.png', '/dexnote/icons/icon-512.png', '/dexnote/icons/icon-mono-512.png',
-  '/dexnote/icons/icon-maskable-512.png', '/dexnote/icons/apple-touch-icon.png', '/dexnote/icons/logo.svg'];
+const ICONS = ['/dexnote/icons/icon-192-v2.png', '/dexnote/icons/icon-512-v2.png', '/dexnote/icons/icon-mono-512.png',
+  '/dexnote/icons/icon-maskable-512-v2.png', '/dexnote/icons/apple-touch-icon-v2.png', '/dexnote/icons/logo-v2.svg'];
 /* The spelling worker's own files: a worker's loads are not in the page's
    list of what it loaded, so they are named here. */
 const WORKER = ['/notes/spell-worker.js', '/notes/vendor/typo.js', '/notes/vendor/en_US.aff', '/notes/vendor/en_US.dic'];
