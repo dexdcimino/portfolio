@@ -50,6 +50,26 @@ change**, so the reasoning cannot drift away from the diff it explains.
 
 ---
 
+## 2026-10-09 — AI Lab titles go to the app; the code is a badge, and sizes are measured
+
+**Decided:** every AI Lab title links to the app or its store page (Mobius 3D's
+to `/mobius/`, until its Microsoft Store listing is live). A row whose code is
+public carries a small GitHub badge on its icon's corner that shows on hover
+(always on a touch screen). Download tips state a size: Mobius 3D's is read at
+load from GitHub's API for the latest release; Inko, dexnote and MindSplit's
+are what each app's service worker actually caches, re-measured by
+`work_check`. No install time is a number, because none was measured.
+
+**Replaced:** Mobius 3D's title going to its GitHub repo, and download tips
+that said only "Download" or "Install".
+
+**Why:** Dex, 2026-10-09: a visitor clicking a name wants the thing, not the
+source. The badge sits on the icon rather than beside the buttons because in
+the flow it took 46px from titles that already wrap at 1440. A typed installer
+size would be a release behind after the next version bump.
+
+**Reverse it if:** the AI Lab drops its icons (the badge needs a corner to sit
+on), or GitHub's unauthenticated rate limit starts failing real visitors.
 ## 2026-10-09 — One @name per account, and Inko's server holds it
 
 **Decided:** MindSplit's @handle IS the account's Inko name. Inko's server

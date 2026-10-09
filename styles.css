@@ -2854,6 +2854,26 @@ html.fv-maxed .fv-item:popover-open{pointer-events:auto}
    glyph, and it stays on phones, where installing is the point. */
 .ai-card-dl{text-decoration:none}
 .ai-card-dl + .ai-card-eye{margin-left:-4px}
+/* The source chip (Dex, 2026-10-09): the title goes to the app or its store,
+   and the code sits behind this small GitHub mark, which only comes up while
+   the row is hovered or has focus. It is a BADGE ON THE ICON'S CORNER, out of
+   the row's flow, and not a third chip beside download and eye: in the flow it
+   took 46px from the title, which already wraps at 1440, and pushed "Mobius
+   3D" onto two lines. The 2px ring in the row's own hover grey cuts it off
+   the icon. On a touch screen there is no hover to wait for, so it shows. */
+.ai-card-gh{
+  position:absolute;z-index:3;left:52px;top:calc(50% + 8px);
+  width:28px;height:28px;border-radius:8px;display:grid;place-items:center;
+  color:#c4ccd2;background:#0b0e12;box-shadow:0 0 0 2px #1f262e;text-decoration:none;
+  opacity:0;pointer-events:none;
+  transition:opacity .18s ease,background var(--accent-ease),color var(--accent-ease);
+}
+.ai-card-gh .icon{width:16px;height:16px}
+.ai-card:hover .ai-card-gh,.ai-card:focus-within .ai-card-gh{opacity:1;pointer-events:auto}
+.ai-card-gh:hover{background:var(--accent);color:var(--accent-ink,#0b0d12)}
+.ai-card-gh:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+@media (hover:none) and (pointer:coarse){.ai-card-gh{opacity:1;pointer-events:auto;box-shadow:0 0 0 2px #181d23}}
+@media (max-width:700px){.ai-card-gh{left:40px;top:calc(50% + 2px);width:26px;height:26px}}
 /* WIP treatment, matching the games section's .is-wip pill. */
 .ai-card.is-wip small{
   color:var(--accent);
