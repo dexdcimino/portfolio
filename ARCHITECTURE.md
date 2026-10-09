@@ -114,7 +114,8 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
   (the AI Lab player's `.cl-*` controls, shared) hides under a playing
   video until the frame is hovered, with the unmute (`data-audio`) staying
   up while the sound is off, and the caption and the eye/download pair sit
-  above it. A click anywhere on the frame pauses or plays it. Muted, the
+  above it (the caption slides down to the bottom edge while the bar is
+  hidden). A click anywhere on the frame pauses or plays it. Muted, the
   speaker is the grey struck-through `volume-slash`, in the bar's corner, and
   hovering it pops a vertical `.fv-volume` up above it while the eye/download
   pair fades out and takes no clicks. Left of it `.fv-full` ENLARGES rather than
