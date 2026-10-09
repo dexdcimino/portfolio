@@ -115,7 +115,11 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
   bunny.net URL, never this host) on first play, plays it MUTED while the
   item is the one showing and on screen, and pauses it otherwise ("on
   screen" leaves once half of it is off and comes back at 40%, judged by
-  the direction the ratio moves so the band between cannot flap); the carousel's advance skips a video that is playing. It is
+  the direction the ratio moves so the band between cannot flap);
+  with the sound ON it keeps playing whenever it is not IN VIEW (`inView()`:
+  scrolled into view, its featured page showing, and no open `<dialog>`
+  over it), which also sends the speaker out, so arrowing to Proto Isles or
+  opening any overlay neither stops it nor hides its control; the carousel's advance skips a video that is playing. It is
   `object-fit:contain` on the viewer's own background, because a cover crop
   of the wide layout's near-square frame cut off the app's controls; its bar
   (the AI Lab player's `.cl-*` controls, shared) hides under a playing
