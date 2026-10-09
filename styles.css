@@ -1210,8 +1210,7 @@ html.dex-cursor button.app-art-view{cursor:zoom-in}
 .fv-has-video .card-meta{bottom:76px;right:150px}
 /* Down on the bottom edge while the controls are hidden (Dex: a caption
    held up over an empty strip looks unanchored), back up as they return. */
-.fv-has-video .card-meta{transition:bottom .25s ease}
-.fv-item.is-playing:not(:hover):not(:has(:focus-visible)) .card-meta{bottom:18px}
+.fv-has-video .card-meta{transition:bottom var(--fv-t)}
 /* No construction tape and no disc once it plays: the picture is the content. */
 .fv-item.is-live .fv-play{opacity:0}
 .fv-item.is-live .fv-play:focus-visible{opacity:1}
@@ -1231,21 +1230,34 @@ html.dex-cursor button.app-art-view{cursor:zoom-in}
 .fv-bar{
   position:absolute;left:0;right:0;bottom:0;z-index:4;
   display:flex;align-items:center;gap:12px;padding:20px 14px 12px;
+}
+/* The shade is its own layer so it can fade: a gradient does not interpolate. */
+.fv-bar::before{
+  content:"";position:absolute;inset:0;z-index:-1;pointer-events:none;
   background:linear-gradient(180deg,transparent,rgba(4,6,9,.6) 40%,rgba(4,6,9,.88));
+  transition:opacity var(--fv-t);
 }
 .fv-bar .cl-scrub{flex:1 1 auto;min-width:60px}
 .fv-bar .cl-time{margin:0;flex:none}
 .fv-bar .cl-btn[hidden]{display:none}
 /* Playing, the bar keeps out of the picture until the pointer is over the
    frame (or focus is in it): a click anywhere pauses, and paused it is up for
-   good. The unmute stays out while the sound is off, so the one thing a
-   visitor may want from a muted autoplay is never hidden. */
-.fv-bar{transition:opacity .25s ease,background .25s ease}
-.fv-bar>*{transition:opacity .25s ease}
-.fv-item.is-playing:not(:hover):not(:has(:focus-visible)) .fv-bar{background:transparent}
-.fv-item.is-playing:not(:hover):not(:has(:focus-visible)) .fv-bar>*:not(.fv-vol){opacity:0}
-.fv-mute{transition:opacity .25s ease,color var(--accent-ease),background .2s ease}
+   good. One slow ease (--fv-t, Dex: three times the old .25s, so hovering on
+   and off does not flail) moves everything together: the bar slides up into
+   its strip and pushes the caption and the download/preview pair up with it.
+   Nothing moves sideways. With a mouse the speaker shows on hover only,
+   muted or not, and never leaves its corner; on touch, where there is no
+   hover, a muted speaker stays in the corner and the rest stays put. */
+.fv-item{--fv-t:.75s cubic-bezier(.33,0,.2,1)}
+.fv-bar>*{transition:opacity var(--fv-t),transform var(--fv-t)}
+.fv-item.is-playing:not(:hover):not(:has(:focus-visible)) .fv-bar::before{opacity:0}
+.fv-item.is-playing:not(:hover):not(:has(:focus-visible)) .fv-bar>*:not(.fv-vol){opacity:0;transform:translateY(22px)}
+.fv-mute{transition:opacity var(--fv-t),color var(--accent-ease),background .2s ease}
 .fv-item.is-playing:not(.is-muted):not(:hover):not(:has(:focus-visible)) .fv-mute{opacity:0}
+@media (hover:hover){
+  .fv-item.is-playing:not(:hover):not(:has(:focus-visible)) .fv-mute{opacity:0}
+  .fv-item.is-playing:not(:hover):not(:has(:focus-visible)) :is(.fv-actions,.card-meta){bottom:18px}
+}
 /* Muted, the speaker is grey and struck through (the line lifted off a cut, so it reads as raised). */
 .fv-item.is-muted .fv-mute{color:#9aa3ad}
 /* The volume pops up centred above the speaker on hover (or focus), in the
@@ -1268,16 +1280,7 @@ html.dex-cursor button.app-art-view{cursor:zoom-in}
   opacity:1;visibility:visible;pointer-events:auto;transform:translate(-50%,0) scale(1);
   transition:opacity .32s ease,transform .32s cubic-bezier(.2,.8,.3,1.1),visibility 0s;
 }
-.fv-actions{transition:opacity .18s ease,bottom .25s ease}
-/* Playing and unhovered, the bar is gone, so its strip is free: the caption,
-   the download/preview pair and the unmute all sit on the bottom row, the
-   unmute just left of the pair (--fv-mute-x/-y: the bar's corner to that
-   spot). Hover and everything goes back above the bar. */
-.fv-item{--fv-mute-x:-128px;--fv-mute-y:-13px}
-.fv-has-video .fv-mute{transition:opacity .25s ease,transform .25s ease,color var(--accent-ease),background .2s ease}
-.fv-item.is-playing:not(:hover):not(:has(:focus-visible)) .fv-actions{bottom:18px}
-.fv-item.is-playing:not(:hover):not(:has(:focus-visible)):not(:popover-open) .fv-mute{transform:translate(var(--fv-mute-x),var(--fv-mute-y))}
-.fv-has-video.is-playing:not(:hover):not(:has(:focus-visible)) .card-meta{right:190px}
+.fv-actions{transition:opacity .18s ease,bottom var(--fv-t)}
 .fv-item:has(.fv-vol:is(:hover,:has(:focus-visible))) .fv-actions{pointer-events:none;opacity:0}
 .fv-volume{
   -webkit-appearance:none;appearance:none;display:block;margin:0;cursor:pointer;
@@ -1350,7 +1353,7 @@ html.fv-maxed .fv-item:popover-open{pointer-events:auto}
 .fv-item.is-side:popover-open .fv-actions{display:flex;position:fixed;flex-direction:column;gap:80px;
   z-index:5;opacity:1;pointer-events:auto;transition:none}
 .fv-item.is-side:popover-open .fv-eye{order:-1;display:grid}
-@media(prefers-reduced-motion:reduce){.fv-item:popover-open{animation:none}.fv-vol-pop,.fv-has-video .card-meta,.fv-actions,.fv-has-video .fv-mute{transition:none}}
+@media(prefers-reduced-motion:reduce){.fv-item:popover-open{animation:none}.fv-vol-pop,.fv-has-video .card-meta,.fv-actions,.fv-mute,.fv-bar>*,.fv-bar::before{transition:none}}
 /* Before a source exists there is nothing to scrub. */
 .fv-has-video:not([data-src^="https"]) :is(.fv-bar,.fv-play){display:none}
 /* No blue flash on a phone tap: the slot draws its own pressed and focus states. */
@@ -1368,8 +1371,6 @@ html.fv-maxed .fv-item:popover-open{pointer-events:auto}
   .fv-act .icon{width:24px;height:24px}
   .fv-has-video .card-meta{right:70px}
   .fv-bar .cl-time{display:none}
-  .fv-item{--fv-mute-x:-58px;--fv-mute-y:-9px}
-  .fv-has-video.is-playing:not(:hover):not(:has(:focus-visible)) .card-meta{right:116px}
 }
 
 /* The description is behind an icon rather than always on: it is a paragraph,
@@ -1389,7 +1390,7 @@ html.fv-maxed .fv-item:popover-open{pointer-events:auto}
 /* Only while the card is hovered (Dex), where there is a pointer to hover
    with; a touch screen keeps it up, or there would be no way to the text. */
 @media (hover:hover){
-  .fv-info{opacity:0;transition:opacity .2s ease,color var(--accent-ease),border-color var(--accent-ease),background .2s ease}
+  .fv-info{opacity:0;transition:opacity var(--fv-t),color var(--accent-ease),border-color var(--accent-ease),background .2s ease}
   .fv-item:is(:hover,:has(:focus-visible)) .fv-info,.fv-info[aria-expanded="true"]{opacity:1}
 }
 /* BESIDE THE ICON, not under it. Full width across the top of the frame put

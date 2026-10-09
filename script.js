@@ -2103,6 +2103,10 @@ if (workModal) {
       floatUpdate();
     }
     let floatBtn = null, floatOn = false, floatRaf = 0;
+    /* A flight between the card's speaker and the spot under the picker is
+       re-aimed every frame at where BOTH ends are now (Dex: aimed at where they
+       were when it started, it landed where the card had scrolled away from). */
+    let fly = null;   // { toSpot, t0, done }
     const still = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
     function floatSpot() {
       const sw = document.getElementById('accentSwatches'), size = floatBtn.offsetWidth || 40;
@@ -2116,17 +2120,24 @@ if (workModal) {
          outside it inert, so on the page it would be painted and dead. */
       const host = [...document.querySelectorAll('dialog[open]')].filter(d => !d.classList.contains('is-docked')).pop() || document.body;
       if (floatBtn.parentNode !== host) host.append(floatBtn);
-      const at = floatSpot();
+      let at = floatSpot();
+      if (fly) {
+        const c = mute.getBoundingClientRect();
+        const t = Math.min(1, (performance.now() - fly.t0) / 520);
+        const e = 1 - Math.pow(1 - t, 3);          // ease-out, as the old cubic-bezier(.22,.61,.36,1) read
+        const k = fly.toSpot ? e : 1 - e;
+        at = { left: c.left + (at.left - c.left) * k, top: c.top + (at.top - c.top) * k };
+        if (t >= 1) { const done = fly.done; fly = null; done?.(); }
+      }
       floatBtn.style.left = at.left + 'px';
       floatBtn.style.top = at.top + 'px';
-      floatRaf = requestAnimationFrame(floatTrack);
+      if (!floatBtn.hidden) floatRaf = requestAnimationFrame(floatTrack);
     }
-    function floatFly(fromCard) {
-      const card = mute.getBoundingClientRect(), at = floatSpot();
-      if (still() || !card.width) return null;
-      const off = `translate(${card.left - at.left}px,${card.top - at.top}px)`;
-      return floatBtn.animate(fromCard ? [{ transform: off }, { transform: 'none' }] : [{ transform: 'none' }, { transform: off }],
-        { duration: 520, easing: 'cubic-bezier(.22,.61,.36,1)' });
+    function floatFly(toSpot, done) {
+      fly = still() || !mute.getBoundingClientRect().width ? null : { toSpot, t0: performance.now(), done };
+      cancelAnimationFrame(floatRaf);
+      if (!fly) done?.();
+      if (!floatBtn.hidden) floatTrack();
     }
     function floatUpdate() {
       if (!mute) return;
@@ -2151,17 +2162,14 @@ if (workModal) {
         floatBtn.getAnimations().forEach(a => a.cancel());
         floatBtn.hidden = false;
         floatPaint();
-        cancelAnimationFrame(floatRaf);
-        floatTrack();
         floatFly(true);
       } else if (floatBtn) {
-        const back = seen ? floatFly(false) : null;
         const done = () => {
           if (floatOn) return;
           floatBtn.hidden = true; cancelAnimationFrame(floatRaf);
           if (floatBtn.parentNode !== document.body) document.body.append(floatBtn);
         };
-        if (back) back.onfinish = done; else done();
+        if (seen) floatFly(false, done); else { fly = null; done(); }
       }
     }
     function floatPaint() {
