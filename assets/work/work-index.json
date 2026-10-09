@@ -47,6 +47,7 @@
    "blurb": "Game-ready characters and creatures, sculpted through to textured low-poly.",
    "frames": ["brigadier-bluebeard-3", "bone-archer-1", "robo-owl-1", "mecha-bot-3", "male-character-high-poly-3"],
    "zoom": {
+    "brigadier-bluebeard-3": { "scale": 1.08, "pos": "50% 3%" },
     "bone-archer-1": { "scale": 1.9, "pos": "3% 64%" },
     "male-character-high-poly-3": { "scale": 1.75, "pos": "100% 0%" }
    },
@@ -95,9 +96,10 @@
    "id": "props",
    "label": "PROPS & WEAPONS",
    "blurb": "Weapons, chests and hero props — high-poly sculpt to in-engine render.",
-   "frames": ["grimshot-rifle-1", "gobbler-fish-1", "shard-of-drak-1", "bluebeards-blaster-2", "spearsphere-1"],
+   "frames": ["grimshot-rifle-1", "gobbler-fish-1", "hammer-of-nylietus-1", "bluebeards-blaster-2", "spearsphere-1"],
    "order": [
     "bluebeards-blaster",
+    "hammer-of-nylietus",
     "shard-of-drak",
     "grimshot-rifle",
     "gobbler-fish",
@@ -115,6 +117,7 @@
     "bluebeards-blaster": "Bluebeard's Blaster",
     "digipod": "DigiPod",
     "grimshot-rifle-references": "Grimshot Rifle \u2014 References",
+    "hammer-of-nylietus": "Hammer of Nylietus",
     "shard-of-drak": "Shard of Drak'Tharion",
     "spearsphere": "SpearSphere"
    }
@@ -124,6 +127,9 @@
    "label": "CONCEPT ART",
    "blurb": "Painted concepts and callouts — the pass before anything gets modelled.",
    "frames": ["nyxara-2", "nimp-2", "female-concept-4", "dark-iron-dwarf-2", "2d-weapons-3"],
+   "zoom": {
+    "female-concept-4": { "scale": 1.25, "pos": "50% 4%" }
+   },
    "order": [
     "female-concept",
     "nyxara",
