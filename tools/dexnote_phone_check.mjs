@@ -184,13 +184,13 @@ try {
   ok(/viewport-fit=cover/.test(man.viewport) && /interactive-widget=resizes-content/.test(man.viewport), 'the viewport reaches the edges and makes room for the keyboard');
   const same = await p.evaluate(async () => {
     const load = (src) => new Promise((res) => { const im = new Image(); im.onload = () => res(im); im.src = src; });
-    const [a, b] = await Promise.all([load('/assets/icons/apps/dexnote.png'), load('/dexnote/icons/icon-512.png')]);
+    const [a, b] = await Promise.all([load('/assets/icons/apps/dexnote.png'), load('/dexnote/icons/icon-512-v2.png')]);
     const px = (im) => { const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d'); g.drawImage(im, 0, 0, 64, 64); return g.getImageData(0, 0, 64, 64).data; };
     const A = px(a), B = px(b); let worst = 0; for (let i = 0; i < A.length; i++) worst = Math.max(worst, Math.abs(A[i] - B[i]));
     const c = document.createElement('canvas'); c.width = c.height = 512; const g = c.getContext('2d'); g.drawImage(b, 0, 0); const mid = [...g.getImageData(256, 110, 1, 1).data];
     return { worst, mid };
   });
-  ok(same.worst <= 2 && same.mid[0] > 110 && same.mid[2] > 120 && same.mid[1] < 100, `the app icon IS the AI Lab card's DexNote icon (worst channel difference ${same.worst}, purple ${same.mid.slice(0, 3)})`);
+  ok(same.worst <= 2 && same.mid[0] > 35 && same.mid[0] < 90 && same.mid[1] < 30 && same.mid[2] < 55, `the app icon IS the AI Lab card's DexNote icon (worst channel difference ${same.worst}, maroon mark ${same.mid.slice(0, 3)})`);
   const sw = await p.evaluate(async () => { const reg = await navigator.serviceWorker.ready; await new Promise((r) => setTimeout(r, 300)); const all = await navigator.serviceWorker.getRegistrations(); return { n: all.length, scope: new URL(reg.scope).pathname }; });
   ok(sw.n === 1 && sw.scope === '/dexnote/', `one service worker, scoped to /dexnote/ (${sw.n}, ${sw.scope})`);
   const html = readFileSync(join(ROOT, 'index.html'), 'utf8');
@@ -201,7 +201,7 @@ try {
   await p.waitForSelector('.dn-install', { timeout: 5000 }).catch(() => {});
   const inst = await p.evaluate(() => ({ sheet: document.querySelector('.dn-install')?.textContent || '', url: location.search }));
   // Headless Chrome may or may not offer its own prompt: the steps, or the Install button.
-  ok(/Install DexNote/.test(inst.sheet) && /Add to Home screen|Install app|goes on your home screen/.test(inst.sheet) && inst.url === '', `?install=1 offers to install and leaves the address clean (“${inst.sheet.slice(0, 48)}…”)`);
+  ok(/Install dexnote/.test(inst.sheet) && /Add to Home screen|Install app|goes on your home screen/.test(inst.sheet) && inst.url === '', `?install=1 offers to install and leaves the address clean (“${inst.sheet.slice(0, 48)}…”)`);
   await p.evaluate(() => document.querySelector('.dn-install .nt-modal')?.click());
   ok(!(await p.$('.dn-install')), 'a tap beside it puts it away');
   // Inside the dexcimino.com app (site.webmanifest, scope "/") the page is
@@ -223,7 +223,7 @@ try {
 
   console.log('2. the phone layout');
   const gate = await p.evaluate(() => ({ btns: [...document.querySelectorAll('.dn-card button')].map((b) => b.textContent), logo: document.querySelector('.dn-card .dn-logo')?.getAttribute('src') }));
-  ok(gate.btns.join('|') === 'Continue with Google|Continue with GitHub|Continue with Discord|Continue as guest' && gate.logo === '/dexnote/icons/logo.svg',
+  ok(gate.btns.join('|') === 'Google|GitHub|Discord|Continue as guest' && gate.logo === '/dexnote/icons/logo-v2.svg',
     `the intro is the site's sign-in under the DexNote mark (${gate.btns.join(', ')})`);
   await clickText('Continue as guest');
   await p.waitForSelector('.dm-bar', { timeout: 10000 });
@@ -333,7 +333,7 @@ try {
   await tap('.dm-profile');
   await clickText('Sign in');
   await sleep(300);
-  ok(await clickText('Continue with Google'), 'Google, from the profile');
+  ok(await clickText('Google'), 'Google, from the profile');
   await p.waitForFunction(() => /DEXDC phone fixture/.test(document.querySelector('.nt-session-title')?.textContent || ''), { timeout: 15000 }).catch(() => {});
   const mine = await p.evaluate(() => ({ title: document.querySelector('.nt-session-title')?.textContent, body: [...document.querySelectorAll('.nt-body')].map((b) => b.textContent).join('|') }));
   ok(mine.title === 'DEXDC phone fixture' && /vault words/.test(mine.body), `Dex's Google opens the DEXDC notes themselves (“${mine.title}”)`);
@@ -362,7 +362,7 @@ try {
   await tap('.dm-profile');
   await clickText('Sign out');
   await p.waitForFunction(() => !!document.querySelector('.dn-card'), { timeout: 10000 }).catch(() => {});
-  await clickText('Continue with GitHub');
+  await clickText('GitHub');
   await p.waitForSelector('.dm-bar', { timeout: 10000 }).catch(() => {});
   await sleep(500);
   const gh = await p.evaluate(() => ({ title: document.querySelector('.nt-session-title')?.textContent, body: [...document.querySelectorAll('.nt-body')].map((b) => b.textContent).join('|') }));

@@ -80,35 +80,41 @@ export function signInError(err) {
   return `Sign-in did not work (${code || (err && err.message) || 'unknown error'}). Try again.`;
 }
 
-/* The provider buttons, as a card built from the app's own modal classes so it
-   wears the app's colours and type. `signedIn(user)` runs once Firebase says
-   the sign-in landed; `extra` is whatever the caller puts underneath (the
+/* The sign-in card, laid out like the site's own sign-in panel (openSiteSignIn
+   in script.js, .signin-* in styles.css) with dexnote's mark, name and two
+   lines in place of the site's: each provider is its mark and its name, no
+   "Continue with" (Dex, 2026-10-09). Drawn from notes.css, which /dexnote/ and
+   the homepage overlay both load. `signedIn(user)` runs once Firebase says the
+   sign-in landed; `error` is a line to show in red from the start (the notes
+   could not be opened); `extra` is whatever the caller puts underneath (the
    page's "Continue as guest", the overlay's "Not now"). */
-export function signInCard({ note, signedIn, extra }) {
-  const btn = (label, onclick, primary) => el('button', { type: 'button', class: `nt-btn ${primary ? 'is-primary' : ''}`, text: label, onclick });
-  const error = el('p', { class: 'nt-modal-sub dn-error', hidden: true });
-  const go = (which) => async () => {
-    error.hidden = true;
-    try {
-      await listen();
-      const cred = await (await loadCloud()).signIn(which);
-      remember('account');
-      if (signedIn) signedIn(cred.user);
-    } catch (err) {
-      if (err && /popup-closed|cancelled-popup/.test(err.code || '')) return;
-      console.warn('dexnote: sign-in failed', err);
-      error.textContent = signInError(err);
-      error.hidden = false;
-    }
-  };
-  return el('div', { class: 'nt-modal-card dn-card', role: 'dialog', 'aria-label': 'Sign in to DexNote' },
-    el('img', { class: 'dn-logo', src: '/dexnote/icons/logo.svg', alt: '' }),
-    el('h3', { class: 'nt-modal-title', text: 'DexNote' }),
-    el('p', { class: 'nt-modal-msg', text: note || 'Sign in to keep your notes in your account, on every device.' }),
-    el('div', { class: 'dn-providers' },
-      btn('Continue with Google', go('google'), true),
-      btn('Continue with GitHub', go('github')),
-      btn('Continue with Discord', go('discord'))),
+const PROVIDERS = [['google', 'Google'], ['github', 'GitHub'], ['discord', 'Discord']];
+export function signInCard({ error: firstError, signedIn, extra } = {}) {
+  const provider = ([which, name], i) => el('button', {
+    type: 'button', class: `dn-provider${i === 0 ? ' is-primary' : ''}`, 'aria-label': `Sign in with ${name}`, onclick: go(which),
+  }, el('span', { class: 'dn-mark', 'data-provider': which, 'aria-hidden': 'true' }), el('span', { text: name }));
+  const error = el('p', { class: 'dn-error', hidden: !firstError, text: firstError || '' });
+  function go(which) {
+    return async () => {
+      error.hidden = true;
+      try {
+        await listen();
+        const cred = await (await loadCloud()).signIn(which);
+        remember('account');
+        if (signedIn) signedIn(cred.user);
+      } catch (err) {
+        if (err && /popup-closed|cancelled-popup/.test(err.code || '')) return;
+        console.warn('dexnote: sign-in failed', err);
+        error.textContent = signInError(err);
+        error.hidden = false;
+      }
+    };
+  }
+  return el('div', { class: 'nt-modal-card dn-card', role: 'dialog', 'aria-label': 'Sign in to dexnote' },
+    el('img', { class: 'dn-logo', src: '/dexnote/icons/logo-v2.svg', alt: '' }),
+    el('h3', { class: 'dn-title', text: 'dexnote' }),
+    el('p', { class: 'dn-note' }, el('span', { text: 'Your notes, on every device.' }), el('span', { text: 'Sign in and they follow you.' })),
+    el('div', { class: 'dn-providers' }, ...PROVIDERS.map(provider)),
     error,
     ...(extra || []));
 }
@@ -117,21 +123,20 @@ export function signInCard({ note, signedIn, extra }) {
    they are signed in, or null if they backed out. With `signOut` (someone is
    already signed in -- ~DEXDC, Dex 2026-10-08) it also offers Sign out, and
    resolves 'signout' when that is pressed. */
-export function signInSheet(root, note, { signOut = false } = {}) {
+export function signInSheet(root, _note, { signOut = false } = {}) {
   return new Promise((resolve) => {
     const close = (value) => { wrap.remove(); resolve(value); };
     const btns = el('div', { class: 'nt-modal-btns' });
     if (signOut) btns.append(el('button', { type: 'button', class: 'nt-btn is-danger is-left', text: 'Sign out', onclick: () => close('signout') }));
     btns.append(el('button', { type: 'button', class: 'nt-btn', text: 'Not now', onclick: () => close(null) }));
     const card = signInCard({
-      note,
       signedIn: (u) => close(u),
       extra: [btns],
     });
     const wrap = el('div', { class: 'nt-modal', onmousedown: (e) => { if (e.target === wrap) close(null); } }, card);
     wrap.addEventListener('keydown', (e) => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); close(null); } });
     root.append(wrap);
-    card.querySelector('.nt-btn')?.focus();
+    card.querySelector('.dn-provider')?.focus();
   });
 }
 

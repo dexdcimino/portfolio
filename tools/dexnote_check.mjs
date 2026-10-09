@@ -30,7 +30,7 @@ const CHROME = [
   'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',
 ].find(p => p && existsSync(p));
 if (!CHROME) throw new Error('no Chrome or Edge found — set CHROME=<path to the exe>');
-const EXPECTED = 55;
+const EXPECTED = 57;
 
 const FAKE_CLOUD = `// Stand-in for dexnote/cloud.js: same exports, the "server" is a localStorage key.
 import { keyFor } from '/dexnote/local.js';
@@ -109,7 +109,18 @@ await p.goto(`${BASE}/dexnote/`, { waitUntil: 'networkidle2' });
 await p.evaluate(() => { localStorage.clear(); indexedDB.deleteDatabase('dexnote-guest'); });
 await p.reload({ waitUntil: 'networkidle2' });
 const gate = await p.evaluate(() => [...document.querySelectorAll('.dn-card button')].map((b) => b.textContent));
-ok(gate.length === 4 && gate.includes('Continue with Google') && gate.includes('Continue as guest'), `gate shows 3 providers + guest: ${JSON.stringify(gate)}`);
+ok(gate.join('|') === 'Google|GitHub|Discord|Continue as guest', `gate shows 3 providers + guest, no "Continue with": ${JSON.stringify(gate)}`);
+/* The card is the site's sign-in panel with dexnote's mark (Dex, 2026-10-09):
+   lowercase name, two lines, each provider its mark and its name at the
+   site's 195x46 with a 24px mark that actually draws (a mask with no image
+   paints a solid square, so the mask is asserted, not just the box). */
+const look = await p.evaluate(() => {
+  const c = document.querySelector('.dn-card');
+  const btns = [...c.querySelectorAll('.dn-provider')].map((b) => { const r = b.getBoundingClientRect(); const m = b.querySelector('.dn-mark'); const mr = m.getBoundingClientRect(); const cs = getComputedStyle(m); return [Math.round(r.width), Math.round(r.height), Math.round(mr.width), /url\(/.test(cs.maskImage || cs.webkitMaskImage)]; });
+  return { title: c.querySelector('.dn-title')?.textContent, lines: [...c.querySelectorAll('.dn-note > span')].map((x) => x.textContent), logo: c.querySelector('.dn-logo')?.getAttribute('src'), btns };
+});
+ok(look.title === 'dexnote' && look.lines.length === 2 && look.logo === '/dexnote/icons/logo-v2.svg', `the card says dexnote in lowercase over two lines, under the new mark: ${JSON.stringify({ title: look.title, lines: look.lines, logo: look.logo })}`);
+ok(look.btns.length === 3 && look.btns.every(([w, h, m, mask]) => w === 195 && h === 46 && m === 24 && mask), `the three provider buttons are the site's size with their marks drawn: ${JSON.stringify(look.btns)}`);
 
 ok(await clickText('Continue as guest'), 'guest button pressed');
 await p.waitForSelector('.nt-body', { timeout: 10000 });
@@ -136,7 +147,7 @@ ok((await text()).includes('guest marker one'), 'guest goes straight back in aft
 await p.click('.dn-account'); await sleep(300);
 ok(await clickText('Sign in…'), 'menu offers Sign in…');
 await sleep(300);
-ok(await clickText('Continue with Google'), 'Google pressed');
+ok(await clickText('Google'), 'Google pressed');
 await p.waitForFunction(() => document.querySelector('.dn-account') && !localStorage.getItem('dexnote:guest:v1'), { timeout: 15000 }).catch(() => {});
 await p.waitForSelector('.nt-body', { timeout: 10000 });
 const cloud1 = await p.evaluate(() => JSON.parse(localStorage.getItem('fakecloud')));
@@ -229,7 +240,7 @@ ok((await overlayText()).includes('lab guest marker'), 'reopened from the AI Lab
 await p.click('#notesEditor .dn-account'); await sleep(300);
 ok(await clickText('Sign in…'), 'the overlay account menu offers Sign in…');
 await p.waitForSelector('#notesEditor .dn-card', { timeout: 5000 }).catch(() => {});
-ok(await clickText('Continue with Google'), 'Google pressed inside the overlay');
+ok(await clickText('Google'), 'Google pressed inside the overlay');
 await p.waitForFunction(() => /vault fixture/.test(document.querySelector('#notesEditor .nt-app')?.textContent || ''), { timeout: 15000 }).catch(() => {});
 const cloud3 = await p.evaluate(() => JSON.parse(localStorage.getItem('fakecloud')).users['dex-google']);
 ok(JSON.stringify(cloud3.doc).includes('lab guest marker') && JSON.stringify(cloud3.doc).includes('vault fixture'), 'signing in from the overlay moved the guest notes into the account');
