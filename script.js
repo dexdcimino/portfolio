@@ -2910,6 +2910,7 @@ if (workModal) {
      and its wrap-around. Nothing here needs to know any of that. */
   function sweep() {
     if (held) { deferred = true; return; }
+    if (skips > 0) { skips--; return; }
     waveTimers.forEach(clearTimeout);
     waveTimers = [];
 
@@ -2956,8 +2957,21 @@ if (workModal) {
      freeze the stage for good on a phone. */
   let held = false;
   let deferred = false;
+  /* AN ARROW PRESS SKIPS THE NEXT SKIP_AFTER_ARROW SWEEPS (Dex). The 15s
+     clock does not care when someone clicks, so a press a moment before a
+     sweep was answered by the stage turning again -- on a two-page column,
+     straight back to the page just left. Skipped, not reset: the interval
+     keeps its phase, so after the skips everything turns together again in
+     the same wave. Each press re-arms the count rather than adding to it. */
+  const SKIP_AFTER_ARROW = 2;
+  let skips = 0;
   const stageEl = document.querySelector('.fw-stage');
   if (stageEl) {
+    stageEl.addEventListener('click', (event) => {
+      if (!event.target.closest('[data-fv], [data-wg]')) return;
+      skips = SKIP_AFTER_ARROW;
+      deferred = false;      // a sweep owed from a hover is owed no longer
+    });
     stageEl.addEventListener('pointerenter', (event) => {
       if (event.pointerType === 'mouse') held = true;
     }, true);
