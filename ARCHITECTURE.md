@@ -178,7 +178,7 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
   into the popover with them. Under that column, in the same gap, a portrait
   `.fv-about` card ("The pitch", the accent, bold, 2px over its 14px text)
   holds `#mobiusCard`'s `data-desc-lead` and `data-desc-body`, copied in at
-  init so the two never disagree; `placeAbout`/`sizeAbout` keep only the lead
+  init so the two never disagree, its bottom edge on the video's bottom edge; `placeClose`/`sizeAbout` keep only the lead
   under 200px wide, hide it where even that will not fit, and raise the column
   rather than let it run off the bottom. A slot with a `.fv-about` keeps 200px
   either side when enlarged (from 900px wide) so a 1440x900 laptop has room.

@@ -2721,8 +2721,8 @@ if (workModal) {
        the X goes back inside the corner with the other two left out. */
     const acts = item.querySelector('.fv-actions');
     /* THE PITCH (Dex, 2026-10-09): the description, always up, in that same
-       dead space under the column -- portrait, centred on it, never inside the
-       video. Its words are the AI Lab card's lead and body. Where the gap is
+       dead space under the column -- portrait, centred on it, its bottom on
+       the video's bottom edge, never inside the video. Its words are the AI Lab card's lead and body. Where the gap is
        too short for both it keeps the lead, and where it cannot hold even
        that it is not shown at all rather than clipped. */
     const about = item.querySelector('.fv-about');
@@ -2768,16 +2768,20 @@ if (workModal) {
       }
       /* The column stays centred on the video unless the pitch under it would
          run off the bottom; then the two rise together, never above 14px. */
+      /* The pitch's bottom edge is the video's bottom edge (Dex). The column
+         stays centred on the video unless the card would reach it; then the
+         column rises, never above 14px. */
       const tall = acts ? acts.offsetHeight : size, sep = 28;
-      const panel = sizeAbout(gap, innerHeight - 28 - tall - sep);
+      const floor = item.offsetTop + item.offsetHeight;
+      const panel = sizeAbout(gap, floor - 14 - tall - sep);
       let top = cy - tall / 2;
-      if (panel) top = Math.max(14, Math.min(top, innerHeight - 14 - panel - sep - tall));
+      if (panel) top = Math.max(14, Math.min(top, floor - panel - sep - tall));
       close.style.left = (cx - size / 2) + 'px';
       close.style.top = (top + tall / 2 - size / 2) + 'px';
       if (acts) acts.style.cssText = `left:${cx - size / 2}px;top:${top}px;right:auto;bottom:auto`;
       if (panel) {
         about.style.left = (cx - about.offsetWidth / 2) + 'px';
-        about.style.top = (top + tall + sep) + 'px';
+        about.style.top = (floor - panel) + 'px';
       }
     }
     window.addEventListener('resize', placeClose);

@@ -1282,6 +1282,7 @@ await page.waitForFunction(
     return {
       shown: getComputedStyle(a).display !== 'none' && ab.width > 0,
       outside: ab.left >= vb.right, below: Math.round(ab.top - dl.bottom),
+      bottomOff: Math.round(ab.bottom - vb.bottom),
       offCentre: Math.round((ab.left + ab.right) / 2 - (dl.left + dl.right) / 2),
       portrait: ab.height > ab.width, inView: ab.bottom <= innerHeight && ab.right <= innerWidth,
       head: head.textContent.trim(), headPx: px(head), textPx: px(lead),
@@ -1294,11 +1295,12 @@ await page.waitForFunction(
       muted: item.querySelector('.fv-video').muted,
     };
   });
-  console.log(`enlarged: the pitch ${big.shown ? 'shown' : 'NOT shown'}, ${big.below}px under the download, ` +
+  console.log(`enlarged: the pitch ${big.shown ? 'shown' : 'NOT shown'}, ${big.below}px under the download, bottom ${big.bottomOff}px off the video's, ` +
               `${big.offCentre}px off its centre, head "${big.head}" ${big.headPx}px over ${big.textPx}px; muted=${big.muted}`);
   note(big.shown, 'the enlarged video shows no pitch at 1440x900');
   note(big.outside, 'the pitch is inside the video');
-  note(big.below > 0 && big.below < 60, `the pitch is ${big.below}px under the download`);
+  note(big.below > 0, `the pitch is ${big.below}px under the download`);
+  note(Math.abs(big.bottomOff) <= 1, `the pitch's bottom is ${big.bottomOff}px off the video's bottom edge`);
   note(Math.abs(big.offCentre) <= 2, `the pitch is ${big.offCentre}px off the column's centre`);
   note(big.portrait && big.inView, 'the pitch is not a portrait card on screen');
   note(big.head.length > 0 && big.head.split(/\s+/).length <= 3, `the pitch's head reads "${big.head}"`);
