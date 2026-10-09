@@ -1499,10 +1499,10 @@ await page.waitForFunction(
     thumbs: document.querySelectorAll('#workStrip .work-thumb').length,
   }));
   note(pi.open, 'the Proto Isles card did not open the gallery');
-  note(pi.tabs.length === 5 && pi.tabs[0] === 'CHARACTERS7',
+  note(pi.tabs.length === 5 && pi.tabs[0] === 'CHARACTERS9',
        `Proto Isles tabs are ${JSON.stringify(pi.tabs)}`);
   note(/proto-isles/.test(pi.hero) && pi.w > 0, `the Proto Isles hero is ${pi.hero} (${pi.w}px)`);
-  note(pi.thumbs === 7, `the Proto Isles strip has ${pi.thumbs} thumbs, not 7`);
+  note(pi.thumbs === 9, `the Proto Isles strip has ${pi.thumbs} thumbs, not 9`);
   await page.evaluate(() => document.getElementById('work-tab-ui').click());
   const empty = await page.evaluate(() => ({
     on: document.getElementById('workPanel').classList.contains('is-empty'),
