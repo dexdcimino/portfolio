@@ -112,10 +112,13 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
   `object-fit:contain` on the viewer's own background, because a cover crop
   of the wide layout's near-square frame cut off the app's controls; its bar
   (the AI Lab player's `.cl-*` controls, shared) hides under a playing
-  video until the frame is hovered, with the unmute (`data-audio`) staying
-  up while the sound is off, and the caption and the eye/download pair sit
-  above it (while the bar is hidden the caption, the pair and the unmute all
-  slide down onto the bottom row, the unmute just left of the pair). A click anywhere on the frame pauses or plays it. Muted, the
+  video until the frame is hovered, and the caption and the eye/download pair
+  sit above it. Hover and the bar slides up into its strip, pushing the
+  caption and the pair up with it, all on one slow ease (`--fv-t`, .75s);
+  unhovered they sit on the bottom row. Nothing moves sideways. With a mouse
+  the unmute (`data-audio`) shows on hover only, muted or not, and never
+  leaves the bar's corner; on touch a muted one stays in that corner and the
+  caption and pair stay up. A click anywhere on the frame pauses or plays it. Muted, the
   speaker is the grey struck-through `volume-slash`, in the bar's corner, and
   hovering it pops a vertical `.fv-volume` up above it while the eye/download
   pair fades out and takes no clicks. Left of it `.fv-full` ENLARGES rather than
@@ -133,9 +136,11 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
   and target at click time, so it starts the same per-system installer
   (`initMobiusDownload`). The info button shows only while the card is
   hovered, on a device with hover. With the sound on it keeps playing when it
-  scrolls out of view, and a `.fv-float` copy of the mute flies (a FLIP
-  transform) from the card to just under `#accentSwatches`, re-placed every
-  frame so it follows the picker open and shut, and moved into the top open
+  scrolls out of view, and a `.fv-float` copy of the mute flies from the
+  card to just under `#accentSwatches`, re-placed every frame so it follows
+  the picker open and shut (the flight too is worked out per frame between
+  where the card's speaker and that spot are NOW, so a scroll mid-flight
+  cannot send it to a stale spot), and moved into the top open
   `<dialog>` (the Functional Preview's included) so a modal never leaves it
   inert; muted from there it keeps
   playing until the card is back, when the copy flies home. The eye presses the AI
