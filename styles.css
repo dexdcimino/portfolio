@@ -1272,10 +1272,15 @@ html.dex-cursor button.app-art-view{cursor:zoom-in}
 .fv-actions{
   position:absolute;right:18px;bottom:76px;z-index:4;display:flex;gap:10px;
 }
+/* NOTHING OVER THE VIDEO BLURS (Dex, 2026-10-09: it flickered between HDR
+   and sRGB, most of all when the volume popped up). A backdrop-filter makes
+   the compositor read the video back through an SDR surface, so the picture
+   dropped out of HDR whenever a blurred control was on top of it. These
+   controls are plain near-opaque fills instead. */
 .fv-act{
   width:52px;height:52px;border-radius:14px;display:grid;place-items:center;padding:0;
   cursor:pointer;border:0;color:#d4dae0;text-decoration:none;
-  background:rgba(6,8,11,.82);backdrop-filter:blur(5px);
+  background:rgba(6,8,11,.9);
   box-shadow:0 6px 20px rgba(0,0,0,.35);
   transition:background var(--accent-ease),color var(--accent-ease),transform .18s ease;
 }
@@ -1343,7 +1348,7 @@ html.dex-cursor button.app-art-view{cursor:zoom-in}
   -webkit-appearance:none;appearance:none;display:block;margin:0;cursor:pointer;
   writing-mode:vertical-lr;direction:rtl;width:20px;height:80px;
   padding:14px 12px;box-sizing:content-box;border-radius:14px;
-  background:rgba(6,8,11,.9);backdrop-filter:blur(6px);box-shadow:0 10px 28px rgba(0,0,0,.45);
+  background:rgba(6,8,11,.94);box-shadow:0 10px 28px rgba(0,0,0,.45);
 }
 .fv-volume::-webkit-slider-runnable-track{
   width:4px;height:100%;margin:0 auto;border-radius:999px;
@@ -1420,7 +1425,7 @@ html.fv-maxed .fv-item:popover-open{pointer-events:auto}
 .fv-about{display:none}
 .fv-item:popover-open .fv-about.is-on{display:block;position:fixed;z-index:5;margin:0;overflow:hidden;
   padding:16px 16px 18px;border-radius:14px;border:var(--stroke) solid rgba(255,255,255,.14);
-  background:rgba(8,11,15,.72);backdrop-filter:blur(5px);color:#d7dee8;font-size:14px;line-height:1.5;
+  background:rgba(8,11,15,.9);color:#d7dee8;font-size:14px;line-height:1.5;
   text-align:left;animation:fv-about-in .3s ease both}
 .fv-about-head{display:block;margin:0 0 8px;font-size:16px;font-weight:800;line-height:1.25;
   color:var(--accent);transition:color var(--accent-ease)}
@@ -1460,7 +1465,7 @@ html.fv-maxed .fv-item:popover-open{pointer-events:auto}
   width:38px;height:38px;display:grid;place-items:center;padding:0;cursor:pointer;
   /* Accent edge at rest too (Dex: grey on grey, it vanished into the picture). */
   border:var(--stroke) solid var(--accent);border-radius:11px;
-  background:rgba(8,11,15,.74);backdrop-filter:blur(5px);color:#e6ebf2;
+  background:rgba(8,11,15,.88);color:#e6ebf2;
   transition:color var(--accent-ease),border-color var(--accent-ease),background .2s ease;
 }
 .fv-info svg{width:21px;height:21px;display:block}
@@ -1486,7 +1491,7 @@ html.fv-maxed .fv-item:popover-open{pointer-events:auto}
   display:flex;align-items:center;
   padding:9px 15px;border-radius:12px;
   font-size:16px;line-height:1.45;color:#d7dee8;
-  background:rgba(4,6,9,.9);backdrop-filter:blur(6px);
+  background:rgba(4,6,9,.94);
   /* Slides in FROM the icon rather than down from the top edge, which is no
      longer where it comes from. */
   opacity:0;transform:translateX(-8px);pointer-events:none;
