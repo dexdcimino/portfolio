@@ -491,10 +491,15 @@ function onSwatchClick(theme, button) {
     }
     return;
   }
+  /* Picking stays open (Dex, 2026-10-09: "I might want to cycle through and
+     keep clicking them"): the old accent slides back into its row and the
+     new one goes up under the profile. Focus moves to the swatch that now
+     sits where the pick was, since the pick itself is hidden once active. */
+  const row = button.style.getPropertyValue('--row');
+  const hadFocus = document.activeElement === button;
   applyAccent(theme.name);
-  if (isDocked()) {
-    setOpen(false);
-    button.blur();
+  if (isDocked() && hadFocus) {
+    (swatches.find(b => b.style.getPropertyValue('--row') === row) || swatches.find(b => !b.classList.contains('active')))?.focus();
   }
 }
 
@@ -2393,8 +2398,10 @@ if (workModal) {
       let at = floatSpot();
       if (fly) {
         const c = mute.getBoundingClientRect();
-        const t = Math.min(1, (performance.now() - fly.t0) / 520);
-        const e = 1 - Math.pow(1 - t, 3);          // ease-out, as the old cubic-bezier(.22,.61,.36,1) read
+        /* 650ms, a quarter slower than the 520 it was, and eased in AND out
+           (Dex: it "shoots out and shoots over there"). */
+        const t = Math.min(1, (performance.now() - fly.t0) / 650);
+        const e = t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
         const k = fly.toSpot ? e : 1 - e;
         at = { left: c.left + (at.left - c.left) * k, top: c.top + (at.top - c.top) * k };
         /* Home, it fades out over the last 40% of the way and is gone
@@ -2661,11 +2668,20 @@ if (workModal) {
       else { document.removeEventListener('keydown', escape, true); item.removeAttribute('popover'); }
     });
 
+    /* The speaker leaves once the video is half off screen and comes home
+       only when it is 40% back (Dex, 2026-10-09). Each way is judged by the
+       direction the ratio is moving, so the band between the two cannot make
+       it flap. */
+    let lastRatio = 0;
     new IntersectionObserver(entries => {
-      seen = entries[entries.length - 1].isIntersecting;
+      const r = entries[entries.length - 1].intersectionRatio;
+      if (seen && r < .5 && r < lastRatio) seen = false;
+      else if (!seen && r >= .4 && r > lastRatio) seen = true;
+      else if (r === 0) seen = false;
+      lastRatio = r;
       if (seen) floatHeld = false;
       sync();
-    }, { threshold: .2 })
+    }, { threshold: Array.from({ length: 21 }, (_, i) => i / 20) })
       .observe(item);
     new MutationObserver(sync).observe(item, { attributes: true, attributeFilter: ['class'] });
     document.addEventListener('visibilitychange', sync);
