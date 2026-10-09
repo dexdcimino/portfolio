@@ -21,6 +21,13 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
   backlog list — see below), contact. Eight native `<dialog>`
   overlays (app embed, wallpaper lightbox, document reader, vault, shared
   game/app gallery, work gallery, resume, contact)
+- `accent-boot.js` — the saved accent on FIRST paint. Loaded twice as a
+  blocking `<script src>` (the CSP is `script-src 'self'`, so inline scripts
+  never run): in `<head>` it sets `data-accent` on `<html>` from
+  `dex-accent-name`, so a refresh is never lime first; right after the hero
+  `<picture>` it rewrites the mascot stems before a source is picked. Names
+  only, no hexes — the palette stays in `script.js`. Blue's white
+  `--accent-ink` is in `styles.css` for the same reason.
 - `script.js` — plain script, feature blocks as IIFEs, executes top-to-bottom
   with `<script>` at the end of body. Major blocks: accent/theme system
   (7 accents; `applyAccent` sets `--accent`, rebuilds the SVG favicon,
