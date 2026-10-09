@@ -128,7 +128,13 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
   `.pi-data`, reading their srcsets, so the portfolio's `work.json` is not
   touched; a tab with no figures says its own third `data-tabs` field, VIDEO
   COMING, or SHOTS COMING, and the set opens on its first tab with shots; one
-  versionless master per shot, so a newer take replaces its file), and its always-visible
+  versionless master per shot, so a newer take replaces its file; a set whose
+  `.pi-data` carries `data-tab-icons` also gets a `.work-jump` circle above
+  each arrow, in a `.work-nav-col` the arrow's own size so the arrow never
+  moves, wearing the neighbouring tab's icon and walking the tabs with
+  wrapping -- `paintWorkJumps()`, revealed by `nearWorkJumps()` within two
+  arrow-widths, always on for a coarse pointer; the icons are masks under
+  `assets/icons/proto-isles/` plus the keypad's `snail`), and its always-visible
   download is `[data-code-lock]`: the ` keypad, labelled DOWNLOAD LOCKED,
   until there is a launcher. Hover and the bar slides up into its strip, pushing the
   caption and the pair up with it, all on one slow ease (`--fv-t`, .5s);

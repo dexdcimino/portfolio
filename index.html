@@ -510,7 +510,9 @@
             </div>
             <!-- THE GALLERY'S DATA. Each figure is one shot; data-pi-cat is
                  the tab it goes under, and the tabs themselves, in order, are
-                 data-tabs ([id, label, what an empty tab says]). ONE COPY OF
+                 data-tabs ([id, label, what an empty tab says]), and
+                 data-tab-icons names the icon each tab wears on the category
+                 buttons above the gallery's arrows. ONE COPY OF
                  EACH SHOT, the newest (Dex, 2026-10-09): masters carry no
                  version in their names, so a newer take REPLACES its file and
                  never sits beside it. The shots are 1920x920 like the Mobius
@@ -519,7 +521,8 @@
                  overlay paints it. Featured re-uses the card's own thumbnail
                  master rather than a copy of it. -->
             <div class="pi-data" hidden
-                 data-tabs='[["video","VIDEO","VIDEO COMING"],["characters","CHARACTERS"],["environment","ENVIRONMENT"],["items","ITEMS"],["pets","PETS"],["ui","UI"],["featured","FEATURED"]]'>
+                 data-tabs='[["video","VIDEO","VIDEO COMING"],["characters","CHARACTERS"],["environment","ENVIRONMENT"],["items","ITEMS"],["pets","PETS"],["ui","UI"],["featured","FEATURED"]]'
+                 data-tab-icons='{"video":"pi-video","characters":"pi-player","environment":"pi-tree","items":"pi-sword","pets":"snail","ui":"pi-ui","featured":"pi-brand"}'>
               <figure data-pi-cat="characters" data-title="Playful cosmetics">
                 <!-- img src="assets/gallery/proto-isles/cosmetics-playful.png" slot="game-shot" alt="Five Proto Isles characters lined up in a low-poly town at sunset: an afro with sunglasses, a frog hood with its tongue out, a VR headset with a brain on top, a blue cowboy hat with heart glasses, and a traffic cone hat" -->
                 <picture>
@@ -5020,9 +5023,20 @@
              measures itself against now -- the frame is the row, and cqw
              there would include the arrows. -->
         <div class="work-frame">
-          <button class="work-nav prev" type="button" id="workPrev" aria-label="Previous image">
-            <span class="icon" data-icon="arrow-right" aria-hidden="true"></span>
-          </button>
+          <!-- Each arrow sits in a column the arrow's own size, so the
+               category button above it (.work-jump, a set with icons only)
+               hangs out of the top of that column and never moves the arrow.
+               It shows the NEIGHBOURING tab's icon and jumps there; it comes
+               up when the pointer is within two arrow-widths of the arrow
+               (Dex, 2026-10-09). -->
+          <div class="work-nav-col prev">
+            <button class="work-jump" type="button" id="workJumpPrev" hidden>
+              <span class="icon" aria-hidden="true"></span>
+            </button>
+            <button class="work-nav prev" type="button" id="workPrev" aria-label="Previous image">
+              <span class="icon" data-icon="arrow-right" aria-hidden="true"></span>
+            </button>
+          </div>
           <div class="work-hero-area">
             <div class="work-hero" id="workHero">
               <!-- A <picture>, not a bare <img>, so the hero can take the AVIF
@@ -5038,9 +5052,14 @@
               </picture>
             </div>
           </div>
-          <button class="work-nav next" type="button" id="workNext" aria-label="Next image">
-            <span class="icon" data-icon="arrow-right" aria-hidden="true"></span>
-          </button>
+          <div class="work-nav-col next">
+            <button class="work-jump" type="button" id="workJumpNext" hidden>
+              <span class="icon" aria-hidden="true"></span>
+            </button>
+            <button class="work-nav next" type="button" id="workNext" aria-label="Next image">
+              <span class="icon" data-icon="arrow-right" aria-hidden="true"></span>
+            </button>
+          </div>
         </div>
 
         <p class="work-cap" aria-live="polite">
