@@ -2110,7 +2110,7 @@ if (workModal) {
     };
     mute?.addEventListener('click', () => {
       video.muted = !video.muted;
-      if (!video.muted && video.volume === 0) video.volume = .6;
+      if (!video.muted && video.volume === 0) video.volume = .5;
       paint(); fillLevel();
     });
     /* The volume pops up above the speaker on hover. Dragging it to the
@@ -2122,6 +2122,7 @@ if (workModal) {
       level.style.setProperty('--fill', level.value + '%');
       paint();
     });
+    video.volume = .5;   // the first unmute comes in at half (Dex)
     fillLevel();
     /* ENLARGE, NOT FULL SCREEN (Dex): the slot lifts into the top layer as a
        popover, centred over the page at the video's own aspect so there are
