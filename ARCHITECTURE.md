@@ -699,6 +699,12 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
   the rules in `docs/mindsplit.rules` hold one vote per account; signed-out phones
   vote as an anonymous Firebase user on a separate named app, so the site's own
   sign-in is never touched by it. Asking needs a real account and a handle. The
+  handle is the account's ONE site-wide @name, held by Inko's server
+  (`/api/sketch` actions `site`, `claim`, `rename`); `msUsers`/`msHandles` are a
+  copy cloud.js rewrites whenever it differs, because the rules read it. A
+  profile (`person`, `pollsBy`, `follow`, `following` in cloud.js) is an Inko
+  one: its picture or initials, Inko's followers and following, and the
+  questions the uid asked under a name (anonymous ones never). The
   390 built-in questions live in `src/data/polls.js` and carry no counts. Checked
   by `tools/mindsplit_check.mjs` against a fake `cloud.js` — the rules are not
   exercised by anything here

@@ -12,7 +12,7 @@ import { SettingsSheet } from "./components/Settings.jsx";
 import { Compose } from "./components/Compose.jsx";
 import { ShareSheet, FlagSheet, InstallSheet } from "./components/Extras.jsx";
 import { AccountSheet, Avatar } from "./components/Account.jsx";
-import { Profile } from "./components/Profile.jsx";
+import { Profile, Person } from "./components/Profile.jsx";
 import { Ico } from "./components/Icons.jsx";
 
 /* ═══════════════════════════════════════════════════════════════
@@ -84,6 +84,19 @@ export default function MindSplit() {
   const [live, setLive] = useState({});                 // counts from the open card's listener
   const [localOnly, setLocalOnly] = useState({});       // votes the server did not take
   const wantName = useRef(false);
+  /* Faces and follows, from the one @name every app shares (cloud.js). */
+  const [people, setPeople] = useState({});             // handle -> { handle, avatar, followers, following }
+  const [follows, setFollows] = useState(() => new Set());
+  const [viewing, setViewing] = useState(null);          // { handle, uid } whose page is open
+  const [theirPolls, setTheirPolls] = useState(null);
+  const [followBusy, setFollowBusy] = useState(false);
+  const askedFace = useRef(new Set());
+  const needPerson = useCallback((h, fresh) => {
+    if (!cloud || !h || (!fresh && askedFace.current.has(h))) return;
+    askedFace.current.add(h);
+    cloud.person(h).then((f) => { if (f) setPeople((m) => ({ ...m, [h]: f, [f.handle]: f })); })
+      .catch((e) => { askedFace.current.delete(h); console.warn("mindsplit: profile", e.message || e); });
+  }, [cloud]);
 
   useEffect(() => {
     let off = null, dead = false;
@@ -118,6 +131,14 @@ export default function MindSplit() {
     }).catch((e) => console.warn("mindsplit: my votes", e.code || e));
     return () => { dead = true; };
   }, [cloud, user, setVotes]);
+
+  useEffect(() => {
+    if (!cloud || !user || !handle) { setFollows(new Set()); return; }
+    needPerson(handle, true);
+    let dead = false;
+    cloud.following().then((l) => { if (!dead) setFollows(new Set(l)); }).catch((e) => console.warn("mindsplit: following", e.message || e));
+    return () => { dead = true; };
+  }, [cloud, user, handle, needPerson]);
 
   const isOwner = !!user && user.provider === "google.com" && (user.email || "").toLowerCase() === OWNER;
 
@@ -256,6 +277,11 @@ export default function MindSplit() {
   const say = useCallback((text) => { setToast(text); setTimeout(() => setToast((t) => (t === text ? null : t)), 2400); }, []);
   const cur = list[idx];
 
+  /* The asker's face for the open card and its neighbours. */
+  useEffect(() => {
+    for (const p of [list[idx - 1], cur, list[idx + 1]]) if (p && p.by && !DECK_RANK.has(p.id)) needPerson(p.by);
+  }, [cur, idx, list, needPerson]);
+
   /* The open card's count, live: every vote anyone casts arrives here. */
   useEffect(() => {
     if (!cloud || !cur) return;
@@ -388,6 +414,36 @@ export default function MindSplit() {
     if (i >= 0) setTimeout(() => setIdx(i), 30);
   }, [list]);
 
+  /* Someone's page, from their face on a card. Yours is your profile. */
+  const openPerson = useCallback((h, uid) => {
+    if (!h) return;
+    if (handle && (h === handle || (user && uid === user.uid))) { setPage("me"); return; }
+    setViewing({ handle: h, uid }); setTheirPolls(null); setPage("person");
+    needPerson(h, true);
+    if (!cloud) { setTheirPolls([]); return; }
+    cloud.pollsBy(h, uid).then((l) => {
+      setTheirPolls(l);
+      // Older questions than the feed loaded still open in the feed.
+      setAsked((a) => { const have = new Set(a.map((p) => p.id)); const add = l.filter((p) => !have.has(p.id)); return add.length ? [...a, ...add] : a; });
+    }).catch((e) => { console.warn("mindsplit: their questions", e.code || e); setTheirPolls([]); });
+  }, [cloud, handle, user, needPerson]);
+
+  const face = viewing ? people[viewing.handle] : null;
+  const toggleFollow = useCallback(async () => {
+    if (!face || !cloud) return;
+    if (!user) { setAccountReason("Sign in to follow people. Follows are shared with Inko."); setSheet("account"); return; }
+    if (!handle) { setSheet("account"); return; }
+    const on = !follows.has(face.handle);
+    setFollowBusy(true);
+    try {
+      const r = await cloud.follow(face.handle, on);
+      setFollows((s) => { const n = new Set(s); if (r.following) n.add(face.handle); else n.delete(face.handle); return n; });
+      setPeople((m) => ({ ...m, [face.handle]: { ...m[face.handle], followers: r.followers } }));
+      if (people[handle]) setPeople((m) => ({ ...m, [handle]: { ...m[handle], following: Math.max(0, m[handle].following + (r.following ? 1 : -1)) } }));
+    } catch (err) { say(err.message || "Could not follow right now"); }
+    setFollowBusy(false);
+  }, [face, cloud, user, handle, follows, people, say]);
+
   /* ---------- frame ---------- */
   const embedded = useMemo(() => new URLSearchParams(window.location.search).get("embed") === "1", []);
   const [isPhone, setIsPhone] = useState(embedded);
@@ -431,7 +487,7 @@ export default function MindSplit() {
               {APP_NAME}
             </span>
             <span className="truncate" style={{ fontFamily: "var(--body)", fontSize: 14, fontWeight: 600, color: T.muted }}>
-              {page === "me" ? "Your profile" : `${catLabel} · ${answered} answered`}
+              {page === "me" ? "Your profile" : page === "person" ? "Profile" : `${catLabel} · ${answered} answered`}
             </span>
           </div>
         </header>
@@ -448,9 +504,26 @@ export default function MindSplit() {
           aria-hidden={page !== "me"}
           {...swipeHandlers({ onRight: () => setPage("feed"), axis: "x" })}>
           <Profile T={T} topRow={topRow} all={all} votes={votes} countsFor={countsFor} mine={mine}
-            user={user} handle={handle} onOpen={openFromProfile}
+            user={user} handle={handle} face={handle ? people[handle] : null} onOpen={openFromProfile}
             onAccount={() => { setAccountReason(""); setSheet("account"); }}
             onSignIn={() => { wantName.current = true; setAccountReason(""); setSheet("account"); }} />
+        </div>
+
+        {/* Someone else's page slides in the same way. */}
+        <div className="absolute inset-0 z-20 flex flex-col"
+          style={{
+            transform: page === "person" ? "translateX(0)" : "translateX(100%)",
+            transition: reduce ? "none" : "transform 340ms cubic-bezier(.22,1,.36,1)",
+            pointerEvents: page === "person" ? "auto" : "none",
+            background: T.page, paddingTop: head.current ? head.current.offsetHeight : 0,
+          }}
+          aria-hidden={page !== "person"}
+          {...swipeHandlers({ onRight: () => setPage("feed"), axis: "x" })}>
+          {viewing && (
+            <Person T={T} topRow={topRow} face={face || { handle: viewing.handle, avatar: "", followers: 0, following: 0 }}
+              polls={theirPolls} countsFor={countsFor} following={face && follows.has(face.handle)} busy={followBusy}
+              onFollow={cloud ? toggleFollow : null} onOpen={openFromProfile} />
+          )}
         </div>
 
         {/* The feed is a translated TRACK, not a scroller: one gesture, one
@@ -466,6 +539,8 @@ export default function MindSplit() {
                 {Math.abs(i - idx) <= 1 ? (
                   <Card poll={p} counts={countsFor(p)} live={!!live[p.id] && i === idx} choice={votes[p.id]?.c}
                     reduce={reduce} T={T} topRow={topRow} byline={bylineOf(p)} hint={hint}
+                    author={p.by && !DECK_RANK.has(p.id) ? (people[p.by] || { handle: p.by, avatar: "" }) : null}
+                    onAuthor={() => openPerson(p.by, p.uid)}
                     flagged={!!flags[p.id]}
                     canChange={i === idx && !changed[p.id] && changesLeft > 0}
                     changesLeft={changesLeft}
@@ -502,13 +577,13 @@ export default function MindSplit() {
             {Ico.plus(inkOn(T.accent))}
           </button>
           <span className="justify-self-end">
-            {page === "me" ? (
+            {page !== "feed" ? (
               <button type="button" onClick={() => setPage("feed")} aria-label="Back to the questions"
                 className="ms-press w-[52px] h-[52px] rounded-[18px] grid place-items-center" style={{ background: T.faint }}>{Ico.back(T.ink)}</button>
             ) : (
               <button type="button" onClick={() => setPage("me")} aria-label={user ? `Your profile, @${handle || "you"}` : "Your profile"}
                 className="ms-press w-[52px] h-[52px] rounded-[18px] grid place-items-center overflow-hidden" style={{ background: T.faint }}>
-                {user ? <Avatar T={T} user={user} handle={handle} size={38} /> : Ico.user(T.ink)}
+                {user ? <Avatar T={T} src={handle && people[handle]?.avatar} handle={handle || user.name || user.email} size={38} /> : Ico.user(T.ink)}
               </button>
             )}
           </span>
@@ -523,7 +598,7 @@ export default function MindSplit() {
 
         {sheet === "settings" && <SettingsSheet T={T} look={look} setLook={setLookPart}
           cats={cats} setCats={setCats} counts={counts} sort={sort} setSort={setSort}
-          allowCategories={page !== "me"} onClose={() => setSheet(null)} />}
+          allowCategories={page === "feed"} onClose={() => setSheet(null)} />}
         {sheet === "install" && <InstallSheet T={T} onClose={() => setSheet(null)} />}
         {sheet === "share" && <ShareSheet T={T} text={share.text} url={share.url} onClose={() => setSheet(null)} />}
         {sheet === "flag" && cur && <FlagSheet T={T} onClose={() => setSheet(null)} onSubmit={flag}

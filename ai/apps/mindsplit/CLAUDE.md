@@ -81,6 +81,10 @@ Tasks 0 to 3 are done: live at `/mindsplit/`, split into `src/`, persisted, and 
 Firestore. 2026-10-09 revamp: 390 questions in 13 categories, larger type, the
 account sheet (Google, Discord, GitHub, email), handles, ask/delete/report, the
 profile, and the PWA (manifest, `sw.js`, `?install=1`, the AI Lab download button).
+Same day: the handle became the account's one site-wide @name, held by Inko's
+server (see "One @name per account" in `docs/DECISIONS.md`), and people got
+profiles: an asker's face in the card's bottom row opens their page with Inko's
+followers, Follow, and the questions they asked under their name.
 
 ## Task 4 — share card
 

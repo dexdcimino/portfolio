@@ -130,7 +130,7 @@ export function AccountSheet({ T, cloud, user, handle, reason, onClose, onHandle
   if (view === "name") {
     const save = () => run("Saving…", async () => { const h = await cloud.claimHandle(name); onHandle(h); setView("me"); });
     return (
-      <Sheet T={T} onClose={onClose} title={handle ? "Change your name" : "Pick your name"} sub="This is who people see when you ask a question. Your votes stay anonymous.">
+      <Sheet T={T} onClose={onClose} title={handle ? "Change your name" : "Pick your name"} sub="One @name for MindSplit, Inko and the rest of dexcimino.com. Your votes stay anonymous.">
         <form className="space-y-2.5 pb-4" onSubmit={(e) => { e.preventDefault(); save(); }}>
           <div className="relative">
             <span className="absolute left-4 top-1/2 -translate-y-1/2" style={{ fontFamily: "var(--disp)", fontWeight: 800, fontSize: 18, color: T.muted }}>@</span>
@@ -156,24 +156,31 @@ export function AccountSheet({ T, cloud, user, handle, reason, onClose, onHandle
         <Wide T={T} onClick={() => run("Signing out…", async () => { await cloud.signOut(); onClose(); })} label="Sign out" />
         {error && <p role="alert" style={errStyle(T)}>{error}</p>}
         <p className="pt-1" style={{ fontFamily: "var(--body)", fontSize: 14, color: T.muted, lineHeight: 1.45 }}>
-          The same account signs you in to Inko and DexNote on dexcimino.com.
+          The same account and the same @name sign you in to Inko and DexNote on dexcimino.com. A new name here is your new name there too.
         </p>
       </div>
     </Sheet>
   );
 }
 
-/* A round face for the dock and the profile: the provider's picture when
-   there is one, the first letter of the name when not. */
-export function Avatar({ T, user, handle, size = 44 }) {
+/* A round face: the person's Inko picture when they have one, their
+   initials when not. The same face everyone else sees, so it is never the
+   sign-in provider's photo. */
+export function initials(handle) {
+  const parts = String(handle || "?").replace(/^@/, "").split(/[_\d]+/).filter(Boolean);
+  return ((parts[0] || "?").charAt(0) + (parts[1] ? parts[1].charAt(0) : "")).toUpperCase();
+}
+
+export function Avatar({ T, src, handle, size = 44 }) {
   const [bad, setBad] = useState(false);
-  const letter = (handle || user?.name || user?.email || "?").replace(/^@/, "").charAt(0).toUpperCase();
-  if (user?.photo && !bad) {
-    return <img src={user.photo} alt="" width={size} height={size} referrerPolicy="no-referrer" onError={() => setBad(true)}
-      className="rounded-full object-cover" style={{ width: size, height: size }} />;
+  useEffect(() => setBad(false), [src]);
+  if (src && !bad) {
+    return <img src={src} alt="" width={size} height={size} onError={() => setBad(true)}
+      className="rounded-full object-cover shrink-0" style={{ width: size, height: size }} />;
   }
+  const text = initials(handle);
   return (
-    <span className="rounded-full grid place-items-center" style={{ width: size, height: size, background: T.accent, color: inkOn(T.accent),
-      fontFamily: "var(--disp)", fontWeight: 800, fontSize: size * .44 }}>{letter}</span>
+    <span className="rounded-full grid place-items-center shrink-0" style={{ width: size, height: size, background: T.accent, color: inkOn(T.accent),
+      fontFamily: "var(--disp)", fontWeight: 800, fontSize: size * (text.length > 1 ? .36 : .44), letterSpacing: "-.02em" }}>{text}</span>
   );
 }

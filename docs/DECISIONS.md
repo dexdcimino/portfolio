@@ -50,6 +50,35 @@ change**, so the reasoning cannot drift away from the diff it explains.
 
 ---
 
+## 2026-10-09 — One @name per account, and Inko's server holds it
+
+**Decided:** MindSplit's @handle IS the account's Inko name. Inko's server
+(`/api/sketch`, Blob) is the only authority: MindSplit reads the name through
+action `site`, makes a first one through `claim` and renames through `rename`,
+and then copies the answer into Firestore (`msUsers.handle`, `msHandles`),
+because the rules check a question's `by` against that copy and cannot call out.
+A copy that differs from Inko's (a rename made in Inko) is rewritten on the next
+launch. Follows are Inko's follow graph too, and a profile picture is the Inko
+picture, else initials. A name claimed in MindSplit before this is offered to
+Inko on its owner's next launch and kept if it is free there.
+
+**Replaced:** MindSplit's own names in `msHandles`, first come first served,
+which only borrowed the Inko name as a suggestion, so one person could be
+@pat in Inko and @pat2 in MindSplit, and someone else could hold @pat in one.
+
+**Why:** Dex, 2026-10-09, approving "one universal @handle per account across
+every app". Inko already had the hard parts (reserved names, rename moving
+everything, the uid links), so moving names the other way, into Firestore,
+would have meant rebuilding them and migrating Inko. Without a service account
+the server cannot write Firestore, hence the client-written copy.
+
+**Reverse it if:** a Firebase service account is configured (then the server
+writes the copy itself and the rules can trust it), or Inko's accounts move to
+Firestore. The known gap meanwhile: a copy is written by the client, so
+someone who goes around the app could take a name in `msHandles` before its
+Inko owner first opens MindSplit; that owner then cannot ask under their name
+until it is cleared.
+
 ## 2026-10-09 — An Inko name and password is a site account too
 
 **Decided:** the site sign-in (`openSiteSignIn`) takes an email OR an Inko name

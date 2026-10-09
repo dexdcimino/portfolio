@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { inkOn, mix, rgba } from "../lib/color.js";
 import { CAT_EMOJI, CAT_HEX, CAT_LABEL } from "../data/categories.js";
 import { Ico } from "./Icons.jsx";
+import { Avatar } from "./Account.jsx";
 
 export const fmt = (n) => n >= 1e6 ? (n / 1e6).toFixed(1).replace(/\.0$/, "") + "M"
   : n >= 1e4 ? (n / 1e3).toFixed(1).replace(/\.0$/, "") + "k" : n.toLocaleString();
@@ -86,7 +87,7 @@ export const RoundBtn = ({ T, onClick, label, children, on, tone }) => (
    the space above the frame's midpoint, measured at run time; every control
    is in the bottom half. */
 export function Card({ poll, counts, live, choice, onVote, onChange, canChange, changesLeft, reduce, T, topRow,
-                       onShare, onFlag, flagged, hint, byline }) {
+                       onShare, onFlag, flagged, hint, byline, author, onAuthor }) {
   const voted = choice !== undefined;
   const sum = counts.reduce((a, b) => a + b, 0);
   const pcts = counts.map((c) => (sum ? (c / sum) * 100 : 100 / counts.length));
@@ -153,6 +154,14 @@ export function Card({ poll, counts, live, choice, onVote, onChange, canChange, 
                 style={{ background: T.faint, color: T.ink, fontFamily: "var(--disp)", fontWeight: 700, fontSize: 15 }}
                 title={`You can change ${changesLeft} more ${changesLeft === 1 ? "answer" : "answers"} today`}>
                 {Ico.undo(T.ink)} Change
+              </button>
+            )}
+            {author && (
+              // Who asked it: their face opens their profile. Down here, not
+              // on the byline, because the byline is above the midpoint.
+              <button type="button" onClick={onAuthor} aria-label={`@${author.handle}'s profile`} title={`@${author.handle}`}
+                className="ms-press w-11 h-11 rounded-full grid place-items-center shrink-0 overflow-hidden" style={{ background: T.faint }}>
+                <Avatar T={T} src={author.avatar} handle={author.handle} size={40} />
               </button>
             )}
             <RoundBtn T={T} onClick={onShare} label="Share">{Ico.share(T.ink)}</RoundBtn>

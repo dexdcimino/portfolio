@@ -18,7 +18,7 @@
      msCounts/<poll id>          { c0..c3, n }       public, the live split
      msVotes/<poll id>_<uid>     { p, u, c }         only its owner reads it
      msPolls/<id>                { q, o, cat, uid, by, at, rep }   asked by people
-     msUsers/<uid>               { handle, posted }  public name, post clock
+     msUsers/<uid>               { handle, posted }  a copy of the account's @name, post clock
      msHandles/<handle>          { uid }             one name, one account
      msReports/<poll id>_<uid>   { p, u, why, at }   Dex reads these
 
@@ -52,7 +52,11 @@ export async function onUser(fn) {
   const s = await loadSite();
   let first = null;
   ready ||= new Promise((r) => { first = r; });
-  return s.onUser((u) => { user = u; if (first) { first(); first = null; } fn(plain(u)); });
+  return s.onUser((u) => {
+    // A different person (or nobody) holds no name from the last one.
+    if (!u || !user || u.uid !== user.uid) { inko = null; ticket = null; suggested = ''; }
+    user = u; if (first) { first(); first = null; } fn(plain(u));
+  });
 }
 
 export async function signIn(which) { return (await loadSite()).signIn(which); }
@@ -218,50 +222,186 @@ export async function report(pid, why, asked) {
   await b.commit();
 }
 
-/* ---------- names ---------- */
+/* ---------- names: ONE @handle per account, across the site ----------
+
+   The name is the account's INKO name (Dex, 2026-10-09: "one universal
+   @handle per account across every app"). Inko's server (/api/sketch, Blob)
+   is the authority: it holds the reserved names, refuses a taken one, moves
+   everything on a rename, and already links each site uid to its name
+   (action 'site'). MindSplit never decides a name itself. It asks that
+   server, and COPIES the answer into msUsers/msHandles, because the rules
+   check a question's `by` against msUsers and cannot call out to anything.
+
+   So a name picked here makes the Inko account (action 'claim'), a rename
+   here renames it there (canvases, picture and followers move with it), and
+   a rename made in Inko reaches MindSplit on the next launch, when myHandle()
+   finds the copy stale and rewrites it. A name somebody claimed in MindSplit
+   before the names were one is offered to Inko on their next launch and
+   becomes their universal name when it is free there.
+
+   Following is Inko's too: one follow graph for one account. */
 
 export const HANDLE = /^[a-z0-9_]{3,20}$/;
+const API = '/api/sketch';
+
+let inko = null;       // { handle, token } this site account holds on the name server
+let ticket = null;     // or a ticket to claim one, when it has none yet
+let suggested = '';
+
+class NameError extends Error { constructor(msg, status) { super(msg); this.status = status; } }
+
+async function call(body) {
+  const r = await fetch(API, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+  const out = await r.json().catch(() => ({}));
+  if (!r.ok) throw new NameError(out.error || 'The name server did not answer. Try again.', r.status);
+  return out;
+}
+
+/* Who this site account is on the name server. */
+async function link() {
+  const s = await loadSite();
+  const idToken = await s.idToken();
+  if (!idToken) throw new NameError('Sign in again.', 401);
+  const r = await call({ action: 'site', idToken });
+  if (r.handle) { inko = { handle: r.handle, token: r.token }; ticket = null; }
+  else { inko = null; ticket = r.ticket || null; suggested = (r.suggest || '').toLowerCase(); }
+  return r;
+}
+
+/* A signed-in call; a token outlived by a rename made elsewhere is renewed once. */
+async function withToken(body) {
+  if (!inko) await link();
+  if (!inko) throw new NameError('Pick a name first.', 400);
+  try { return await call({ ...body, token: inko.token }); }
+  catch (err) {
+    if (err.status !== 401) throw err;
+    await link();
+    if (!inko) throw err;
+    return call({ ...body, token: inko.token });
+  }
+}
+
+/* Copy the name into Firestore, letting the old copy go, in one batch. */
+async function mirror(handle) {
+  const { fs, db, uid } = await voter();
+  const me = await fs.getDoc(fs.doc(db, 'msUsers', uid));
+  const old = me.exists() ? me.data().handle || null : null;
+  if (old === handle) return;
+  const held = await fs.getDoc(fs.doc(db, 'msHandles', handle));
+  if (held.exists() && held.data().uid !== uid) throw new NameError(`@${handle} is held by another MindSplit account`, 409);
+  const b = fs.writeBatch(db);
+  if (!held.exists()) b.set(fs.doc(db, 'msHandles', handle), { uid });
+  b.set(fs.doc(db, 'msUsers', uid), { handle }, { merge: true });
+  if (old) {
+    // Only a copy that is really ours: the rules refuse deleting one that is not there.
+    const was = await fs.getDoc(fs.doc(db, 'msHandles', old));
+    if (was.exists() && was.data().uid === uid) b.delete(fs.doc(db, 'msHandles', old));
+  }
+  await b.commit();
+}
 
 export async function myHandle() {
   if (ready) await ready;
   if (!user) return null;
   const { fs, db, uid } = await voter();
-  const d = await fs.getDoc(fs.doc(db, 'msUsers', uid));
-  return d.exists() ? d.data().handle || null : null;
+  const me = await fs.getDoc(fs.doc(db, 'msUsers', uid)).catch(() => null);
+  const copy = me && me.exists() ? me.data().handle || null : null;
+  try { await link(); }
+  catch (err) { console.warn('mindsplit: name server', err.message || err); return copy; }
+  if (inko) {
+    if (inko.handle !== copy) await mirror(inko.handle).catch((err) => console.warn('mindsplit: name copy', err.message || err));
+    return inko.handle;
+  }
+  // A MindSplit name from before the names were one: make it the universal one.
+  if (copy && ticket) {
+    try {
+      const r = await call({ action: 'claim', ticket, handle: copy });
+      inko = { handle: r.handle, token: r.token }; ticket = null;
+      if (r.handle !== copy) await mirror(r.handle);
+      return r.handle;
+    } catch (err) { console.warn('mindsplit: old name not free', err.message || err); }
+  }
+  return null;
 }
 
-/* Claim a name: msHandles/<name> is created once and only by its owner, so
-   two accounts can never hold the same one. The old name is let go. */
+/* Pick a name (a first one makes the account's Inko account) or change it
+   (a rename on the name server, which moves everything the name owns). */
 export async function claimHandle(raw) {
   const handle = String(raw || '').trim().replace(/^@/, '').toLowerCase();
   if (!HANDLE.test(handle)) throw new Error('3 to 20 letters, numbers or _');
-  const { fs, db, uid, account } = await voter();
+  const { account } = await voter();
   if (!account) throw new Error('Sign in first.');
-  const taken = await fs.getDoc(fs.doc(db, 'msHandles', handle));
-  if (taken.exists() && taken.data().uid !== uid) throw new Error(`@${handle} is taken`);
-  const me = await fs.getDoc(fs.doc(db, 'msUsers', uid));
-  const old = me.exists() ? me.data().handle : null;
-  const b = fs.writeBatch(db);
-  if (!taken.exists()) b.set(fs.doc(db, 'msHandles', handle), { uid });
-  b.set(fs.doc(db, 'msUsers', uid), { handle }, { merge: true });
-  if (old && old !== handle) b.delete(fs.doc(db, 'msHandles', old));
-  try { await b.commit(); }
-  catch (err) {
-    if (err && err.code === 'permission-denied' && /^dex/.test(handle)) throw new Error(`@${handle} is reserved`);
-    throw err;
+  if (!inko && !ticket) await link();
+  let r;
+  if (inko) r = inko.handle === handle ? inko : await withToken({ action: 'rename', handle });
+  else {
+    try { r = await call({ action: 'claim', ticket, handle }); }
+    catch (err) {
+      if (err.status !== 401) throw err;
+      await link();                           // the ticket ran out while the sheet was open
+      r = inko || await call({ action: 'claim', ticket, handle });
+    }
   }
-  return handle;
+  inko = { handle: r.handle, token: r.token }; ticket = null;
+  await mirror(r.handle);
+  return r.handle;
 }
 
-/* A name to offer on a first sign-in: the person's Inko name if the same
-   site account already has one, so one person is one @name on the site. */
+/* A name to offer on a first sign-in, from the account's own name. */
 export async function suggestHandle() {
   try {
-    const s = await loadSite();
-    const idToken = await s.idToken();
-    if (!idToken) return '';
-    const r = await fetch('/api/sketch', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ action: 'site', idToken }) });
-    const body = await r.json().catch(() => ({}));
-    return (body.handle || body.suggest || '').toLowerCase();
+    if (!inko && !ticket) await link();
+    return inko ? inko.handle : suggested;
   } catch { return ''; }
+}
+
+/* ---------- profiles ---------- */
+
+const picture = (h, v) => (v ? `${API}?img=${encodeURIComponent(`sketch/avatars/${h}-${v}.jpg`)}` : '');
+
+/* Anyone's public face: { handle, avatar (a URL or ''), followers, following }.
+   The picture is their Inko one. A rename is followed to the new name. */
+export async function person(raw) {
+  let h = String(raw || '').trim().replace(/^@/, '').toLowerCase();
+  for (let hops = 0; hops < 3 && HANDLE.test(h); hops++) {
+    const r = await fetch(`${API}?profile=${encodeURIComponent(h)}`);
+    if (r.status === 404) return { handle: h, avatar: '', followers: 0, following: 0 };
+    if (!r.ok) throw new Error('profile ' + r.status);
+    const b = await r.json();
+    if (b.movedTo) { h = b.movedTo; continue; }
+    return { handle: b.handle, avatar: picture(b.handle, b.avatar), followers: b.followers || 0, following: b.following || 0 };
+  }
+  return null;
+}
+
+/* Follow or unfollow; answers { following, followers }. */
+export async function follow(handle, on) {
+  const r = await withToken({ action: 'follow', handle, on: on !== false });
+  return { following: r.following, followers: r.followers };
+}
+
+/* The names this account follows. */
+export async function following() {
+  return (await withToken({ action: 'following' })).following || [];
+}
+
+/* The questions someone asked under their name, newest first. By their uid
+   when it is known, so questions asked before a rename are still theirs;
+   questions they asked anonymously are never listed. */
+export async function pollsBy(handle, uidIn) {
+  const { fs, db } = await reader();
+  let uid = uidIn || null;
+  if (!uid) {
+    const h = await fs.getDoc(fs.doc(db, 'msHandles', handle));
+    uid = h.exists() ? h.data().uid : null;
+  }
+  const q = uid ? fs.where('uid', '==', uid) : fs.where('by', '==', handle);
+  const snap = await fs.getDocs(fs.query(fs.collection(db, 'msPolls'), q, fs.limit(100)));
+  const out = [];
+  snap.forEach((d) => {
+    const p = d.data();
+    if (!p || typeof p.q !== 'string' || !Array.isArray(p.o) || !p.by) return;
+    out.push({ id: d.id, q: p.q, o: p.o, cat: p.cat, by: p.by, uid: p.uid, at: ms(p.at), rep: p.rep || 0 });
+  });
+  return out.sort((a, b) => b.at - a.at);
 }
