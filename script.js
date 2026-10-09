@@ -2360,7 +2360,8 @@ if (workModal) {
     /* The description. Click rather than hover alone: hover is not available on
        a touch screen, and a paragraph that appears while the pointer is merely
        passing over the corner is a jump scare. Hover opens it too on a device
-       that has one, which is what was asked for. */
+       that has one, which is what was asked for, and only while the pointer is
+       on the icon itself (Dex: not for as long as it is anywhere on the card). */
     stage.querySelectorAll('.fv-item').forEach(item => {
       const button = item.querySelector('.fv-info');
       const desc = item.querySelector('.fv-desc');
@@ -2374,11 +2375,11 @@ if (workModal) {
       button.addEventListener('pointerenter', (event) => {
         if (event.pointerType === 'mouse') set(true);
       });
-      item.addEventListener('pointerleave', (event) => {
+      button.addEventListener('pointerleave', (event) => {
         if (event.pointerType === 'mouse') set(false);
       });
       button.addEventListener('blur', () => {
-        if (!item.matches(':hover')) set(false);
+        if (!button.matches(':hover')) set(false);
       });
     });
 
