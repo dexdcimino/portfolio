@@ -1208,6 +1208,10 @@ html.dex-cursor button.app-art-view{cursor:zoom-in}
 .fv-item.is-live .fv-video{opacity:1}
 .fv-has-video .card-shade{inset:44% 0 0;z-index:1}
 .fv-has-video .card-meta{bottom:76px;right:150px}
+/* Down on the bottom edge while the controls are hidden (Dex: a caption
+   held up over an empty strip looks unanchored), back up as they return. */
+.fv-has-video .card-meta{transition:bottom .25s ease}
+.fv-item.is-playing:not(:hover):not(:has(:focus-visible)) .card-meta{bottom:18px}
 /* No construction tape and no disc once it plays: the picture is the content. */
 .fv-item.is-live .fv-play{opacity:0}
 .fv-item.is-live .fv-play:focus-visible{opacity:1}
@@ -1290,7 +1294,9 @@ html.dex-cursor button.app-art-view{cursor:zoom-in}
    centred at the video's own aspect, so the picture fills it with no bars at
    the sides, rounded like the site's overlays, over a dimmed page. Only the bar
    and the X come along -- the caption and the buttons belong to the card. */
-.fv-close{display:none}
+/* .fv-item in front: .contact-close sets display:grid later in the sheet at
+   the same weight, and won, so the X showed on the small card. */
+.fv-item .fv-close{display:none}
 /* The attribute outlives the close by a task (the toggle event that removes it
    is async), and a closed [popover] is display:none in the UA sheet. */
 .fv-item[popover]:not(:popover-open){display:block;width:auto;height:auto;margin:0;padding:0;color:inherit}
@@ -1306,7 +1312,7 @@ html.dex-cursor button.app-art-view{cursor:zoom-in}
 .fv-item:popover-open :is(.fv-poster img,.fv-video){object-position:50% 50%}
 .fv-item:popover-open :is(.card-meta,.card-shade,.fv-actions,.fv-info,.fv-desc){display:none}
 .fv-item:popover-open .fv-close{display:grid;top:14px;right:14px;z-index:5;background:rgba(8,11,15,.72);color:#c9d0d6}
-@media(prefers-reduced-motion:reduce){.fv-item:popover-open{animation:none}.fv-vol-pop{transition:none}}
+@media(prefers-reduced-motion:reduce){.fv-item:popover-open{animation:none}.fv-vol-pop,.fv-has-video .card-meta{transition:none}}
 /* Before a source exists there is nothing to scrub. */
 .fv-has-video:not([data-src^="https"]) :is(.fv-bar,.fv-play){display:none}
 /* No blue flash on a phone tap: the slot draws its own pressed and focus states. */
