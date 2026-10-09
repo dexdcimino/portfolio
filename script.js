@@ -1891,6 +1891,7 @@ if (workModal) {
     const scrub = item.querySelector('.fv-scrub');
     const time = item.querySelector('.fv-time');
     const mute = item.querySelector('.fv-mute');
+    const full = item.querySelector('.fv-full');
     const play = item.querySelector('.fv-play');
     const eye = item.querySelector('[data-open-app]');
     if (eye) eye.addEventListener('click', () => {
@@ -1930,7 +1931,7 @@ if (workModal) {
       toggle?.setAttribute('aria-label', playing ? 'Pause' : 'Play');
       play?.setAttribute('aria-label', playing ? 'Pause Mobius 3D' : 'Play Mobius 3D');
       if (mute) {
-        icon(mute, video.muted ? 'volume-off' : 'volume');
+        icon(mute, video.muted ? 'volume-slash' : 'volume');
         mute.setAttribute('aria-label', video.muted ? 'Unmute' : 'Mute');
       }
     }
@@ -1965,6 +1966,19 @@ if (workModal) {
     toggle?.addEventListener('click', flip);
     play?.addEventListener('click', flip);
     mute?.addEventListener('click', () => { video.muted = !video.muted; paint(); });
+    /* Full screen takes the whole SLOT, as the Clips frame does, so the bar
+       comes along and keeps working. An iPhone has no element full screen,
+       only the video's own, so there it hands over to the native player. */
+    full?.addEventListener('click', () => {
+      if (document.fullscreenElement) document.exitFullscreen?.();
+      else if (item.requestFullscreen) item.requestFullscreen().catch(() => {});
+      else video.webkitEnterFullscreen?.();
+    });
+    document.addEventListener('fullscreenchange', () => {
+      const on = document.fullscreenElement === item;
+      icon(full, on ? 'fullscreen-exit' : 'fullscreen');
+      full?.setAttribute('aria-label', on ? 'Exit full screen' : 'Full screen');
+    });
 
     new IntersectionObserver(entries => { seen = entries[entries.length - 1].isIntersecting; sync(); }, { threshold: .2 })
       .observe(item);
