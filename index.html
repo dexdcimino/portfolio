@@ -428,7 +428,7 @@
             <!-- THE PITCH (Dex, 2026-10-09). Always up in the ENLARGED video: a
                  portrait panel in the dead space to its right, its bottom on
                  the video's, under the eye, the X and the download. On the card
-                 the info button beside the title (.fv-pitch-btn) opens a wider
+                 the info button left of the download (.fv-pitch-btn) opens a wider
                  copy of it (.fv-pitch-pop) while it is hovered. The words are the
                  AI Lab card's own (#mobiusCard's data-desc-lead and data-desc-body,
                  read by initFeaturedVideo), so the three can never disagree. -->
@@ -439,13 +439,14 @@
               <span class="fv-disc"><span class="icon" data-icon="play" aria-hidden="true"></span></span>
             </button>
             <span class="card-shade"></span>
-            <span class="card-meta"><small>Desktop + Web App</small><strong>Mobius 3D<button class="fv-info fv-pitch-btn" type="button" aria-expanded="false" aria-label="About Mobius 3D"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 10.6v5.6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><circle cx="12" cy="7.4" r="1.35" fill="currentColor"/></svg></button></strong></span>
+            <span class="card-meta"><small>Desktop + Web App</small><strong>Mobius 3D</strong></span>
             <!-- The AI Lab card's two buttons, in the same order: the
                  download left of the eye. The eye does what the card's does,
                  by pressing it: down to the AI Lab, then the preview opens.
                  Its tip carries the first Apps-gallery shot, cloned from the
                  page rather than built as a URL (CLAUDE.md, image pipeline). -->
             <div class="fv-actions">
+              <button class="fv-act fv-pitch-btn" type="button" aria-expanded="false" aria-label="About Mobius 3D"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 10.6v5.6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><circle cx="12" cy="7.4" r="1.35" fill="currentColor"/></svg></button>
               <a class="fv-act fv-get" href="https://github.com/dexdcimino/mobius-3d/releases/latest"
                  target="_blank" rel="noopener" data-tip="Download&#10;Mobius 3D" data-tip-pos="above" data-tip-big data-tip-pos-max="right"
                  aria-label="Download the Mobius 3D desktop app">
@@ -500,12 +501,11 @@
             </picture>
             <!-- /img -->
             <button class="fv-open" type="button" aria-label="Open the Proto Isles gallery"></button>
-            <button class="fv-info" type="button" aria-expanded="false"
-                    aria-label="About Proto Isles"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 10.6v5.6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><circle cx="12" cy="7.4" r="1.35" fill="currentColor"/></svg></button>
-            <p class="fv-desc" hidden>The game I am building now: a bright low-poly world of islands, with a character editor full of hats, hair and faces to mix.</p>
             <span class="card-shade"></span>
             <span class="card-meta"><small>Current Game Project</small><strong>Proto Isles</strong></span>
             <div class="fv-actions">
+              <button class="fv-act fv-pitch-btn" type="button" aria-expanded="false" aria-label="About Proto Isles"
+                      data-pitch="The game I am building now: a bright low-poly world of islands, with a character editor full of hats, hair and faces to mix."><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 10.6v5.6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><circle cx="12" cy="7.4" r="1.35" fill="currentColor"/></svg></button>
               <button class="fv-act fv-lock" type="button" data-code-lock="DOWNLOAD LOCKED"
                       data-tip="Download Proto Isles&#10;Locked for now" data-tip-pos="above" data-tip-big data-tip-pos-max="right"
                       aria-label="Download Proto Isles (locked)">

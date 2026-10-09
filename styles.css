@@ -1417,7 +1417,7 @@ html.fv-maxed .fv-item:popover-open{pointer-events:auto}
 .fv-item:popover-open::backdrop{background:rgba(3,5,8,.78);backdrop-filter:blur(4px)}
 @keyframes fv-max-in{from{opacity:0;transform:scale(.96)}}
 .fv-item:popover-open :is(.fv-poster img,.fv-video){object-position:50% 50%}
-.fv-item:popover-open :is(.card-meta,.card-shade,.fv-actions,.fv-info,.fv-desc){display:none}
+.fv-item:popover-open :is(.card-meta,.card-shade,.fv-actions){display:none}
 /* OUTSIDE the video (Dex): fixed, in the dead space to its right, one column
    centred both ways -- the eye, the X, the download -- placed by placeClose().
    .is-side is the gap being wide enough; without it the X goes back inside the
@@ -1446,13 +1446,13 @@ html.fv-maxed .fv-item:popover-open{pointer-events:auto}
 .fv-about p+p{margin-top:10px;color:#aeb8c4}
 .fv-about.is-short .fv-about-body{display:none}
 @keyframes fv-about-in{from{opacity:0;transform:translateY(6px)}}
-/* THE PITCH ON THE CARD: the info button sits in the title, on its bottom
-   line, and shows on hover like Proto Isles' (the rules under .fv-info). The
-   card it opens is the same panel, wider, grown up and right from the button
-   (placed by initFeaturedVideo), and the button fades as it takes its place. */
-.fv-item .card-meta strong .fv-pitch-btn{position:relative;top:auto;left:auto;display:inline-grid;
-  vertical-align:text-bottom;margin-left:.32em;width:38px;height:38px;font-size:16px}
-.fv-item.is-pitched .card-meta .fv-pitch-btn{opacity:0;pointer-events:none}
+/* THE PITCH ON THE CARD (Dex, 2026-10-09): the info button is a third
+   action, left of the download, the same size and style as it and the eye.
+   The card it opens is the same panel, grown up and left from the button
+   (placed by initPitch), the button fades as it takes its place, and the X
+   on the head's row folds it. */
+.fv-act>svg{width:28px;height:28px;display:block}
+.fv-item.is-pitched .fv-pitch-btn{opacity:0;pointer-events:none}
 .fv-pitch-pop{position:absolute;z-index:6;margin:0;overflow:hidden;box-sizing:border-box;
   padding:16px 18px 18px;border-radius:14px;border:var(--stroke) solid rgba(255,255,255,.14);
   background:rgba(6,8,11,.94);color:#d7dee8;font-size:14px;line-height:1.5;text-align:left;
@@ -1462,6 +1462,11 @@ html.fv-maxed .fv-item:popover-open{pointer-events:auto}
 .fv-pitch-pop[hidden]{display:block;visibility:hidden}
 .fv-item.is-pitched .fv-pitch-pop{opacity:1;transform:none;pointer-events:auto}
 .fv-pitch-pop p{margin:0}
+.fv-pitch-pop .fv-about-head{padding-right:30px}
+.fv-pitch-x{position:absolute;top:12px;right:12px;width:28px;height:28px;padding:0;display:grid;place-items:center;
+  border:0;border-radius:8px;background:transparent;color:#aeb8c4;cursor:pointer}
+.fv-pitch-x svg{width:16px;height:16px;display:block}
+.fv-pitch-x:hover,.fv-pitch-x:focus-visible{color:#fff;background:rgba(255,255,255,.1)}
 .fv-pitch-pop p+p{margin-top:10px;color:#aeb8c4}
 .fv-pitch-pop.is-short .fv-about-body{display:none}
 .fv-item:popover-open .fv-pitch-pop,.fv-item:popover-open .fv-pitch-btn{display:none}
@@ -1485,53 +1490,11 @@ html.fv-maxed .fv-item:popover-open{pointer-events:auto}
   /* initAppModal declines a phone, exactly as the AI Lab card's eye does. */
   .fv-eye{display:none}
   .fv-act{width:44px;height:44px;border-radius:12px}
-  .fv-act .icon{width:24px;height:24px}
+  .fv-act .icon,.fv-act>svg{width:24px;height:24px}
   .fv-has-video .card-meta{right:70px}
   .fv-bar .cl-time{display:none}
 }
 
-/* The description is behind an icon rather than always on: it is a paragraph,
-   and a paragraph laid over artwork is a caption nobody asked for. Top left,
-   opposite the download. */
-.fv-info{
-  position:absolute;top:14px;left:14px;z-index:4;
-  width:38px;height:38px;display:grid;place-items:center;padding:0;cursor:pointer;
-  /* Accent edge at rest too (Dex: grey on grey, it vanished into the picture). */
-  border:var(--stroke) solid var(--accent);border-radius:11px;
-  background:rgba(8,11,15,.88);color:#e6ebf2;
-  transition:color var(--accent-ease),border-color var(--accent-ease),background .2s ease;
-}
-.fv-info svg{width:21px;height:21px;display:block}
-.fv-info:hover,.fv-info:focus-visible,.fv-info[aria-expanded="true"]{
-  color:var(--accent);border-color:var(--accent);background:rgba(8,11,15,.92)}
-.fv-info:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-/* Only while the card is hovered (Dex), where there is a pointer to hover
-   with; a touch screen keeps it up, or there would be no way to the text. */
-@media (hover:hover){
-  .fv-info{opacity:0;transition:opacity var(--fv-t),color var(--accent-ease),border-color var(--accent-ease),background .2s ease}
-  .fv-item:is(:hover,:has(:focus-visible)) .fv-info,.fv-info[aria-expanded="true"]{opacity:1}
-}
-/* BESIDE THE ICON, not under it. Full width across the top of the frame put
-   it straight through the UNDER CONSTRUCTION strip -- two blocks of text on
-   top of each other, and the gradient behind it dimmed the strip as well. As
-   a bubble starting where the icon ends it labels the control it belongs to
-   and covers nothing else. It grows to its text and stops well short of the
-   right edge, so a real description wraps rather than filling the frame.
-   left: 14 (the icon's own inset) + 38 (its width) + 12. */
-.fv-desc{
-  position:absolute;top:14px;left:64px;z-index:3;margin:0;
-  width:max-content;max-width:min(calc(100% - 86px),24em);min-height:38px;
-  display:flex;align-items:center;
-  padding:9px 15px;border-radius:12px;
-  font-size:16px;line-height:1.45;color:#d7dee8;
-  background:rgba(4,6,9,.94);
-  /* Slides in FROM the icon rather than down from the top edge, which is no
-     longer where it comes from. */
-  opacity:0;transform:translateX(-8px);pointer-events:none;
-  transition:opacity .22s ease,transform .22s ease;
-}
-.fv-desc[hidden]{display:block}          /* animated, not toggled out of flow */
-.fv-desc.is-open{opacity:1;transform:none}
 
 /* --- the thumbnail column --- */
 .work-grid{position:relative;height:calc(var(--wk-row) * 2 + 14px)}
@@ -1586,7 +1549,7 @@ html.fv-maxed .fv-item:popover-open{pointer-events:auto}
   .fv-item .card-meta{right:78px}
 }
 @media(prefers-reduced-motion:reduce){
-  .fv-item,.work-page,.fv-desc{transition:none}
+  .fv-item,.work-page{transition:none}
 }
 
 .work-card{display:block;width:100%;padding:0;text-align:left;font:inherit;color:inherit;cursor:pointer;position:relative;border-radius:14px;overflow:hidden;border:var(--stroke) solid rgba(255,255,255,.18);background:#11161a;isolation:isolate;transition:border-color var(--accent-ease),box-shadow var(--accent-ease),transform .25s ease}
@@ -1620,8 +1583,9 @@ html.fv-maxed .fv-item:popover-open{pointer-events:auto}
 .card-go{position:absolute;right:14px;bottom:15px;width:14px;height:14px;color:var(--text);opacity:0;transition:opacity .2s ease,transform .25s ease}
 .work-card:is(:hover,:focus-visible) .card-go{opacity:1;transform:translate(2px,-2px)}
 /* No resting border on the Featured Work thumbnails (Dex picked look 2 of the
-   border picker, 2026-10-09). Hover still draws the full accent outline. */
-.fw-stage :is(.work-card,.fv-item:not(:popover-open)):not(:hover){border-color:transparent}
+   border picker, 2026-10-09). Hover draws the accent outline on the small
+   cards only: the two big ones keep no outline at all (Dex, 2026-10-09). */
+.fw-stage .work-card:not(:hover),.fw-stage .fv-item:not(:popover-open){border-color:transparent}
 
 /* ---- the card carousel -------------------------------------------------
    Frames STACK AND CROSS-FADE rather than slide. A slide would translate the

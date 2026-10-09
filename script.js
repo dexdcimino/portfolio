@@ -2761,65 +2761,6 @@ if (workModal) {
         about.append(p);
       }
     }
-    /* THE PITCH ON THE CARD (Dex, 2026-10-09): an info button just right of
-       the title, on its bottom line. Hovering it swaps it for a wide copy of
-       the pitch that grows up and right from where the button was, across the
-       gap to the download; it stays while the pointer is on it or the button
-       and folds back into the button when the pointer leaves both. A tap or a
-       key press toggles it, a tap elsewhere or Escape folds it. */
-    const pitchBtn = item.querySelector('.fv-pitch-btn');
-    if (pitchBtn && about) {
-      const pop = about.cloneNode(true);
-      pop.className = 'fv-pitch-pop';
-      pop.removeAttribute('data-about');
-      pop.hidden = true;
-      item.append(pop);
-      let shutAt = 0;
-      const place = () => {
-        const ir = item.getBoundingClientRect(), br = pitchBtn.getBoundingClientRect();
-        const ar = item.querySelector('.fv-actions')?.getBoundingClientRect();
-        const end = (ar && ar.width ? ar.left : ir.right) - ir.left - 16;
-        let left = br.left - ir.left, bottom = ir.bottom - br.bottom;
-        /* Too little gap beside the title for the words: it stands on the
-           title instead, from the caption's left edge to the download. */
-        if (end - left < 260) {
-          const mr = pitchBtn.closest('.card-meta').getBoundingClientRect();
-          left = mr.left - ir.left;
-          bottom = ir.bottom - mr.top + 8;
-        }
-        const width = Math.max(200, Math.min(460, end - left));
-        left = Math.max(14, Math.min(left, end - width));
-        pop.style.cssText = `left:${left}px;bottom:${bottom}px;width:${width}px;max-height:${ir.height - bottom - 14}px`;
-        pop.style.transformOrigin = `${br.left - ir.left - left + br.width / 2}px 100%`;
-        pop.classList.remove('is-short');
-        if (pop.scrollHeight > pop.clientHeight + 1) pop.classList.add('is-short');
-      };
-      const set = open => {
-        clearTimeout(shutAt);
-        if (open === (pitchBtn.getAttribute('aria-expanded') === 'true')) return;
-        if (open) { pop.hidden = false; place(); }
-        pitchBtn.setAttribute('aria-expanded', String(open));
-        item.classList.toggle('is-pitched', open);
-        if (!open) shutAt = setTimeout(() => { pop.hidden = true; }, 260);
-      };
-      const later = () => { clearTimeout(shutAt); shutAt = setTimeout(() => set(false), 220); };
-      for (const el of [pitchBtn, pop]) {
-        el.addEventListener('pointerenter', e => { if (e.pointerType === 'mouse') set(true); });
-        el.addEventListener('pointerleave', e => { if (e.pointerType === 'mouse') later(); });
-      }
-      pitchBtn.addEventListener('click', e => {
-        e.stopPropagation();
-        set(pitchBtn.getAttribute('aria-expanded') !== 'true');
-      });
-      document.addEventListener('pointerdown', e => {
-        if (pitchBtn.getAttribute('aria-expanded') === 'true' && !pop.contains(e.target) && !pitchBtn.contains(e.target)) set(false);
-      });
-      document.addEventListener('keydown', e => {
-        if (e.key !== 'Escape' || pitchBtn.getAttribute('aria-expanded') !== 'true') return;
-        e.stopPropagation(); set(false);
-      }, true);
-      window.addEventListener('resize', () => { if (!pop.hidden) place(); });
-    }
     /* Sized first, placed second: how tall it is decides whether the column
        has to rise to make room for it. Narrower than 200px it keeps only the
        lead; with no room even for that, it is not shown. */
@@ -2887,7 +2828,7 @@ if (workModal) {
     close?.addEventListener('click', shrink);
     // A double click on the picture enlarges it (Dex), and in the overlay shrinks it.
     item.addEventListener('dblclick', e => {
-      if (e.target.closest('.fv-bar, .fv-actions, .fv-info, .fv-desc, .fv-about, .fv-pitch-pop, .fv-close')) return;
+      if (e.target.closest('.fv-bar, .fv-actions, .fv-about, .fv-pitch-pop, .fv-close')) return;
       clearTimeout(flipLater);
       isMax() ? shrink() : enlarge();
     });
@@ -2970,37 +2911,84 @@ if (workModal) {
       });
     }
 
-    /* The description. Click rather than hover alone: hover is not available on
-       a touch screen, and a paragraph that appears while the pointer is merely
-       passing over the corner is a jump scare. Hover opens it too on a device
-       that has one, which is what was asked for, and only while the pointer is
-       on the icon itself (Dex: not for as long as it is anywhere on the card). */
-    stage.querySelectorAll('.fv-item').forEach(item => {
-      const button = item.querySelector('.fv-info');
-      const desc = item.querySelector('.fv-desc');
-      if (!button || !desc) return;
-      const set = (open) => {
-        desc.classList.toggle('is-open', open);
-        button.setAttribute('aria-expanded', String(open));
-      };
-      button.addEventListener('click', () =>
-        set(button.getAttribute('aria-expanded') !== 'true'));
-      button.addEventListener('pointerenter', (event) => {
-        if (event.pointerType === 'mouse') set(true);
-      });
-      button.addEventListener('pointerleave', (event) => {
-        if (event.pointerType === 'mouse') set(false);
-      });
-      button.addEventListener('blur', () => {
-        if (!button.matches(':hover')) set(false);
-      });
-    });
-
-    /* No sources yet, so the play button says so instead of doing nothing.
-       CLAUDE.md keeps video off this host; these take streaming URLs when they
-       exist, and at that point the AI Lab's player gets shared rather than
-       copied. */
     stage.querySelectorAll('.fv-has-video').forEach(initFeaturedVideo);
+
+    /* THE PITCH ON THE CARD (Dex, 2026-10-09): on both big thumbnails the info
+       button is a third action, left of the download. Hovering it swaps it for
+       the pitch, which grows up and left from where the button was; it stays
+       while the pointer is on it or the button, folds back into the button
+       when the pointer leaves both, and the X on the head's row folds it too.
+       A tap or a key press toggles it, a tap elsewhere or Escape folds it.
+       Mobius' words are the enlarged panel's (.fv-about, filled above from the
+       AI Lab card), so this runs after initFeaturedVideo; Proto Isles' are the
+       button's data-pitch. */
+    const initPitch = item => {
+      const pitchBtn = item.querySelector('.fv-pitch-btn');
+      if (!pitchBtn) return;
+      const about = item.querySelector('.fv-about');
+      let pop;
+      if (about) {
+        pop = about.cloneNode(true);
+        pop.removeAttribute('data-about');
+      } else {
+        pop = document.createElement('aside');
+        const head = document.createElement('strong');
+        head.className = 'fv-about-head';
+        head.textContent = 'The pitch';
+        const lead = document.createElement('p');
+        lead.className = 'fv-about-lead';
+        lead.textContent = pitchBtn.dataset.pitch || '';
+        pop.append(head, lead);
+      }
+      pop.className = 'fv-pitch-pop';
+      pop.setAttribute('aria-label', pitchBtn.getAttribute('aria-label'));
+      const x = document.createElement('button');
+      x.type = 'button';
+      x.className = 'fv-pitch-x';
+      x.setAttribute('aria-label', 'Close');
+      x.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>';
+      pop.prepend(x);
+      pop.hidden = true;
+      item.append(pop);
+      let shutAt = 0;
+      /* Its bottom right corner on the button's, as wide as the frame allows
+         up to 460px, never past the frame's left edge or its top. */
+      const place = () => {
+        const ir = item.getBoundingClientRect(), br = pitchBtn.getBoundingClientRect();
+        const right = ir.right - br.right - item.clientLeft, bottom = ir.bottom - br.bottom - item.clientTop;
+        const width = Math.max(180, Math.min(460, ir.width - right - 14));
+        pop.style.cssText = `right:${right}px;bottom:${bottom}px;width:${width}px;max-height:${ir.height - bottom - 14}px`;
+        pop.style.transformOrigin = `${width - br.width / 2}px calc(100% - ${br.height / 2}px)`;
+        pop.classList.remove('is-short');
+        if (pop.scrollHeight > pop.clientHeight + 1) pop.classList.add('is-short');
+      };
+      const isOpen = () => pitchBtn.getAttribute('aria-expanded') === 'true';
+      const set = open => {
+        clearTimeout(shutAt);
+        if (open === isOpen()) return;
+        if (open) { pop.hidden = false; place(); }
+        pitchBtn.setAttribute('aria-expanded', String(open));
+        item.classList.toggle('is-pitched', open);
+        if (!open) shutAt = setTimeout(() => { pop.hidden = true; }, 260);
+      };
+      const later = () => { clearTimeout(shutAt); shutAt = setTimeout(() => set(false), 220); };
+      for (const el of [pitchBtn, pop]) {
+        el.addEventListener('pointerenter', e => { if (e.pointerType === 'mouse') set(true); });
+        el.addEventListener('pointerleave', e => { if (e.pointerType === 'mouse') later(); });
+      }
+      pitchBtn.addEventListener('click', e => { e.stopPropagation(); set(!isOpen()); });
+      x.addEventListener('click', e => { e.stopPropagation(); set(false); });
+      pop.addEventListener('click', e => e.stopPropagation());
+      document.addEventListener('pointerdown', e => {
+        if (isOpen() && !pop.contains(e.target) && !pitchBtn.contains(e.target)) set(false);
+      });
+      document.addEventListener('keydown', e => {
+        if (e.key !== 'Escape' || !isOpen()) return;
+        e.stopPropagation(); set(false);
+      }, true);
+      window.addEventListener('resize', () => { if (!pop.hidden) place(); });
+    };
+    stage.querySelectorAll('.fv-item').forEach(initPitch);
 
     stage.querySelectorAll('.fv-play').forEach(play => {
       play.addEventListener('click', () => {

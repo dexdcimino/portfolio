@@ -193,12 +193,15 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
   under 200px wide, hide it where even that will not fit, and raise the column
   rather than let it run off the bottom. A slot with a `.fv-about` keeps 200px
   either side when enlarged (from 900px wide) so a 1440x900 laptop has room.
-  On the small card the info button sits in the title (`.fv-pitch-btn`, on
-  its bottom line, hover-only like Proto Isles'); hovering it swaps it for
-  `.fv-pitch-pop`, a wider clone of the pitch grown up and right from the
-  button to the download (or stood on the caption when that gap is under
-  260px), kept while the pointer is on either and folded 220ms after it
-  leaves both; a tap toggles it, a tap elsewhere or Escape folds it. Enlarging,
+  On BOTH big thumbnails (Mobius and Proto Isles) the info button is a third
+  `.fv-act` in `.fv-actions`, left of the download, the same 52px box
+  (`.fv-pitch-btn`); `initPitch()` runs after `initFeaturedVideo` and swaps it
+  on hover for `.fv-pitch-pop`, Mobius' a clone of the filled `.fv-about` and
+  Proto Isles' built from the button's `data-pitch`, its bottom right corner
+  on the button's, up to 460px wide, with an X (`.fv-pitch-x`) on the head's
+  row. It is kept while the pointer is on either and folded 220ms after it
+  leaves both; a tap toggles it, the X, a tap elsewhere or Escape folds it.
+  Neither big thumbnail draws a border, at rest or hovered. Enlarging,
   by either route, UNMUTES it (`soundUp()`) until the visitor sets the sound
   by hand (the card's speaker, its volume or the floating mute), which is
   kept in `localStorage` `fv-sound-by-hand`; the music muting it through
@@ -206,9 +209,8 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
   player. Only the bar comes along. Both buttons'
   tips carry `data-tip-big`. The download copies `#mobiusDownload`'s href
   and target at click time, so it starts the same per-system installer
-  (`initMobiusDownload`). Proto Isles' info button shows only while the card
-  is hovered, on a device with hover. Nothing drawn over the video uses
-  `backdrop-filter` (`.fv-act`, `.fv-volume`, `.fv-info`, `.fv-desc`,
+  (`initMobiusDownload`). Nothing drawn over the video uses
+  `backdrop-filter` (`.fv-act`, `.fv-volume`, `.fv-pitch-pop`,
   `.fv-about` are near-opaque fills): a blur over it made the compositor read
   the video back through an SDR surface, so it flickered between HDR and sRGB
   whenever a blurred control was on top (Dex, 2026-10-09). The `.fv-video`
