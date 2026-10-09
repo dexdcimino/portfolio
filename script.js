@@ -2011,9 +2011,20 @@ function selectWorkCategory(index, itemIndex = 0) {
    row (Dex, 2026-10-09). Each wears the icon of the tab it goes to and wraps
    like the arrows do -- Featured's right-hand button is Video. The portfolio's
    own tabs have no icons, so there the buttons stay hidden. */
+/* The portfolio's own category icons (Dex, 2026-10-09). A Proto Isles style
+   set carries its icons in its data-tab-icons; the portfolio's categories come
+   from work.json, so they are named here, keyed by category id. Sources:
+   assets/icons/work/*.svg, plus the Proto Isles sword, pine and UI marks. */
+const WORK_CAT_ICONS = {
+  character: 'work-character', props: 'pi-sword', concept: 'work-concept',
+  environment: 'pi-tree', minecraft: 'work-block', roblox: 'work-roblox',
+  design: 'pi-ui', archive: 'work-archive',
+};
+const workCatIcon = cat => cat.icon || WORK_CAT_ICONS[cat.id] || null;
+
 function paintWorkJumps() {
   const cats = galleryCats();
-  const on = !!workSet && cats.length > 1 && cats.every(cat => cat.icon);
+  const on = cats.length > 1 && cats.every(workCatIcon);
   [[workJumpPrev, -1], [workJumpNext, 1]].forEach(([btn, step]) => {
     if (!btn) return;
     btn.hidden = !on;
@@ -2023,7 +2034,7 @@ function paintWorkJumps() {
     btn.dataset.index = String(index);
     btn.dataset.tip = cat.label;
     btn.setAttribute('aria-label', `${step < 0 ? 'Previous' : 'Next'} category: ${cat.label}`);
-    btn.querySelector('.icon')?.setAttribute('data-icon', cat.icon);
+    btn.querySelector('.icon')?.setAttribute('data-icon', workCatIcon(cat));
   });
 }
 
