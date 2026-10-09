@@ -689,7 +689,19 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
   root-absolute: Vercel serves both `/name` and `/name/`
 - `mindsplit/` — Vite build **output** served directly (source at
   `ai/apps/mindsplit/`; the one build-step exception). `ai/apps/` contract is in
-  its README
+  its README. An installable PWA scoped to `/mindsplit/` (`manifest.webmanifest`,
+  `sw.js`, `?install=1` opens the install sheet, the AI Lab card has the download
+  button left of the eye). Polls and votes are SHARED through Firestore in
+  `dexnote-d7047` (`cloud.js`, copied verbatim from `public/`, imports the vendored
+  SDK and `/account/site-auth.js` by runtime URL so the page shares the site
+  account): `msCounts`, `msVotes`, `msPolls`, `msUsers`, `msHandles`, `msReports`.
+  A vote is one batch that moves the vote doc and the count together, which is how
+  the rules in `docs/mindsplit.rules` hold one vote per account; signed-out phones
+  vote as an anonymous Firebase user on a separate named app, so the site's own
+  sign-in is never touched by it. Asking needs a real account and a handle. The
+  390 built-in questions live in `src/data/polls.js` and carry no counts. Checked
+  by `tools/mindsplit_check.mjs` against a fake `cloud.js` — the rules are not
+  exercised by anything here
 - `inko/` — **Inko**, the sketch pad: a plain web app (`index.html`, `app.js`,
   `app.css`, `sw.js`) that installs to a phone's home screen and opens in the
   AI Lab overlay with `?embed=1`. Three invariants, each the fix for something
@@ -1232,8 +1244,9 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
   bunny.net pull zone the AI Lab clips stream from — an exact host, never a
   `*.b-cdn.net` wildcard, which would be every bunny customer's zone);
   `/games/*` adds `'unsafe-inline' blob:` + Photon websockets +
-  `frame-ancestors 'self'`; `/mindsplit/*` and `/themedock/*` strict but
-  frameable. `assets/derived/` is `immutable` for a year — hence
+  `frame-ancestors 'self'`; `/themedock/*` strict but frameable;
+  `/mindsplit/*` frameable with Inko's Firebase allowances (Firestore, Identity
+  Toolkit, the sign-in popups' frames, `same-origin-allow-popups`). `assets/derived/` is `immutable` for a year — hence
   the `?v=<8 hex of the master's bytes>` stamp on every generated URL
 
 ## Collab (shared builds)

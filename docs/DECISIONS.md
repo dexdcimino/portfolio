@@ -50,6 +50,35 @@ change**, so the reasoning cannot drift away from the diff it explains.
 
 ---
 
+## 2026-10-09 — MindSplit's votes are real, in Firestore, on the site account
+
+**Decided:** MindSplit stores polls, votes and counts in Firestore in `dexnote-d7047`,
+the same project as the site account, through `mindsplit/cloud.js`. A vote is one
+batch writing `msVotes/<poll>_<uid>` and incrementing `msCounts/<poll>`, and the rules
+make each side refuse to move without the other. Signed-out phones vote as an
+anonymous Firebase user on a separate named app. Asking a question needs a real
+account (Google, Discord, GitHub, or email and password, which `site-auth.js` now
+exports) and a handle in `msHandles`. Three reports hide a question; its author or
+Dex can delete it. The app is an installable PWA scoped to `/mindsplit/`.
+
+**Replaced:** localStorage-only votes with a fake `setInterval` drift on the visible
+card, preloaded counts invented per poll, a report button that sent nothing, and
+Task 3's sketch of `polls/{id}` with a counts array.
+
+**Why:** Dex, 2026-10-09: the point is to "see what other people's opinions are", on
+"the same accounts" as Inko, installable, "almost ready for deployment on the App
+Store". Invented numbers cannot do the first. Vercel Blob was the other store on
+hand and is the wrong one: Hobby is 2,000 writes a month and a vote is a write.
+Firestore counts with `increment` and the rules can hold one vote per account
+without a server. A counts ARRAY would make two simultaneous votes on different
+answers collide; one field per answer does not.
+
+**Reverse it if:** votes outgrow Firestore's free tier, or anonymous voting is abused
+enough that a vote needs a real account. The first moves the counts behind an API
+route; the second is one rule (`msSigned` to `msAccount` on msVotes and msCounts).
+
+---
+
 ## 2026-10-09 — ~DEXDC is the site's sign-in, not DexNote's
 
 **Decided:** DEXDC, typed into any keypad (the tilde prompt over any overlay, the
