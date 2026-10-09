@@ -50,6 +50,26 @@ change**, so the reasoning cannot drift away from the diff it explains.
 
 ---
 
+## 2026-10-09 — The front band shows over the mascot and fades out halfway across him
+
+**Decided:** `#bgFrontAlongFade` in `index.html` is a short ramp (zero at viewBox
+1240,520, solid by 1400,394), so the front band is plainly over his lower right side and
+gone by about the middle of his body, well above where it would reach his waist.
+
+**Replaced:** the 2026-10-08 ramp, zero at 1300,470 and solid only at 1720,138 with a slow
+curve. Over the mascot it never rose above about a quarter, so it read as fading out before
+it touched him. Dex: "it should show up in front of the character, just a little bit, like
+midway through it should be totally gone."
+
+**Why:** the band only crosses him below his shoulders, so the ramp has to happen there,
+inside a short distance, or none of it is visible on him. The back wedge's cut under his
+arm (`#bgWedgeCut`) and the band's edge feather are unchanged.
+
+**Reverse it if:** the mascot art or the band's polygon moves, since the ramp is placed
+against where the band crosses him now.
+
+---
+
 ## 2026-10-08 — Inko: a canvas change is a gentle crossfade, not a diagonal wipe
 
 **Decided.** `snapPad()` lays a copy of the old canvas over the pad and the two crossfade: the
