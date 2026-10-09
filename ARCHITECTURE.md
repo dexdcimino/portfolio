@@ -143,7 +143,11 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
   cannot send it to a stale spot), and moved into the top open
   `<dialog>` (the Functional Preview's included) so a modal never leaves it
   inert; muted from there it keeps
-  playing until the card is back, when the copy flies home. The eye presses the AI
+  playing until the card is back, when the copy flies home. Its sound and
+  the music are one at a time: the slot registers with `MediaBus` (a tick
+  late, past the bus's temporal dead zone) as a player that is "playing" only
+  while audible, so music starting mutes it (taking the float away) and its
+  sound coming on pauses the music. The eye presses the AI
   Lab card's own eye once the scroll there has ended, and its tip clones the
   first Mobius gallery `<picture>` via `data-tip-thumb`), one `initTabs()`
   behind four tablists, `initGallery({id, root, panel})` — ONE carousel +

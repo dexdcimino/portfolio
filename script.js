@@ -2212,7 +2212,15 @@ if (workModal) {
     scrub.addEventListener('change', () => { scrubbing = false; });
     const flip = () => { wanted = video.paused || video.ended; if (wanted) start(); else video.pause(); };
     toggle?.addEventListener('click', flip);
-    play?.addEventListener('click', flip);
+    /* A click on the picture waits out a double click before it pauses (Dex:
+       the first half of a double click to enlarge was pausing it). The second
+       click (detail 2) cancels it; a key press (detail 0) acts at once. */
+    let flipLater = 0;
+    play?.addEventListener('click', e => {
+      clearTimeout(flipLater);
+      if (e.detail === 0) flip();
+      else if (e.detail === 1) flipLater = setTimeout(flip, 250);
+    });
     const level = item.querySelector('.fv-volume');
     const fillLevel = () => {
       if (!level) return;
@@ -2236,6 +2244,34 @@ if (workModal) {
     });
     video.volume = .5;   // the first unmute comes in at half (Dex)
     fillLevel();
+    /* ONE SOUND AT A TIME (Dex): this video with its sound on and the music
+       never play together. Music starting mutes it (and so takes the floating
+       mute away), and its sound coming on pauses the music, through MediaBus
+       like every other player. To the bus it is "playing" only while it is
+       audible, so a muted autoplay is never anyone's business. It stays out of
+       the space bar and the hidden-tab rule (sync() already pauses it there,
+       and the bus would mute it instead). Registered a tick late: this block
+       runs before the line that defines MediaBus, and touching it here would
+       throw on the temporal dead zone. */
+    let bus = null;
+    queueMicrotask(() => {
+      bus = MediaBus.add({
+        el: { get paused() { return video.paused || video.muted; } },
+        keepPlayingHidden: true,
+        onScreen: () => false,
+        control: () => true,       // the card's speaker, or the floating one
+        touched: () => false,
+        toggle: () => { mute?.click(); },
+        pause: () => {
+          if (video.muted) return;
+          video.muted = true; floatHeld = false;
+          paint(); fillLevel(); sync();
+        },
+      });
+    });
+    const solo = () => { if (bus && !video.paused && !video.muted && video.volume > 0) MediaBus.solo(bus); };
+    video.addEventListener('volumechange', solo);
+    video.addEventListener('playing', solo);
     /* ENLARGE, NOT FULL SCREEN (Dex): the slot lifts into the top layer as a
        popover, centred over the page at the video's own aspect so there are
        no bars either side, rounded like the site's other overlays. The X, a
@@ -2286,6 +2322,7 @@ if (workModal) {
     // A double click on the picture enlarges it (Dex), and in the overlay shrinks it.
     item.addEventListener('dblclick', e => {
       if (e.target.closest('.fv-bar, .fv-actions, .fv-info, .fv-desc, .fv-close')) return;
+      clearTimeout(flipLater);
       isMax() ? shrink() : enlarge();
     });
     const outside = e => {
