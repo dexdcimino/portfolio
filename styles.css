@@ -1299,6 +1299,21 @@ html.dex-cursor button.app-art-view{cursor:zoom-in}
 }
 .fv-volume::-moz-range-thumb{width:14px;height:14px;border-radius:999px;background:#fff;border:0}
 .fv-volume:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+/* The floating mute: the featured video's sound, reachable from anywhere once
+   the card has scrolled away. Placed every frame under #accentSwatches (JS),
+   so it rides the picker's open and close; flown in from the card's own
+   button with a FLIP transform. */
+.fv-float{
+  position:fixed;left:0;top:0;z-index:89;width:40px;height:40px;padding:0;border:0;cursor:pointer;
+  border-radius:12px;display:grid;place-items:center;color:#d4dae0;
+  background:rgba(6,8,11,.82);backdrop-filter:blur(6px);box-shadow:0 6px 20px rgba(0,0,0,.35);
+  transition:background var(--accent-ease),color var(--accent-ease);
+}
+.fv-float[hidden]{display:none}
+.fv-float .icon{width:20px;height:20px}
+.fv-float.is-muted{color:#9aa3ad}
+.fv-float:hover,.fv-float:focus-visible{background:var(--accent);color:var(--accent-ink,#0b0d12)}
+.fv-float:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
 /* ENLARGED (Dex: not real full screen). The slot is a popover in the top layer,
    centred at the video's own aspect, so the picture fills it with no bars at
    the sides, rounded like the site's overlays, over a dimmed page. Only the bar
