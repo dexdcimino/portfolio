@@ -498,6 +498,79 @@ function onSwatchClick(theme, button) {
   }
 }
 
+/* THE PROFILE BUTTON (Dex, 2026-10-09): "at the very top right ... a sign in
+   icon ... the exact same thing as just me hitting tilde and typing in Dex
+   DC", and once the page scrolls it "would just replace that swatch at the
+   top" -- hovering it still drops the hexagons down. So it is the last thing
+   in the inline row and, docked, the toggle the cascade falls out of (the
+   swatches all move down one row, the active one first).
+
+   The mark is the site's own shape: a hexagon frame with a person in it whose
+   HEAD is a small hexagon too. Hollow and accent-inked while nobody is signed
+   in; filled with the accent, the person cut out of it, once someone is. The
+   state comes from site-auth's mirror flag, so drawing it never loads
+   Firebase. A click opens the site sign-in (openSiteSignIn), which signed in
+   is the account's own menu. On touch, docked, the first tap opens the
+   swatches (there is no hover) and the second opens the panel. */
+const PROFILE_HEAD = roundedPolygonPath(hexPoints(38, 29, 9.5), 3);
+function buildProfileButton() {
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'profile-btn';
+  btn.id = 'profileButton';
+  const ns = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(ns, 'svg');
+  svg.setAttribute('viewBox', '0 0 76 76');
+  svg.setAttribute('aria-hidden', 'true');
+  const el = (tag, attrs) => {
+    const n = document.createElementNS(ns, tag);
+    Object.entries(attrs).forEach(([k, v]) => n.setAttribute(k, v));
+    return n;
+  };
+  const frame = roundedPolygonPath(hexPoints(38, 38, 32), 6);
+  const clip = el('clipPath', { id: 'profileClip' });
+  clip.append(el('path', { d: roundedPolygonPath(hexPoints(38, 38, 29), 5) }));
+  const body = el('g', { 'clip-path': 'url(#profileClip)', class: 'pf-person' });
+  body.append(
+    el('path', { d: PROFILE_HEAD }),
+    el('path', { d: 'M 17 76 L 17 61 C 17 51 26 45 38 45 C 50 45 59 51 59 61 L 59 76 Z' }));
+  svg.append(
+    el('defs', {}),
+    el('path', { class: 'pf-back', d: roundedPolygonPath(hexPoints(38, 38, 38), 8) }),
+    el('path', { class: 'pf-fill', d: frame }),
+    el('path', { class: 'pf-frame', d: frame }),
+    body);
+  svg.firstChild.append(clip);
+  btn.append(svg);
+  picker.append(btn);
+
+  const paint = () => {
+    let on = false;
+    try { on = localStorage.getItem('site:signedIn') === '1'; } catch (e) { /* private mode */ }
+    btn.classList.toggle('is-signed-in', on);
+    btn.setAttribute('aria-label', on ? 'Your account' : 'Sign in');
+  };
+  paint();
+  window.addEventListener('site:user', paint);
+  window.addEventListener('storage', (e) => { if (e.key === 'site:signedIn') paint(); });
+
+  /* Whether the stack was open when the finger came DOWN: the tap focuses the
+     button, and focusin opens the stack before the click arrives, so reading
+     it at click time would skip straight to the panel. */
+  let openAtPress = null;
+  btn.addEventListener('pointerdown', () => { openAtPress = picker.classList.contains('open'); });
+  btn.addEventListener('click', () => {
+    const wasOpen = openAtPress;
+    openAtPress = null;
+    if (isDocked() && !canHover.matches && wasOpen === false) {
+      setOpen(true, { pin: true });
+      return;
+    }
+    if (isDocked()) setOpen(false);
+    openSiteSignIn(btn);
+  });
+}
+
 function buildAccentPicker() {
   if (!accentHost || !picker) return;
 
@@ -571,6 +644,7 @@ function buildAccentPicker() {
   cSvg.append(cHex, cG);
   cursorBtn.appendChild(cSvg);
   accentHost.appendChild(cursorBtn);
+  buildProfileButton();
 
   const applyCursorPref = (on, persist = true) => {
     document.documentElement.classList.toggle('dex-cursor', on);
@@ -1111,7 +1185,7 @@ function bindModal(dialog, onClose) {
 /* ~DEXDC IS THE SITE'S SIGN-IN (Dex, 2026-10-09): "anytime I type in Dex DC,
    it's just signing me into my website ... not specific for the Dex note."
    Typed into any keypad -- the tilde prompt over any overlay, the Idea Vault,
-   the notes' own box -- it opens THIS: Google, GitHub, Discord, wearing the
+   the notes' own box -- it opens THIS: Google, Discord, GitHub, wearing the
    site's own mark (the accent-coloured favicon, the hexagonal helmet), and
    nothing else opens. Signed in, the same panel says who and offers Sign out.
 
@@ -1130,7 +1204,39 @@ const siteAuthMod = () => import('/account/site-auth.js');
 window.siteSignOutHooks = window.siteSignOutHooks || [];
 
 function siteSignInLabel(u) {
-  return (u && (u.email || u.displayName)) || 'your account';
+  if (!u) return 'your account';
+  // A name-and-password account (Inko's kind) signs in to Firebase with an
+  // address made up for it; the person knows it by its @name.
+  if (u.displayName && /@accounts\.dexcimino\.com$/i.test(u.email || '')) return `@${u.displayName}`;
+  return u.email || u.displayName || 'your account';
+}
+const SITE_PROVIDER_NAMES = { 'google.com': 'Google', 'github.com': 'GitHub', 'oidc.discord': 'Discord', password: 'a password' };
+
+/* NAME AND PASSWORD (Dex, 2026-10-09): "letting people sign in without having
+   to use Google or GitHub ... if they created that sign in in the INKO app,
+   then they could enter that same information here and have that same sign
+   in for everything." One box takes either:
+     an email   -> a Firebase email-and-password account, made or signed in to
+                   right here (account/site-auth.js, as MindSplit does)
+     a name     -> an Inko account. The SERVER checks the name and password
+                   (api/sketch.js action 'site-password', lib/sketch-store.js
+                   siteBridge) and answers with the Firebase sign-in that
+                   account owns -- made the first time, linked to the Inko
+                   name, so Inko, DexNote and MindSplit all open the same
+                   person. Creating one makes the Inko account first. */
+async function siteNamePassword(auth, who, password, create) {
+  const name = String(who || '').trim();
+  if (/^[^@\s]+@[^@\s]+$/.test(name)) {
+    return create ? auth.createEmail(name, password) : auth.signInEmail(name, password);
+  }
+  const r = await fetch('/api/sketch', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'site-password', handle: name.replace(/^@/, ''), password, create: !!create }),
+  });
+  let j = {};
+  try { j = await r.json(); } catch (e) { /* not JSON: said below */ }
+  if (!r.ok || !j.email) throw Object.assign(new Error(j.error || `The server said ${r.status}. Try again.`), { said: true });
+  return auth.signInEmail(j.email, j.password);
 }
 
 async function openSiteSignIn(opener) {
@@ -1158,6 +1264,7 @@ async function openSiteSignIn(opener) {
   note.textContent = 'Sign in to dexcimino.com.';
   const error = document.createElement('p');
   error.className = 'signin-error';
+  error.setAttribute('role', 'alert');
   error.hidden = true;
   const providers = document.createElement('div');
   providers.className = 'signin-providers';
@@ -1171,28 +1278,24 @@ async function openSiteSignIn(opener) {
     b.addEventListener('click', onclick);
     return b;
   };
+  const say = (text) => { error.textContent = text; error.hidden = !text; };
 
   let auth = null;
-  const busy = (on) => dialog.querySelectorAll('button').forEach(b => { b.disabled = on; });
-  const signIn = (which) => async () => {
-    error.hidden = true;
+  const busy = (on) => dialog.querySelectorAll('button, input').forEach(b => { b.disabled = on; });
+  const failed = (err) => {
+    const code = (err && err.code) || '';
+    if (/popup-closed|cancelled-popup/.test(code)) return;
+    console.warn('site sign-in failed', err);
+    say(err && err.said ? err.message : (auth ? auth.errorText(err) : 'Sign-in did not work. Try again.'));
+  };
+  const attempt = (fn) => async () => {
+    say('');
     busy(true);
     try {
       auth = auth || await siteAuthMod();
-      await auth.signIn(which);
+      await fn();
       closeModal(dialog);
-    } catch (err) {
-      const code = (err && err.code) || '';
-      if (!/popup-closed|cancelled-popup/.test(code)) {
-        console.warn('site sign-in failed', err);
-        error.textContent = code === 'auth/popup-blocked'
-          ? 'The sign-in window was blocked. Allow pop-ups for this site and try again.'
-          : code === 'auth/account-exists-with-different-credential'
-            ? 'That email already signs in with a different provider. Use the one you used before.'
-            : `Sign-in did not work (${code || (err && err.message) || 'unknown error'}). Try again.`;
-        error.hidden = false;
-      }
-    } finally { busy(false); }
+    } catch (err) { failed(err); } finally { busy(false); }
   };
   const signOut = async () => {
     busy(true);
@@ -1205,41 +1308,91 @@ async function openSiteSignIn(opener) {
       closeModal(dialog);
     } catch (err) {
       console.warn('site sign-out failed', err);
-      error.textContent = 'Sign-out did not work. Try again.';
-      error.hidden = false;
+      say('Sign-out did not work. Try again.');
     } finally { busy(false); }
   };
 
   /* The provider's own mark beside its name, one colour like the rest of the
      panel (Dex, 2026-10-09: "just have the logo and then Google"). */
-  const provider = (which, name, cls) => {
-    const b = button(name, `signin-provider ${cls || ''}`, signIn(which));
-    const mark = document.createElement('span');
-    mark.className = 'icon signin-mark';
-    mark.dataset.icon = which;
-    mark.setAttribute('aria-hidden', 'true');
-    b.prepend(mark);
-    b.setAttribute('aria-label', `Sign in with ${name}`);
+  const provider = (which, name, cls, onclick) => {
+    const b = button(name, `signin-provider ${cls || ''}`, onclick || attempt(() => auth.signIn(which)));
+    const glyph = document.createElement('span');
+    glyph.className = 'icon signin-mark';
+    glyph.dataset.icon = which;
+    glyph.setAttribute('aria-hidden', 'true');
+    b.prepend(glyph);
+    b.setAttribute('aria-label', onclick ? name : `Sign in with ${name}`);
     return b;
   };
+
+  /* The fourth way in: one box for an email OR an Inko name, and a password,
+     in the same column the provider buttons were in -- the panel keeps its
+     layout (Dex: "I really like this window layout"). */
+  const form = document.createElement('form');
+  form.className = 'signin-form';
+  form.hidden = true;
+  const field = (type, placeholder, label, complete) => {
+    const i = document.createElement('input');
+    i.className = 'signin-input';
+    i.type = type;
+    i.placeholder = placeholder;
+    i.setAttribute('aria-label', label);
+    i.autocomplete = complete;
+    i.spellcheck = false;
+    i.setAttribute('autocapitalize', 'none');
+    return i;
+  };
+  const who = field('text', 'Email or Inko name', 'Email or Inko name', 'username');
+  const pass = field('password', 'Password', 'Password', 'current-password');
+  const go = (create) => attempt(() => {
+    if (!who.value.trim()) throw Object.assign(new Error('Type your email or your name.'), { said: true });
+    if (!pass.value) throw Object.assign(new Error('Type a password.'), { said: true });
+    return siteNamePassword(auth, who.value, pass.value, create);
+  });
+  const formRow = document.createElement('div');
+  formRow.className = 'signin-form-row';
+  const signInBtn = button('Sign in', 'is-primary', () => {});
+  signInBtn.type = 'submit';
+  formRow.append(signInBtn, button('Create account', '', go(true)));
+  const back = button('Other ways to sign in', 'signin-link', () => showProviders());
+  form.append(who, pass, formRow, back);
+  form.addEventListener('submit', (e) => { e.preventDefault(); go(false)(); });
+
+  const showProviders = () => {
+    say('');
+    form.hidden = true;
+    providers.hidden = false;
+    providers.querySelector('button')?.focus();
+  };
+  const showForm = () => {
+    say('');
+    providers.hidden = true;
+    form.hidden = false;
+    who.focus();
+  };
+
   providers.append(
     provider('google', 'Google', 'is-primary'),
+    provider('discord', 'Discord'),
     provider('github', 'GitHub'),
-    provider('discord', 'Discord'));
+    provider('lock', 'Email or name', 'is-quiet', showForm));
   const signOutBtn = button('Sign out', 'is-danger', signOut);
   signOutBtn.hidden = true;
-  foot.append(signOutBtn, button('Not now', '', () => closeModal(dialog)));
+  const closeBtn = button('Not now', '', () => closeModal(dialog));
+  foot.append(signOutBtn, closeBtn);
 
   const card = document.createElement('div');
   card.className = 'signin-card';
-  card.append(mark, title, note, providers, error, foot);
+  card.append(mark, title, note, providers, form, error, foot);
   dialog.replaceChildren(card);
 
   /* Stacked only over a real overlay; the docked music bar is not one. */
   const over = [...openDialogs].some(d => d !== dialog && d.open && !isDockedBar(d));
   openModal(dialog, card, () => providers.querySelector('button')?.focus(), opener, over);
 
-  /* Who is signed in, without fetching Firebase for someone who never has. */
+  /* Who is signed in, without fetching Firebase for someone who never has.
+     Signed in, the panel is the account's own menu: who, how, and Sign out
+     -- the start of the profile options. */
   let signedIn = false;
   try { signedIn = localStorage.getItem('site:signedIn') === '1'; } catch (e) { /* private mode */ }
   if (!signedIn) return;
@@ -1247,8 +1400,16 @@ async function openSiteSignIn(opener) {
     auth = auth || await siteAuthMod();
     const u = await auth.currentUser();
     if (!dialog.open || !u) return;
-    note.textContent = `Signed in as ${siteSignInLabel(u)}.`;
+    const via = SITE_PROVIDER_NAMES[u.providerData && u.providerData[0] && u.providerData[0].providerId];
+    card.classList.add('is-account');
+    title.textContent = 'Your account';
+    note.textContent = `Signed in as ${siteSignInLabel(u)}${via ? ` with ${via}` : ''}.`
+      + (window.dexOwner && window.dexOwner.is ? ' Admin on every page.' : '');
+    providers.hidden = true;
+    form.hidden = true;
     signOutBtn.hidden = false;
+    closeBtn.textContent = 'Close';
+    signOutBtn.focus();
   } catch (err) { console.warn('site sign-in: could not read the account', err); }
 }
 window.openSiteSignIn = openSiteSignIn;

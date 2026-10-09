@@ -4184,6 +4184,26 @@ are not done twice. `dexnote/account.js` `whoIsHere()` reads the site's
 `site:signedIn` flag too, since a sign-in from the panel is the same Firebase
 account. Nothing is sent to a server for the code itself.
 
+The panel's fourth button, **Email or name**, swaps the provider column for one
+box (an email or an Inko name) and a password, with Sign in and Create account.
+An email goes straight to Firebase (`signInEmail` / `createEmail`). A name goes
+to `/api/sketch` action `site-password`, which runs Inko's `login` or `signup`
+and then `siteBridge()`: the Inko account's own Firebase email-and-password user
+(random address `inko-<24 hex>@accounts.dexcimino.com`, password an HMAC of the
+address, made through Firebase's REST API by `idp()` in `lib/site-identity.js`,
+`displayName` set to the name), recorded on the user as `bridge: { email, uid,
+name }` and linked as `firebase-<uid>`, so Inko's `identifySite` opens the same
+account and DexNote and MindSplit see one uid. Signed in, the panel is the
+account's menu: "Your account", who and how, and Sign out; no sign-in buttons.
+
+**The profile button** (`#profileButton`, `buildProfileButton()` in
+`script.js`) is the last thing in the accent row: a hexagon frame with a person
+whose head is a small hexagon, in the accent, filled once `site:signedIn` is
+set. A click opens `openSiteSignIn`. Docked (scrolled), it takes the active
+swatch's place at the top of the stack and every swatch moves down one row
+(`(--row + 1) * --swatch-step + 5px`); hover still opens the stack, and on touch
+the first tap opens it and the second opens the panel.
+
 The client-side Idea Vault codes are NOT behind this: their payloads ship in
 the page and are public by construction (the backlog and the doors), so a
 check in the browser would be decoration. Every door that leads to data checks

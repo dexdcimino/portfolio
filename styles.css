@@ -792,22 +792,22 @@ button.button{cursor:pointer;font-family:inherit}
   transition:transform .34s cubic-bezier(.22,.61,.36,1),opacity .2s ease;
 }
 .accent-picker.compact .swatch svg{transform:rotate(90deg)}
-.accent-picker.compact .swatch.active{opacity:1;pointer-events:auto;transform:none;z-index:3}
+.accent-picker.compact .swatch.active{z-index:3}
 /* Docked, the active hex is the only thing on screen and it lands right on the
    accent wedge — same color, so the ring alone disappears. The rim rides the
    larger RIM_R hexagon, so it hugs the ring's outer edge and adds nothing
    inside the hex. ~3px at the default 34px swatch. */
 .accent-picker.compact .swatch.active .halo{stroke-width:7}
 
-.accent-picker.compact.open .accent-swatches{height:calc(var(--swatch) + var(--rows,6) * var(--swatch-step))}
+.accent-picker.compact.open .accent-swatches{height:calc(var(--swatch) + (var(--rows,6) + 1) * var(--swatch-step) + 5px)}
 .accent-picker.compact.open .accent-swatches::before{opacity:1;transform:none}
 .accent-picker.compact.open .swatch{
   opacity:1;pointer-events:auto;
-  transform:translateY(calc(var(--row,0) * var(--swatch-step)));
+  transform:translateY(calc((var(--row,0) + 1) * var(--swatch-step) + 5px));
   transition-delay:calc(var(--row,0) * 32ms);
 }
 .accent-picker.compact.open .swatch:hover{
-  transform:translateY(calc(var(--row,0) * var(--swatch-step))) scale(1.18);
+  transform:translateY(calc((var(--row,0) + 1) * var(--swatch-step) + 5px)) scale(1.18);
   transition-delay:0s;
 }
 
@@ -914,13 +914,42 @@ html.dex-cursor button.app-art-view{cursor:zoom-in}
 .accent-picker.compact .cursor-toggle .ct-hex{transform:rotate(90deg) scale(1.07);transform-origin:38px 38px}
 .accent-picker.compact.open .cursor-toggle{
   opacity:1;pointer-events:auto;
-  transform:translateY(calc(var(--row,7) * var(--swatch-step)));
+  transform:translateY(calc((var(--row,7) + 1) * var(--swatch-step) + 5px));
   transition-delay:calc(var(--row,7) * 32ms);
 }
 .accent-picker.compact.open .cursor-toggle:hover{
-  transform:translateY(calc(var(--row,7) * var(--swatch-step))) scale(1.18);
+  transform:translateY(calc((var(--row,7) + 1) * var(--swatch-step) + 5px)) scale(1.18);
   transition-delay:0s;
 }
+
+/* THE PROFILE BUTTON — the last thing in the inline row; docked, the toggle
+   at the top of the stack that the swatches cascade out of (one row down,
+   above). Hollow hexagon frame and a person with a hexagonal head, both in
+   the accent; signed in, the frame fills and the person is cut out of it in
+   the page colour. A little larger than a swatch so it reads as the anchor. */
+.profile-btn{
+  --pf:calc(var(--swatch) + 8px);
+  width:var(--pf);height:var(--pf);padding:0;border:0;background:none;cursor:pointer;
+  display:grid;place-items:center;margin-left:6px;color:var(--accent);
+  transition:transform var(--accent-ease),color var(--accent-ease);
+}
+.profile-btn svg{display:block;width:100%;height:100%;overflow:visible}
+.profile-btn .pf-back{fill:none}
+.profile-btn .pf-fill{fill:currentColor;opacity:0;transition:opacity .2s ease}
+.profile-btn .pf-frame{fill:none;stroke:currentColor;stroke-width:5.5}
+.profile-btn .pf-person{fill:currentColor;transition:fill .2s ease}
+.profile-btn.is-signed-in .pf-fill{opacity:1}
+.profile-btn.is-signed-in .pf-person{fill:var(--page-bg)}
+.profile-btn:hover{transform:scale(1.1)}
+.profile-btn:focus-visible{outline:2px solid var(--text);outline-offset:3px;border-radius:8px}
+/* Docked it sits where the active swatch used to, centred on the swatch box,
+   on a page-coloured backing so it never vanishes into the accent wedge. */
+.accent-picker.compact .profile-btn{
+  position:absolute;z-index:4;margin:0;
+  top:calc(10px + (var(--swatch) - var(--pf)) / 2);
+  left:calc(10px + (var(--swatch) - var(--pf)) / 2);
+}
+.accent-picker.compact .profile-btn .pf-back{fill:var(--page-bg)}
 
 /* ==========================================================================
    HERO
@@ -4509,6 +4538,13 @@ body.modal-open{overflow:hidden}
   .topbar{padding:0 12px}
   .accent-picker{transform:translate(-4px,12px)}
   .accent-picker .accent-label{display:none}
+  /* Room for the profile button at a phone's width: the row was already full. */
+  .accent-picker:not(.compact) .accent-swatches{gap:3px}
+  .accent-picker:not(.compact) .profile-btn{margin-left:3px}
+  /* Below 420px it still does not fit beside the sidebar, so the cursor
+     toggle leaves the INLINE row (a phone has no cursor to change); it is
+     still at the bottom of the docked stack. */
+  @media (max-width:420px){.accent-picker:not(.compact) .cursor-toggle{display:none}}
   .accent-picker.compact{top:0;right:2px}
   .hero{min-height:790px;padding:46px 20px 0}
   .hero-copy{width:100%}
@@ -7412,9 +7448,26 @@ body:has(.sidebar:is(:hover,:has(:focus-visible))) > .music-remote.at-bl{
    column under the title rather than spanning the panel. */
 .signin-provider{
   display:inline-flex;align-items:center;justify-content:flex-start;gap:10px;
-  min-height:46px;width:195px;padding:0 18px;gap:12px;font-size:1.3rem;
+  min-height:46px;width:225px;padding:0 18px;gap:12px;font-size:1.3rem;
 }
 .signin-mark{width:24px;height:24px}
+/* The fourth way in opens the form; it is a way, not the default, so quieter. */
+.signin-provider.is-quiet{background:transparent;border-color:#323848}
+.signin-provider.is-quiet:hover{background:#252a37}
+.signin-providers[hidden],.signin-form[hidden]{display:none}
+/* Email or Inko name, and a password: the column the buttons were in. */
+.signin-form{display:flex;flex-direction:column;align-items:center;gap:8px}
+.signin-input{
+  width:280px;max-width:100%;box-sizing:border-box;min-height:46px;padding:0 14px;
+  border:1px solid #323848;border-radius:12px;background:#0f121a;color:inherit;
+  font:inherit;font-size:1.05rem;
+}
+.signin-input::placeholder{color:rgba(232,236,243,.42)}
+.signin-input:focus{outline:none;border-color:var(--accent)}
+.signin-form-row{display:flex;gap:8px;width:280px;max-width:100%}
+.signin-form-row .signin-btn{flex:1;min-height:46px;padding:0 8px;white-space:nowrap}
+.signin-link{background:none;min-height:34px;color:rgba(232,236,243,.62);font-weight:500}
+.signin-link:hover{background:none;color:var(--text,#e8ecf3)}
 .signin-error{margin:0;color:#ff8a80;font-size:.9rem}
 .signin-foot{display:flex;justify-content:center;gap:10px;margin-top:10px}
 .signin-foot .signin-btn{min-width:110px}
