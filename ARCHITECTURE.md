@@ -195,7 +195,11 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
   `backdrop-filter` (`.fv-act`, `.fv-volume`, `.fv-info`, `.fv-desc`,
   `.fv-about` are near-opaque fills): a blur over it made the compositor read
   the video back through an SDR surface, so it flickered between HDR and sRGB
-  whenever a blurred control was on top (Dex, 2026-10-09). With the sound on it
+  whenever a blurred control was on top (Dex, 2026-10-09). The `.fv-video`
+  itself carries `filter:saturate(1.1)` so Chrome never hands it straight to
+  the screen: it flipped between that direct path and the page's own while
+  fixed controls scrolled over it, and the two look different on an HDR or
+  wide-gamut display. With the sound on it
   keeps playing in another tab or app until it is paused or muted (`sync()`;
   muted, a hidden tab still pauses it), and when it
   scrolls out of view, and a `.fv-float` copy of the mute flies from the

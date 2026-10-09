@@ -1259,7 +1259,15 @@ html.dex-cursor button.app-art-view{cursor:zoom-in}
    under them. */
 .fv-has-video .fv-poster img,.fv-video{object-position:50% 0}
 .fv-has-video .fv-matte{display:none}
-.fv-video{z-index:0;background:transparent;opacity:0;transition:opacity .4s ease}
+.fv-video{z-index:0;background:transparent;opacity:0;transition:opacity .4s ease;
+  /* ONE COLOUR PATH, ALWAYS (Dex, 2026-10-09: it flickered between sRGB and
+     HDR/P3 while scrolling). Chrome hands a video straight to the screen when
+     nothing overlaps or clips it, and draws it through the page otherwise;
+     the two look different on a wide-gamut or HDR display, and scrolling
+     moves the fixed controls on and off it, so it flipped. A filter keeps it
+     on the page path in every state, the enlarged one included, and the
+     slight saturation is the direct path's richer look kept on purpose. */
+  filter:saturate(1.1)}
 .fv-item.is-live .fv-video{opacity:1}
 .fv-has-video .card-shade{inset:44% 0 0;z-index:1}
 .fv-has-video .card-meta{bottom:76px;right:150px}
