@@ -82,7 +82,7 @@ export function phoneShell({ profile, avatar }) {
     profileBtn.append(sync);
     const sessBtn = barBtn('sessions', 'Sessions', MARK.sessions);
     sessBtn.dataset.sessionsToggle = '';
-    const bar = el('nav', { class: 'dm-bar', 'aria-label': 'DexNote' },
+    const bar = el('nav', { class: 'dm-bar', 'aria-label': 'dexnote' },
       barBtn('outliner', 'Outliner', MARK.outliner),
       barBtn('search', 'Search', MARK.search),
       sessBtn,

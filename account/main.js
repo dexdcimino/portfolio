@@ -70,7 +70,7 @@ function signedIn(u) {
   card(
     el('h3', { class: 'nt-modal-title', text: 'Signed in' }),
     el('p', { class: 'nt-modal-msg', text: who }),
-    el('p', { class: 'nt-modal-sub', text: 'DexNote and Inko use this account on every device you sign in on.' }),
+    el('p', { class: 'nt-modal-sub', text: 'dexnote and Inko use this account on every device you sign in on.' }),
     el('div', { class: 'nt-modal-btns' }, btn('Sign out', () => signOut()), btn('Home', () => { location.href = '/'; }, true)));
 }
 

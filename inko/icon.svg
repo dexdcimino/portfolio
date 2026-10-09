@@ -1,7 +1,22 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="-57 -57 370 370">
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="-25.5 -17.5 304 304">
+  <!-- THE ONE SOURCE for every Inko icon (Dex, 2026-10-09: the S bigger, a
+       ring round the circle in the S's own gradient). Change it here, then
+       `node tools/inko_icons.mjs v<next>` renders the phone app's icons and
+       renames every reference; its header lists where the icon is used. The
+       AI Lab card shows this file itself. The viewBox is centred on the S
+       (x 23..230, y 35..234) and only as wide as the ring needs: the S's tips
+       stay inside the ring's inner edge (137px from the centre vs 139). -->
   <defs>
     <!-- Multi-stop gradient approximates the generated mesh-like color flow -->
     <linearGradient id="sGradient" x1="38" y1="38" x2="218" y2="218" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFC247"/>
+      <stop offset=".23" stop-color="#FF6A72"/>
+      <stop offset=".43" stop-color="#F12FC6"/>
+      <stop offset=".61" stop-color="#8A32F4"/>
+      <stop offset=".79" stop-color="#3458F5"/>
+      <stop offset="1" stop-color="#20C7F4"/>
+    </linearGradient>
+    <linearGradient id="ringGradient" x1="-19" y1="-11" x2="272" y2="280" gradientUnits="userSpaceOnUse">
       <stop offset="0" stop-color="#FFC247"/>
       <stop offset=".23" stop-color="#FF6A72"/>
       <stop offset=".43" stop-color="#F12FC6"/>
@@ -44,8 +59,7 @@
     </clipPath>
   </defs>
 
-  <!-- Transparent background -->
-  <circle cx="128" cy="128" r="185" fill="#232a3d"/>
+  <circle cx="126.5" cy="134.5" r="145" fill="#232a3d" stroke="url(#ringGradient)" stroke-width="12"/>
   <g clip-path="url(#sClip)">
     <rect width="256" height="256" fill="url(#sGradient)"/>
     <rect width="256" height="256" fill="url(#warmGlow)"/>
