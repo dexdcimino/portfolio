@@ -2101,19 +2101,51 @@ if (workModal) {
     const flip = () => { wanted = video.paused || video.ended; if (wanted) start(); else video.pause(); };
     toggle?.addEventListener('click', flip);
     play?.addEventListener('click', flip);
-    mute?.addEventListener('click', () => { video.muted = !video.muted; paint(); });
-    /* Full screen takes the whole SLOT, as the Clips frame does, so the bar
-       comes along and keeps working. An iPhone has no element full screen,
-       only the video's own, so there it hands over to the native player. */
-    full?.addEventListener('click', () => {
-      if (document.fullscreenElement) document.exitFullscreen?.();
-      else if (item.requestFullscreen) item.requestFullscreen().catch(() => {});
-      else video.webkitEnterFullscreen?.();
+    const level = item.querySelector('.fv-volume');
+    const fillLevel = () => {
+      if (!level) return;
+      const v = video.muted ? 0 : Math.round(video.volume * 100);
+      level.value = v;
+      level.style.setProperty('--fill', v + '%');
+    };
+    mute?.addEventListener('click', () => {
+      video.muted = !video.muted;
+      if (!video.muted && video.volume === 0) video.volume = .6;
+      paint(); fillLevel();
     });
-    document.addEventListener('fullscreenchange', () => {
-      const on = document.fullscreenElement === item;
+    /* The volume pops up above the speaker on hover. Dragging it to the
+       bottom is the same as muting, and any level above that is sound on. */
+    level?.addEventListener('input', () => {
+      const v = Number(level.value) / 100;
+      if (v > 0) video.volume = v;
+      video.muted = v === 0;
+      level.style.setProperty('--fill', level.value + '%');
+      paint();
+    });
+    fillLevel();
+    /* ENLARGE, NOT FULL SCREEN (Dex): the slot lifts into the top layer as a
+       popover, centred over the page at the video's own aspect so there are
+       no bars either side, rounded like the site's other overlays. The X, a
+       click on the dimmed page around it and Escape all put it back; the
+       popover's light dismiss is what does the last two. Where there is no
+       popover at all, the video's native full screen is what is left. */
+    video.addEventListener('loadedmetadata', () => {
+      if (video.videoWidth && video.videoHeight) item.style.setProperty('--fv-ar', video.videoWidth / video.videoHeight);
+    });
+    const close = item.querySelector('.fv-close');
+    full?.addEventListener('click', () => {
+      if (item.matches(':popover-open')) { item.hidePopover(); return; }
+      if (!item.showPopover) { video.webkitEnterFullscreen?.(); return; }
+      item.setAttribute('popover', 'auto');
+      item.showPopover();
+    });
+    close?.addEventListener('click', () => { if (item.matches(':popover-open')) item.hidePopover(); });
+    item.addEventListener('toggle', e => {
+      const on = e.newState === 'open';
+      item.classList.toggle('is-max', on);
       icon(full, on ? 'fullscreen-exit' : 'fullscreen');
-      full?.setAttribute('aria-label', on ? 'Exit full screen' : 'Full screen');
+      full?.setAttribute('aria-label', on ? 'Shrink video' : 'Enlarge video');
+      if (!on) item.removeAttribute('popover');
     });
 
     new IntersectionObserver(entries => { seen = entries[entries.length - 1].isIntersecting; sync(); }, { threshold: .2 })
@@ -2151,6 +2183,7 @@ if (workModal) {
       document.addEventListener('fw:advance-video', () => {
         const on = stage.querySelector('.fv-item.is-on');
         if (on && on.classList.contains('is-live') && !on.querySelector('.fv-video').paused) return;
+        if (on && on.classList.contains('is-max')) return;   // enlarged over the page
         videos.show(videos.at + 1);
       });
     }
@@ -3747,6 +3780,8 @@ let flashTip = () => {};
     rehome(el);
     // Two-line tips opt in by containing a newline; see #tip.is-multi.
     tip.classList.toggle('is-multi', text.includes('\n'));
+    // data-tip-big: the featured video's two buttons, a few points up (Dex).
+    tip.classList.toggle('is-big', 'tipBig' in el.dataset);
     /* LOUD: a headline in the accent with a quieter line under it, for the one
        or two controls that are announcing something rather than labelling
        themselves. Built from nodes, like flashTip below and for the same
