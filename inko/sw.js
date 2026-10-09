@@ -16,7 +16,7 @@
    reach the network, not a cache. */
 const CACHE = 'inko-shell';
 const SHELL = ['/inko/', '/inko/index.html', '/inko/app.js', '/inko/app.css', '/inko/social.js', '/inko/social.css', '/inko/manifest.webmanifest'];
-const ICONS = ['/inko/icon-192.png', '/inko/icon-512.png', '/inko/icon-mono-192.png', '/inko/icon-mono-512.png', '/inko/apple-touch-icon.png'];
+const ICONS = ['/inko/icon-192-v2.png', '/inko/icon-512-v2.png', '/inko/icon-mono-192-v2.png', '/inko/icon-mono-512-v2.png', '/inko/apple-touch-icon-v2.png'];
 
 self.addEventListener('install', event => {
   event.waitUntil(
