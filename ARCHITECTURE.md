@@ -123,9 +123,12 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
   becomes a `popover="manual"` in the top layer, with `html.fv-maxed` taking
   the pointer off everything under it,
   centred at the video's own aspect (`--fv-ar`, so no side bars) over a dimmed
-  page, closed by its `.fv-close` X (fixed in the gap to the video's right,
-  level with its top, by `placeClose()`), a click outside or Escape (the video's
-  own player where there is no popover). Only the bar comes along. Both buttons'
+  page, closed by its `.fv-close` X, a click outside or Escape. In the gap to
+  the video's right `placeClose()` stands the eye, the X and the download in
+  one fixed column centred both ways (`.is-side`; a gap too narrow puts the X
+  back in the corner), their tips going beside them (`data-tip-pos-max`) and
+  into the popover with them. Where there is no popover it is the video's own
+  player. Only the bar comes along. Both buttons'
   tips carry `data-tip-big`. The download copies `#mobiusDownload`'s href
   and target at click time, so it starts the same per-system installer
   (`initMobiusDownload`). The info button shows only while the card is
