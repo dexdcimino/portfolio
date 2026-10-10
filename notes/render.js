@@ -1145,9 +1145,9 @@ export function renderSessionList() {
       el('span', { class: 'nt-sess-count', text: String(s.cats.length) }),
       more,
       x);
-    const go = (e) => { if (e.target.closest('button')) return; switchSession(s.id); renderSessionList(); };
+    const go = (e) => { if (e.target.closest('button')) return; switchSession(s.id); if (ctx.closeSessionList) ctx.closeSessionList(); renderSessionList(); };
     row.addEventListener('click', go);
-    row.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); switchSession(s.id); renderSessionList(); } });
+    row.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); switchSession(s.id); if (ctx.closeSessionList) ctx.closeSessionList(); renderSessionList(); } });
     return row;
   });
   /* A HEADER AND A FOOTER, so the sheet is a window rather than a list that
@@ -1171,7 +1171,7 @@ export function renderSessionList() {
         html: ICON.download, 'aria-label': 'Download this session as markdown',
         onclick: () => exportSession(S()),
       }),
-      el('button', { type: 'button', class: 'nt-sesslist-new', html: `${ICON.plus}<span>New</span>`, onclick: () => addSession() }),
+      el('button', { type: 'button', class: 'nt-sesslist-new', html: `${ICON.plus}<span>New</span>`, onclick: () => { addSession(); if (ctx.closeSessionList) ctx.closeSessionList(); } }),
       el('button', {
         type: 'button', class: 'nt-sesslist-io is-up', 'data-tip': 'Upload',
         html: ICON.upload, 'aria-label': 'Upload markdown as a session',
