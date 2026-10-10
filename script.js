@@ -995,6 +995,12 @@ const openDialogs = new Set();
    that opens. One selector, so those four answers cannot drift apart. */
 const OVERLAY_OPEN = 'dialog[open]:not(.is-docked)';
 const isDockedBar = (el) => el.classList.contains('is-docked');
+/* The music player can also stay open HIDDEN behind its pill (non-modally, so
+   YouTube keeps playing). Docked or hidden, it is not an overlay and never
+   holds the scroll lock (Dex, 2026-10-10: with the pill up, closing any
+   overlay left the page unable to scroll, because the hidden player still
+   counted as an overlay that was open). */
+const isMusicAway = (el) => isDockedBar(el) || el.classList.contains('is-hidden-bar');
 const openerFor = new WeakMap();
 // Which of them were opened OVER another rather than in place of it — see
 // openModal's `stack`. It changes one thing on the way out: where focus goes.
@@ -1167,7 +1173,7 @@ function bindModal(dialog, onClose) {
     const opener = openerFor.get(dialog);
     openerFor.delete(dialog);
     const wasStacked = stackedOn.delete(dialog);
-    if ([...openDialogs].some(d => d.open && !isDockedBar(d))) {
+    if ([...openDialogs].some(d => d.open && !isMusicAway(d))) {
       /* One overlay still open, two ways to get here. A HAND-OFF — a
          replacement overlay took this one's place — must not pull focus back
          out of the thing the user is now looking at. A STACKED overlay closing
@@ -2543,7 +2549,7 @@ if (workModal) {
        playing and sends the speaker out (Dex, 2026-10-09: arrowing to Proto
        Isles or opening a portfolio overlay was stopping it). */
     const covered = () => [...document.querySelectorAll('dialog[open]')]
-      .some(d => !d.classList.contains('is-docked') && !d.contains(item));
+      .some(d => !isMusicAway(d) && !d.contains(item));
     const inView = () => seen && item.classList.contains('is-on') && !covered();
     function sync() {
       if (inView()) floatHeld = false;
@@ -2577,7 +2583,7 @@ if (workModal) {
     function floatTrack() {
       /* Into the overlay on top, if there is one: a modal makes everything
          outside it inert, so on the page it would be painted and dead. */
-      const host = [...document.querySelectorAll('dialog[open]')].filter(d => !d.classList.contains('is-docked')).pop() || document.body;
+      const host = [...document.querySelectorAll('dialog[open]')].filter(d => !isMusicAway(d)).pop() || document.body;
       if (floatBtn.parentNode !== host) host.append(floatBtn);
       let at = floatSpot();
       if (fly) {
