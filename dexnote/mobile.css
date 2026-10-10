@@ -108,6 +108,12 @@
 .dm-find-x svg { width: 20px; height: 20px; }
 
 /* ---- the outliner, as a drawer ------------------------------------------ */
+/* notes.css gives every direct app child z-index:1. The drawer lives inside
+   .nt-frame, while the scrim is a sibling at 35: even a drawer at 40 cannot
+   escape that parent stacking context. Let the drawer share the scrim's
+   context, and keep the canvas (including its floating controls) below it. */
+.nt-app.is-mobile .nt-frame { z-index: auto; }
+.nt-app.is-mobile .nt-col { position: relative; z-index: 1; }
 .nt-app.is-mobile .nt-sidebar,
 .nt-app.is-mobile.is-rail .nt-sidebar {
   position: fixed; top: 0; left: 0; bottom: 0; z-index: 40;
@@ -201,20 +207,3 @@
 .nt-app.is-mobile .nt-toast { left: 16px; right: 16px; bottom: calc(var(--dock) + var(--kb) + 64px); max-width: none; text-align: center; }
 .nt-app.is-mobile .nt-panel { max-width: calc(100vw - 20px); }
 .nt-app.is-mobile .nt-menu-item { min-height: 44px; }
-
-/* Bulletproof (2026-10-10): the open mobile drawer must paint above the scrim,
-   fully opaque, with its solid background. Defensive against any specificity
-   or stale-cache edge case that leaves the drawer veiled. */
-.nt-app.is-mobile.show-outliner .nt-sidebar {
-  z-index: 40 !important;
-  opacity: 1 !important;
-  filter: none !important;
-  transform: none !important;
-  background: #11141A !important;
-}
-.nt-app.is-mobile[data-theme="light"].show-outliner .nt-sidebar {
-  background: #c6ccd3 !important;
-}
-.nt-app.is-mobile.show-outliner .dm-scrim {
-  z-index: 35 !important;
-}

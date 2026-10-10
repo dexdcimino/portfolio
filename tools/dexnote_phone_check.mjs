@@ -51,7 +51,7 @@ const CHROME = [
   'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',
 ].find((p) => p && existsSync(p));
 if (!CHROME) throw new Error('no Chrome or Edge found — set CHROME=<path to the exe>');
-const EXPECTED = 57;
+const EXPECTED = 61;
 const PORT = 8131;
 const BASE = `http://127.0.0.1:${PORT}`;
 const PROJECT = 'phone-check-project';
@@ -166,6 +166,28 @@ const caretEnd = (sel = '.nt-body') => p.evaluate((s) => { const b = document.qu
 const status = () => p.evaluate(() => document.querySelector('.nt-status')?.textContent || '');
 const waitSaved = () => p.waitForFunction(() => /^SAVED/.test(document.querySelector('.nt-status')?.textContent || ''), { timeout: 15000 }).then(() => true, () => false);
 
+// A drawer can be at x=0 with z-index:40 and still sit below the scrim:
+// its parent's stacking context decides which one paints first.
+const checkDrawerLayer = async (theme) => {
+  const hit = await p.evaluate(() => {
+    const row = document.querySelector('.nt-sidebar .nt-row');
+    const r = row.getBoundingClientRect();
+    return row.contains(document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2));
+  });
+  ok(hit, `${theme}: the outliner row receives a finger above the scrim`);
+  const clip = { x: 20, y: 300, width: 20, height: 20 };
+  const visible = await p.screenshot({ clip });
+  await p.$eval('.dm-scrim', (e) => { e.style.visibility = 'hidden'; });
+  const hidden = await p.screenshot({ clip });
+  await p.$eval('.dm-scrim', (e) => { e.style.removeProperty('visibility'); });
+  ok(Buffer.from(visible).equals(Buffer.from(hidden)), `${theme}: the scrim does not darken the drawer's pixels`);
+};
+const dismissDrawer = async () => {
+  const point = await p.evaluate(() => ({ x: (document.querySelector('.nt-sidebar').getBoundingClientRect().right + innerWidth) / 2, y: 300 }));
+  await p.touchscreen.tap(point.x, point.y);
+  await sleep(350);
+};
+
 try {
   ok(seeded.status === 200, `set-up: the DEXDC notes seeded on the scratch store (rev ${seeded.body.rev})`);
 
@@ -249,8 +271,8 @@ try {
   const drawer = await p.evaluate(() => ({ left: document.querySelector('.nt-sidebar').getBoundingClientRect().left, foot: getComputedStyle(document.querySelector('.nt-sidebar-foot')).display, rows: document.querySelectorAll('.nt-sidebar .nt-row').length }));
   ok(drawer.left >= -1 && drawer.rows >= 1, `the outliner slides in from the left (${Math.round(drawer.left)}px, ${drawer.rows} row(s))`);
   ok(drawer.foot === 'none', 'with no New Category or My Sessions at its foot');
-  await tap('.dm-scrim');
-  await sleep(350);
+  await checkDrawerLayer('dark');
+  await dismissDrawer();
   ok(await p.evaluate(() => document.querySelector('.nt-sidebar').getBoundingClientRect().right <= 0), 'a tap beside it puts it away');
 
   await tap('.dm-search');
@@ -302,6 +324,11 @@ try {
   ok(!/Members|Shared|Avatar|Community/.test(prof), 'and none of what this app does not have (members, sharing, avatars, the hub)');
   await clickText('Light');
   ok(await p.evaluate(() => document.querySelector('.nt-app').dataset.theme === 'light'), 'light mode from the profile');
+  await tap('.dm-outliner');
+  await sleep(350);
+  await checkDrawerLayer('light');
+  await dismissDrawer();
+  await tap('.dm-profile');
   await clickText('Dark');
   await tap('.dm-psheet .dm-sheet-x');
 
