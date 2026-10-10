@@ -267,7 +267,7 @@ export default function MindSplit() {
       const n = Math.max(0, Math.min(i + d, last));
       if (n !== i) {
         if (!swiped) { setSwiped(true); save("mindsplit-swiped", true); }
-        if (!reduce) { setMoving(true); setTimeout(() => setMoving(false), 420); }
+        if (!reduce) { setMoving(true); setTimeout(() => setMoving(false), 50); }
       }
       return n;
     });
