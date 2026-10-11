@@ -50,6 +50,23 @@ change**, so the reasoning cannot drift away from the diff it explains.
 
 ---
 
+## 2026-10-10 — Mobile history follows the resulting overlay state
+
+**Decided:** reconcile the touch-device Back entry once per dialog mutation
+batch, and distinguish cleanup traversals from user Back gestures.
+
+**Replaced:** consuming every dialog's open/close mutation independently.
+
+**Why:** typing WORK in the nav keypad closes that dialog and opens Mission
+Control in one turn. The keypad's close used to issue history.back(), which
+then closed the destination. NOTES and other dialog replacements share this
+handoff. A cleanup traversal also must not close an async replacement that
+arrives while it is pending. The touch-mode browser regression drives both
+NOTES routes, WORK, browser Back, and reopening during cleanup.
+
+**Reverse it if:** overlay navigation moves to a router that owns the history
+entry and dialog lifetime together.
+
 ## 2026-10-09 — The work gallery is laid out like the wallpaper lightbox
 
 **Decided:** the work overlay (the portfolio's eight tabs and every featured

@@ -5482,7 +5482,6 @@ const codeModal = document.getElementById('codeModal');
         /* Plain keyword: `work` opens the Mission Control dashboard overlay.
            Everything else goes through the vault as before. */
         const normalized = secret.trim().toLowerCase();
-        console.log('codepad verify:', normalized);
         if (normalized === 'work') return { ok: true, payload: 'show:dash' };
         /* DEXDC is not a code any more (Dex, 2026-10-08): it is the site's
            sign-in, from anywhere, over anything (Dex, 2026-10-09). Nothing
@@ -12962,38 +12961,28 @@ const PORTRAIT_LABEL = {
   if (!('ontouchstart' in window)) return;
 
   let modalStatePushed = false;
+  let cleaningHistory = false;
 
-  // When any dialog opens, push a history state to trap the back gesture
-  const observer = new MutationObserver((mutations) => {
-    for (const m of mutations) {
-      if (m.attributeName !== 'open') continue;
-      const dialog = m.target;
-      if (dialog.tagName !== 'DIALOG') continue;
-
-      if (dialog.hasAttribute('open')) {
-        // Modal opened: push state (if not already)
-        if (!modalStatePushed) {
-          try {
-            history.pushState({ dexModal: true }, '');
-            modalStatePushed = true;
-          } catch {}
-        }
-      } else {
-        // Modal closed: if we pushed, go back to clean up
-        // (but don't trigger another popstate loop)
-        if (modalStatePushed) {
-          modalStatePushed = false;
-          // The state was already popped by the back gesture, or
-          // closed via X -- if via X, we need to remove our pushed state
-          try {
-            if (history.state && history.state.dexModal) {
-              history.back();
-            }
-          } catch {}
-        }
+  // Observe the resulting overlay state, not each individual mutation.
+  // A code closes the keypad and opens its destination in the same turn:
+  // consuming the keypad's close first used to Back out of that destination.
+  const syncHistory = () => {
+    if (cleaningHistory) return;
+    const hasModal = [...document.querySelectorAll(OVERLAY_OPEN)].some(d => !isMusicAway(d));
+    if (hasModal && !modalStatePushed) {
+      try {
+        history.pushState({ ...history.state, dexModal: true }, '');
+        modalStatePushed = true;
+      } catch {}
+    } else if (!hasModal && modalStatePushed) {
+      modalStatePushed = false;
+      if (history.state?.dexModal) {
+        cleaningHistory = true;
+        try { history.back(); } catch { cleaningHistory = false; }
       }
     }
-  });
+  };
+  const observer = new MutationObserver(syncHistory);
 
   // Observe all dialogs for open attribute changes
   document.querySelectorAll('dialog').forEach(d => {
@@ -13002,6 +12991,13 @@ const PORTRAIT_LABEL = {
 
   // System back gesture: close the topmost modal instead of exiting
   window.addEventListener('popstate', (e) => {
+    // A Back issued to remove our own entry is cleanup, not a user gesture.
+    // An async opener may have arrived while that traversal was pending.
+    if (cleaningHistory) {
+      cleaningHistory = false;
+      syncHistory();
+      return;
+    }
     const modals = [...document.querySelectorAll('dialog[open]')];
     if (modals.length) {
       // Prevent the browser from going back/exiting
