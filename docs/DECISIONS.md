@@ -50,6 +50,24 @@ change**, so the reasoning cannot drift away from the diff it explains.
 
 ---
 
+## 2026-10-10 — Footer and nav keypads share verification and dispatch
+
+**Decided:** both keypad instances call the same verifyCode and
+openVerifiedCode functions. Verification returns a destination; the prompt
+closes before dispatching it. Resetting a closed keypad does not focus it.
+
+**Replaced:** two copies of keyword handling, notes-password verification,
+and destination dispatch, with the nav copy opening public notes before its
+keypad had closed.
+
+**Why:** every code that works in the footer must work from the mobile nav
+padlock, including sealed vault destinations. One path preserves that rule
+when another door is added. The touch regression drives every existing vault
+destination from both inputs, with real test ciphertext and fake API data.
+
+**Reverse it if:** the two inputs intentionally acquire different code sets
+or permissions; differences would need to be explicit policy.
+
 ## 2026-10-10 — Mobile history follows the resulting overlay state
 
 **Decided:** reconcile the touch-device Back entry once per dialog mutation

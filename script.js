@@ -5369,53 +5369,46 @@ function createKeypad({ root, pins, status, timer, resting, verify, onPass,
     return { ok: false };
   }
 
+  // Both the footer and the nav/tilde prompt use this verifier and dispatcher.
+  // Verification selects a door; it never opens one while a keypad is closing.
+  async function verifyCode(secret) {
+    const trimmed = secret.trim();
+    const normalized = trimmed.toLowerCase();
+    if (normalized === 'work') return { ok: true, payload: 'show:dash' };
+    if (normalized === 'dexdc') return { ok: true, payload: 'site:signin' };
+    if (normalized === 'notes' && window.dexOwner.is) return { ok: true, payload: 'notes:mine' };
+    if (trimmed.length === 5 && normalized !== 'snail') {
+      try {
+        const resp = await fetch('/api/notes/unlock', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password: trimmed }),
+        });
+        if (resp.ok) return { ok: true, payload: { door: 'notes:direct', data: await resp.json() } };
+      } catch (e) { /* Not a notes password: try the sealed vault codes. */ }
+    }
+    return tryCode(secret);
+  }
+
+  function openVerifiedCode(payload, secret, opener) {
+    if (payload?.door === 'notes:direct') {
+      document.dispatchEvent(new CustomEvent('notes:open', {
+        detail: { opener, code: secret.trim(), unlockedData: payload.data },
+      }));
+    } else if (payload === 'notes:mine' || payload === 'site:signin') {
+      document.dispatchEvent(new CustomEvent(payload, { detail: { opener } }));
+    } else {
+      reveal(payload, secret, opener);
+    }
+  }
+
   const keypad = createKeypad({
     root: section, pins, status, timer, resting: RESTING,
-    verify: async (secret) => {
-      /* Same plain keyword as the tilde keypad: `work` opens Mission Control
-         from here too, not just from the overlay. */
-      if (secret.trim().toLowerCase() === 'work') return { ok: true, payload: 'show:dash' };
-      /* DEXDC: the site sign-in (see the tilde keypad below; Dex,
-         2026-10-09). */
-      if (secret.trim().toLowerCase() === 'dexdc') return { ok: true, payload: 'site:signin' };
-      /* `notes` with Dex signed in: HIS notes, not the public page ("then if I
-         typed in notes, it would bring up my notes", Dex 2026-10-09). */
-      if (secret.trim().toLowerCase() === 'notes' && window.dexOwner.is) return { ok: true, payload: 'notes:mine' };
-      /* A notes code ('notes', the public page) opens the notes directly.
-         ('snail' is 5 chars but it is a vault code, so it is not sent.) */
-      const trimmed = secret.trim();
-      if (trimmed.length === 5 && trimmed.toLowerCase() !== 'snail') {
-        try {
-          const resp = await fetch('/api/notes/unlock', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ password: trimmed }),
-          });
-          if (resp.ok) {
-            const data = await resp.json();
-            document.dispatchEvent(new CustomEvent('notes:open', {
-              detail: { opener: section, code: trimmed, unlockedData: data }
-            }));
-            return { ok: true, payload: 'notes:direct' };
-          }
-        } catch (e) {
-          // Not a notes password, fall through to vault
-        }
+    verify: verifyCode,
+    onPass(payload, secret) {
+      if (payload?.door === 'notes:direct' || payload === 'notes:mine' || payload === 'site:signin') {
+        keypad.reset(false);
       }
-      return tryCode(secret);
-    },
-    onPass: (payload, secret) => {
-      // If it was a notes password, the overlay is already opening; just reset
-      if (payload === 'notes:direct') {
-        keypad.reset(true);
-        return;
-      }
-      if (payload === 'notes:mine' || payload === 'site:signin') {
-        keypad.reset(true);
-        document.dispatchEvent(new CustomEvent(payload, { detail: { opener: section } }));
-        return;
-      }
-      reveal(payload, secret);
+      openVerifiedCode(payload, secret, pins[pins.length - 1]);
     },
   });
 
@@ -5478,65 +5471,20 @@ const codeModal = document.getElementById('codeModal');
          and the lockout clock -- and keeps its height so filling it in does
          not move the boxes. */
       resting: '',
-      verify: async (secret) => {
-        /* Plain keyword: `work` opens the Mission Control dashboard overlay.
-           Everything else goes through the vault as before. */
-        const normalized = secret.trim().toLowerCase();
-        if (normalized === 'work') return { ok: true, payload: 'show:dash' };
-        /* DEXDC is not a code any more (Dex, 2026-10-08): it is the site's
-           sign-in, from anywhere, over anything (Dex, 2026-10-09). Nothing
-           is sent to a server for it -- the account is what opens anything. */
-        if (normalized === 'dexdc') return { ok: true, payload: 'site:signin' };
-        /* `notes` with Dex signed in opens his own notes. */
-        if (normalized === 'notes' && window.dexOwner.is) return { ok: true, payload: 'notes:mine' };
-        /* A 5-letter code the notes server knows: the public page ('notes').
-           'snail' is 5 letters too but is a vault code, so it is not sent. */
-        const trimmed = secret.trim();
-        if (trimmed.length === 5 && normalized !== 'snail') {
-          try {
-            const resp = await fetch('/api/notes/unlock', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ password: trimmed }),
-            });
-            if (resp.ok) {
-              document.dispatchEvent(new CustomEvent('notes:open', {
-                detail: { opener: codeModal, code: trimmed }
-              }));
-              return { ok: true, payload: 'notes:direct' };
-            }
-          } catch (e) { /* not a notes password */ }
-        }
-        return tryCode(secret);
-      },
+      verify: verifyCode,
       onPass(payload, secret) {
-        /* Notes password: overlay is already opening, just close keypad. */
-        if (payload === 'notes:direct') {
-          closeModal(codeModal);
-          window._padlockOverlay = null;
-          return;
-        }
-        if (payload === 'notes:mine' || payload === 'site:signin') {
-          closeModal(codeModal);
-          window._padlockOverlay = null;
-          document.dispatchEvent(new CustomEvent(payload, { detail: { opener: codeOpener } }));
-          return;
-        }
         if (codeLabel) codeLabel.textContent = 'OPEN';
         if (codeLock) codeLock.dataset.icon = 'lock-open';
-        /* Close FIRST, then open what was asked for. openModal already refuses
-           to leave two overlays up, but closing here means the door that opens
-           gets this dialog's opener restored to it rather than a control inside
-           a dialog that is on its way out. */
         closeModal(codeModal);
-        reveal(payload, secret, codeOpener);
+        window._padlockOverlay = null;
+        openVerifiedCode(payload, secret, codeOpener);
       },
     });
 
     bindModal(codeModal, () => {
       if (codeLabel) codeLabel.textContent = 'ENTER CODE';
       if (codeLock) codeLock.dataset.icon = 'lock';
-      codepad.reset();
+      codepad.reset(false);
     });
 
     const typing = () => {

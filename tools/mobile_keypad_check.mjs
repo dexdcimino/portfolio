@@ -3,6 +3,7 @@
  * node tools/mobile_keypad_check.mjs
  */
 import { existsSync } from 'node:fs';
+import { scryptSync, randomBytes, createCipheriv } from 'node:crypto';
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { extname, join, normalize, resolve } from 'node:path';
@@ -55,6 +56,15 @@ let pass = 0;
 const errors = [];
 const check = (ok, message) => { if (!ok) throw new Error(message); pass++; };
 const sleep = ms => new Promise(r => setTimeout(r, ms));
+function sealDoor(door) {
+  const salt = randomBytes(16), iv = randomBytes(12);
+  // A test-only code and work factor. The browser still does real scrypt and
+  // AES-GCM decryption; production ciphertext and credentials are untouched.
+  const key = scryptSync('TEST1', salt, 32, {N:1024,r:8,p:1});
+  const cipher = createCipheriv('aes-256-gcm', key, iv);
+  const body = Buffer.concat([cipher.update('show:'+door,'utf8'),cipher.final(),cipher.getAuthTag()]);
+  return 'v2.1024.8.1.'+Buffer.concat([salt,iv,body]).toString('base64');
+}
 try {
   const page = await browser.newPage();
   await page.createCDPSession().then(s => s.send('Browser.setDownloadBehavior', {behavior:'deny'}));
@@ -62,10 +72,24 @@ try {
   page.on('pageerror', e => errors.push(e.message));
   await page.setRequestInterception(true);
   page.on('request', req => {
+    if (req.url().includes('/api/chess/table')) {
+      return req.respond({status:200,contentType:'application/json',body:JSON.stringify({
+        rev:0,game:{moves:[],result:null},players:1,you:{seat:null},seats:{w:null,b:null},names:[]
+      })});
+    }
+    if (req.url().includes('/api/music/playlist')) {
+      return req.respond({status:200,contentType:'application/json',body:JSON.stringify({
+        tracks:[],rev:0,token:'test-only',tier:'viewer'
+      })});
+    }
     if (req.url().includes('/api/notes/save')) {
       return req.respond({status:200,contentType:'application/json',body:JSON.stringify({rev:1,savedAt:Date.now()})});
     }
     if (req.url().includes('/api/notes/unlock')) {
+      const body = JSON.parse(req.postData() || '{}');
+      if (body.password && body.password.toLowerCase() !== 'notes') {
+        return req.respond({status:401,contentType:'application/json',body:'{"error":"wrong"}'});
+      }
       return req.respond({status:200,contentType:'application/json',body:JSON.stringify({
         token:'test-only',format:'html',content:'<h1>Test notes</h1><p>Fixture</p>',rev:0,savedAt:null
       })});
@@ -115,9 +139,44 @@ try {
   await page.evaluate(() => document.querySelector('[data-codes-keypad]').click());
   await sleep(800);
   check(await page.evaluate(() => document.getElementById('codeModal').open), 'history cleanup closed a reopened keypad');
+  // Each table entry is driven through BOTH actual inputs. Checking only
+  // WORK/NOTES would miss a broken sealed-code or event-door handoff.
+  const doors = [
+    ['work','dashModal'], ['dexdc','signinModal'], ['notes','notesModal'],
+    ['snail','snailModal'], ['music','musicModal'], ['sfx','sfxModal'],
+    ['chess','chessModal'], ['tunes','musicModal'], ['notes','notesModal','sealed'],
+  ];
+  for (const [door, destination, variant] of doors) {
+    const encrypted = !['work','dexdc','notes'].includes(door) || variant === 'sealed';
+    const blob = encrypted ? sealDoor(door) : null;
+    for (const source of ['footer','nav']) {
+      await page.goto(BASE, {waitUntil:'networkidle2'});
+      await page.evaluate(blob => {
+        sessionStorage.clear();
+        if (blob) document.getElementById('codes').dataset.vault = blob;
+      }, blob);
+      if (source === 'nav') {
+        await page.evaluate(() => document.getElementById('sidebar').classList.add('nav-open'));
+        await page.tap('[data-codes-keypad]');
+      } else {
+        await page.$eval('#codes', e => e.scrollIntoView({block:'center',behavior:'instant'}));
+        await page.focus('#codes .vault-pin');
+      }
+      await page.keyboard.type(encrypted ? 'test1' : door, {delay:60});
+      await page.waitForFunction(id => document.getElementById(id)?.open, {timeout:10000}, destination);
+      await sleep(800);
+      check(await page.evaluate(id => document.getElementById(id).open && !document.getElementById('codeModal').open,
+        destination), source+' failed to keep '+door+' '+(variant || '')+' open');
+      check(await page.evaluate(id => id === 'notesModal'
+        ? !document.activeElement?.closest('#codeModal')
+        : !!document.activeElement?.closest('#'+id), destination),
+        source+' left focus outside '+door);
+      console.log(source+' -> '+door+(variant ? ' ('+variant+')' : '')+': PASS');
+    }
+  }
   check(errors.length === 0, 'page errors: '+errors.join('; '));
   check(missing.length === 0, 'missing assets: '+missing.join(', '));
-  console.log(pass+' checks passed — mobile nav WORK/NOTES, Back and reopen');
+  console.log(pass+' checks passed — footer/nav parity for every vault door, Back and reopen');
 } finally {
   await browser.close();
   server.close();
