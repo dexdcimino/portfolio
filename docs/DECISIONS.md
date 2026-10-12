@@ -5634,3 +5634,16 @@ node is for, which is anything that needs a browser.
 
 **Reverse it if** the Python toolchain leaves the repo. The pack is ~250 lines and the
 contract is in its docstring; a port is an afternoon, not a rewrite.
+
+
+## 2026-10-12 — INKO brush colour and size share one panel
+
+The brush swatch expands `#size-bar` with H/S/B above the persistent size
+slider, replacing the separate colour panel that hid size. Use four 32px
+rows with separate hit areas, one undo/redo pair and one panel border to
+keep the canvas visible on small phones. Lower the old 20% canvas-fit
+floor so short landscape screens can fit the drawing above the controls.
+Canvas colour retains its own
+exclusive panel. The existing file-fingerprint update mechanism and
+network-first service worker deliver this same change to web and installed
+apps; no manually maintained cache version is needed.

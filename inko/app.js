@@ -217,7 +217,8 @@ function fit(){
   st.bottom = Math.max(0, bb.bottom - panelsTop) + 'px';
   const availW = Math.min(window.innerWidth*0.94, 460);
   const availH = panelsTop - GAP - top - 6;
-  const k = Math.max(0.2, Math.min(availW/W, availH/H));
+  // Short landscape screens must fit the canvas above the expanded controls.
+  const k = Math.max(0.01, Math.min(availW/W, availH/H));
   fitK = k;
   canvas.style.width = (W*k)+'px'; canvas.style.height = (H*k)+'px';
   placeSymTick();
@@ -923,15 +924,14 @@ function setColorMode(on){
    profile, gallery, new canvas, clear -- and anything else open closes. */
 let optionsOn = false;
 function showBars(){
-  // Undo and redo go with whichever bar is up: either side of the sliders,
-  // level with S, in colour mode (Dex, 2026-10-08) -- the same two buttons.
-  // The canvas window carries them the same way.
-  const host = colorMode ? $('hsb-bar') : popMode ? $('cp-sliders') : $('size-bar');
+  // One pair beside the whole brush panel, or in the canvas colour panel.
+  const host = popMode ? $('cp-sliders') : $('size-bar');
   if ($('redo-btn').parentNode !== host){
-    host.insertBefore($('redo-btn'), host.querySelector(host.id === 'size-bar' ? '.ctl' : '.hsb-rows'));
+    host.insertBefore($('redo-btn'), host.querySelector(host.id === 'size-bar' ? '#brush-controls' : '.hsb-rows'));
     host.appendChild($('undo-btn'));
   }
-  $('size-bar').style.display = colorMode || optionsOn || popMode ? 'none' : 'flex';
+  $('size-bar').style.display = optionsOn || popMode ? 'none' : 'flex';
+  $('size-bar').classList.toggle('color-open', colorMode);
   $('hsb-bar').style.display = colorMode ? 'flex' : 'none';
   $('opt-bar').hidden = !optionsOn;
   paintToolName();

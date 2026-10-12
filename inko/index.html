@@ -30,18 +30,21 @@
   </div>
 </div>
 
-<div id="bottom-bars"><div id="hsb-bar" style="display:none;"><div class="hsb-tip" hidden></div>
-  <div class="hsb-rows">
-  <div class="hsb-row"><span class="hsb-lbl">H</span><input type="range" id="hue" min="0" max="360" value="200"></div>
-  <div class="hsb-row"><span class="hsb-lbl">S</span><input type="range" id="sat" min="0" max="100" value="100"></div>
-  <div class="hsb-row"><span class="hsb-lbl">B</span><input type="range" id="bri" min="0" max="100" value="25"></div>
-  </div>
-</div><div id="size-bar">
+<div id="bottom-bars"><div id="size-bar" role="group" aria-label="Brush settings">
   <button id="redo-btn" class="tbtn" aria-label="Redo">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M15 14 L20 9 L15 4"/><path d="M20 9 H10 A6 6 0 0 0 10 21 H15"/></svg>
   </button>
-  <div class="ctl" id="ctl-size-perm">
-    <input type="range" id="size" min="0" max="100" step="0.5" value="25">
+  <div id="brush-controls">
+    <div id="hsb-bar" style="display:none;"><div class="hsb-tip" hidden></div>
+      <div class="hsb-rows">
+        <div class="hsb-row"><span class="hsb-lbl">H</span><input type="range" id="hue" aria-label="Hue" min="0" max="360" value="200"></div>
+        <div class="hsb-row"><span class="hsb-lbl">S</span><input type="range" id="sat" aria-label="Saturation" min="0" max="100" value="100"></div>
+        <div class="hsb-row"><span class="hsb-lbl">B</span><input type="range" id="bri" aria-label="Brightness" min="0" max="100" value="25"></div>
+      </div>
+    </div>
+    <div class="ctl" id="ctl-size-perm">
+      <span class="hsb-lbl size-label" aria-hidden="true">↔</span><input type="range" id="size" aria-label="Brush size" min="0" max="100" step="0.5" value="25">
+    </div>
   </div>
   <button id="undo-btn" class="tbtn" aria-label="Undo">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 14 L4 9 L9 4"/><path d="M4 9 H14 A6 6 0 0 1 14 21 H9"/></svg>

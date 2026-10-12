@@ -513,11 +513,11 @@ try {
   {
     const gapTo = async sel => page.evaluate(sel => { const c = document.getElementById('pad').getBoundingClientRect(), p = document.querySelector(sel).getBoundingClientRect(); return Math.round((p.top - c.bottom) * 10) / 10; }, sel);
     const gaps = { size: await gapTo('#size-bar') };
-    await page.click('#color-btn'); await sleep(250); gaps.hsb = await gapTo('#hsb-bar');
+    await page.click('#color-btn'); await sleep(250); gaps.hsb = await gapTo('#size-bar');
     // The tip: a press on S names it, centred above the panel.
     const sr = await page.evaluate(() => { const b = document.getElementById('sat').getBoundingClientRect(); return { x: b.left + b.width * 0.3, y: b.top + b.height / 2 }; });
     await page.mouse.click(sr.x, sr.y); await sleep(150);
-    const tip = await page.evaluate(() => { const t = document.querySelector('#hsb-bar .hsb-tip'), tr = t.getBoundingClientRect(), br = document.getElementById('hsb-bar').getBoundingClientRect();
+    const tip = await page.evaluate(() => { const t = document.querySelector('#hsb-bar .hsb-tip'), tr = t.getBoundingClientRect(), br = document.getElementById('size-bar').getBoundingClientRect();
       return { text: t.hidden ? '' : t.textContent, off: Math.abs((tr.left + tr.right) / 2 - (br.left + br.right) / 2), above: tr.bottom <= br.top }; });
     // Options closes the sliders and takes the size bar's place.
     await page.click('#opt-btn'); await sleep(250); gaps.opt = await gapTo('#opt-bar');
@@ -632,14 +632,37 @@ try {
     const eraser = await page.evaluate(() => document.getElementById('tool-toggle').getAttribute('aria-label'));
     await page.click('#color-btn'); await sleep(300);
     const hb = await page.evaluate(() => { const r = id => document.getElementById(id).getBoundingClientRect(), mid = q => q.top + q.height / 2;
-      const u = r('undo-btn'), d = r('redo-btn'), s = r('sat'), rows = document.querySelector('.hsb-rows').getBoundingClientRect();
+      const u = r('undo-btn'), d = r('redo-btn'), s = r('size'), rows = document.getElementById('brush-controls').getBoundingClientRect();
       return { host: document.getElementById('undo-btn').parentNode.id + ',' + document.getElementById('redo-btn').parentNode.id,
-               level: Math.max(Math.abs(mid(u) - mid(s)), Math.abs(mid(d) - mid(s))), redoLeft: d.right <= rows.left, undoRight: u.left >= rows.right, h: Math.round(s.height) }; });
+               level: Math.max(Math.abs(mid(u) - mid(rows)), Math.abs(mid(d) - mid(rows))), redoLeft: d.right <= rows.left, undoRight: u.left >= rows.right, h: Math.round(s.height) }; });
     await page.evaluate(() => { const h = document.getElementById('hue'); h.value = 200; h.dispatchEvent(new Event('input', { bubbles: true })); });
     await sleep(500);
     const brushBack = await page.evaluate(() => document.getElementById('tool-toggle').getAttribute('aria-label'));
     note(eraser === 'Switch to brush' && brushBack === 'Switch to eraser', `a colour picked with the eraser on: ${eraser} -> ${brushBack}`);
-    note(hb.host === 'hsb-bar,hsb-bar' && hb.level < 1.5 && hb.redoLeft && hb.undoRight && hb.h >= 36, `undo and redo beside the sliders, level with S, and taller sliders: ${JSON.stringify(hb)}`);
+    note(hb.host === 'size-bar,size-bar' && hb.level < 1.5 && hb.redoLeft && hb.undoRight && hb.h >= 32, `undo and redo beside the four compact sliders: ${JSON.stringify(hb)}`);
+    // Four separate touch targets in one panel, on a small phone, landscape and desktop.
+    const layoutPage = await browser.newPage();
+    for (const [width, height] of [[320, 568], [844, 390], [1280, 800]]) {
+      await layoutPage.setViewport({ width, height, isMobile: width < 1000, hasTouch: true, deviceScaleFactor: 2 }); await layoutPage.goto(`${BASE}/inko/?embed=1`, { waitUntil: 'networkidle2' });
+      await layoutPage.click('#color-btn'); await sleep(200);
+      const layout = await layoutPage.evaluate(() => {
+        const r = id => document.getElementById(id).getBoundingClientRect();
+        const panel = r('size-bar'), sliders = ['hue', 'sat', 'bri', 'size'].map(r), canvas = r('pad');
+        return { h: panel.height, gap: panel.top - canvas.bottom, visible: canvas.top >= 0 && canvas.height > 80,
+          separate: sliders.every((s, i) => s.height >= 32 && s.left >= panel.left && s.right <= panel.right &&
+            s.top >= panel.top && s.bottom <= panel.bottom && (!i || s.top >= sliders[i - 1].bottom)),
+          only: document.querySelectorAll('#size-bar input[type=range]').length === 4 &&
+            document.querySelectorAll('#size-bar #undo-btn, #size-bar #redo-btn').length === 2 };
+      });
+      const before = await layoutPage.evaluate(() => ['hue', 'sat', 'bri', 'size'].map(id => document.getElementById(id).value));
+      const target = await layoutPage.evaluate(() => { const r = document.getElementById('size').getBoundingClientRect(); return { x: r.left + r.width * .7, y: r.top + r.height / 2 }; });
+      await layoutPage.touchscreen.tap(target.x, target.y);
+      const after = await layoutPage.evaluate(() => ['hue', 'sat', 'bri', 'size'].map(id => document.getElementById(id).value));
+      note(layout.h <= 144 && layout.separate && layout.only && layout.visible && Math.abs(layout.gap - 8) < 1.1 &&
+        before.slice(0, 3).join() === after.slice(0, 3).join() && +after[3] > 60,
+        `combined brush controls at ${width}x${height}: ${JSON.stringify(layout)}, size tap ${before} -> ${after}`);
+    }
+    await layoutPage.close();
     const sat = await page.evaluate(() => { const b = document.getElementById('sat').getBoundingClientRect(); return { x: b.left + b.width * 0.4, y: b.top + b.height / 2 }; });
     await page.touchscreen.tap(sat.x, sat.y); await sleep(2600);
     const tipUp = await page.evaluate(() => !document.querySelector('#hsb-bar .hsb-tip').hidden);
@@ -648,7 +671,7 @@ try {
     note(tipUp && tipGone, `the S tip still up at 2.6s ${tipUp}, gone by 3.6s ${tipGone}`);
     await page.click('#color-btn'); await sleep(300);
     const home = await page.evaluate(() => document.getElementById('undo-btn').parentNode.id + ',' + document.getElementById('redo-btn').parentNode.id + ',' + [...document.getElementById('size-bar').children].map(e => e.id || e.className).join('|'));
-    note(home === 'size-bar,size-bar,redo-btn|ctl-size-perm|undo-btn', `undo and redo back in the size bar: ${home}`);
+    note(home === 'size-bar,size-bar,redo-btn|brush-controls|undo-btn', `undo and redo back in the size bar: ${home}`);
 
     // The gallery bar is the toolbar's pill; search lives on it.
     await optTap(page, '#grid-btn'); await sleep(400);
@@ -806,7 +829,8 @@ try {
     note(pg.page === 'Public gallery' && pg.go === 'mine' && pg2.page === 'My gallery' && pg2.go === 'public', `the page named and the toggle: ${JSON.stringify(pg)} then ${JSON.stringify(pg2)}`);
     // + in the gallery: a new canvas, and straight into it.
     const nBefore = await page.evaluate(() => document.querySelectorAll('#g-rows .g-item').length);
-    await page.evaluate(() => localStorage.removeItem('inko:newRate')); await page.click('#g-new'); await sleep(700);
+    await page.evaluate(() => localStorage.removeItem('inko:newRate')); await page.click('#g-new');
+    await page.waitForFunction(() => !document.getElementById('gallery').classList.contains('open'), { timeout: 15000 });
     const nw = await page.evaluate(() => ({ gallery: document.getElementById('gallery').classList.contains('open'), toast: document.getElementById('toast').textContent, title: document.getElementById('title-input').value }));
     await optTap(page, '#grid-btn'); await sleep(400);
     const nAfter = await page.evaluate(() => { const items = [...document.querySelectorAll('#g-rows .g-item')]; return { n: items.length, lastCurrent: items[items.length - 1].classList.contains('current') }; });
@@ -831,7 +855,7 @@ try {
       return { w: Math.round(p.width), tw: Math.round(t.width), x: Math.round(s.left), sw: Math.round(s.width), h: Math.round(s.height), barH: Math.round(p.height),
                hsb: getComputedStyle(document.getElementById('hsb-bar')).display, size: getComputedStyle(document.getElementById('size-bar')).display,
                colorOn: document.getElementById('color-btn').classList.contains('on'), undoHost: document.getElementById('undo-btn').parentNode.id, undoLevel: Math.abs(mid(u) - mid(s)) }; });
-    note(cp.w === cp.tw && cp.x === brushSl.x && cp.sw === brushSl.w && cp.h === brushSl.h && cp.barH === brushSl.barH && cp.hsb === 'none' && cp.size === 'none' && !cp.colorOn && cp.undoHost === 'cp-sliders' && cp.undoLevel < 1.5,
+    note(cp.w === cp.tw && cp.x === brushSl.x && cp.sw === brushSl.w && cp.h >= 36 && brushSl.h === 32 && cp.hsb === 'none' && cp.size === 'none' && !cp.colorOn && cp.undoHost === 'cp-sliders' && cp.undoLevel < 1.5,
       `the canvas window as the one panel, its sliders on the brush colour's: ${JSON.stringify(cp)} vs ${JSON.stringify(brushSl)}`);
     // The brush swatch takes it back; the brush/eraser toggle too, to the size bar.
     await page.click('#color-btn'); await sleep(250);

@@ -108,14 +108,9 @@ body{
 }
 #bottom-bars > *{pointer-events:auto;}
 
-/* Compact HSB bar (replaces size-bar when color mode active) */
+/* The swatch expands the one brush panel: H/S/B above size. */
 #hsb-bar{
-  flex-shrink:0;
-  display:flex; flex-direction:row; align-items:center; gap:8px;
-  width:calc(100vw - 20px); max-width:600px; box-sizing:border-box;
-  background:var(--panel); backdrop-filter:blur(18px); -webkit-backdrop-filter:blur(18px);
-  border:1px solid var(--border); border-radius:18px;
-  padding:6px 14px; margin-bottom:8px;
+  display:flex; width:100%;
 }
 /* Redo | the three sliders | undo, the buttons level with S (Dex, 2026-10-08). */
 .hsb-rows{flex:1; min-width:0; display:flex; flex-direction:column; gap:0;}
@@ -148,6 +143,13 @@ body{
      only while dragging, in #size-preview. */
   box-sizing:border-box; height:var(--bar-h); padding:0 14px; margin-bottom:8px;
 }
+#brush-controls{flex:1; min-width:0;}
+#size-bar.color-open{height:auto; padding-top:6px; padding-bottom:6px; border-radius:18px;}
+#size-bar.color-open input[type=range]{height:32px; margin:0 2px;}
+#size-bar .size-label{display:none;}
+#size-bar.color-open .size-label{display:block;}
+#size-bar.color-open #ctl-size-perm{gap:10px;}
+#size-bar.color-open #size{flex:1; min-width:0;}
 /* The options bar takes the size bar's place, in the same box. */
 #opt-bar{
   flex-shrink:0; display:flex; align-items:center; justify-content:space-evenly;
@@ -158,7 +160,7 @@ body{
 }
 #opt-bar[hidden]{display:none;}
 /* H/S/B named while you touch them: centred above the panel, in its fill. */
-#hsb-bar{position:relative;}
+#size-bar{position:relative;}
 .hsb-tip{position:absolute; left:50%; bottom:calc(100% + 8px); transform:translateX(-50%);
   background:var(--panel); backdrop-filter:blur(18px); -webkit-backdrop-filter:blur(18px);
   border:1px solid var(--border); border-radius:12px; padding:7px 14px;

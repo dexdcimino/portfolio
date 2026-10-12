@@ -866,9 +866,13 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
     `meta` `deletes:<scope>`. Syncs run on sign-in, launch, foreground,
     `online`, and after a save, delete or visibility change. Drafts stay on
     the device. Signed out, nothing leaves it.
-  - **The bottom bars are one box size** (`--bar-h`): the size bar is
-    only redo, the scrub bar and undo on one centre line (the pixel size
-    shows while dragging, in `#size-preview`). The toolbar is gallery,
+  - **The toolbar, options and collapsed size bar share `--bar-h`**: the size bar is
+    redo, the scrub bar and undo on one centre line when collapsed. The brush
+    swatch expands that same `#size-bar` with H/S/B above size in
+    `#brush-controls`: four 32px rows, one panel, one undo/redo pair.
+    `fit()` allows the canvas below its old 20% scale floor on short
+    landscape screens so it stays above the expanded panel
+    (the pixel size shows while dragging, in `#size-preview`). The toolbar is gallery,
     eyedropper | brush/eraser | swatch, options -- the gallery at the far
     left because it is the app's main way around (Dex, batch 13). Options
     swaps the size bar for the options bar (trash, download, +, symmetry,
@@ -885,7 +889,7 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
     X over the undo column that closes it (`placeCanvasTitle()` measures all
     three). The top-left swatch opens it with the colour only. Each swatch toggles its own window. The canvas window
     (`#brush-pop`) is a PANEL in `#bottom-bars`, not a floating box: the
-    toolbar's width, built like `#hsb-bar` so its sliders land on the brush
+    toolbar's width, with sliders aligned horizontally with the brush
     colour's, with undo/redo either side (`#cp-sliders`), and the only panel
     up while open -- it closes the options bar, the size bar and the brush
     colour, and the eyedropper, the brush/eraser toggle or the brush swatch
@@ -980,8 +984,9 @@ decisions: `docs/DECISIONS.md`. What is next: `docs/plan/BACKLOG.md`. Rules: `CL
     asks "Delete N canvases?". `deleteCanvas(it)` is the one delete path.
     Search and select mode are sheets for back, like the account sheet.
   - **Undo and redo go with the bar that is up**: `showBars()` moves the same
-    two buttons into the brush colour bar in colour mode (redo | H/S/B |
-    undo, level with S) and back into the size bar after. Picking a brush
+    two buttons into the canvas panel when it opens and back into the
+    size bar after. Colour mode keeps them beside the combined H/S/B/size
+    controls. Picking a brush
     colour with the eraser on switches to the brush.
   - **A public tile is only the drawing**, two across: the artist's face
     along its foot with the @tag folded into it (the face shows the tag, the
