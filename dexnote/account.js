@@ -63,6 +63,20 @@ export function onAccount(fn) {
    than here: the same Firebase account, so the notes are the account's too. */
 const siteSignedIn = () => { try { return localStorage.getItem('site:signedIn') === '1'; } catch { return false; } };
 
+/* Dex's own address, the one the server checks (lib/site-identity.js
+   OWNER_EMAIL). The client needs it for the one failure the server cannot
+   talk about: Dex signed in, with this address, through a provider that is
+   not Google. The server answers that with the same 403 as any stranger,
+   and without this check the app would quietly open the account's own
+   (empty) Firebase notes -- a second notebook that looks like his and is
+   not, with a "bring in the password notes" offer that, since codes stopped
+   opening the private store (2026-10-08), could only fetch the PUBLIC
+   notes. openAccount refuses that case below instead of mounting it. */
+const OWNER_EMAIL = 'dexdcimino@gmail.com';
+export const isOwnerEmail = (u) => !!u && String(u.email || '').toLowerCase() === OWNER_EMAIL;
+const PROVIDER_NAMES = { 'google.com': 'Google', 'github.com': 'GitHub', 'oidc.discord': 'Discord', password: 'an email and password' };
+const providerName = (u) => PROVIDER_NAMES[(u && u.providerData && u.providerData[0] && u.providerData[0].providerId) || ''] || 'another provider';
+
 /* Who is signed in right now -- WITHOUT loading Firebase for someone who has
    never signed in on this browser. */
 export async function whoIsHere() {
@@ -279,6 +293,11 @@ export async function openAccount(u, busy = () => {}) {
     const doc = vault.format === 'json' ? vault.content : migrateHtml(vault.content);
     return { backend, stored: { doc, rev: Number(vault.rev), savedAt: vault.savedAt }, moved: false, owner: true };
   }
+  /* Dex, but not as the server knows him: his address on a provider that
+     is not his verified Google. Nothing is loaded, merged or cleared -- the
+     caller shows the way back to the Google sign-in instead of mounting
+     the empty second notebook. */
+  if (isOwnerEmail(u)) return { ownerMismatch: true, provider: providerName(u) };
   const { cloudBackend } = await loadCloud();
   const backend = cloudBackend(u);
   let stored = await backend.load();
