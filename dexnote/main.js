@@ -24,6 +24,7 @@ import { el } from '/notes/dom.js';
 import {
   remember, remembered, onAccount, signInCard, signInSheet, signOut, accountButton,
   openGuest, openAccount, unlockVault, copyVaultInto, askPassword,
+  loadCloud, isOwnerEmail, signInError,
 } from './account.js';
 import { phoneShell, MARK } from './mobile.js';
 
@@ -94,7 +95,7 @@ function accountMenu(anchor) {
   const items = user ? [
     { label: user.email || user.displayName || 'Signed in', disabled: true, run() {} },
     null,
-    owner ? null : { label: 'Bring in the password notes…', run: bringInVault },
+    (owner || isOwnerEmail(user)) ? null : { label: 'Bring in the password notes…', run: bringInVault },
     { label: 'Sign out', danger: true, run: signOutNow },
   ].filter((item, i) => item || i === 1) : [
     { label: 'Guest · saved on this device', disabled: true, run() {} },
@@ -116,7 +117,7 @@ function fillProfile(sheet, { close, who, actions }) {
   const act = (label, run, kind = '') => el('button', { type: 'button', class: `dm-action ${kind}`, text: label, onclick: () => { close(); run(); } });
   actions.replaceChildren(...[
     user ? null : act('Sign in', signInNow, 'is-primary'),
-    user && !owner ? act('Bring in the password notes…', bringInVault) : null,
+    user && !owner && !isOwnerEmail(user) ? act('Bring in the password notes…', bringInVault) : null,
     !STANDALONE ? act('Install dexnote on this device', () => showInstall()) : null,
     user ? act('Sign out', signOutNow, 'is-danger') : null,
   ].filter(Boolean));
@@ -136,6 +137,13 @@ async function enterAccount(u) {
   busy('Opening your notes…');
   try {
     const out = await openAccount(u, busy);
+    if (out.ownerMismatch) {
+      if (mine !== entering) return;
+      owner = false;
+      mismatchProvider = out.provider;
+      wrongProvider(out.provider);
+      return;
+    }
     if (out.moved) remember('account');
     if (mine !== entering) return;
     owner = !!out.owner;
@@ -160,6 +168,43 @@ async function signInNow() {
 async function signOutNow() {
   if (app) { app.flush(); await app.save(); }
   await signOut();      // the listener shows the gate
+}
+
+/* ---- Dex's address on the wrong provider -------------------------------- */
+
+/* The account is his but the sign-in is not the Google one his notes are
+   tied to (account.js openAccount says ownerMismatch). The app does not
+   open at all here: what it would open is an empty notebook that is not
+   his notes. It says what happened and offers the one tap that fixes it --
+   signing in with Google over the top replaces the session, and the
+   account listener then opens the real notes on its own. */
+let mismatchProvider = null;
+function wrongProvider(provider, errorText) {
+  unmountApp();
+  listen();                          // so the sign-in the button makes is heard
+  const kids = [
+    el('img', { class: 'dn-logo', src: '/dexnote/icons/logo-v2.svg', alt: '' }),
+    el('h3', { class: 'dn-title', text: 'dexnote' }),
+    el('p', { class: 'nt-modal-msg', text: `You're signed in with ${provider || 'another provider'}, but your notes are tied to your Google sign-in — the one that opens them on the website. This sign-in gets an empty notebook instead, which is not your notes.` }),
+    errorText ? el('p', { class: 'dn-error', text: errorText }) : null,
+    el('div', { class: 'nt-modal-btns' },
+      el('button', { type: 'button', class: 'nt-btn is-primary', text: 'Sign in with Google', onclick: () => { void switchToGoogle(); } }),
+      el('button', { type: 'button', class: 'nt-btn', text: 'Sign out', onclick: () => { void signOutNow(); } })),
+  ].filter(Boolean);
+  host.replaceChildren(el('div', { class: 'nt-app dn-gate', 'data-theme': 'dark' },
+    el('div', { class: 'nt-modal' }, el('div', { class: 'nt-modal-card dn-card', role: 'dialog', 'aria-label': 'Wrong sign-in' }, ...kids))));
+}
+
+async function switchToGoogle() {
+  busy('Switching to your Google sign-in…');
+  try {
+    const { signIn } = await loadCloud();
+    await signIn('google');          // the account listener opens the account
+  } catch (err) {
+    if (err && /popup-closed|cancelled-popup/.test(err.code || '')) { wrongProvider(mismatchProvider); return; }
+    console.warn('dexnote: switching to Google failed', err);
+    wrongProvider(mismatchProvider, signInError(err));
+  }
 }
 
 /* ---- the homepage's password notes, copied into an account ---------------- */
