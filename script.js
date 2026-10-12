@@ -3483,7 +3483,16 @@ if (workModal) {
       editor.hidden = false;
       setSave('OPENING YOUR NOTES…', 'saving');
       try {
-        const { backend, stored, moved, owner } = await acct.openAccount(u, (text) => setSave(text.toUpperCase(), 'saving'));
+        const out = await acct.openAccount(u, (text) => setSave(text.toUpperCase(), 'saving'));
+        if (out.ownerMismatch) {
+          // Dex's address on a provider that is not his Google: the account's
+          // Firebase notes are an empty second notebook, not his. Say so
+          // instead of mounting them (dexnote/account.js openAccount).
+          setSave('WRONG SIGN-IN — YOUR NOTES ARE BEHIND GOOGLE', 'error');
+          ui.toast(`You are signed in with ${out.provider}, but your notes open only for your Google sign-in. Sign out and sign in with Google.`, 'error');
+          return;
+        }
+        const { backend, stored, moved, owner } = out;
         source = 'account';
         // Dex's own Google opens the DEXDC document itself (account.js), so
         // there is nothing to bring in and no second copy to switch to.
