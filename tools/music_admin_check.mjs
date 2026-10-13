@@ -232,6 +232,35 @@ let TOKEN = null;
 /* ---- 3. two browsers --------------------------------------------------------- */
 
 const browser = await puppeteer.launch({ executablePath: CHROME, headless: 'new', args: ['--no-sandbox', '--mute-audio'], defaultViewport: { width: 1400, height: 950 } });
+// A two-second, locally generated video exercises the browser's real ended event.
+const fixturePage = await browser.newPage();
+let fixtureVideo = Buffer.from(await fixturePage.evaluate(async () => {
+  const canvas = document.createElement('canvas'); canvas.width = 160; canvas.height = 90;
+  const ctx = canvas.getContext('2d'), stream = canvas.captureStream(20);
+  const recorder = new MediaRecorder(stream, { mimeType: 'video/webm;codecs=vp8' });
+  const chunks = []; recorder.ondataavailable = e => chunks.push(e.data);
+  const finished = new Promise(resolve => { recorder.onstop = resolve; });
+  recorder.start();
+  const draw = setInterval(() => { ctx.fillStyle = '#3775bc'; ctx.fillRect(0, 0, 160, 90); ctx.fillStyle = '#fff'; ctx.fillRect(40, 30, 80, 30); }, 50);
+  await new Promise(resolve => setTimeout(resolve, 2000)); recorder.stop(); await finished;
+  clearInterval(draw); stream.getTracks().forEach(t => t.stop());
+  return Array.from(new Uint8Array(await new Blob(chunks).arrayBuffer()));
+}));
+// MediaRecorder leaves WebM duration unknown; add an EBML Duration to the Info element.
+const infoOffset = fixtureVideo.lastIndexOf(Buffer.from([0x15, 0x49, 0xa9, 0x66]));
+let infoWidth = 1, infoMarker = 0x80;
+while (!(fixtureVideo[infoOffset + 4] & infoMarker) && infoWidth < 8) { infoWidth++; infoMarker >>= 1; }
+let infoSize = fixtureVideo[infoOffset + 4] & (infoMarker - 1);
+for (let i = 1; i < infoWidth; i++) infoSize = infoSize * 256 + fixtureVideo[infoOffset + 4 + i];
+if (infoOffset < 0 || infoSize > 10000) throw new Error('unexpected generated WebM Info');
+const durationTag = Buffer.alloc(11); durationTag.set([0x44, 0x89, 0x88]); durationTag.writeDoubleBE(2000, 3);
+let newInfoSize = infoSize + durationTag.length;
+for (let i = infoWidth - 1; i >= 0; i--) { fixtureVideo[infoOffset + 4 + i] = newInfoSize & 255; newInfoSize = Math.floor(newInfoSize / 256); }
+fixtureVideo[infoOffset + 4] |= infoMarker;
+fixtureVideo = Buffer.concat([fixtureVideo.subarray(0, infoOffset + 4 + infoWidth + infoSize), durationTag, fixtureVideo.subarray(infoOffset + 4 + infoWidth + infoSize)]);
+await fixturePage.close();
+let mediaLookups = 0, refuseMedia = false;
+
 
 /* Signed in: the site-auth mirror flag set, and site-auth.js answered by a
    fake whose idToken() is a token signed above. Signed out: neither. */
@@ -247,9 +276,14 @@ async function door(event, code, name, signedIn = null) {
   /* The embed is not what this checks, and it autoplays. Refused at the wire,
      the way music_check does it, so no test waits on YouTube. */
   await page.setRequestInterception(true);
-  page.on('request', (req) => (/^https:\/\/(www.instagram.com|player.vimeo.com|w.soundcloud.com|open.spotify.com|www.tiktok.com|bandcamp.com)\//.test(req.url()) ? req.respond({ status: 200, contentType: 'text/html', body: '<button id="native-play">Provider play</button>' }) : /youtube|ytimg|googlevideo/.test(req.url()) ? req.abort()
-    : signedIn && req.url().endsWith('/account/site-auth.js') ? req.respond({ status: 200, contentType: 'text/javascript', body: FAKE_SITE_AUTH(signedIn) })
-    : req.continue()));
+  page.on('request', req => {
+    if (req.url().includes('/api/music/media?')) { mediaLookups++; return req.respond({ status: refuseMedia ? 422 : 200, contentType: 'application/json', body: JSON.stringify(refuseMedia ? { error: 'unavailable' } : { url: 'https://test.cdninstagram.com/fixture.webm' }) }); }
+    if (req.url() === 'https://test.cdninstagram.com/fixture.webm') return req.respond({ status: 200, contentType: 'video/webm', body: fixtureVideo });
+    if (/^https:\/\/(www.instagram.com|player.vimeo.com|w.soundcloud.com|open.spotify.com|www.tiktok.com|bandcamp.com)\//.test(req.url())) return req.respond({ status: 200, contentType: 'text/html', body: '<button id="native-play">Provider play</button>' });
+    if (/youtube|ytimg|googlevideo/.test(req.url())) return req.abort();
+    if (signedIn && req.url().endsWith('/account/site-auth.js')) return req.respond({ status: 200, contentType: 'text/javascript', body: FAKE_SITE_AUTH(signedIn) });
+    return req.continue();
+  });
   page.on('pageerror', (e) => fail.push(`pageerror (${name}): ${e.message}`));
   page.on('console', (m) => {
     if (m.type() !== 'error') return;
@@ -457,6 +491,26 @@ try {
   note(mobilePicker.left >= 12 && mobilePicker.right <= 378 && mobilePicker.top >= 12 && mobilePicker.bottom <= 832, `the anchored picker fits the phone: ${JSON.stringify(mobilePicker)}`);
   await editor.page.screenshot({ path: join(ROOT, '.notes-dev/shots/music-playlists-phone.png') });
   await editor.page.click('.music-picker-okay');
+  note(await editor.page.$eval('#musicRows .music-row', row => { const meta = row.querySelector('.music-meta').getBoundingClientRect(), add = row.querySelector('.music-playlist-add').getBoundingClientRect(); return add.left > meta.right && Math.abs((add.top + add.bottom) / 2 - (meta.top + meta.bottom) / 2) < 2; }), 'owner mobile playlist icon must stay on the right of its song');
+  await viewer.page.setViewport({ width: 390, height: 844 });
+  note(await viewer.page.$eval('#musicRows .music-row', row => { const meta = row.querySelector('.music-meta').getBoundingClientRect(), add = row.querySelector('.music-playlist-add').getBoundingClientRect(); return add.left > meta.right && Math.abs((add.top + add.bottom) / 2 - (meta.top + meta.bottom) / 2) < 2; }), 'visitor mobile playlist icon must stay on the right of its song');
+  await viewer.page.setViewport({ width: 1400, height: 950 });
+  const plus = await editor.page.$eval('#musicAddPlaylist', e => { const r = e.getBoundingClientRect(); return { w: r.width, h: r.height }; });
+  note(plus.w === 44 && plus.h === 44, `mobile new playlist is a square plus: ${JSON.stringify(plus)}`);
+  await editor.page.click('#musicAddPlaylist');
+  note(await editor.page.evaluate(() => document.querySelector('.music-rail').classList.contains('is-expanded') && !document.getElementById('musicPlaylistForm').hidden), 'phone plus should expand the rail and open its form');
+  const nameBounds = await editor.page.$eval('#musicPlaylistName', e => { const r = e.getBoundingClientRect(); return { w: r.width, right: r.right }; });
+  note(nameBounds.w >= 180 && nameBounds.right <= 390, `mobile playlist name input is usable: ${JSON.stringify(nameBounds)}`);
+  await editor.page.type('#musicPlaylistName', 'Phone playlist');
+  await editor.page.click('.music-playlist-ok');
+  note(await editor.page.evaluate(() => [...document.querySelectorAll('#musicCustomPlaylists .music-rail-label')].some(e => e.textContent === 'PHONE PLAYLIST' && e.getBoundingClientRect().width > 0)), 'new phone playlist should have a visible name in the expanded rail');
+  await editor.page.click('.music-rail-toggle');
+  note(await editor.page.$eval('.music-rail', e => !e.classList.contains('is-expanded')), 'phone rail collapse control failed');
+  const railBlank = await editor.page.$eval('.music-rail', e => { const r = e.getBoundingClientRect(); return { x: r.left + 20, y: r.bottom - 20 }; });
+  await editor.page.mouse.click(railBlank.x, railBlank.y);
+  note(await editor.page.$eval('.music-rail', e => e.classList.contains('is-expanded')), 'tapping blank phone rail should expand playlists');
+  await editor.page.click('.music-rail-toggle');
+  await editor.page.click('#musicViewAll');
   await editor.page.setViewport({ width: 1400, height: 950 });
 
   /* BACKUPS, from the screen. */
@@ -499,33 +553,64 @@ try {
   note(await has(viewer.page, reel), 'the Instagram Reel did not persist and reach the visitor playlist');
   await editor.page.click('#musicSearch'); await editor.page.type('#musicSearch', 'Instagram music check');
   await sleep(350); await editor.page.click('#musicRows .music-play'); await sleep(300);
+  await editor.page.waitForFunction(() => document.getElementById('musicModal').classList.contains('has-direct-video') && document.getElementById('musicDirectVideo').readyState >= 2);
+  await editor.page.$eval('#musicDirectVideo', v => { v.playbackRate = .0625; });
   const embedded = await editor.page.evaluate(() => {
-    const frame = document.getElementById('musicVideo'), r = frame.getBoundingClientRect();
-    return { src: frame.src, w: r.width, h: r.height, native: document.getElementById('musicModal').classList.contains('has-native-embed'),
-      note: !document.getElementById('musicEmbedHelp').hidden, original: document.getElementById('musicEmbedOriginal').href,
-      seek: document.getElementById('musicScrub').disabled, volume: document.getElementById('musicVol').disabled };
+    const r = document.getElementById('musicScreen').getBoundingClientRect();
+    return { w: r.width, h: r.height, seek: document.getElementById('musicScrub').disabled, volume: document.getElementById('musicVol').disabled, loop: document.getElementById('musicLoop').disabled, original: document.getElementById('musicEmbedOriginal').href };
   });
-  note(embedded.src === reel + 'embed/' && embedded.native && embedded.note && embedded.original === reel && embedded.seek && embedded.volume && embedded.w >= 300 && embedded.h >= 200,
-    `Instagram player has its own controls and a readable frame: ${JSON.stringify(embedded)}`);
+  note(embedded.w === 170 && Math.abs(embedded.h - 95.625) < 1 && !embedded.seek && !embedded.volume && !embedded.loop && embedded.original === reel, `Instagram uses the compact screen with real controls: ${JSON.stringify(embedded)}`);
   await editor.page.screenshot({ path: join(ROOT, '.notes-dev/shots/music-instagram.png') });
   await editor.page.click('#musicFull');
   await editor.page.waitForFunction(() => document.fullscreenElement?.id === 'musicScreen');
-  const full = await editor.page.evaluate(() => { const r = document.getElementById('musicVideo').getBoundingClientRect(); return { w: r.width, h: r.height, hit: document.elementFromPoint(30, 18)?.id, vw: innerWidth, vh: innerHeight }; });
-  note(full.w === full.vw && full.h === full.vh && full.hit === 'musicVideo', `fullscreen provider fills the screen and remains interactive: ${JSON.stringify(full)}`);
-  await editor.page.click('#musicFsExit');
-  await editor.page.waitForFunction(() => !document.fullscreenElement);
-  note(await editor.page.evaluate(() => document.getElementById('musicModal').open && document.getElementById('musicVideo').src.endsWith('/embed/')), 'leaving provider fullscreen closed its player');
+  const full = await editor.page.evaluate(() => { const r = document.getElementById('musicDirectVideo').getBoundingClientRect(); return { w: r.width, h: r.height, vw: innerWidth, vh: innerHeight }; });
+  note(full.w === full.vw && full.h === full.vh, `explicit fullscreen still fills the screen: ${JSON.stringify(full)}`);
+  await editor.page.click('#musicFsExit'); await editor.page.waitForFunction(() => !document.fullscreenElement);
+  note(await editor.page.evaluate(() => document.getElementById('musicModal').open && !document.getElementById('musicDirectVideo').hidden), 'fullscreen exit lost the compact video');
 
   await editor.page.setViewport({ width: 390, height: 844 }); await sleep(250);
-  const phone = await editor.page.evaluate(() => { const r = document.getElementById('musicVideo').getBoundingClientRect(); return { x: r.x, right: r.right, w: r.width, h: r.height, help: document.getElementById('musicEmbedHelp').getBoundingClientRect().height > 0 }; });
-  note(phone.x >= 0 && phone.right <= 390 && phone.w >= 280 && phone.h >= 250 && phone.help, `phone provider player fits: ${JSON.stringify(phone)}`);
+  const phone = await editor.page.evaluate(() => { const r = document.getElementById('musicScreen').getBoundingClientRect(); return { x: r.x, right: r.right, w: r.width, h: r.height }; });
+  note(phone.x >= 0 && phone.right <= 390 && phone.w === 96 && Math.abs(phone.h - 54) < 1, `phone Instagram uses the same YouTube size: ${JSON.stringify(phone)}`);
+  const beforeVolume = await editor.page.$eval('#musicVol', e => Number(e.value));
+  await editor.page.click('#musicMute');
+  note(await editor.page.$eval('#musicMute', e => e.getAttribute('aria-expanded') === 'true') && await editor.page.$eval('#musicVol', e => Number(e.value)) === beforeVolume, 'phone speaker must open volume without muting');
+  const volBounds = await editor.page.$eval('#musicVolumeSlider', e => { const r = e.getBoundingClientRect(); return { left: r.left, right: r.right, top: r.top, bottom: r.bottom, height: r.height }; });
+  const speakerTop = await editor.page.$eval('#musicMute', e => e.getBoundingClientRect().top);
+  note(volBounds.left >= 0 && volBounds.right <= 390 && volBounds.height >= 44 && volBounds.right - volBounds.left === 172 && volBounds.bottom < speakerTop, `volume popover above speaker: ${JSON.stringify(volBounds)}`);
+  await editor.page.$eval('#musicVol', e => { e.value = 75; e.dispatchEvent(new Event('input', { bubbles: true })); });
+  note(await editor.page.$eval('#musicDirectVideo', e => e.volume === .75) && await editor.page.evaluate(() => localStorage.getItem('music-volume') === '0.75'), 'mobile volume did not apply and persist at the displayed percentage');
+  note(await editor.page.$eval('#musicVol', e => e.getBoundingClientRect().width >= 120), 'mobile volume slider must have enough travel to drag');
+  await editor.page.keyboard.press('Escape');
+  note(await editor.page.evaluate(() => !document.querySelector('.music-volume').classList.contains('is-open') && document.getElementById('musicModal').open), 'volume Escape should only close its popover');
   await editor.page.screenshot({ path: join(ROOT, '.notes-dev/shots/music-instagram-phone.png') });
   await editor.page.setViewport({ width: 1400, height: 950 }); await sleep(200);
 
   await editor.page.click('#musicToggle');
-  note(await editor.page.evaluate(() => !document.getElementById('musicVideo').hasAttribute('src')), 'Close embed left the provider running');
+  note(await editor.page.$eval('#musicDirectVideo', e => e.paused), 'Instagram Pause did not pause real media');
   await editor.page.click('#musicToggle');
-  note(await editor.page.evaluate(() => document.getElementById('musicVideo').src.endsWith('/embed/')), 'Open embed did not restore the provider');
+  note(await editor.page.$eval('#musicDirectVideo', e => !e.paused), 'Instagram Play did not resume real media');
+  while (await editor.page.$eval('#musicLoop', e => e.dataset.loop) !== 'one') await editor.page.click('#musicLoop');
+  const beforeRepeat = mediaLookups;
+  const replayResponse = editor.page.waitForResponse(r => r.url().includes("/api/music/media?") && r.status() === 200);
+  await editor.page.$eval('#musicDirectVideo', e => { e.playbackRate = 1; e.currentTime = e.duration - .05; });
+  await editor.page.waitForFunction(() => document.getElementById('musicDirectVideo').currentTime < .5 && !document.getElementById('musicDirectVideo').paused);
+  await replayResponse;
+  await editor.page.waitForFunction(() => document.getElementById("musicDirectVideo").currentTime < .5 && !document.getElementById("musicDirectVideo").paused);
+  note(mediaLookups === beforeRepeat + 1, 'a real ended event must refresh the Instagram public link exactly once');
+  await editor.page.$eval('#musicDirectVideo', e => { e.playbackRate = .0625; });
+  while (await editor.page.$eval('#musicLoop', e => e.dataset.loop) !== 'off') await editor.page.click('#musicLoop');
+  await editor.page.$eval('#musicDirectVideo', e => { e.playbackRate = 1; e.currentTime = e.duration - .05; });
+  await editor.page.waitForFunction(() => document.getElementById('musicDirectVideo').hidden);
+  note(await editor.page.$eval('#musicDirectVideo', e => e.paused && !e.hasAttribute('src')), 'repeat off must stop at the end of the filtered playlist');
+  refuseMedia = true;
+  await editor.page.click('#musicRows .music-play');
+  await editor.page.waitForFunction(() => document.getElementById('musicVideo').src.endsWith('/embed/'));
+  note(await editor.page.$eval('#musicScreen', e => e.getBoundingClientRect().width === 170) && await editor.page.$eval('#musicLoop', e => !e.disabled), 'unavailable Instagram media must retain a compact fallback and visible repeat control');
+  await editor.page.click('#musicToggle');
+  note(await editor.page.$eval('#musicVideo', e => !e.hasAttribute('src')), 'Close embed left the fallback running');
+  await editor.page.click('#musicToggle');
+  await editor.page.waitForFunction(() => document.getElementById('musicVideo').src.endsWith('/embed/'));
+  refuseMedia = false;
   await editor.page.evaluate(() => { document.getElementById('contactModal').showModal(); document.getElementById('musicModal').close(); }); await sleep(350);
   note(await editor.page.evaluate(() => !document.getElementById('musicVideo').hasAttribute('src') && !document.getElementById('musicModal').open), 'closing Instagram left a hidden provider player');
   note(await editor.page.evaluate(() => document.getElementById('contactModal').open), 'provider cleanup disturbed the overlay taking over');

@@ -3470,7 +3470,7 @@ Pasted markup is never executed. Only the approved URL is extracted and
 normalized; stored embed URLs are reconstructed rather than trusted.
 Instagram's shortcode is one `/p/` identity across Reel links and embed code.
 
-Each music row has an accent-outline plus (`.music-playlist-add`) opening
+Each music row has an accent-outline two-item list icon (`.music-playlist-add`) opening
 `#musicPlaylistPicker`, a compact anchored child dialog in the top layer.
 Whole checkbox labels toggle membership immediately: Repeat uses the existing
 shared server edit, and custom playlists use their existing localStorage
@@ -3482,15 +3482,29 @@ returned to its row where it still exists. The mobile full-screen dialog rule
 has an explicit exception for this picker. Sign-out and closing Music remove it.
 
 YouTube retains its existing transport, time, volume, auto-advance and docking.
-The other providers render their own interactive player, with a larger frame,
-a note and an Open original link. The site's toggle unloads/reopens those
-frames; Previous/Next select entries manually. Unsupported seek/volume/repeat
-controls are disabled or hidden. Closing the overlay unloads these providers,
-and they are excluded from hidden autoplay behind another overlay. Their
-availability remains subject to provider restrictions; lookup does not promise
-that a private or embedding-disabled post will play. No Meta app token needed.
+Every provider uses the same 170px desktop / 96px mobile, 16:9 screen; no
+provider can expand the player bar. Public Instagram videos resolve through
+`GET /api/music/media?url=...` into `#musicDirectVideo` inside that screen.
+`lib/music-media.js` fetches only canonical public Instagram embed pages,
+decodes JSON without executing scripts, caps upstream reads at 2MB / 8 seconds,
+and returns only HTTPS Instagram/Facebook CDN media URLs. Signed URLs are not
+stored in playlists. Actual media ended events refresh the public link for
+repeat-one or advance through the playlist for repeat-all; seeking, pause,
+resume, fullscreen and volume use the same controls as YouTube. Private,
+blocked or unavailable public video sources fall back to a compact provider
+iframe with an original link and a stated automatic-repeat limitation; no
+login credentials or Meta app token are used. Other providers retain native
+iframes and their own playback controls. Closing unloads non-YouTube media.
 
-Validation: `node tools/music_embed_check.mjs`, `node tools/music_admin_check.mjs`
+On mobile the playlist rail expands over the list through its menu button,
+empty space or new-playlist plus, showing names and the existing creation form.
+An outside tap collapses it. The row membership picker remains separate.
+The speaker opens the existing volume slider in a popover above the button;
+Escape or an outside tap closes it without muting. Desktop speaker still toggles
+mute. Player volume now follows the displayed percentage linearly (previously
+40% became 6.4% gain); new browsers default to 80%, stored choices remain intact.
+
+Validation: `node tools/music_embed_check.mjs`, `node tools/music_media_check.mjs`, `node tools/music_admin_check.mjs`
 and `node tools/music_check.mjs --playlist-core`. The full legacy music checker
 still references the removed `musicStop` control and needs migration to the
 current pill. The core mode checks the existing YouTube playlist, permissions,

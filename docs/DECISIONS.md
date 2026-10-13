@@ -5693,3 +5693,20 @@ control for that. Keep the picker open when removing a membership removes the
 row underneath it. Okay, Escape and outside clicks dismiss only the picker,
 restore focus and do not undo saved changes. Clamp the panel on phones and
 resize, and exempt it from the site's full-screen mobile dialog rule.
+
+
+## 2026-10-13 — Compact music embeds and mobile controls
+
+The oversized native Instagram card displaced the playlist and lost repeat.
+All providers now share YouTube's compact screen dimensions. Public Instagram
+video URLs are resolved from the public embed JSON and played in a native video
+inside that screen, so real ended events drive repeat-one refetch and playlist
+advance. No timer guesses a song's length. Only canonical Instagram pages and
+Instagram/Facebook CDN media are allowed; provider refusal falls back to a
+compact iframe and states that automatic repeat is unavailable there. Signed
+CDN URLs are transient, with no credentials or copied media files stored.
+
+Mobile playlist creation expands the existing sidebar rather than squeezing a
+form into its icon rail. The speaker opens a volume popover, and player gain
+matches the displayed percentage. Song membership uses a two-item list icon
+while retaining the existing immediate checkbox picker and storage behavior.

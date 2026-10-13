@@ -34,7 +34,7 @@
   <link rel="icon" id="faviconSvg" type="image/svg+xml" href="" />
   <link rel="preload" as="image" href="assets/logos/DEX.svg" />
   <link rel="preload" as="image" href="assets/logos/CIMINO.svg" />
-  <link rel="stylesheet" href="styles.css?v=226" />
+  <link rel="stylesheet" href="styles.css?v=227" />
   <!-- preload src="assets/mascots/mascot_limegreen.png" slot="hero-mascot" -->
   <link rel="preload" as="image" fetchpriority="high"
         href="assets/derived/mascots/mascot_limegreen-900.avif?v=6edad5f9"
@@ -5519,8 +5519,8 @@
               <span class="music-rail-n" id="musicNRepeat" aria-hidden="true"></span>
             </button>
             <div id="musicCustomPlaylists"></div>
-            <button type="button" id="musicAddPlaylist" class="music-rail-add" hidden>
-              <span class="music-rail-label"><span class="music-rail-plus">+</span> Playlist</span>
+            <button type="button" id="musicAddPlaylist" class="music-rail-add" aria-label="Create playlist" hidden>
+              <span class="music-rail-plus" aria-hidden="true">+</span><span class="music-rail-label">Playlist</span>
             </button>
             <form class="music-playlist-form" id="musicPlaylistForm" hidden autocomplete="off">
               <input type="text" id="musicPlaylistName" placeholder="Playlist name"
@@ -5582,6 +5582,7 @@
                       allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
                       referrerpolicy="strict-origin-when-cross-origin"
                       allowfullscreen hidden></iframe>
+              <video class="music-video" id="musicDirectVideo" playsinline preload="metadata" hidden></video>
               <!-- What the docked bar shows in the video's place. The embed
                    keeps playing behind it; only its PICTURE is stood down. -->
               <img class="music-thumb" id="musicThumb" alt="" width="320" height="180"
@@ -5711,8 +5712,8 @@
             <div class="music-volume">
               <button class="music-btn music-volbtn" type="button" id="musicMute" aria-label="Mute">
                 <span class="icon" data-icon="volume" aria-hidden="true"></span></button>
-              <input class="player-range music-vol" id="musicVol" type="range"
-                     min="0" max="100" value="40" step="1" aria-label="Volume">
+              <div class="music-volume-slider" id="musicVolumeSlider"><input class="player-range music-vol" id="musicVol" type="range"
+                     min="0" max="100" value="80" step="1" aria-label="Volume"></div>
             </div>
             <!-- FULL SCREEN, to the right of the volume (Dex, 2026-10-03).
                  A control of the PICTURE rather than of the queue, which is
@@ -6037,6 +6038,6 @@
   </dialog>
 
   <script src="lib/music-embeds.js"></script>
-  <script src="script.js?v=226"></script>
+  <script src="script.js?v=227"></script>
 </body>
 </html>

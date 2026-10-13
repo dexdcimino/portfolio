@@ -6949,6 +6949,8 @@ const MediaBus = (() => {
     try { localStorage.setItem('dex-music-playlists', JSON.stringify(customPlaylists)); } catch {}
   };
   const bar = $('musicBar'), frame = $('musicVideo'), screen = $('musicScreen');
+  const directVideo = $('musicDirectVideo');
+  let directActive = false, mediaRequest = 0, mediaAbort = null;
   const markEl = $('musicMark'), thumbEl = $('musicThumb');
   const nowTitle = $('musicNowTitle'), nowArtist = $('musicNowArtist');
   const btnPrev = $('musicPrev'), btnToggle = $('musicToggle'), btnNext = $('musicNext');
@@ -7068,8 +7070,8 @@ const MediaBus = (() => {
      the first toggle up from off is the sensible resting state. Remembered
      either way, so turning it off sticks. */
   let loop = 'all';           // 'off' | 'all' | 'one'
-  let volume = 0.4;           // the site's default everywhere
-  let lastVolume = 0.4;       // what unmuting goes back to
+  let volume = 0.8;
+  let lastVolume = 0.8;
   let duration = 0;           // of the current track, as the embed reports it
   /* WHERE WE ARE IN IT, in seconds, as the embed reports it. Kept beside the
      painted clock rather than read off it: paintTime() is a cache that skips
@@ -7263,7 +7265,7 @@ const MediaBus = (() => {
     const check = document.createElement('button');
     check.type = 'button';
     check.className = 'music-playlist-add';
-    check.textContent = '+';
+    check.innerHTML = '<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><g fill="currentColor"><circle cx="5" cy="7" r="2"/><circle cx="5" cy="17" r="2"/></g><path d="M11 7h9M11 17h9" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>';
     check.dataset.repeat = String(ticked.has(track.v));
     check.dataset.member = String(ticked.has(track.v) || customPlaylists.some(p => p.tracks.includes(track.v)));
     check.setAttribute('aria-label', `Add ${track.t} to playlists`);
@@ -7474,12 +7476,12 @@ const MediaBus = (() => {
     mark();
     const icon = btnToggle.querySelector('.icon');
     if (icon) icon.dataset.icon = playing ? 'pause' : 'play';
-    btnToggle.setAttribute('aria-label', nativeEmbed ? (playing ? 'Close embed' : 'Open embed') : (playing ? 'Pause' : 'Play'));
-    MediaBus.playbackState(me, playing && !nativeEmbed);
+    btnToggle.setAttribute('aria-label', nativeEmbed && !directActive ? (playing ? 'Close embed' : 'Open embed') : (playing ? 'Pause' : 'Play'));
+    MediaBus.playbackState(me, playing && (!nativeEmbed || directActive));
     paintFs();
     /* The sound is inside a cross-origin iframe, so this document has to make
        one of its own to be the thing the OS media keys are pointed at. */
-    MediaBus.holdSession(armed && playing && !nativeEmbed);
+    MediaBus.holdSession(armed && playing && (!nativeEmbed || directActive));
     /* THE ONE SIGNAL A REMOTE READS. `armed` means the embed is holding a
        track -- playing or paused -- which is exactly "there is music to
        control", and it is already the flag every other answer in here is
@@ -7500,7 +7502,18 @@ const MediaBus = (() => {
     try { frame.contentWindow.postMessage(JSON.stringify(message), ORIGIN); }
     catch { /* not loaded yet, or navigated away — the next command re-sends */ }
   }
-  const cmd = (func, args = []) => post({ event: 'command', func, args });
+  const cmd = (func, args = []) => {
+    if (directActive) {
+      if (func === 'pauseVideo' || func === 'stopVideo') directVideo.pause();
+      if (func === 'playVideo') directVideo.play().catch(error => { if (error.name !== 'AbortError') { playing = false; paint(); } });
+      if (func === 'seekTo') directVideo.currentTime = args[0];
+      if (func === 'setVolume') directVideo.volume = args[0] / 100;
+      if (func === 'mute') directVideo.muted = true;
+      if (func === 'unMute') directVideo.muted = false;
+      return;
+    }
+    post({ event: 'command', func, args });
+  };
 
   function srcFor(v) {
     const params = new URLSearchParams({
@@ -7525,16 +7538,78 @@ const MediaBus = (() => {
   }
 
   function nativeUI(source) {
+    mediaAbort?.abort(); mediaRequest++;
+    directVideo.pause(); directVideo.removeAttribute('src'); directVideo.load();
+    directVideo.hidden = true; directActive = false;
     nativeEmbed = !!source?.e;
     modal.classList.toggle('has-native-embed', nativeEmbed);
     const help = $('musicEmbedHelp'), link = $('musicEmbedOriginal');
     help.hidden = !nativeEmbed;
     if (source?.e) { help.firstChild.textContent = `Use ${source.p}'s player controls. Public posts must allow embedding. `; link.href = source.u; }
     else link.removeAttribute('href');
-    for (const el of [scrubEl, volEl, btnMute, btnLoop, fsScrubEl, fsVolEl, fsBtns.mute, fsBtns.loop]) {
+    for (const el of [scrubEl, volEl, btnMute, fsScrubEl, fsVolEl, fsBtns.mute]) {
       if (el) el.disabled = nativeEmbed;
     }
+    btnLoop.disabled = false;
+    if (fsBtns.loop) fsBtns.loop.disabled = false;
+    modal.classList.remove('has-direct-video');
   }
+
+  async function loadPublicVideo(source) {
+    mediaAbort?.abort();
+    const request = ++mediaRequest;
+    mediaAbort = new AbortController();
+    try {
+      const response = await fetch('/api/music/media?url=' + encodeURIComponent(source.u), { cache: 'no-store', signal: mediaAbort.signal });
+      if (!response.ok) throw new Error('public video unavailable');
+      const data = await response.json();
+      const url = new URL(data.url);
+      if (url.protocol !== 'https:' || !/\.(cdninstagram\.com|fbcdn\.net)$/.test(url.hostname) || url.username || url.password || url.port) throw new Error('invalid media URL');
+      if (request !== mediaRequest || current?.v !== source.v || !armed) return;
+      frame.removeAttribute('src'); frame.hidden = true;
+      directActive = true; directVideo.hidden = false;
+      modal.classList.add('has-direct-video');
+      for (const el of [scrubEl, volEl, btnMute, fsScrubEl, fsVolEl, fsBtns.mute]) if (el) el.disabled = false;
+      $('musicEmbedHelp').firstChild.textContent = 'Instagram · ';
+      directVideo.src = url.href;
+      pushVolume();
+      if (playing) await directVideo.play().catch(error => { if (request === mediaRequest && error.name !== 'AbortError') { playing = false; paint(); } });
+      if (request === mediaRequest) paint();
+    } catch (error) {
+      if (request !== mediaRequest || error.name === 'AbortError') return;
+      // Do not enlarge the player or keep a failed media source playing behind the fallback.
+      directVideo.pause(); directVideo.removeAttribute('src'); directVideo.load(); directVideo.hidden = true;
+      directActive = false; modal.classList.remove('has-direct-video');
+      for (const el of [scrubEl, volEl, btnMute, fsScrubEl, fsVolEl, fsBtns.mute]) if (el) el.disabled = true;
+      frame.hidden = false; frame.src = source.e;
+      $('musicEmbedHelp').firstChild.textContent = 'Instagram player · automatic repeat unavailable for this post. ';
+      paint();
+    }
+  }
+  const readDirectDuration = () => {
+    if (!directActive) return;
+    duration = directVideo.duration; paintTime(directVideo.currentTime); pushVolume();
+  };
+  directVideo.addEventListener('loadedmetadata', readDirectDuration);
+  directVideo.addEventListener('durationchange', readDirectDuration);
+  directVideo.addEventListener('timeupdate', () => {
+    if (directActive) { position = directVideo.currentTime; paintTime(position); }
+  });
+  directVideo.addEventListener('ended', () => {
+    if (!directActive || !current) return;
+    if (loop === 'one') { position = 0; paintTime(0); loadPublicVideo(window.MusicEmbeds.parse(current.v)); }
+    else step(1);
+  });
+  directVideo.addEventListener('error', () => {
+    if (!directActive || !current) return;
+    directVideo.pause(); directVideo.hidden = true; directActive = false;
+    modal.classList.remove('has-direct-video');
+    const source = window.MusicEmbeds.parse(current.v);
+    for (const el of [scrubEl, volEl, btnMute, fsScrubEl, fsVolEl, fsBtns.mute]) if (el) el.disabled = true;
+    frame.hidden = false; frame.src = source.e;
+    $('musicEmbedHelp').firstChild.textContent = 'Instagram player · automatic repeat unavailable for this post. ';
+    paint();
+  });
 
   function load(i, fromClick, walking) {
     const track = queue[i];
@@ -7591,8 +7666,10 @@ const MediaBus = (() => {
        box between songs. */
     if (nativeEmbed) {
       calm(); deadRun = 0;
-      frame.src = source.e;
+      frame.removeAttribute('src');
       armed = true; ready = false;
+      if (source.p === 'Instagram') loadPublicVideo(source);
+      else frame.src = source.e;
     } else if (!armed || wasNative) {
       frame.src = srcFor(track.v);
       armed = true;
@@ -7698,7 +7775,7 @@ const MediaBus = (() => {
      second would read the old time and restart again instead of stepping back
      a track. */
   function restart() {
-    if (nativeEmbed) { resume(); return; }
+    if (nativeEmbed && !directActive) { resume(); return; }
     cmd('seekTo', [0, true]);
     position = 0;
     paintTime(0);
@@ -7716,7 +7793,7 @@ const MediaBus = (() => {
         const i = queue.findIndex(t => t.v === trail[k]);
         if (i >= 0) { at = k; load(i, true, true); return; }
       }
-      if (queue.length < 2) { load(0, true); return; }
+      if (queue.length < 2) { if (loop === 'off') stop(); else load(0, true); return; }
       // Nothing unheard left and repeat is off: that is the end of the list.
       if (!unheard().length && loop === 'off') { stop(); return; }
       load(queue.indexOf(nextShuffled()), true);
@@ -7728,8 +7805,15 @@ const MediaBus = (() => {
     load(next, true);
   }
 
-  function pause() { if (nativeEmbed) frame.removeAttribute('src'); else cmd('pauseVideo'); playing = false; paint(); }
-  function resume() { if (nativeEmbed && current) frame.src = window.MusicEmbeds.parse(current.v).e; else cmd('playVideo'); playing = true; paint(); MediaBus.solo(me); }
+  function pause() { if (nativeEmbed && !directActive) { mediaAbort?.abort(); mediaRequest++; frame.removeAttribute('src'); } else cmd('pauseVideo'); playing = false; paint(); }
+  function resume() {
+    playing = true;
+    if (nativeEmbed && !directActive && current) {
+      const source = window.MusicEmbeds.parse(current.v);
+      if (source.p === 'Instagram') loadPublicVideo(source); else frame.src = source.e;
+    } else cmd('playVideo');
+    paint(); MediaBus.solo(me);
+  }
 
   /* Stop is not pause: the frame has to actually stop and let go of its src,
      or a closed overlay leaves a player holding the last frame of a video
@@ -7737,6 +7821,8 @@ const MediaBus = (() => {
      part of this overlay now, not something that appears once you have found
      the first track. It goes back to its idle state instead. */
   function stop() {
+    mediaAbort?.abort(); mediaRequest++;
+    directVideo.pause(); directVideo.removeAttribute('src'); directVideo.load();
     cmd('stopVideo');
     frame.removeAttribute('src');
     MediaBus.holdSession(false);
@@ -8023,7 +8109,10 @@ const MediaBus = (() => {
       n.className = 'music-rail-n';
       n.setAttribute('aria-hidden', 'true');
       n.textContent = pl.tracks.length;
-      btn.append(label, n);
+      const glyph = document.createElement('span');
+      glyph.className = 'music-custom-icon'; glyph.setAttribute('aria-hidden', 'true');
+      glyph.innerHTML = '<svg viewBox="0 0 24 24" width="22" height="22"><path d="M4 7h2m5 0h9M4 17h2m5 0h9" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>';
+      btn.append(glyph, label, n);
       btn.addEventListener('click', () => setView('pl:' + pl.id));
       wrap.append(btn);
       // Delete X (editor only, custom playlists only — ALL/REPEAT are permanent)
@@ -8083,8 +8172,33 @@ const MediaBus = (() => {
   }
 
   /* New playlist form. */
+  const musicRail = modal.querySelector('.music-rail');
+  const musicBody = modal.querySelector('.music-body');
+  const narrowMusic = window.matchMedia('(max-width:900px)');
+  const railToggle = document.createElement('button');
+  railToggle.type = 'button'; railToggle.className = 'music-rail-toggle';
+  railToggle.textContent = '☰'; railToggle.setAttribute('aria-label', 'Expand playlists');
+  railToggle.setAttribute('aria-expanded', 'false');
+  musicRail.prepend(railToggle);
+  function expandMusicRail(expanded) {
+    musicRail.classList.toggle('is-expanded', expanded);
+    musicBody.classList.toggle('is-rail-expanded', expanded);
+    railToggle.setAttribute('aria-expanded', String(expanded));
+    railToggle.setAttribute('aria-label', expanded ? 'Collapse playlists' : 'Expand playlists');
+  }
+  railToggle.addEventListener('click', () => expandMusicRail(!musicRail.classList.contains('is-expanded')));
+  musicRail.addEventListener('click', (event) => {
+    if (!narrowMusic.matches || event.target.closest('button,input,form')) return;
+    expandMusicRail(!musicRail.classList.contains('is-expanded'));
+  });
+  modal.addEventListener('pointerdown', (event) => {
+    if (narrowMusic.matches && !musicRail.contains(event.target)) expandMusicRail(false);
+    if (!event.target.closest('.music-volume')) closeVolume();
+  });
+  modal.addEventListener('close', () => { expandMusicRail(false); closeVolume(); });
   function openPlaylistForm() {
     if (!admin) return;
+    if (narrowMusic.matches) expandMusicRail(true);
     playlistForm.hidden = false;
     playlistName.value = '';
     playlistName.focus();
@@ -8223,13 +8337,10 @@ const MediaBus = (() => {
      every load and on every state change rather than set once and trusted. An
      <audio> element would have kept the value across a source change; a player
      in another origin has no idea what the last one was set to. */
-  /* Perceptual volume: human hearing is logarithmic, so a linear slider
-     leaves the bottom half too loud. Cubing the value makes the low end
-     actually quiet: 50% feels like a quarter, 20% is a whisper, 10% is
-     nearly silent. */
+  /* Match the displayed percentage to player gain; cubing 40% reduced it to 6%. */
   function perceptualVolume(v) {
     const c = Math.max(0, Math.min(1, v));
-    return c * c * c;
+    return c;
   }
   function pushVolume() {
     if (!armed) return;
@@ -8251,7 +8362,8 @@ const MediaBus = (() => {
     volEl.style.setProperty('--fill', `${volume * 100}%`);
     const ic = btnMute.querySelector('.icon');
     if (ic) ic.dataset.icon = volume === 0 ? 'volume-mute' : 'volume';
-    btnMute.setAttribute('aria-label', volume === 0 ? 'Unmute' : 'Mute');
+    btnMute.setAttribute('aria-label', narrowMusic.matches ? 'Adjust volume' : volume === 0 ? 'Unmute' : 'Mute');
+    volEl.setAttribute('aria-valuetext', `${Math.round(volume * 100)} percent`);
     if (persist) {
       try { localStorage.setItem(VOLUME_KEY, String(volume)); }
       catch { /* private mode — the session still works */ }
@@ -8267,8 +8379,31 @@ const MediaBus = (() => {
   });
   // Clicking the speaker mutes, clicking again comes back to where it was —
   // not to the default, which would be a second surprise after the first.
-  btnMute.addEventListener('click', () =>
-    applyVolume(volume === 0 ? (lastVolume || 0.4) : 0, true));
+  const volumeGroup = btnMute.closest('.music-volume');
+  function closeVolume() {
+    volumeGroup.classList.remove('is-open');
+    if (narrowMusic.matches) btnMute.setAttribute('aria-expanded', 'false');
+  }
+  function syncVolumeButton() {
+    closeVolume();
+    btnMute.setAttribute('aria-label', narrowMusic.matches ? 'Adjust volume' : volume === 0 ? 'Unmute' : 'Mute');
+    if (narrowMusic.matches) { btnMute.setAttribute('aria-expanded', 'false'); btnMute.setAttribute('aria-controls', 'musicVolumeSlider'); }
+    else { btnMute.removeAttribute('aria-expanded'); btnMute.removeAttribute('aria-controls'); }
+  }
+  narrowMusic.addEventListener('change', () => { expandMusicRail(false); syncVolumeButton(); });
+  syncVolumeButton();
+  btnMute.addEventListener('click', () => {
+    if (narrowMusic.matches) {
+      const opened = volumeGroup.classList.toggle('is-open');
+      btnMute.setAttribute('aria-expanded', String(opened));
+      if (opened) volEl.focus();
+    } else applyVolume(volume === 0 ? (lastVolume || 0.8) : 0, true);
+  });
+  volumeGroup.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && volumeGroup.classList.contains('is-open')) {
+      event.preventDefault(); event.stopPropagation(); closeVolume(); btnMute.focus();
+    }
+  });
 
   /* ---- full screen ------------------------------------------------------ */
   /* THE SAME TRANSPORT OVER THE PICTURE. Nothing in here holds state: every

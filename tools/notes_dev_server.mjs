@@ -66,6 +66,7 @@ const save = require(join(ROOT, 'api/notes/save.js'));
 const asset = require(join(ROOT, 'api/notes/asset.js'));
 const chessTable = require(join(ROOT, 'api/chess/table.js'));
 const musicPlaylist = require(join(ROOT, 'api/music/playlist.js'));
+const musicMedia = require(join(ROOT, 'api/music/media.js'));
 const authUnlock = require(join(ROOT, 'api/auth/unlock.js'));
 const authVerify = require(join(ROOT, 'api/auth/verify.js'));
 
@@ -108,7 +109,8 @@ const server = createServer(async (req, res) => {
                 : url === '/api/notes/save' ? save
                 : url === '/api/notes/asset' ? asset
                 : url === '/api/chess/table' ? chessTable
-                : url === '/api/music/playlist' ? musicPlaylist : null;
+                : url === '/api/music/playlist' ? musicPlaylist
+                : url === '/api/music/media' ? musicMedia : null;
     if (!route) return res.status(404).json({ error: 'no such route' });
     const raw = await readBody(req);
     try { req.body = raw ? JSON.parse(raw) : null; } catch { req.body = null; }
