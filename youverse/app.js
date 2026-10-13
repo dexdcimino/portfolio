@@ -245,7 +245,7 @@ async function openDive(title, meta, fallback){
       `<p class="dive-text">${sum.extract || fallback}</p>` +
       `<div class="dive-links"><a class="dive-btn" href="${url}" target="_blank" rel="noopener">Read the full story ↗</a>` +
       `<a class="dive-btn ghost" href="https://www.youtube.com/results?search_query=${encodeURIComponent(title)}" target="_blank" rel="noopener">▶ Watch it</a></div>` +
-      `<p class="dive-src">Summary + photo via Wikipedia</p>`;
+      `<p class="dive-src">${img ? 'Summary + photo via Wikipedia' : 'Summary via Wikipedia'}</p>`;
   } catch(e) {
     body.innerHTML = `<div class="dive-kicker">${meta}</div><h4 class="dive-title">${title}</h4>` +
       `<p class="dive-text">${fallback}</p>` +
