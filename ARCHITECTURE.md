@@ -3470,6 +3470,17 @@ Pasted markup is never executed. Only the approved URL is extracted and
 normalized; stored embed URLs are reconstructed rather than trusted.
 Instagram's shortcode is one `/p/` identity across Reel links and embed code.
 
+Each music row has an accent-outline plus (`.music-playlist-add`) opening
+`#musicPlaylistPicker`, a compact anchored child dialog in the top layer.
+Whole checkbox labels toggle membership immediately: Repeat uses the existing
+shared server edit, and custom playlists use their existing localStorage
+records. ALL is checked and fixed because it is the complete library; removing
+a library entry remains the separate delete control. The picker retains its
+selected track while a membership change removes that row from the active
+playlist. Okay, Escape or an outside click closes only the picker, with focus
+returned to its row where it still exists. The mobile full-screen dialog rule
+has an explicit exception for this picker. Sign-out and closing Music remove it.
+
 YouTube retains its existing transport, time, volume, auto-advance and docking.
 The other providers render their own interactive player, with a larger frame,
 a note and an Open original link. The site's toggle unloads/reopens those

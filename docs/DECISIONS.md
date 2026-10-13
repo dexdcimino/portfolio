@@ -5677,3 +5677,19 @@ backup slots, seven editor columns and SURE? delete wording. It names the two
 pre-existing cursor-boot CSP hashes separately from provider errors. The
 legacy full music checker still requires migration from the removed Stop
 button; its new --playlist-core mode verifies the existing queue behavior.
+
+
+## 2026-10-13 — One plus button chooses every music playlist
+
+Replace the row's Repeat-only checkbox and its change handler with an accent
+outline plus opening a small anchored playlist dialog. Present ALL, Repeat and
+every current custom playlist; clicking its checkbox or label immediately adds
+or removes the selected track. Repeat retains its existing shared API; custom
+lists retain the existing localStorage format. No parallel membership UI remains.
+
+ALL stays checked and read-only as the master library, rather than turning a
+playlist checkbox into deletion of the song itself. Use the separate delete
+control for that. Keep the picker open when removing a membership removes the
+row underneath it. Okay, Escape and outside clicks dismiss only the picker,
+restore focus and do not undo saved changes. Clamp the panel on phones and
+resize, and exempt it from the site's full-screen mobile dialog rule.

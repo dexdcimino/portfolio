@@ -6939,6 +6939,7 @@ const MediaBus = (() => {
   const playlistCancel = $('musicPlaylistCancel');
   /* Custom playlists: client-side only (localStorage), a first pass. Each is
      {id, name, tracks:[videoId,...]}. */
+  let playlistPicker = null, pickedTrack = null, pickerBusy = false, pickerFocus = null, pickerAnchor = null;
   let customPlaylists = [];
   try {
     customPlaylists = JSON.parse(localStorage.getItem('dex-music-playlists') || '[]');
@@ -7259,14 +7260,15 @@ const MediaBus = (() => {
     row.setAttribute('role', 'listitem');
     row.dataset.v = track.v;
 
-    const check = document.createElement('input');
-    check.type = 'checkbox';
-    check.className = 'music-check';
-    check.checked = ticked.has(track.v);
-    check.setAttribute('aria-label', `Add ${track.t} to the repeat playlist`);
-    /* READ-ONLY OUTSIDE TUNES. The tick still SAYS which tracks are on repeat;
-       it cannot be changed. Disabled rather than hidden, so the column keeps
-       its square and the grid is the same grid through either door. */
+    const check = document.createElement('button');
+    check.type = 'button';
+    check.className = 'music-playlist-add';
+    check.textContent = '+';
+    check.dataset.repeat = String(ticked.has(track.v));
+    check.dataset.member = String(ticked.has(track.v) || customPlaylists.some(p => p.tracks.includes(track.v)));
+    check.setAttribute('aria-label', `Add ${track.t} to playlists`);
+    check.setAttribute('aria-haspopup', 'dialog');
+    check.setAttribute('aria-expanded', String(pickedTrack?.v === track.v));
     check.disabled = !admin;
 
     const play = document.createElement('button');
@@ -7415,6 +7417,10 @@ const MediaBus = (() => {
        "Nothing playing" over a song you can hear is worse than saying nothing. */
     if (!armed) idle();
     paint();
+    if (playlistPicker) {
+      if (!tracks.some(t => t.v === pickedTrack?.v)) closePlaylistPicker(false);
+      else paintPlaylistPicker();
+    }
   }
 
   /* What the bar says when nothing is playing. The bar is on screen the whole
@@ -7844,6 +7850,9 @@ const MediaBus = (() => {
     if (!row) return;
     const i = [...rowsEl.children].indexOf(row);
 
+    const add = event.target.closest('.music-playlist-add');
+    if (add) { openPlaylistPicker(queue[i], add); return; }
+
     const del = event.target.closest('.music-del');
     if (del) { onDelete(row, del); return; }
 
@@ -7892,29 +7901,100 @@ const MediaBus = (() => {
     }
   });
 
-  rowsEl.addEventListener('change', async (event) => {
-    const check = event.target.closest('.music-check');
-    if (!check) return;
-    const row = check.closest('.music-row');
-    if (!row) return;
-    /* A tick is an EDIT now, and only TUNES edits. The box is disabled
-       everywhere else, so this is belt and braces for a box someone enabled in
-       the inspector: the server would refuse it anyway, and the screen should
-       not pretend otherwise until it does. */
-    if (!admin) { check.checked = ticked.has(row.dataset.v); return; }
-    const on = check.checked;
-    if (on) ticked.add(row.dataset.v); else ticked.delete(row.dataset.v);
-    nRepeat.textContent = String(ticked.size);
-    const done = await edit('repeat', { v: row.dataset.v, on });
-    if (!done || done.error) {
-      check.checked = !on;
-      if (on) ticked.delete(row.dataset.v); else ticked.add(row.dataset.v);
-      nRepeat.textContent = String(ticked.size);
-      return;
+  // One picker for all rows. Keep the selected track even when removing its
+  // membership makes that row disappear from the current playlist.
+  function closePlaylistPicker(focus = true) {
+    const id = pickedTrack?.v;
+    playlistPicker?.close(); playlistPicker?.remove();
+    playlistPicker = null; pickedTrack = null; pickerFocus = null;
+    for (const button of rowsEl.querySelectorAll('.music-playlist-add')) { button.setAttribute('aria-expanded', 'false'); button.removeAttribute('aria-controls'); }
+    if (focus) (rowsEl.querySelector(`.music-row[data-v="${CSS.escape(id || '')}"] .music-playlist-add`) || modal).focus({ preventScroll: true });
+  }
+  function paintPlaylistPicker() {
+    if (!playlistPicker || !pickedTrack) return;
+    const list = playlistPicker.querySelector('.music-picker-list');
+    list.replaceChildren();
+    const entries = [{ id: 'all', name: 'ALL', on: true, fixed: true },
+      { id: 'repeat', name: 'REPEAT', on: ticked.has(pickedTrack.v) },
+      ...customPlaylists.map(p => ({ id: p.id, name: p.name, on: p.tracks.includes(pickedTrack.v) }))];
+    for (const entry of entries) {
+      const label = document.createElement('label');
+      label.className = 'music-picker-entry';
+      const input = document.createElement('input');
+      input.type = 'checkbox'; input.checked = entry.on;
+      input.disabled = !!entry.fixed || pickerBusy;
+      input.dataset.playlist = entry.id;
+      const name = document.createElement('span'); name.textContent = entry.name;
+      label.append(input, name); list.append(label);
+      input.addEventListener('change', async () => {
+        if (!admin || !pickedTrack || pickerBusy || entry.fixed) return;
+        pickerFocus = entry.id;
+        const v = pickedTrack.v, on = input.checked;
+        const status = playlistPicker.querySelector('.music-picker-status');
+        status.textContent = '';
+        if (entry.id === 'repeat') {
+          pickerBusy = true;
+          if (on) ticked.add(v); else ticked.delete(v);
+          render(); paintPlaylistPicker(); status.textContent = 'Saving…';
+          const result = await edit('repeat', { v, on }, { quiet: true });
+          if (!result || result.error) {
+            if (on) ticked.delete(v); else ticked.add(v);
+            status.textContent = result?.error || 'Could not save the playlist change.';
+          } else status.textContent = '';
+          pickerBusy = false;
+        } else {
+          const pl = customPlaylists.find(p => p.id === entry.id);
+          if (!pl) return;
+          pl.tracks = on ? [...new Set([...pl.tracks, v])] : pl.tracks.filter(id => id !== v);
+          savePlaylists();
+        }
+        renderCustomPlaylists(); render(); paintPlaylistPicker();
+      });
     }
-    // Unticking while LOOKING at the repeat list has to take the row away, or
-    // the tick means nothing where it matters most. edit() re-rendered already.
-  });
+    if (playlistPicker.open && !pickerBusy && pickerFocus) list.querySelector(`input[data-playlist="${CSS.escape(pickerFocus)}"]`)?.focus({ preventScroll: true });
+  }
+  function positionPlaylistPicker() {
+    if (!playlistPicker?.open || !pickerAnchor) return;
+    const liveAnchor = rowsEl.querySelector(`.music-row[data-v="${CSS.escape(pickedTrack.v)}"] .music-playlist-add`);
+    const a = liveAnchor?.getBoundingClientRect() || pickerAnchor, r = playlistPicker.getBoundingClientRect();
+    playlistPicker.style.left = Math.max(12, Math.min(a.right - r.width, innerWidth - r.width - 12)) + 'px';
+    playlistPicker.style.top = Math.max(12, Math.min(a.bottom + 8 + r.height <= innerHeight - 12 ? a.bottom + 8 : a.top - r.height - 8, innerHeight - r.height - 12)) + 'px';
+  }
+  window.addEventListener('resize', positionPlaylistPicker);
+
+  function openPlaylistPicker(track, anchor) {
+    if (!admin || !track) return;
+    closePlaylistPicker(false);
+    pickedTrack = track;
+    playlistPicker = document.createElement('dialog');
+    playlistPicker.id = 'musicPlaylistPicker';
+    playlistPicker.className = 'music-playlist-picker';
+    playlistPicker.setAttribute('aria-labelledby', 'musicPickerTitle');
+    const title = document.createElement('h3'); title.id = 'musicPickerTitle'; title.textContent = 'Add to playlists';
+    const song = document.createElement('p'); song.className = 'music-picker-song'; song.textContent = track.t;
+    const list = document.createElement('div'); list.className = 'music-picker-list';
+    const note = document.createElement('p'); note.className = 'music-picker-note'; note.textContent = 'ALL contains every song. Changes save immediately.';
+    const status = document.createElement('p'); status.className = 'music-picker-status'; status.setAttribute('role', 'status');
+    const okay = document.createElement('button'); okay.type = 'button'; okay.className = 'music-picker-okay'; okay.textContent = 'Okay';
+    okay.addEventListener('click', () => closePlaylistPicker());
+    playlistPicker.append(title, song, list, note, status, okay);
+    modal.append(playlistPicker);
+    playlistPicker.addEventListener('cancel', event => { event.preventDefault(); closePlaylistPicker(); });
+    playlistPicker.addEventListener('keydown', event => event.stopPropagation());
+    playlistPicker.addEventListener('click', event => {
+      // Keyboard activation has zero pointer coordinates; only backdrop clicks dismiss.
+      const popup = event.currentTarget;
+      if (!popup.open || event.target !== popup) return;
+      const r = popup.getBoundingClientRect();
+      if (event.clientX < r.left || event.clientX > r.right || event.clientY < r.top || event.clientY > r.bottom) { event.preventDefault(); event.stopPropagation(); closePlaylistPicker(); }
+    });
+    paintPlaylistPicker(); playlistPicker.showModal();
+    anchor.setAttribute('aria-expanded', 'true');
+    anchor.setAttribute('aria-controls', 'musicPlaylistPicker');
+    pickerAnchor = anchor.getBoundingClientRect();
+    positionPlaylistPicker();
+    playlistPicker.querySelector('input:not(:disabled)')?.focus({ preventScroll: true });
+  }
 
   const setView = (next) => {
     view = next;
@@ -8529,7 +8609,7 @@ const MediaBus = (() => {
   async function syncNow() {
     if (!live || document.hidden || !modal.open) return;
     // Not under a pending delete: a re-render would throw away the armed pill.
-    if (arming) return;
+    if (arming || pickerBusy) return;
     try {
       const response = await fetch(API, { cache: 'no-store' });
       if (!response.ok) return;
@@ -8556,7 +8636,7 @@ const MediaBus = (() => {
     if (addBtn) addBtn.hidden = !admin;
     if (backupsBtn) backupsBtn.hidden = !admin;
     if (addPlaylistBtn) addPlaylistBtn.hidden = !admin;
-    if (!admin) { closeAdd(); closeBackups(); disarm(); closePlaylistForm(); }
+    if (!admin) { closePlaylistPicker(false); closeAdd(); closeBackups(); disarm(); closePlaylistForm(); }
   }
 
   /* EDITING IS DEX SIGNED IN (Dex, 2026-10-08), asked for whenever the list
@@ -8963,6 +9043,7 @@ const MediaBus = (() => {
   $('musicClose')?.addEventListener('click', () => closeModal(modal));
   /* Reset mode tag on close */
   modal?.addEventListener('close', () => {
+    if (!modal.open) closePlaylistPicker(false);
     // bindModal can skip its cleanup when another dialog takes over. Providers
     // without a playback API must still unload rather than sound behind it.
     if (nativeEmbed && !modal.open) { stop(); stopSync(); }

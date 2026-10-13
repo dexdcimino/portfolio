@@ -374,7 +374,7 @@ const manifest = JSON.parse(await readFile(join(ROOT, 'assets/music/tracks.json'
         return { x: Math.round(r.left), w: Math.round(r.width), h: Math.round(r.height) }; };
       return {
         cells: row.children.length,
-        check: box(row.querySelector('.music-check')),
+        check: box(row.querySelector('.music-playlist-add')),
         play: box(row.querySelector('.music-play')),
         title: box(row.querySelector('.music-title')),
         link: box(row.querySelector('.music-linkcell')),
@@ -449,9 +449,9 @@ const manifest = JSON.parse(await readFile(join(ROOT, 'assets/music/tracks.json'
   note(SEEDED > 0, 'the manifest marks no repeat tracks at all — nothing to show');
 
   const seeded = await page.evaluate(() => ({
-    boxes: document.querySelectorAll('#musicRows .music-check').length,
-    disabled: document.querySelectorAll('#musicRows .music-check:disabled').length,
-    checked: document.querySelectorAll('#musicRows .music-check:checked').length,
+    boxes: document.querySelectorAll('#musicRows .music-playlist-add').length,
+    disabled: document.querySelectorAll('#musicRows .music-playlist-add:disabled').length,
+    checked: document.querySelectorAll('#musicRows .music-playlist-add[data-repeat="true"]').length,
     railN: document.getElementById('musicNRepeat').textContent,
     del: document.querySelectorAll('#musicRows .music-del').length,
     add: document.getElementById('musicAdd').hidden,
@@ -467,13 +467,13 @@ const manifest = JSON.parse(await readFile(join(ROOT, 'assets/music/tracks.json'
   note(seeded.add && seeded.backups, 'the Add song or Backups button is showing through MUSIC');
   note(!seeded.admin, 'the overlay is in editing mode through MUSIC');
   note(seeded.title === 'MUSIC', `the header says "${seeded.title}" through MUSIC`);
-  console.log(`  read-only: ${seeded.checked} of ${manifest.count} on repeat, all ${seeded.boxes} ticks disabled`);
+  console.log(`  read-only: ${seeded.checked} of ${manifest.count} on repeat, all ${seeded.boxes} playlist buttons disabled`);
 
   // Every ticked row must be one the manifest actually marked, not just the
   // right NUMBER -- a seed that ticked the first 56 would pass a count.
   const wrong = await page.evaluate((marked) => {
     const on = [...document.querySelectorAll('#musicRows .music-row')]
-      .filter(r => r.querySelector('.music-check').checked).map(r => r.dataset.v);
+      .filter(r => (r.querySelector('.music-playlist-add').dataset.repeat === 'true')).map(r => r.dataset.v);
     return on.filter(v => !marked.includes(v)).length;
   }, manifest.tracks.filter(t => t.r).map(t => t.v));
   note(wrong === 0, `${wrong} ticked row(s) are not marked |R in the manifest`);
@@ -482,19 +482,19 @@ const manifest = JSON.parse(await readFile(join(ROOT, 'assets/music/tracks.json'
   // scrolls smoothly, and a rect read beside the scroll is the old one.
   const v = await page.evaluate(() => {
     const row = [...document.querySelectorAll('#musicRows .music-row')]
-      .find(r => !r.querySelector('.music-check').checked);
+      .find(r => !(r.querySelector('.music-playlist-add').dataset.repeat === 'true'));
     row.scrollIntoView({ block: 'center', behavior: 'instant' });
     return row.dataset.v;
   });
   await sleep(350);
   const at = await page.evaluate((id) => {
-    const r = document.querySelector(`.music-row[data-v="${id}"] .music-check`).getBoundingClientRect();
+    const r = document.querySelector(`.music-row[data-v="${id}"] .music-playlist-add`).getBoundingClientRect();
     return { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2) };
   }, v);
   await page.mouse.click(at.x, at.y);
   await sleep(200);
   const after = await page.evaluate((id) => ({
-    checked: document.querySelector(`.music-row[data-v="${id}"] .music-check`).checked,
+    checked: (document.querySelector(`.music-row[data-v="${id}"] .music-playlist-add`).dataset.repeat === 'true'),
     railN: document.getElementById('musicNRepeat').textContent,
   }), v);
   note(!after.checked, 'a real click ticked a box through MUSIC — the list is editable');
@@ -503,7 +503,7 @@ const manifest = JSON.parse(await readFile(join(ROOT, 'assets/music/tracks.json'
   await page.click('#musicViewRepeat');
   const inRepeat = await page.evaluate(() => {
     const rows = [...document.querySelectorAll('#musicRows .music-row')];
-    return { n: rows.length, allChecked: rows.every(r => r.querySelector('.music-check').checked),
+    return { n: rows.length, allChecked: rows.every(r => (r.querySelector('.music-playlist-add').dataset.repeat === 'true')),
              pressed: document.getElementById('musicViewRepeat').getAttribute('aria-pressed') };
   });
   note(inRepeat.n === SEEDED, `the REPEAT playlist shows ${inRepeat.n} track(s), expected ${SEEDED}`);
@@ -988,7 +988,7 @@ const manifest = JSON.parse(await readFile(join(ROOT, 'assets/music/tracks.json'
       prev: wide('#musicPrev'), prevIcon: wide('#musicPrev .icon'),
       toggle: wide('#musicToggle'), toggleIcon: wide('#musicToggle .icon'),
       shuffleIcon: wide('#musicShuffle .icon'), loopIcon: wide('#musicLoop .icon'),
-      check: wide('.music-check'),
+      check: wide('.music-playlist-add'),
       stop: wide('#musicStop'), stopGlyph: wide('#musicStop svg'),
       round: getComputedStyle(document.getElementById('musicToggle')).borderRadius,
     };

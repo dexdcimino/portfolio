@@ -280,7 +280,7 @@ const state = (page) => page.evaluate(() => {
     add: !document.getElementById('musicAdd').hidden,
     backups: !document.getElementById('musicBackups').hidden,
     del: document.querySelectorAll('#musicRows .music-del').length,
-    enabled: document.querySelectorAll('#musicRows .music-check:not(:disabled)').length,
+    enabled: document.querySelectorAll('#musicRows .music-playlist-add:not(:disabled)').length,
     cells: rows[0] ? rows[0].children.length : 0,
     toast: document.getElementById('musicToast').textContent,
   };
@@ -391,20 +391,73 @@ try {
   await viewer.page.waitForFunction(() => !document.querySelector('.music-row[data-v="HarnessTst2"]'), { timeout: 5000 }).catch(() => {});
   note(!(await has(viewer.page, 'HarnessTst2')), 'the delete in TUNES never reached the MUSIC screen');
 
+  // Create a custom playlist through the existing form, then use the new row picker.
+  await editor.page.click('#musicAddPlaylist');
+  await editor.page.type('#musicPlaylistName', 'Stillness');
+  await editor.page.click('.music-playlist-ok');
+  await editor.page.click('#musicViewAll');
+  const customId = await editor.page.evaluate(() => JSON.parse(localStorage.getItem('dex-music-playlists')).find(p => p.name === 'Stillness').id);
+
   /* A TICK in TUNES is a tick on every screen. */
   const target = await editor.page.evaluate(() => [...document.querySelectorAll('#musicRows .music-row')]
-    .find((r) => !r.querySelector('.music-check').checked).dataset.v);
-  at = await centre(editor.page, `.music-row[data-v="${target}"] .music-check`);
+    .find((r) => !(r.querySelector('.music-playlist-add').dataset.repeat === 'true')).dataset.v);
+  at = await centre(editor.page, `.music-row[data-v="${target}"] .music-playlist-add`);
   await editor.page.mouse.click(at.x, at.y);
+  await editor.page.waitForSelector('#musicPlaylistPicker[open]');
+  const picker = await editor.page.evaluate(() => ({ names: [...document.querySelectorAll('.music-picker-entry span')].map(e => e.textContent), all: document.querySelector('.music-picker-entry input[data-playlist="all"]').disabled }));
+  note(picker.names.join() === 'ALL,REPEAT,Stillness' && picker.all, `all current playlists appear in the picker: ${JSON.stringify(picker)}`);
+  await editor.page.click('.music-picker-entry:has(input[data-playlist="repeat"]) span');
+  await editor.page.waitForFunction(() => !document.querySelector('.music-picker-entry input[data-playlist="repeat"]').disabled);
+  await editor.page.click(`.music-picker-entry:has(input[data-playlist="${customId}"]) span`);
+  note(await editor.page.evaluate(v => JSON.parse(localStorage.getItem('dex-music-playlists')).find(p => p.name === 'Stillness').tracks.includes(v), target), 'the song was not saved to Stillness immediately');
+  await editor.page.click('.music-picker-okay');
+  note(await editor.page.evaluate(() => !document.getElementById('musicPlaylistPicker')), 'Okay did not close the picker');
   await sleep(700);
-  note(await editor.page.evaluate((v) => document.querySelector(`.music-row[data-v="${v}"] .music-check`).checked, target), 'ticking in TUNES did not tick');
+  note(await editor.page.evaluate((v) => (document.querySelector(`.music-row[data-v="${v}"] .music-playlist-add`).dataset.repeat === 'true'), target), 'ticking in TUNES did not tick');
   await pull(viewer.page);
   await sleep(900);
   const seen = await viewer.page.evaluate((v) => {
-    const box = document.querySelector(`.music-row[data-v="${v}"] .music-check`);
-    return { checked: box.checked, disabled: box.disabled };
+    const box = document.querySelector(`.music-row[data-v="${v}"] .music-playlist-add`);
+    return { checked: box.dataset.repeat === 'true', disabled: box.disabled };
   }, target);
   note(seen.checked && seen.disabled, `MUSIC sees that tick as checked ${seen.checked}, disabled ${seen.disabled}`);
+
+  // Removing from a custom playlist updates its visible rows while its picker stays open.
+  await editor.page.click('#musicCustomPlaylists .music-rail-pl > button');
+  note(await has(editor.page, target), 'the selected song was not present in Stillness');
+  at = await centre(editor.page, `.music-row[data-v="${target}"] .music-playlist-add`);
+  await editor.page.mouse.click(at.x, at.y);
+  await editor.page.click(`.music-picker-entry:has(input[data-playlist="${customId}"]) span`);
+  note(!(await has(editor.page, target)) && await editor.page.evaluate(() => document.getElementById('musicPlaylistPicker').open), 'removing membership failed to update the list or closed the picker');
+  await editor.page.click(`.music-picker-entry:has(input[data-playlist="${customId}"]) span`);
+  note(await has(editor.page, target), 'checking Stillness again did not return the song');
+  await editor.page.keyboard.press('Escape');
+  note(await editor.page.evaluate(() => !document.getElementById('musicPlaylistPicker') && document.getElementById('musicModal').open), 'Escape closed the music overlay instead of just the picker');
+  at = await centre(editor.page, `.music-row[data-v="${target}"] .music-playlist-add`);
+  await editor.page.mouse.click(at.x, at.y); await editor.page.mouse.click(20, 20);
+  note(await editor.page.evaluate(() => !document.getElementById('musicPlaylistPicker') && document.getElementById('musicModal').open), 'outside click failed to dismiss just the picker');
+  await editor.page.click('#musicViewAll');
+
+  // The shared repeat list also removes and returns its selected row live.
+  await editor.page.click('#musicViewRepeat');
+  at = await centre(editor.page, `.music-row[data-v="${target}"] .music-playlist-add`);
+  await editor.page.mouse.click(at.x, at.y);
+  await editor.page.click('.music-picker-entry:has(input[data-playlist="repeat"]) span');
+  await editor.page.waitForFunction(() => !document.querySelector('.music-picker-entry input[data-playlist="repeat"]').disabled);
+  note(!(await has(editor.page, target)) && await editor.page.evaluate(() => document.getElementById('musicPlaylistPicker').open), 'removing Repeat membership did not update its visible playlist live');
+  await editor.page.click('.music-picker-entry:has(input[data-playlist="repeat"]) span');
+  await editor.page.waitForFunction(() => !document.querySelector('.music-picker-entry input[data-playlist="repeat"]').disabled);
+  note(await has(editor.page, target), 'checking Repeat again did not restore the song');
+  await editor.page.click('.music-picker-okay');
+  await editor.page.click('#musicViewAll');
+  await editor.page.setViewport({ width: 390, height: 844 });
+  at = await centre(editor.page, `.music-row[data-v="${target}"] .music-playlist-add`);
+  await editor.page.mouse.click(at.x, at.y);
+  const mobilePicker = await editor.page.evaluate(() => { const r = document.getElementById('musicPlaylistPicker').getBoundingClientRect(); return { left: r.left, right: r.right, top: r.top, bottom: r.bottom }; });
+  note(mobilePicker.left >= 12 && mobilePicker.right <= 378 && mobilePicker.top >= 12 && mobilePicker.bottom <= 832, `the anchored picker fits the phone: ${JSON.stringify(mobilePicker)}`);
+  await editor.page.screenshot({ path: join(ROOT, '.notes-dev/shots/music-playlists-phone.png') });
+  await editor.page.click('.music-picker-okay');
+  await editor.page.setViewport({ width: 1400, height: 950 });
 
   /* BACKUPS, from the screen. */
   await editor.page.click('#musicBackups');
@@ -429,6 +482,7 @@ try {
   await editor.page.evaluate(() => document.dispatchEvent(new CustomEvent('music:open', { detail: {} })));
   await editor.page.waitForFunction(() => document.getElementById('musicModal').open, { timeout: 5000 });
   await sleep(900);
+  note(await editor.page.evaluate(v => JSON.parse(localStorage.getItem('dex-music-playlists')).find(p => p.name === 'Stillness').tracks.includes(v), target), 'Stillness membership did not persist across reopening');
   const e1 = await state(editor.page);
   note(e1.admin && e1.del === e1.rows, `reopened as Dex: admin ${e1.admin}, ${e1.del} minus for ${e1.rows} rows`);
   // Add an Instagram Reel through the actual editor, preserving its URL through storage and polling.
