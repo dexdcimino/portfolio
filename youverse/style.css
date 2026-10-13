@@ -130,7 +130,7 @@ main{max-width:1120px; margin:0 auto; padding:0 16px 48px}
   border:1px solid var(--line); background:#0a1120; color:var(--text); font-size:15px; cursor:pointer}
 .dive-kicker{color:var(--accent); font-weight:800; font-size:12px; letter-spacing:1.6px; text-transform:uppercase}
 .dive-title{font-size:23px; margin:6px 40px 10px 0; line-height:1.2}
-.dive-img{width:100%; max-height:260px; object-fit:cover; border-radius:14px; border:1px solid var(--line); margin:4px 0 12px}
+.dive-img{width:100%; max-height:300px; object-fit:contain; background:#0a1120; border-radius:14px; border:1px solid var(--line); margin:4px 0 12px}
 .dive-text{color:var(--text); font-size:15px; line-height:1.65; margin:0}
 .dive-loading{color:var(--muted); font-size:14.5px}
 .dive-links{display:flex; flex-wrap:wrap; gap:9px; margin-top:18px}
