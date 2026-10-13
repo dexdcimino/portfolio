@@ -100,36 +100,18 @@
       </div>
     </section>
 
-    <!-- CHAPTER TWO: BODY -->
+    <!-- CHAPTER TWO: BODY — every stat on one page, no tabs -->
     <section class="scene" id="sceneBody">
       <p class="ch-kicker rv">Chapter two</p>
       <h3 class="rv"><span class="ch-icon">🫀</span> Your Body</h3>
-      <div class="spanel" data-panel="body0"><div class="tiles" id="bodyTiles0"></div></div>
-      <div class="spanel hidden" data-panel="body1"><div class="tiles" id="bodyTiles1"></div></div>
-      <div class="spanel hidden" data-panel="body2"><div class="tiles" id="bodyTiles2"></div></div>
-      <div class="scene-bottom rv">
-        <div class="subtabs" data-scene="sceneBody">
-          <button type="button" class="stab active" data-panel="body0">Heart + breath</button>
-          <button type="button" class="stab" data-panel="body1">Your time</button>
-          <button type="button" class="stab" data-panel="body2">Little things</button>
-        </div>
-      </div>
+      <div class="stats rv" id="bodyStats"></div>
     </section>
 
     <!-- CHAPTER THREE: PLANET -->
     <section class="scene" id="scenePlanet">
       <p class="ch-kicker rv">Chapter three</p>
       <h3 class="rv"><span class="ch-icon">🌍</span> Your Planet</h3>
-      <div class="spanel" data-panel="planet0"><div class="tiles" id="planetTiles0"></div></div>
-      <div class="spanel hidden" data-panel="planet1"><div class="tiles" id="planetTiles1"></div></div>
-      <div class="spanel hidden" data-panel="planet2"><div class="tiles" id="planetTiles2"></div></div>
-      <div class="scene-bottom rv">
-        <div class="subtabs" data-scene="scenePlanet">
-          <button type="button" class="stab active" data-panel="planet0">People</button>
-          <button type="button" class="stab" data-panel="planet1">Air + heat</button>
-          <button type="button" class="stab" data-panel="planet2">Restless Earth</button>
-        </div>
-      </div>
+      <div class="stats rv" id="planetStats"></div>
     </section>
 
     <!-- CHAPTER FOUR: EARTHLINGS -->
@@ -151,14 +133,7 @@
     <section class="scene" id="sceneSpace">
       <p class="ch-kicker rv">Chapter five</p>
       <h3 class="rv"><span class="ch-icon">🚀</span> Your Trip Through Space</h3>
-      <div class="spanel" data-panel="space0"><div class="tiles" id="spaceTiles0"></div></div>
-      <div class="spanel hidden" data-panel="space1"><div class="tiles" id="spaceTiles1"></div></div>
-      <div class="scene-bottom rv">
-        <div class="subtabs" data-scene="sceneSpace">
-          <button type="button" class="stab active" data-panel="space0">The ride</button>
-          <button type="button" class="stab" data-panel="space1">New worlds</button>
-        </div>
-      </div>
+      <div class="stats rv" id="spaceStats"></div>
     </section>
 
     <!-- DAY ONE -->
@@ -174,8 +149,8 @@
       <h3 class="rv"><span class="ch-icon">🖼️</span> Take It With You</h3>
       <p class="ch-sub rv">Your whole story on one poster.</p>
       <footer class="foot rv">
-        <p>Numbers marked <b>Exact</b> are counted from your date. <b>Calculated</b> uses known rates (your heart, Earth's orbit). <b>Estimate</b> uses long-run averages — honest ballparks, labeled as such.</p>
-        <p>Sources: UN &amp; World Bank population · NASA exoplanet archive · NOAA Mauna Loa CO₂ · ITU internet figures · USGS earthquake averages · IUCN Red List species records · generation sizes as commonly cited (Pew) · Wikipedia for deep-dive summaries.</p>
+        <p><b>Exact</b> = counted from your date · <b>Calculated</b> = known rates · <b>Estimate</b> = honest averages.</p>
+        <p>Sources: UN · World Bank · NASA · NOAA · ITU · USGS · IUCN · Wikipedia.</p>
         <p class="foot-brand">✦ YouVerse — a Dex Cimino creation · dexcimino.com</p>
       </footer>
       <div class="scene-bottom rv">
