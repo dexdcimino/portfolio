@@ -156,8 +156,8 @@ html.journey main{scroll-snap-type:y mandatory}
 .hpage{flex:0 0 100%; scroll-snap-align:start; scroll-snap-stop:always; display:flex; padding:0 2px; min-width:0}
 .hpage .stats{flex:1}
 .pagedots{display:flex; gap:7px; justify-content:center; align-items:center; padding-top:11px; flex:none}
-.pagedots i{width:7px; height:7px; border-radius:50%; background:var(--line); transition:background .3s}
-.pagedots i.on{background:var(--accent)}
+.pagedots .pdot{width:9px; height:9px; border-radius:50%; background:var(--line); border:none; padding:6px; cursor:pointer; background-clip:content-box}
+.pagedots .pdot.on{background-color:var(--accent)}
 .pagedots .pd-hint{color:var(--muted); font-size:11.5px; font-weight:700; letter-spacing:1.4px; text-transform:uppercase; margin-right:6px}
 .stats{flex:1; min-height:0; display:flex; flex-direction:column; gap:9px; max-width:920px; width:100%}
 .srow{flex:1; min-height:0; overflow:hidden; background:var(--panel); border:1px solid var(--line);
