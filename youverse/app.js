@@ -108,13 +108,12 @@ function computeStats(){
     issYears: issDays/365.25,
   };
 }
-const TAG = {exact:'<span class="tag exact">Exact</span>', calc:'<span class="tag calc">Calculated</span>', est:'<span class="tag est">Estimate</span>'};
 /* stat row: compact number + accent label on the left, description on the right.
    When raw is null, suffix carries the full display HTML. */
 function srow(tag, raw, fmt, suffix, lbl, sub){
   const attrs = raw != null ? ` data-count="${raw}" data-fmt="${fmt}" data-suffix="${suffix || ''}"` : '';
   const disp = raw != null ? FMT[fmt](raw) + (suffix || '') : suffix;
-  return `<div class="srow"><div class="s-left"><div class="num"${attrs}>${disp}</div><div class="lbl">${lbl}${TAG[tag]}</div></div><div class="sub">${sub}</div></div>`;
+  return `<div class="srow"><div class="s-left"><div class="num"${attrs}>${disp}</div><div class="lbl">${lbl}</div></div><div class="sub">${sub}</div></div>`;
 }
 function wstat(raw, fmt, suffix, lbl){
   return `<div class="wstat rv"><div class="num" data-count="${raw}" data-fmt="${fmt}" data-suffix="${suffix || ''}">${FMT[fmt](raw) + (suffix || '')}</div><div class="lbl">${lbl}</div></div>`;
@@ -138,10 +137,10 @@ function renderStory(){
   $('bodyStats').innerHTML = [
     srow('calc', null, null, '<span id="bodyHeartbeats">' + compactFmt(s.heartbeats) + '</span>', 'heartbeats', 'At a lifetime average of ~72 beats a minute — never once a break.'),
     srow('est', s.breaths, 'compact', '', 'breaths', 'Roughly 16 a minute, sleeping and waking, since your very first one.'),
-    srow('est', s.days*8, 'hrs', '', 'spent asleep', 'About a third of your life, gone to dreams and recharging.'),
-    srow('est', s.days*2, 'hrs', '', 'spent dreaming', 'Around 2 hours a night inside worlds your brain built for free.'),
-    srow('est', s.days*3, 'int', '', 'meals eaten', 'Give or take a few thousand snacks.'),
-    srow('est', Math.round(s.days/27), 'int', '', 'brand-new skins', 'Your outer layer replaces itself about every 27 days.'),
+    srow('est', s.days*8, 'compact', '', 'spent asleep', 'About a third of your life, gone to dreams and recharging.'),
+    srow('est', s.days*2, 'compact', '', 'spent dreaming', 'Around 2 hours a night inside worlds your brain built for free.'),
+    srow('est', s.days*3, 'compact', '', 'meals eaten', 'Give or take a few thousand snacks.'),
+    srow('est', Math.round(s.days/27), 'compact', '', 'brand-new skins', 'Your outer layer replaces itself about every 27 days.'),
     srow('est', s.days*16*60*17, 'compact', '', 'blinks', 'About 17 a minute while you\'re awake.'),
   ].join('');
 
@@ -160,7 +159,7 @@ function renderStory(){
       `Air at your birth: ${s.co2B.toFixed(0)} ppm. Air today: ${s.co2N.toFixed(0)} ppm.`),
     srow('calc', s.warmed, 'temp', '', 'warmer planet',
       'The global average temperature rise on your watch.'),
-    srow('est', s.years*145, 'int', '', 'earthquakes, magnitude 6+',
+    srow('est', s.years*145, 'compact', '', 'earthquakes, magnitude 6+',
       'The ground under you has never really sat still (USGS average).'),
     srow('calc', s.secs*44, 'compact', '', 'lightning strikes on Earth',
       'About 44 flashes every second, planet-wide (NASA).'),
@@ -172,9 +171,9 @@ function renderStory(){
       'The Sun orbits the Milky Way at ~514,000 mph. You ride along.'),
     srow('calc', s.sunMiles, 'compact', '', 'miles around the Sun',
       `${s.years.toFixed(1)} full laps at ~584 million miles each.`),
-    srow('exact', s.moons, 'int', '', 'full moons',
+    srow('exact', s.moons, 'compact', '', 'full moons',
       'Every 29.5 days, like clockwork, whether you looked up or not.'),
-    srow('calc', s.exoN - s.exoB, 'int', '', 'planets discovered beyond our solar system',
+    srow('calc', s.exoN - s.exoB, 'compact', '', 'planets discovered beyond our solar system',
       `Known when you were born: ${commas(s.exoB)}. Known today: ${commas(s.exoN)}.`),
     srow('est', s.years*4.7, 'dec1', '', 'eclipses have occurred',
       'Solar and lunar, somewhere on Earth — about 4–5 a year.'),
@@ -450,8 +449,6 @@ const MONTHS = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV
 const MONTH_FULL = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 let picked = { m:null, d:null, y:null };
 let activeSel = null;          // 'month' | 'day' | 'year' | null (panel closed)
-let yearStep = 'decade';       // inside the Year panel: decade grid, then the years
-let dpDecade = null;
 function daysIn(y, m){ return new Date(y || 2000, m, 0).getDate(); }  // m 1-based; leap-safe default year
 function dobString(){
   if (!picked.m || !picked.d || !picked.y) return null;
@@ -468,6 +465,7 @@ function updateSelectors(){
   $('dobReadout').innerHTML = (!picked.m && !picked.d && !picked.y)
     ? 'Your birthday: <b>—</b>'
     : 'Your birthday: <b>' + (picked.m ? MONTH_FULL[picked.m-1] : 'Month') + ' ' + (picked.d || '—') + ', ' + (picked.y || '——') + '</b>';
+  $('entryView').classList.toggle('panel-open', !!activeSel);
 }
 function renderPanel(){
   const step = $('dpStep');
@@ -482,25 +480,20 @@ function renderPanel(){
     for (let d = 1; d <= n; d++) btns += `<button type="button" class="dp-btn ${picked.d === d ? 'sel' : ''}" data-d="${d}">${d}</button>`;
     step.innerHTML = `<p class="dp-title">Day${picked.m ? ' — ' + MONTH_FULL[picked.m-1] : ''}</p><div class="dp-grid cols7">${btns}</div>`;
   } else if (activeSel === 'year'){
-    if (yearStep === 'decade'){
-      let btns = '';
-      for (let d = 2020; d >= 1920; d -= 10)
-        btns += `<button type="button" class="dp-btn decade ${dpDecade === d ? 'sel' : ''}" data-dec="${d}">${String(d).slice(0,2)}<span class="tail">${String(d).slice(2)}s</span></button>`;
-      step.innerHTML = `<p class="dp-title">Year — first, the decade</p><div class="dp-grid cols2">${btns}</div>`;
-    } else {
-      let btns = '';
-      for (let y = dpDecade; y <= Math.min(dpDecade + 9, 2026); y++)
-        btns += `<button type="button" class="dp-btn ${picked.y === y ? 'sel' : ''}" data-y="${y}">${String(y).slice(0,2)}<span class="tail">${String(y).slice(2)}</span></button>`;
-      step.innerHTML = `<p class="dp-title">Year — the ${dpDecade}s</p><div class="dp-grid cols5">${btns}</div>`;
-    }
+    let btns = '';
+    for (let y = 2026; y >= 1920; y--)
+      btns += `<button type="button" class="dp-btn yr ${picked.y === y ? 'sel' : ''}" data-y="${y}">${y}</button>`;
+    step.innerHTML = `<p class="dp-title">Year — scroll and tap yours</p><div class="year-scroll" id="yearScroll">${btns}</div>`;
+    const target = picked.y || 2000;
+    requestAnimationFrame(() => {
+      const b = step.querySelector('[data-y="' + target + '"]');
+      const sc = $('yearScroll');
+      if (b && sc) sc.scrollTop = b.offsetTop - sc.offsetTop - 4;
+    });
   }
 }
 function openSel(k){
   activeSel = (activeSel === k) ? null : k;
-  if (k === 'year' && activeSel === 'year'){
-    if (picked.y){ dpDecade = Math.floor(picked.y / 10) * 10; yearStep = 'year'; }
-    else yearStep = 'decade';
-  }
   $('dpErr').classList.add('hidden');
   updateSelectors(); renderPanel();
 }
@@ -508,7 +501,6 @@ function afterPick(){
   if (picked.m && picked.d && picked.d > daysIn(picked.y, picked.m)) picked.d = null;  // e.g. Feb 29 → non-leap year
   const next = [['m','month'],['d','day'],['y','year']].find(([pk]) => !picked[pk]);
   activeSel = next ? next[1] : null;
-  if (activeSel === 'year') yearStep = 'decade';
   updateSelectors(); renderPanel();
 }
 $('selMonth').addEventListener('click', () => openSel('month'));
@@ -516,7 +508,6 @@ $('selDay').addEventListener('click', () => openSel('day'));
 $('selYear').addEventListener('click', () => openSel('year'));
 $('dpStep').addEventListener('click', e => {
   const b = e.target.closest('.dp-btn'); if (!b) return;
-  if (b.dataset.dec){ dpDecade = Number(b.dataset.dec); yearStep = 'year'; renderPanel(); return; }
   if (b.dataset.m) picked.m = Number(b.dataset.m);
   else if (b.dataset.d) picked.d = Number(b.dataset.d);
   else if (b.dataset.y) picked.y = Number(b.dataset.y);
@@ -530,7 +521,7 @@ function showStory(){
   document.documentElement.classList.add('journey');
   renderStory();
   initJourney();
-  window.scrollTo({top:0});
+  document.querySelector('main').scrollTo({top:0});
 }
 /* Nothing persists: closing the app wipes the slate. Reopening always starts here. */
 $('entryForm').addEventListener('submit', e => {
@@ -538,7 +529,6 @@ $('entryForm').addEventListener('submit', e => {
   const dob = dobString();
   if (!dob){
     activeSel = !picked.m ? 'month' : !picked.d ? 'day' : 'year';
-    if (activeSel === 'year') yearStep = 'decade';
     updateSelectors(); renderPanel();
     $('dpErr').classList.remove('hidden');
     return;
@@ -552,10 +542,10 @@ $('startOverBtn').addEventListener('click', () => {
   $('entryView').classList.remove('hidden');
   document.documentElement.classList.remove('journey');
   if (ticker) clearInterval(ticker);
-  picked = { m:null, d:null, y:null }; activeSel = null; dpDecade = null;
+  picked = { m:null, d:null, y:null }; activeSel = null;
   $('nameInput').value = '';
   updateSelectors(); renderPanel();
-  window.scrollTo({top:0});
+  document.querySelector('main').scrollTo({top:0});
 });
 $('prevYear').addEventListener('click', () => setExplorer(exYear-1, false));
 $('nextYear').addEventListener('click', () => setExplorer(exYear+1, false));
