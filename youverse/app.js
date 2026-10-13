@@ -554,7 +554,7 @@ function renderPanel(){
     requestAnimationFrame(() => {
       const b = step.querySelector('[data-y="' + target + '"]');
       const sc = $('yearScroll');
-      if (b && sc) sc.scrollTop = b.offsetTop - sc.offsetTop - 4;
+      if (b && sc) sc.scrollTop = Math.max(0, b.offsetTop - 4);
     });
   }
 }
