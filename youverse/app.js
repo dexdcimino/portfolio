@@ -157,6 +157,7 @@ function renderStory(){
   ].join('');
 
   buildChips();
+  renderWild();
   setExplorer(Math.min(new Date().getFullYear(), 2026), false);
   startTicker(s);
 }
@@ -195,10 +196,11 @@ function setExplorer(year, scroll){
   exYear = Math.min(hi, Math.max(lo, year));
   const slider = $('yearSlider');
   slider.min = lo; slider.max = hi; slider.value = exYear;
-  $('yearBig').textContent = exYear;
   const age = exYear - birth.getFullYear();
-  $('yearAge').textContent = exYear === birth.getFullYear() ? 'The year you arrived 👶'
-    : age === 0 ? 'Your first year' : `You turned ${age} this year`;
+  $('yearBig').textContent = age === 0 ? 'Born' : `Age ${age}`;
+  $('yearAge').textContent = age === 0 ? `${exYear} · where your story starts`
+    : exYear === new Date().getFullYear() ? `${exYear} · you, right now`
+    : `${exYear} · you turned ${age} this year`;
   $('prevYear').disabled = exYear <= lo;
   $('nextYear').disabled = exYear >= hi;
   document.querySelectorAll('.chip').forEach(c =>
@@ -209,11 +211,75 @@ function setExplorer(year, scroll){
 function renderEvents(){
   const data = YV_EVENTS[String(exYear)];
   const list = $('eventList');
-  if (!data){ list.innerHTML = '<div class="empty">Our event archive starts in 1950 — this year is beyond it for now.</div>'; return; }
+  if (!data){ list.innerHTML = '<div class="empty">Our event archive starts in 1950 — this year is beyond it for now.</div>'; currentItems = []; return; }
   const items = data[exTab] || [];
-  list.innerHTML = items.map(e =>
-    `<div class="event"><div class="et">${e.t}</div><div class="ed">${e.d}</div></div>`).join('')
+  currentItems = items;
+  list.innerHTML = items.map((e,i) =>
+    `<div class="event tappable" data-i="${i}" role="button" tabindex="0"><div class="et">${e.t}</div><div class="ed">${e.d}</div><div class="go">The full story ›</div></div>`).join('')
     || '<div class="empty">No entries for this view yet.</div>';
+}
+
+/* ---------- deep-dive sheet (Wikipedia live summary) ---------- */
+let currentItems = [];
+let currentFound = [], currentLost = [];
+function diveMeta(year){
+  const age = year - birth.getFullYear();
+  return age <= 0 ? `${year} · the year you were born` : `${year} · you were ${age}`;
+}
+async function openDive(title, meta, fallback){
+  const body = $('diveBody');
+  body.innerHTML = `<div class="dive-kicker">${meta}</div><h4 class="dive-title">${title}</h4><p class="dive-loading">Digging up the full story…</p>`;
+  $('diveSheet').classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
+  try {
+    const s = await fetch('https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch='
+      + encodeURIComponent(title) + '&srlimit=1&format=json&origin=*').then(r => r.json());
+    const hit = s.query && s.query.search && s.query.search[0];
+    if (!hit) throw new Error('no hit');
+    const sum = await fetch('https://en.wikipedia.org/api/rest_v1/page/summary/'
+      + encodeURIComponent(hit.title.replace(/ /g,'_'))).then(r => r.json());
+    const url = (sum.content_urls && sum.content_urls.desktop && sum.content_urls.desktop.page)
+      || ('https://en.wikipedia.org/wiki/' + encodeURIComponent(hit.title.replace(/ /g,'_')));
+    const img = sum.thumbnail ? `<img class="dive-img" src="${sum.thumbnail.source}" alt="">` : '';
+    body.innerHTML = `<div class="dive-kicker">${meta}</div><h4 class="dive-title">${title}</h4>${img}` +
+      `<p class="dive-text">${sum.extract || fallback}</p>` +
+      `<div class="dive-links"><a class="dive-btn" href="${url}" target="_blank" rel="noopener">Read the full story ↗</a>` +
+      `<a class="dive-btn ghost" href="https://www.youtube.com/results?search_query=${encodeURIComponent(title)}" target="_blank" rel="noopener">▶ Watch it</a></div>` +
+      `<p class="dive-src">Summary + photo via Wikipedia</p>`;
+  } catch(e) {
+    body.innerHTML = `<div class="dive-kicker">${meta}</div><h4 class="dive-title">${title}</h4>` +
+      `<p class="dive-text">${fallback}</p>` +
+      `<div class="dive-links"><a class="dive-btn" href="https://www.google.com/search?q=${encodeURIComponent(title)}" target="_blank" rel="noopener">Search the web ↗</a></div>`;
+  }
+}
+function closeDive(){
+  $('diveSheet').classList.add('hidden');
+  document.body.style.overflow = '';
+}
+
+/* ---------- fellow earthlings ---------- */
+function wildRow(w, kind, i){
+  return `<div class="wild-row" data-kind="${kind}" data-i="${i}" role="button" tabindex="0">` +
+    `<div class="wild-main"><span class="wild-name">${w.n}</span><span class="wild-year">${w.y}</span></div>` +
+    `<div class="wild-note">${w.d}</div><div class="go">Photos + full story ›</div></div>`;
+}
+function renderWild(){
+  const by = birth.getFullYear();
+  const s = computeStats();
+  currentFound = YV_WILD.found.filter(w => w.y >= by).slice().sort((a,b) => b.y - a.y);
+  currentLost = YV_WILD.lost.filter(w => w.y >= by).slice().sort((a,b) => b.y - a.y);
+  $('wildCards').innerHTML = [
+    card('est', bigFmt(Math.floor(s.years) * 17000) + '+', 'new species discovered during your life',
+      'Scientists describe roughly 17,000 species a year — mostly insects, plants and deep-sea things. The famous ones are below.'),
+    card('calc', String(currentLost.length), 'famous species lost during your life',
+      'The ones the world noticed by name. The true total, counting the small and unnoticed, is estimated to be far higher.'),
+  ].join('');
+  $('wildFound').innerHTML = currentFound.length
+    ? currentFound.map((w,i) => wildRow(w,'found',i)).join('')
+    : '<div class="empty">None of the famous ones yet — you are very new here. The discoveries are coming.</div>';
+  $('wildLost').innerHTML = currentLost.length
+    ? currentLost.map((w,i) => wildRow(w,'lost',i)).join('')
+    : '<div class="empty">None of the famous ones yet. Let\'s keep it that way.</div>';
 }
 
 /* ---------- poster ---------- */
@@ -290,6 +356,22 @@ $('yearSlider').addEventListener('input', e => setExplorer(Number(e.target.value
 $('tabWorld').addEventListener('click', () => { exTab='world'; $('tabWorld').classList.add('active'); $('tabUS').classList.remove('active'); renderEvents(); });
 $('tabUS').addEventListener('click', () => { exTab='us'; $('tabUS').classList.add('active'); $('tabWorld').classList.remove('active'); renderEvents(); });
 $('posterBtn').addEventListener('click', makePoster);
+$('eventList').addEventListener('click', e => {
+  const el = e.target.closest('.event.tappable'); if (!el) return;
+  const item = currentItems[Number(el.dataset.i)]; if (!item) return;
+  openDive(item.t, diveMeta(exYear), item.d);
+});
+const wildClick = e => {
+  const el = e.target.closest('.wild-row'); if (!el) return;
+  const arr = el.dataset.kind === 'found' ? currentFound : currentLost;
+  const item = arr[Number(el.dataset.i)]; if (!item) return;
+  openDive(item.n, diveMeta(item.y), item.d);
+};
+$('wildFound').addEventListener('click', wildClick);
+$('wildLost').addEventListener('click', wildClick);
+$('diveClose').addEventListener('click', closeDive);
+$('diveBackdrop').addEventListener('click', closeDive);
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDive(); });
 
 const saved = loadProfile();
 if (saved){
