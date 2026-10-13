@@ -112,7 +112,7 @@ function renderStory(){
     `You are a <b>${generation(by)}</b> — one of about <b>${bigFmt(interp(YV_ANCHORS.popWorldB, by)*1e9)} people</b> on Earth that year.`;
 
   $('bodyCards').innerHTML = [
-    card('calc', commas(s.heartbeats), 'heartbeats', 'At a lifetime average of ~72 beats a minute — it has never once taken a break.'),
+    card('calc', '<span id="bodyHeartbeats">' + commas(s.heartbeats) + '</span>', 'heartbeats', 'At a lifetime average of ~72 beats a minute — it has never once taken a break.'),
     card('est', commas(s.breaths), 'breaths', 'Roughly 16 a minute, sleeping and waking, since your very first one.'),
     card('est', commas(s.days*8) + ' hrs', 'spent asleep', 'About a third of your life — roughly ' + commas(s.days*8/24) + ' full days of dreaming included below.'),
     card('est', commas(s.days*2) + ' hrs', 'spent dreaming', 'Around 2 hours a night inside worlds your brain built for free.'),
@@ -168,6 +168,7 @@ function startTicker(){
     const secs = (Date.now() - birth.getTime())/1000;
     $('secondsAlive').textContent = commas(secs);
     $('heartbeats').textContent = commas(secs*1.2);
+    const bh = $('bodyHeartbeats'); if (bh) bh.textContent = commas(secs*1.2);
   };
   tick();
   ticker = setInterval(tick, 250);
