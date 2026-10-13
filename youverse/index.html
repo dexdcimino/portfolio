@@ -23,12 +23,17 @@
     <div class="entry-card">
       <img class="entry-icon" src="icon.svg" alt="">
       <h1>Everything that's happened<br>while <em>you've</em> been alive.</h1>
-      <p class="entry-sub">Your body. Your planet. Your fellow earthlings.<br>Your trip through space. One birthday is all it takes.</p>
-      <form id="entryForm">
-        <label class="field">
+      <p class="entry-sub">One birthday is all it takes.</p>
+      <form id="entryForm" novalidate>
+        <div class="field">
           <span>Your birthday</span>
-          <input id="dobInput" type="date" required min="1920-01-01" max="2026-12-31">
-        </label>
+          <button type="button" id="dobBtn" class="dob-btn">Select your birthday</button>
+          <div id="dobPicker" class="dob-picker hidden">
+            <div class="dp-crumbs" id="dpCrumbs"></div>
+            <div id="dpStep"></div>
+            <p class="dp-err hidden" id="dpErr">Pick a year, a month, and a day.</p>
+          </div>
+        </div>
         <label class="field">
           <span>First name <small>(optional — for your poster)</small></span>
           <input id="nameInput" type="text" maxlength="24" placeholder="e.g. Alex" autocomplete="given-name">
@@ -39,19 +44,20 @@
     </div>
   </section>
 
-  <!-- STORY: a journey in scenes -->
+  <!-- STORY: swipe through scenes, one screen each -->
   <section id="storyView" class="hidden">
     <nav id="dotNav" class="dotnav" aria-label="Chapters">
       <button type="button" data-target="sceneHero" data-label="You"><i></i></button>
+      <button type="button" data-target="sceneYears" data-label="Your Years"><i></i></button>
       <button type="button" data-target="sceneBody" data-label="Body"><i></i></button>
       <button type="button" data-target="scenePlanet" data-label="Planet"><i></i></button>
       <button type="button" data-target="sceneWild" data-label="Earthlings"><i></i></button>
       <button type="button" data-target="sceneSpace" data-label="Space"><i></i></button>
-      <button type="button" data-target="sceneYears" data-label="Your Years"><i></i></button>
+      <button type="button" data-target="sceneFirst" data-label="Day One"><i></i></button>
       <button type="button" data-target="scenePoster" data-label="Poster"><i></i></button>
     </nav>
 
-    <!-- SCENE: HERO -->
+    <!-- HERO -->
     <section class="scene hero" id="sceneHero">
       <img class="hero-avatar" src="icon.svg" alt="">
       <p class="hero-kicker rv" id="heroKicker">Your story so far</p>
@@ -63,69 +69,101 @@
         <div class="hstat"><span class="hs-num" id="heartbeats">–</span><span class="hs-label">heartbeats</span></div>
         <div class="hstat"><span class="hs-num" id="galacticMiles">–</span><span class="hs-label">miles through the galaxy</span></div>
       </div>
-      <div class="firstday rv" id="firstDay"></div>
-      <div class="scroll-cue" aria-hidden="true">Swipe — your life in scenes<span>↓</span></div>
+      <div class="scroll-cue" aria-hidden="true">Swipe up — chapter one<span>↓</span></div>
     </section>
 
-    <!-- SCENE: BODY -->
-    <section class="scene" id="sceneBody">
-      <p class="ch-kicker rv">Chapter one</p>
-      <h3 class="rv"><span class="ch-icon">🫀</span> Your Body</h3>
-      <p class="ch-sub rv">What this machine has done so far — without a single day off.</p>
-      <div class="tiles" id="bodyCards"></div>
-    </section>
-
-    <!-- SCENE: PLANET -->
-    <section class="scene" id="scenePlanet">
-      <p class="ch-kicker rv">Chapter two</p>
-      <h3 class="rv"><span class="ch-icon">🌍</span> Your Planet</h3>
-      <p class="ch-sub rv">How Earth changed during your watch.</p>
-      <div class="tiles" id="planetCards"></div>
-    </section>
-
-    <!-- SCENE: EARTHLINGS -->
-    <section class="scene" id="sceneWild">
-      <p class="ch-kicker rv">Chapter three</p>
-      <h3 class="rv"><span class="ch-icon">🐾</span> Your Fellow Earthlings</h3>
-      <p class="ch-sub rv">You never had this planet to yourself. The other lives that began — and ended — during yours. Tap any of them for photos and the full story.</p>
-      <div class="tiles" id="wildCards"></div>
-      <h4 class="wild-h rv">🌟 Found during your life</h4>
-      <div id="wildFound" class="wild-list"></div>
-      <h4 class="wild-h rv">🕯️ Lost during your life</h4>
-      <div id="wildLost" class="wild-list"></div>
-    </section>
-
-    <!-- SCENE: SPACE -->
-    <section class="scene" id="sceneSpace">
-      <p class="ch-kicker rv">Chapter four</p>
-      <h3 class="rv"><span class="ch-icon">🚀</span> Your Trip Through Space</h3>
-      <p class="ch-sub rv">You are nowhere near where you started — and you'll never pass that spot again.</p>
-      <div class="tiles" id="spaceCards"></div>
-    </section>
-
-    <!-- SCENE: YEARS (the time machine) -->
+    <!-- CHAPTER ONE: YOUR YEARS (the time machine) -->
     <section class="scene explorer" id="sceneYears">
-      <p class="ch-kicker rv">Chapter five · the time machine</p>
+      <p class="ch-kicker rv">Chapter one · the time machine</p>
       <h3 class="rv"><span class="ch-icon">🗓️</span> Your Years</h3>
-      <p class="ch-sub rv">Travel back through your own life. Pick an age — see the biggest things that happened in the world, and in the U.S., while you lived it. Tap any event for the full story.</p>
       <div class="chips rv" id="ageChips"></div>
-      <div class="year-nav rv">
-        <button id="prevYear" class="nav-arrow" type="button" aria-label="Previous year">‹</button>
-        <div class="year-center">
-          <div class="year-big" id="yearBig">Age 10</div>
-          <div class="year-age" id="yearAge">2000 · you turned 10 this year</div>
+      <div class="year-center rv">
+        <div class="year-big" id="yearBig">Age 10</div>
+        <div class="year-age" id="yearAge">2000 · you turned 10 this year</div>
+      </div>
+      <div id="eventList" class="carousel rv"></div>
+      <div class="scene-bottom rv">
+        <div class="tabs">
+          <button id="tabWorld" class="tab active" type="button">🌐 World</button>
+          <button id="tabUS" class="tab" type="button">🇺🇸 United States</button>
         </div>
-        <button id="nextYear" class="nav-arrow" type="button" aria-label="Next year">›</button>
+        <div class="year-controls">
+          <button id="prevYear" class="nav-arrow" type="button" aria-label="Previous year">‹</button>
+          <input id="yearSlider" type="range" step="1" aria-label="Year">
+          <button id="nextYear" class="nav-arrow" type="button" aria-label="Next year">›</button>
+        </div>
       </div>
-      <input id="yearSlider" class="rv" type="range" step="1">
-      <div class="tabs rv">
-        <button id="tabWorld" class="tab active" type="button">🌐 World</button>
-        <button id="tabUS" class="tab" type="button">🇺🇸 United States</button>
-      </div>
-      <div id="eventList" class="events rv"></div>
     </section>
 
-    <!-- SCENE: POSTER -->
+    <!-- CHAPTER TWO: BODY -->
+    <section class="scene" id="sceneBody">
+      <p class="ch-kicker rv">Chapter two</p>
+      <h3 class="rv"><span class="ch-icon">🫀</span> Your Body</h3>
+      <div class="spanel" data-panel="body0"><div class="tiles" id="bodyTiles0"></div></div>
+      <div class="spanel hidden" data-panel="body1"><div class="tiles" id="bodyTiles1"></div></div>
+      <div class="spanel hidden" data-panel="body2"><div class="tiles" id="bodyTiles2"></div></div>
+      <div class="scene-bottom rv">
+        <div class="subtabs" data-scene="sceneBody">
+          <button type="button" class="stab active" data-panel="body0">Heart + breath</button>
+          <button type="button" class="stab" data-panel="body1">Your time</button>
+          <button type="button" class="stab" data-panel="body2">Little things</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- CHAPTER THREE: PLANET -->
+    <section class="scene" id="scenePlanet">
+      <p class="ch-kicker rv">Chapter three</p>
+      <h3 class="rv"><span class="ch-icon">🌍</span> Your Planet</h3>
+      <div class="spanel" data-panel="planet0"><div class="tiles" id="planetTiles0"></div></div>
+      <div class="spanel hidden" data-panel="planet1"><div class="tiles" id="planetTiles1"></div></div>
+      <div class="spanel hidden" data-panel="planet2"><div class="tiles" id="planetTiles2"></div></div>
+      <div class="scene-bottom rv">
+        <div class="subtabs" data-scene="scenePlanet">
+          <button type="button" class="stab active" data-panel="planet0">People</button>
+          <button type="button" class="stab" data-panel="planet1">Air + heat</button>
+          <button type="button" class="stab" data-panel="planet2">Restless Earth</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- CHAPTER FOUR: EARTHLINGS -->
+    <section class="scene" id="sceneWild">
+      <p class="ch-kicker rv">Chapter four</p>
+      <h3 class="rv"><span class="ch-icon">🐾</span> Your Fellow Earthlings</h3>
+      <div class="wild-stats rv" id="wildCards"></div>
+      <div id="wildFound" class="carousel"></div>
+      <div id="wildLost" class="carousel hidden"></div>
+      <div class="scene-bottom rv">
+        <div class="subtabs" data-scene="sceneWild">
+          <button type="button" class="stab active" data-list="found">🌟 Found in your life</button>
+          <button type="button" class="stab" data-list="lost">🕯️ Lost in your life</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- CHAPTER FIVE: SPACE -->
+    <section class="scene" id="sceneSpace">
+      <p class="ch-kicker rv">Chapter five</p>
+      <h3 class="rv"><span class="ch-icon">🚀</span> Your Trip Through Space</h3>
+      <div class="spanel" data-panel="space0"><div class="tiles" id="spaceTiles0"></div></div>
+      <div class="spanel hidden" data-panel="space1"><div class="tiles" id="spaceTiles1"></div></div>
+      <div class="scene-bottom rv">
+        <div class="subtabs" data-scene="sceneSpace">
+          <button type="button" class="stab active" data-panel="space0">The ride</button>
+          <button type="button" class="stab" data-panel="space1">New worlds</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- DAY ONE -->
+    <section class="scene" id="sceneFirst">
+      <p class="ch-kicker rv">Where it all began</p>
+      <h3 class="rv"><span class="ch-icon">🌅</span> Your First Day</h3>
+      <div class="firstday rv" id="firstDay"></div>
+    </section>
+
+    <!-- POSTER -->
     <section class="scene poster-sec" id="scenePoster">
       <p class="ch-kicker rv">Final chapter</p>
       <h3 class="rv"><span class="ch-icon">🖼️</span> Take It With You</h3>
@@ -134,7 +172,7 @@
       <canvas id="posterCanvas" width="1080" height="1350" class="hidden"></canvas>
       <footer class="foot rv">
         <p>Numbers marked <b>Exact</b> are counted from your date. <b>Calculated</b> uses known rates (your heart, Earth's orbit). <b>Estimate</b> uses long-run averages — honest ballparks, labeled as such.</p>
-        <p>Sources: UN &amp; World Bank population · NASA exoplanet archive · NOAA Mauna Loa CO₂ · ITU internet figures · USGS earthquake averages · IUCN Red List species records · Wikipedia for deep-dive summaries.</p>
+        <p>Sources: UN &amp; World Bank population · NASA exoplanet archive · NOAA Mauna Loa CO₂ · ITU internet figures · USGS earthquake averages · IUCN Red List species records · generation sizes as commonly cited (Pew) · Wikipedia for deep-dive summaries.</p>
         <p class="foot-brand">✦ YouVerse — a Dex Cimino creation · dexcimino.com</p>
       </footer>
     </section>
