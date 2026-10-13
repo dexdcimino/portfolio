@@ -565,7 +565,9 @@ function renderPanel(){
 function openSel(k){
   activeSel = (activeSel === k) ? null : k;
   $('dpErr').classList.add('hidden');
-  updateSelectors(); renderPanel();
+  updateSelectors();
+
+ renderPanel();
 }
 function afterPick(){
   if (picked.m && picked.d && picked.d > daysIn(picked.y, picked.m)) picked.d = null;  // e.g. Feb 29 → non-leap year
@@ -650,3 +652,42 @@ $('diveBackdrop').addEventListener('click', closeDive);
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDive(); });
 
 updateSelectors();
+
+/* ---------- installing (the Inko / DexNote / MindSplit arrangement) ----------
+   The AI Lab card's download button opens /youverse/?install=1, and that is
+   the one place installing is offered: the browser's own prompt where it has
+   one (Chrome, Edge, Android), and the Add to Home Screen steps where it
+   does not (Safari, iPhone). The service worker is network-first, so an
+   installed app always picks up the newest build on its next launch. */
+const YV_EMBED = new URLSearchParams(location.search).has('embed');
+if ('serviceWorker' in navigator && !YV_EMBED){
+  navigator.serviceWorker.register('/youverse/sw.js', { scope: '/youverse/', updateViaCache: 'none' }).catch(() => {});
+}
+let deferredPrompt = null;
+window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); deferredPrompt = e; });
+window.addEventListener('appinstalled', () => { deferredPrompt = null; });
+const YV_STANDALONE = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+function showInstallSheet(){
+  const ios = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const t = document.createElement('div');
+  t.id = 'install-sheet';
+  t.style.cssText = 'position:fixed;inset:0;background:rgba(2,6,12,.82);z-index:10000;display:flex;align-items:center;justify-content:center;padding:20px;';
+  const steps = deferredPrompt ? '<p style="margin:0 0 16px;font-size:15px;line-height:1.55;color:#c9d6ee;">YouVerse goes on your home screen and opens fullscreen, like any other app — and it always picks up the latest version.</p>'
+    : ios ? '<ol style="margin:0 0 16px;padding-left:20px;font-size:15px;line-height:1.6;color:#c9d6ee;"><li>Tap the <b>Share</b> button in Safari</li><li>Tap <b>Add to Home Screen</b></li></ol>'
+    : '<ol style="margin:0 0 16px;padding-left:20px;font-size:15px;line-height:1.6;color:#c9d6ee;"><li>Open the browser <b>menu</b> (⋮)</li><li>Tap <b>Install app</b> or <b>Add to Home screen</b></li></ol>';
+  t.innerHTML = '<div style="background:#0e1626;border:1px solid #1d2c47;border-radius:18px;padding:26px;max-width:350px;width:100%;color:#eef4ff;">' +
+    '<img src="icon-512.png" alt="" style="width:60px;height:60px;border-radius:15px;display:block;margin-bottom:14px;">' +
+    '<h3 style="margin:0 0 10px;font-size:20px;">Install YouVerse</h3>' + steps +
+    '<button data-go style="width:100%;background:linear-gradient(90deg,#35e0c8,#2bb7d8);border:none;border-radius:12px;padding:14px;font-weight:800;cursor:pointer;color:#04241f;font-size:16px;">' + (deferredPrompt ? 'Install' : 'Got it') + '</button></div>';
+  t.querySelector('[data-go]').onclick = async () => {
+    if (deferredPrompt){ deferredPrompt.prompt(); try { await deferredPrompt.userChoice; } catch (e) {} deferredPrompt = null; }
+    t.remove();
+  };
+  t.onclick = e => { if (e.target === t) t.remove(); };
+  document.body.appendChild(t);
+}
+if (!YV_EMBED && !YV_STANDALONE && new URLSearchParams(location.search).has('install')){
+  window.history.replaceState(null, '', location.pathname + location.hash);
+  // Chrome fires beforeinstallprompt shortly after load; give it a moment.
+  setTimeout(showInstallSheet, 1200);
+}
