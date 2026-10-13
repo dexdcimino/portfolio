@@ -21,6 +21,7 @@ function bigFmt(n){
 function compactFmt(n){
   const a = Math.abs(n);
   const trim = v => v.toFixed(2).replace(/\.?0+$/,'');
+  if (a >= 1e15) return trim(n/1e15) + 'P';
   if (a >= 1e12) return trim(n/1e12) + 'T';
   if (a >= 1e9) return trim(n/1e9) + 'B';
   if (a >= 1e6) return trim(n/1e6) + 'M';
@@ -119,6 +120,16 @@ function wstat(raw, fmt, suffix, lbl){
   return `<div class="wstat rv"><div class="num" data-count="${raw}" data-fmt="${fmt}" data-suffix="${suffix || ''}">${FMT[fmt](raw) + (suffix || '')}</div><div class="lbl">${lbl}</div></div>`;
 }
 
+/* Fill a chapter's horizontal sub-pages + its page dots. */
+function fillPages(pagesId, dotsId, pages){
+  $(pagesId).innerHTML = pages.map(rows =>
+    `<div class="hpage rv"><div class="stats">${rows.join('')}</div></div>`).join('');
+  $(dotsId).innerHTML = '<span class="pd-hint">Swipe</span>' +
+    pages.map((_, i) => `<i class="${i === 0 ? 'on' : ''}"></i>`).join('');
+  $(pagesId).scrollLeft = 0;
+}
+const NEO_ANCHORS = {1990:130, 1995:400, 2000:1000, 2005:3400, 2010:7000, 2015:13000, 2020:24000, 2026:39000};
+
 function renderStory(){
   const s = computeStats();
   const by = birth.getFullYear();
@@ -133,55 +144,110 @@ function renderStory(){
     `Born <b>${birth.toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})}</b> · ` +
     `Earth has carried you <b>${s.years.toFixed(1)} years</b> around the Sun — and counting.`;
 
-  /* Body — every stat on one page */
-  $('bodyStats').innerHTML = [
-    srow('calc', null, null, '<span id="bodyHeartbeats">' + compactFmt(s.heartbeats) + '</span>', 'heartbeats', 'At a lifetime average of ~72 beats a minute — never once a break.'),
-    srow('est', s.breaths, 'compact', '', 'breaths', 'Roughly 16 a minute, sleeping and waking, since your very first one.'),
-    srow('est', s.days*8, 'compact', '', 'spent asleep', 'About a third of your life, gone to dreams and recharging.'),
-    srow('est', s.days*2, 'compact', '', 'spent dreaming', 'Around 2 hours a night inside worlds your brain built for free.'),
-    srow('est', s.days*3, 'compact', '', 'meals eaten', 'Give or take a few thousand snacks.'),
-    srow('est', Math.round(s.days/27), 'compact', '', 'brand-new skins', 'Your outer layer replaces itself about every 27 days.'),
-    srow('est', s.days*16*60*17, 'compact', '', 'blinks', 'About 17 a minute while you\'re awake.'),
-  ].join('');
+  /* Body — three swipeable pages */
+  const walkMiles = s.days * 5000 * 0.000473;
+  const walkLaps = walkMiles / 24901;
+  fillPages('bodyPages', 'bodyDots', [
+    [
+      srow('calc', null, null, '<span id="bodyHeartbeats">' + compactFmt(s.heartbeats) + '</span>', 'heartbeats', 'At a lifetime average of ~72 beats a minute — never once a break.'),
+      srow('est', s.breaths, 'compact', '', 'breaths', 'Roughly 16 a minute, sleeping and waking, since your very first one.'),
+      srow('est', s.days*2000, 'compact', '', 'gallons of blood pumped', `Enough to fill about ${Math.max(1, Math.round(s.days*2000/660000))} Olympic swimming pools.`),
+      srow('est', s.days*16*60*17, 'compact', '', 'blinks', 'About 17 a minute while you\'re awake.'),
+      srow('est', s.days*3.3e11, 'compact', '', 'cells replaced by your body', 'Almost none of the cells you were born with are still you. You are a Ship of Theseus.'),
+    ],
+    [
+      srow('est', walkMiles, 'compact', '', 'miles you have walked', walkLaps >= 1 ? `That is ${walkLaps.toFixed(1)} laps around the entire Earth.` : `That is ${Math.round(walkLaps*100)}% of the way around the entire Earth.`),
+      srow('est', s.days*3, 'compact', '', 'meals eaten', 'Give or take a few thousand snacks.'),
+      srow('est', s.days*16000, 'compact', '', 'words you have spoken', `About ${commas(Math.round(s.days*16000/80000))} novels\' worth, said out loud.`),
+      srow('est', s.days*15, 'compact', '', 'times you have laughed', 'Roughly 15 a day — the good stuff adds up.'),
+      srow('est', s.days*4, 'compact', '', 'dreams you have dreamed', 'Several a night. You forgot almost every single one.'),
+    ],
+    [
+      srow('est', s.days*8, 'compact', '', 'hours spent asleep', 'About a third of your life, gone to recharging.'),
+      srow('est', s.days*2, 'compact', '', 'hours spent dreaming', 'Around 2 hours a night inside worlds your brain built for free.'),
+      srow('est', s.years*1.378, 'compact', '', 'feet of fingernail grown', 'All ten fingers, end to end, at about 3.5 mm a month each.'),
+      srow('est', s.years*0.5, 'compact', '', 'feet a single hair could grow', 'If you had never cut it — about 6 inches a year, every year.'),
+      srow('est', s.years*1.4, 'compact', '', 'pounds of skin shed', 'You leave a trail of yourself everywhere you go.'),
+    ],
+  ]);
 
-  /* Planet — every stat on one page */
-  $('planetStats').innerHTML = [
-    srow('calc', (s.popN - s.popB)*1e9, 'plusCompact', '', 'people added to Earth',
-      `From ${s.popB.toFixed(2)} billion when you arrived to ${s.popN.toFixed(2)} billion now.`),
-    srow('est', s.years*134e6, 'compact', '', 'babies born since you',
-      'Every one of them arrived into a world that already had you in it.'),
-    s.netB < 0.05
-      ? srow('calc', null, null, 'basically zero', 'internet users at your birth',
-        `Today: ${compactFmt(s.netN*1e9)}. The internet grew up alongside you.`)
-      : srow('calc', s.netB*1e9, 'compact', '', 'internet users at your birth',
-        `Today: ${compactFmt(s.netN*1e9)}. The internet grew up alongside you.`),
-    srow('calc', s.co2N - s.co2B, 'plus0', ' ppm', 'more CO₂ in every breath',
-      `Air at your birth: ${s.co2B.toFixed(0)} ppm. Air today: ${s.co2N.toFixed(0)} ppm.`),
-    srow('calc', s.warmed, 'temp', '', 'warmer planet',
-      'The global average temperature rise on your watch.'),
-    srow('est', s.years*145, 'compact', '', 'earthquakes, magnitude 6+',
-      'The ground under you has never really sat still (USGS average).'),
-    srow('calc', s.secs*44, 'compact', '', 'lightning strikes on Earth',
-      'About 44 flashes every second, planet-wide (NASA).'),
-  ].join('');
+  /* Planet — two swipeable pages */
+  const MILESTONES = [[6,'1999'],[7,'2011'],[8,'2022']];
+  const crossed = MILESTONES.filter(([, y]) => by < Number(y) && Number(y) <= new Date().getFullYear());
+  fillPages('planetPages', 'planetDots', [
+    [
+      srow('calc', (s.popN - s.popB)*1e9, 'plusCompact', '', 'people added to Earth',
+        `From ${s.popB.toFixed(2)} billion when you arrived to ${s.popN.toFixed(2)} billion now.`),
+      srow('est', s.years*134e6, 'compact', '', 'babies born since you',
+        'Every one of them arrived into a world that already had you in it.'),
+      s.netB < 0.05
+        ? srow('calc', null, null, 'basically zero', 'internet users at your birth',
+          `Today: ${compactFmt(s.netN*1e9)}. The internet grew up alongside you.`)
+        : srow('calc', s.netB*1e9, 'compact', '', 'internet users at your birth',
+          `Today: ${compactFmt(s.netN*1e9)}. The internet grew up alongside you.`),
+      srow('calc', s.co2N - s.co2B, 'plus0', ' ppm', 'more CO₂ in every breath',
+        `Air at your birth: ${s.co2B.toFixed(0)} ppm. Air today: ${s.co2N.toFixed(0)} ppm.`),
+      srow('calc', s.warmed, 'temp', '', 'warmer planet',
+        'The global average temperature rise on your watch.'),
+      srow('est', s.years*145, 'compact', '', 'earthquakes, magnitude 6+',
+        'The ground under you has never really sat still (USGS average).'),
+      srow('calc', s.secs*44, 'compact', '', 'lightning strikes on Earth',
+        'About 44 flashes every second, planet-wide (NASA).'),
+    ],
+    [
+      srow('est', s.years*15, 'compact', '', 'earthquakes, magnitude 7+',
+        'The big, damaging kind — about 15 a year worldwide (USGS).'),
+      srow('est', s.years*55, 'compact', '', 'volcanic eruptions',
+        'Somewhere on Earth, roughly one a week, your whole life.'),
+      srow('est', s.days*100000, 'compact', '', 'flights flown by humanity',
+        'Around 100,000 takeoffs and landings every single day.'),
+      srow('est', s.years*80e6, 'compact', '', 'cars built by humanity',
+        'Roughly 80 million new cars roll out every year.'),
+      srow('calc', null, null, crossed.length ? String(crossed.length) : '0',
+        'world population milestones passed',
+        crossed.length
+          ? crossed.map(([b, y]) => `${b} billion in ${y}`).join(' · ') + ' — you were here for all of them.'
+          : 'The world hit 8 billion in 2022 — before your time. Next up: 9 billion, expected around 2037.'),
+      srow('est', s.days*12, 'compact', '', 'hours of daylight lived under',
+        'Half a life in light, half in dark — on average, wherever you are.'),
+    ],
+  ]);
 
-  /* Space — every stat on one page */
-  $('spaceStats').innerHTML = [
-    srow('calc', s.galaxyMiles, 'compact', '', 'miles through the galaxy',
-      'The Sun orbits the Milky Way at ~514,000 mph. You ride along.'),
-    srow('calc', s.sunMiles, 'compact', '', 'miles around the Sun',
-      `${s.years.toFixed(1)} full laps at ~584 million miles each.`),
-    srow('exact', s.moons, 'compact', '', 'full moons',
-      'Every 29.5 days, like clockwork, whether you looked up or not.'),
-    srow('calc', s.exoN - s.exoB, 'compact', '', 'planets discovered beyond our solar system',
-      `Known when you were born: ${commas(s.exoB)}. Known today: ${commas(s.exoN)}.`),
-    srow('est', s.years*4.7, 'dec1', '', 'eclipses have occurred',
-      'Solar and lunar, somewhere on Earth — about 4–5 a year.'),
-    s.issOrbits > 0
-      ? srow('calc', s.issOrbits, 'compact', '', 'ISS orbits during your life',
-        'One lap of Earth every ~93 minutes, this many times since ' + (birth < new Date(1998,10,20) ? 'it launched in 1998.' : 'you arrived.'))
-      : srow('calc', null, null, '0', 'ISS orbits during your life', 'The Space Station launched in 1998 — it will catch up.'),
-  ].join('');
+  /* Space — two swipeable pages; page two is the stars */
+  const bYF = yearFloat(birth), nYF = yearFloat(new Date());
+  const neoB = Math.round(interp(NEO_ANCHORS, bYF)), neoN = Math.round(interp(NEO_ANCHORS, nYF));
+  fillPages('spacePages', 'spaceDots', [
+    [
+      srow('calc', s.galaxyMiles, 'compact', '', 'miles through the galaxy',
+        'The Sun orbits the Milky Way at ~514,000 mph. You ride along.'),
+      srow('calc', s.sunMiles, 'compact', '', 'miles around the Sun',
+        `${s.years.toFixed(1)} full laps at ~584 million miles each.`),
+      srow('exact', s.moons, 'compact', '', 'full moons',
+        'Every 29.5 days, like clockwork, whether you looked up or not.'),
+      srow('calc', s.exoN - s.exoB, 'compact', '', 'planets discovered beyond our solar system',
+        `Known when you were born: ${commas(s.exoB)}. Known today: ${commas(s.exoN)}.`),
+      srow('est', s.years*4.7, 'dec1', '', 'eclipses have occurred',
+        'Solar and lunar, somewhere on Earth — about 4–5 a year.'),
+      s.issOrbits > 0
+        ? srow('calc', s.issOrbits, 'compact', '', 'ISS orbits during your life',
+          'One lap of Earth every ~93 minutes, this many times since ' + (birth < new Date(1998,10,20) ? 'it launched in 1998.' : 'you arrived.'))
+        : srow('calc', null, null, '0', 'ISS orbits during your life', 'The Space Station launched in 1998 — it will catch up.'),
+    ],
+    [
+      srow('est', s.years*3, 'compact', '', 'stars born in the Milky Way',
+        'Only about three a year now — our galaxy has mostly settled down.'),
+      srow('est', null, null, '0 so far', 'supernovae in the Milky Way',
+        'Our galaxy averages one every ~50 years. The last one anyone saw was in 1604 — yours is overdue.'),
+      srow('est', s.days*2.75e8, 'compact', '', 'stars born in the observable universe',
+        'About 275 million every single day, by the best astronomical estimates.'),
+      srow('est', s.secs*30, 'compact', '', 'supernovae across the universe',
+        'Roughly 30 stars explode every second, somewhere out there.'),
+      srow('calc', neoN - neoB, 'compact', '', 'near-Earth asteroids catalogued',
+        `Known when you were born: ${commas(neoB)}. Known today: ${commas(neoN)}.`),
+      srow('calc', s.years*0.1247, 'compact', '', 'feet the Moon has drifted away',
+        'It slips about 1.5 inches further from you every year.'),
+    ],
+  ]);
 
   /* First day */
   const mp = moonPhase(birth);
@@ -512,6 +578,15 @@ $('dpStep').addEventListener('click', e => {
   else if (b.dataset.d) picked.d = Number(b.dataset.d);
   else if (b.dataset.y) picked.y = Number(b.dataset.y);
   afterPick();
+});
+
+/* page dots follow the horizontal sub-pages */
+[['bodyPages','bodyDots'],['planetPages','planetDots'],['spacePages','spaceDots']].forEach(([p, d]) => {
+  const el = $(p); if (!el) return;
+  el.addEventListener('scroll', () => {
+    const i = Math.round(el.scrollLeft / Math.max(1, el.clientWidth));
+    $(d).querySelectorAll('i').forEach((dot, j) => dot.classList.toggle('on', j === i));
+  }, {passive:true});
 });
 
 /* ---------- entry / wiring ---------- */
