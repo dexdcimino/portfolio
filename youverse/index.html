@@ -14,34 +14,37 @@
 
 <header class="topbar">
   <div class="brand"><span class="brand-mark">✦</span> YouVerse</div>
-  <button id="changeBtn" class="ghost-btn hidden" type="button">Change date</button>
 </header>
 
 <main>
-  <!-- ENTRY -->
+  <!-- ENTRY: one screen, no scrolling. Display up top, every control in the bottom half. -->
   <section id="entryView" class="entry">
-    <div class="entry-card">
+    <div class="entry-head">
       <img class="entry-icon" src="icon.svg" alt="">
       <h1>Everything that's happened<br>while <em>you've</em> been alive.</h1>
       <p class="entry-sub">One birthday is all it takes.</p>
-      <form id="entryForm" novalidate>
-        <div class="field">
-          <span>Your birthday</span>
-          <button type="button" id="dobBtn" class="dob-btn">Select your birthday</button>
-          <div id="dobPicker" class="dob-picker hidden">
-            <div class="dp-crumbs" id="dpCrumbs"></div>
-            <div id="dpStep"></div>
-            <p class="dp-err hidden" id="dpErr">Pick a year, a month, and a day.</p>
-          </div>
-        </div>
-        <label class="field">
-          <span>First name <small>(optional — for your poster)</small></span>
-          <input id="nameInput" type="text" maxlength="24" placeholder="e.g. Alex" autocomplete="given-name">
-        </label>
-        <button class="cta" type="submit">See my story →</button>
-      </form>
-      <p class="privacy">Stays on your device. Nothing is sent anywhere.</p>
+      <p class="dob-readout" id="dobReadout">Your birthday: <b>—</b></p>
     </div>
+    <form id="entryForm" class="entry-controls" novalidate>
+      <label class="field name-field">
+        <span>Your name <small>(or a fake one — we don't keep it)</small></span>
+        <input id="nameInput" type="text" maxlength="24" placeholder="Your name" autocomplete="off">
+      </label>
+      <div class="field">
+        <span>Your birthday <small>(tap any part, in any order)</small></span>
+        <div class="sel-row">
+          <button type="button" class="sel-btn" id="selMonth"><span class="sel-lbl">Month</span><span class="sel-val" id="selMonthVal">—</span></button>
+          <button type="button" class="sel-btn" id="selDay"><span class="sel-lbl">Day</span><span class="sel-val" id="selDayVal">—</span></button>
+          <button type="button" class="sel-btn" id="selYear"><span class="sel-lbl">Year</span><span class="sel-val" id="selYearVal">—</span></button>
+        </div>
+        <div id="dpPanel" class="dob-picker hidden">
+          <div id="dpStep"></div>
+          <p class="dp-err hidden" id="dpErr">Pick a month, a day, and a year.</p>
+        </div>
+      </div>
+      <button class="cta" type="submit">See my story →</button>
+      <p class="privacy">Nothing is saved. Close the app and it's gone — by design.</p>
+    </form>
   </section>
 
   <!-- STORY: swipe through scenes, one screen each -->
@@ -72,17 +75,19 @@
       <div class="scroll-cue" aria-hidden="true">Swipe up — chapter one<span>↓</span></div>
     </section>
 
-    <!-- CHAPTER ONE: YOUR YEARS (the time machine) -->
+    <!-- CHAPTER ONE: YOUR YEARS (the time machine) — all controls in the bottom stack -->
     <section class="scene explorer" id="sceneYears">
       <p class="ch-kicker rv">Chapter one · the time machine</p>
       <h3 class="rv"><span class="ch-icon">🗓️</span> Your Years</h3>
-      <div class="chips rv" id="ageChips"></div>
-      <div class="year-center rv">
-        <div class="year-big" id="yearBig">Age 10</div>
-        <div class="year-age" id="yearAge">2000 · you turned 10 this year</div>
+      <div class="scene-mid">
+        <div class="year-center rv">
+          <div class="year-big" id="yearBig">Age 10</div>
+          <div class="year-age" id="yearAge">2000 · you turned 10 this year</div>
+        </div>
+        <div id="eventList" class="carousel rv"></div>
       </div>
-      <div id="eventList" class="carousel rv"></div>
       <div class="scene-bottom rv">
+        <div class="chips" id="ageChips"></div>
         <div class="tabs">
           <button id="tabWorld" class="tab active" type="button">🌐 World</button>
           <button id="tabUS" class="tab" type="button">🇺🇸 United States</button>
@@ -168,13 +173,16 @@
       <p class="ch-kicker rv">Final chapter</p>
       <h3 class="rv"><span class="ch-icon">🖼️</span> Take It With You</h3>
       <p class="ch-sub rv">Your whole story on one poster.</p>
-      <button id="posterBtn" class="cta rv" type="button">Download my poster</button>
-      <canvas id="posterCanvas" width="1080" height="1350" class="hidden"></canvas>
       <footer class="foot rv">
         <p>Numbers marked <b>Exact</b> are counted from your date. <b>Calculated</b> uses known rates (your heart, Earth's orbit). <b>Estimate</b> uses long-run averages — honest ballparks, labeled as such.</p>
         <p>Sources: UN &amp; World Bank population · NASA exoplanet archive · NOAA Mauna Loa CO₂ · ITU internet figures · USGS earthquake averages · IUCN Red List species records · generation sizes as commonly cited (Pew) · Wikipedia for deep-dive summaries.</p>
         <p class="foot-brand">✦ YouVerse — a Dex Cimino creation · dexcimino.com</p>
       </footer>
+      <div class="scene-bottom rv">
+        <button id="posterBtn" class="cta" type="button">Download my poster</button>
+        <button id="startOverBtn" class="over-btn" type="button">↺ Start over with a new birthday</button>
+      </div>
+      <canvas id="posterCanvas" width="1080" height="1350" class="hidden"></canvas>
     </section>
   </section>
 </main>
