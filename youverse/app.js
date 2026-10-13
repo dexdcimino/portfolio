@@ -1,6 +1,7 @@
 'use strict';
 /* YouVerse — everything that's happened while you've been alive.
-   A journey in scenes. All math runs on-device. Data in data.js (YV_ANCHORS / YV_EVENTS / YV_WILD). */
+   A journey in scenes: one screen per chapter, swipe to page.
+   All math runs on-device. Data in data.js (YV_ANCHORS / YV_EVENTS / YV_WILD). */
 
 const $ = id => document.getElementById(id);
 const LS_KEY = 'youverse-profile-v1';
@@ -11,7 +12,7 @@ let ticker = null;
 let exYear = null;       // explorer year
 let exTab = 'world';     // 'world' | 'us'
 
-/* ---------- formatting (one system everywhere: commas, or spelled-out units) ---------- */
+/* ---------- formatting (one system everywhere) ---------- */
 const commas = n => Math.round(n).toLocaleString('en-US');
 function bigFmt(n){
   if (n >= 1e12) return (n/1e12).toFixed(2).replace(/\.?0+$/,'') + ' trillion';
@@ -46,7 +47,7 @@ function yearFloat(d){
   return d.getFullYear() + (d - start)/(next - start);
 }
 
-/* ---------- astronomy ---------- */
+/* ---------- astronomy + generations ---------- */
 function moonPhase(date){
   const known = Date.UTC(2000,0,6,18,14);
   const synodic = 29.53058867;
@@ -60,14 +61,15 @@ function moonPhase(date){
   for (const [lim,n,e] of names) if (age < lim) return {name:n, emoji:e, illum};
   return {name:'New Moon', emoji:'🌑', illum};
 }
-function generation(y){
-  if (y>=2025) return 'Generation Beta';
-  if (y>=2013) return 'Generation Alpha';
-  if (y>=1997) return 'Generation Z';
-  if (y>=1981) return 'Millennial';
-  if (y>=1965) return 'Generation X';
-  if (y>=1946) return 'Baby Boomer';
-  return 'the Silent Generation';
+/* Cohort sizes are the commonly cited U.S. figures (Pew-style), hence "roughly". */
+function genInfo(y){
+  if (y>=2025) return {art:'', name:'Generation Beta', text:'among the very first of a brand-new generation, born from 2025.'};
+  if (y>=2013) return {art:'', name:'Generation Alpha', text:'one of roughly <b>45 million</b> people born 2013–2024.'};
+  if (y>=1997) return {art:'', name:'Generation Z', text:'one of roughly <b>68 million</b> people born 1997–2012.'};
+  if (y>=1981) return {art:'a', name:'Millennial', text:'one of roughly <b>72 million</b> people born 1981–1996.'};
+  if (y>=1965) return {art:'', name:'Generation X', text:'one of roughly <b>65 million</b> people born 1965–1980.'};
+  if (y>=1946) return {art:'a', name:'Baby Boomer', text:'one of roughly <b>70 million</b> people born 1946–1964.'};
+  return {art:'', name:'the Silent Generation', text:'one of roughly <b>23 million</b> people born 1928–1945.'};
 }
 
 /* ---------- stats ---------- */
@@ -98,17 +100,19 @@ function computeStats(){
   };
 }
 const TAG = {exact:'<span class="tag exact">Exact</span>', calc:'<span class="tag calc">Calculated</span>', est:'<span class="tag est">Estimate</span>'};
-/* tile(tag, raw, fmt, suffix, lbl, sub) — when raw is null, suffix carries the full display HTML (live/string values). */
+/* tile(tag, raw, fmt, suffix, lbl, sub) — when raw is null, suffix carries the full display HTML. */
 function tile(tag, raw, fmt, suffix, lbl, sub){
   const attrs = raw != null ? ` data-count="${raw}" data-fmt="${fmt}" data-suffix="${suffix || ''}"` : '';
   const disp = raw != null ? FMT[fmt](raw) + (suffix || '') : suffix;
   return `<div class="tile rv">${TAG[tag]}<div class="num"${attrs}>${disp}</div><div class="lbl">${lbl}</div><div class="sub">${sub}</div></div>`;
 }
+function wstat(raw, fmt, suffix, lbl){
+  return `<div class="wstat rv"><div class="num" data-count="${raw}" data-fmt="${fmt}" data-suffix="${suffix || ''}">${FMT[fmt](raw) + (suffix || '')}</div><div class="lbl">${lbl}</div></div>`;
+}
 
 function renderStory(){
   const s = computeStats();
   const by = birth.getFullYear();
-  const who = profile.name ? `${profile.name}, you've` : "You've";
   $('heroKicker').textContent = profile.name ? `${profile.name}'s story so far` : 'Your story so far';
   const dEl = $('daysAlive');
   dEl.textContent = commas(s.days);
@@ -120,60 +124,74 @@ function renderStory(){
     `Born <b>${birth.toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})}</b> · ` +
     `Earth has carried you <b>${s.years.toFixed(1)} years</b> around the Sun — and counting.`;
 
-  const mp = moonPhase(birth);
-  const weekday = birth.toLocaleDateString('en-US',{weekday:'long'});
-  $('firstDay').innerHTML =
-    `🌅 <b>Your first day:</b> You arrived on a ${weekday}. That night the Moon was a ` +
-    `<b>${mp.name.toLowerCase()}</b> ${mp.emoji} (${Math.round(mp.illum*100)}% lit). ` +
-    `You are a <b>${generation(by)}</b> — one of about <b>${bigFmt(interp(YV_ANCHORS.popWorldB, by)*1e9)} people</b> on Earth that year.`;
-
-  $('bodyCards').innerHTML = [
-    tile('calc', null, null, '<span id="bodyHeartbeats">' + commas(s.heartbeats) + '</span>', 'heartbeats', 'At a lifetime average of ~72 beats a minute — it has never once taken a break.'),
+  /* Body — three tabbed panels */
+  $('bodyTiles0').innerHTML = [
+    tile('calc', null, null, '<span id="bodyHeartbeats">' + commas(s.heartbeats) + '</span>', 'heartbeats', 'At a lifetime average of ~72 beats a minute — never once a break.'),
     tile('est', s.breaths, 'int', '', 'breaths', 'Roughly 16 a minute, sleeping and waking, since your very first one.'),
-    tile('est', s.days*8, 'hrs', '', 'spent asleep', 'About a third of your life — roughly ' + commas(s.days*8/24) + ' full days, dreaming included below.'),
+  ].join('');
+  $('bodyTiles1').innerHTML = [
+    tile('est', s.days*8, 'hrs', '', 'spent asleep', 'About a third of your life.'),
     tile('est', s.days*2, 'hrs', '', 'spent dreaming', 'Around 2 hours a night inside worlds your brain built for free.'),
-    tile('est', s.days*3, 'int', '', 'meals eaten', 'Give or take a few thousand snacks we won\'t tell anyone about.'),
-    tile('est', s.days/27, 'int', '', 'brand-new skins', 'Your outer layer fully replaces itself about every 27 days.'),
-    tile('est', s.days*16*60*17, 'big', '', 'blinks', 'About 17 a minute while you\'re awake. You\'ve missed a lot of very short moments.'),
+  ].join('');
+  $('bodyTiles2').innerHTML = [
+    tile('est', s.days*3, 'int', '', 'meals eaten', 'Give or take a few thousand snacks.'),
+    tile('est', s.days/27, 'int', '', 'brand-new skins', 'Your outer layer replaces itself about every 27 days.'),
+    tile('est', s.days*16*60*17, 'big', '', 'blinks', 'About 17 a minute while you\'re awake.'),
   ].join('');
 
-  $('planetCards').innerHTML = [
+  /* Planet — three tabbed panels */
+  $('planetTiles0').innerHTML = [
     tile('calc', (s.popN - s.popB)*1e9, 'plusBig', '', 'people added to Earth',
-      `From ${s.popB.toFixed(2)} billion when you arrived to ${s.popN.toFixed(2)} billion now — net, after every goodbye.`),
+      `From ${s.popB.toFixed(2)} billion when you arrived to ${s.popN.toFixed(2)} billion now.`),
     tile('est', s.years*134e6, 'big', '', 'babies born since you',
-      'Roughly 134 million a year. Every one of them arrived into a world that already had you in it.'),
+      'Every one of them arrived into a world that already had you in it.'),
     s.netB < 0.05
       ? tile('calc', null, null, 'basically zero', 'internet users when you were born',
-        `Today: ${bigFmt(s.netN*1e9)}. The internet grew up alongside you — most of humanity got online during your lifetime.`)
+        `Today: ${bigFmt(s.netN*1e9)}. The internet grew up alongside you.`)
       : tile('calc', s.netB*1e9, 'big', '', 'internet users when you were born',
-        `Today: ${bigFmt(s.netN*1e9)}. The internet grew up alongside you — most of humanity got online during your lifetime.`),
+        `Today: ${bigFmt(s.netN*1e9)}. The internet grew up alongside you.`),
+  ].join('');
+  $('planetTiles1').innerHTML = [
     tile('calc', s.co2N - s.co2B, 'plus0', ' ppm', 'more CO₂ in every breath',
-      `Air at your birth: ${s.co2B.toFixed(0)} ppm. Air today: ${s.co2N.toFixed(0)} ppm (Mauna Loa measurements).`),
+      `Air at your birth: ${s.co2B.toFixed(0)} ppm. Air today: ${s.co2N.toFixed(0)} ppm.`),
     tile('calc', s.warmed, 'temp', '', 'warmer planet',
-      'The global average temperature rise that has happened on your watch.'),
+      'The global average temperature rise on your watch.'),
+  ].join('');
+  $('planetTiles2').innerHTML = [
     tile('est', s.years*145, 'int', '', 'earthquakes, magnitude 6+',
-      'Earth\'s long-run average is ~145 a year (USGS). The ground under you has never really sat still.'),
+      'The ground under you has never really sat still (USGS average).'),
     tile('calc', s.secs*44, 'big', '', 'lightning strikes on Earth',
-      'About 44 flashes every second, planet-wide, your whole life (NASA).'),
+      'About 44 flashes every second, planet-wide (NASA).'),
   ].join('');
 
-  $('spaceCards').innerHTML = [
+  /* Space — two tabbed panels */
+  $('spaceTiles0').innerHTML = [
     tile('calc', s.galaxyMiles, 'big', '', 'miles through the galaxy',
-      'The Sun orbits the Milky Way at ~514,000 mph, and you ride along. You will never pass your starting point again.'),
+      'The Sun orbits the Milky Way at ~514,000 mph. You ride along.'),
     tile('calc', s.sunMiles, 'big', '', 'miles around the Sun',
-      `${s.years.toFixed(1)} full laps at ~584 million miles each. Happy every-orbit, roughly ${commas(Math.floor(s.years))} times over.`),
+      `${s.years.toFixed(1)} full laps at ~584 million miles each.`),
     tile('exact', s.moons, 'int', '', 'full moons',
       'Every 29.5 days, like clockwork, whether you looked up or not.'),
+  ].join('');
+  $('spaceTiles1').innerHTML = [
     tile('calc', s.exoN - s.exoB, 'int', '', 'planets discovered beyond our solar system',
-      `Known when you were born: ${commas(s.exoB)}. Known today: ${commas(s.exoN)} (NASA Exoplanet Archive, approx). An entire science was born with you.`),
+      `Known when you were born: ${commas(s.exoB)}. Known today: ${commas(s.exoN)}.`),
     tile('est', s.years*4.7, 'dec1', '', 'eclipses have occurred',
       'Solar and lunar, somewhere on Earth — about 4–5 a year.'),
     s.issOrbits > 0
       ? tile('calc', s.issOrbits, 'int', '', 'ISS orbits during your life',
-        'The International Space Station circles Earth every ~93 minutes. It has lapped the planet this many times since ' +
-        (birth < new Date(1998,10,20) ? 'it launched in 1998.' : 'you arrived.'))
+        'One lap of Earth every ~93 minutes, this many times since ' + (birth < new Date(1998,10,20) ? 'it launched in 1998.' : 'you arrived.'))
       : tile('calc', null, null, '0', 'ISS orbits during your life', 'The Space Station launched in 1998 — it will catch up.'),
   ].join('');
+
+  /* First day */
+  const mp = moonPhase(birth);
+  const weekday = birth.toLocaleDateString('en-US',{weekday:'long'});
+  const gi = genInfo(by);
+  $('firstDay').innerHTML =
+    `You arrived on a <b>${weekday}</b>. That night the Moon was a <b>${mp.name.toLowerCase()}</b> ${mp.emoji} — ` +
+    `${Math.round(mp.illum*100)}% lit. About <b>${bigFmt(interp(YV_ANCHORS.popWorldB, by)*1e9)} people</b> were already here, waiting.` +
+    `<span class="gen-line">You are ${gi.art} <b>${gi.name}</b> — ${gi.text}</span>`;
 
   buildChips();
   renderWild();
@@ -235,6 +253,22 @@ document.querySelectorAll('.dotnav button').forEach(b =>
     if (t) t.scrollIntoView({behavior: 'smooth'});
   }));
 
+/* ---------- in-scene tab bars ---------- */
+document.querySelectorAll('.subtabs').forEach(bar => {
+  bar.addEventListener('click', e => {
+    const btn = e.target.closest('.stab'); if (!btn) return;
+    bar.querySelectorAll('.stab').forEach(b => b.classList.toggle('active', b === btn));
+    const scene = document.getElementById(bar.dataset.scene);
+    if (btn.dataset.panel){
+      scene.querySelectorAll('.spanel').forEach(p =>
+        p.classList.toggle('hidden', p.dataset.panel !== btn.dataset.panel));
+    } else if (btn.dataset.list){
+      $('wildFound').classList.toggle('hidden', btn.dataset.list !== 'found');
+      $('wildLost').classList.toggle('hidden', btn.dataset.list !== 'lost');
+    }
+  });
+});
+
 /* ---------- year explorer (the time machine) ---------- */
 function explorerBounds(){
   const lo = Math.max(1950, birth.getFullYear());
@@ -268,6 +302,7 @@ function setExplorer(year, scroll){
   document.querySelectorAll('.chip').forEach(c =>
     c.classList.toggle('active', Number(c.dataset.year) === exYear));
   renderEvents();
+  const car = $('eventList'); if (car) car.scrollLeft = 0;
   if (scroll) $('yearBig').scrollIntoView({block:'nearest', behavior:'smooth'});
 }
 function renderEvents(){
@@ -277,7 +312,7 @@ function renderEvents(){
   const items = data[exTab] || [];
   currentItems = items;
   list.innerHTML = items.map((e,i) =>
-    `<div class="event tappable" data-i="${i}" role="button" tabindex="0"><div class="et">${e.t}</div><div class="ed">${e.d}</div><div class="go">The full story ›</div></div>`).join('')
+    `<div class="ev-card" data-i="${i}" role="button" tabindex="0"><div class="et">${e.t}</div><div class="ed">${e.d}</div><div class="go">The full story ›</div></div>`).join('')
     || '<div class="empty">No entries for this view yet.</div>';
 }
 
@@ -320,27 +355,24 @@ function closeDive(){
 }
 
 /* ---------- fellow earthlings ---------- */
-function wildRow(w, kind, i){
-  return `<div class="wild-row rv" data-kind="${kind}" data-i="${i}" role="button" tabindex="0">` +
-    `<div class="wild-main"><span class="wild-name">${w.n}</span><span class="wild-year">${w.y}</span></div>` +
-    `<div class="wild-note">${w.d}</div><div class="go">Photos + full story ›</div></div>`;
+function spCard(w, kind, i){
+  return `<div class="sp-card" data-kind="${kind}" data-i="${i}" role="button" tabindex="0">` +
+    `<div class="sp-main"><span class="sp-name">${w.n}</span><span class="sp-year">${w.y}</span></div>` +
+    `<div class="sp-note">${w.d}</div><div class="go">Photos + full story ›</div></div>`;
 }
 function renderWild(){
   const by = birth.getFullYear();
   const s = computeStats();
   currentFound = YV_WILD.found.filter(w => w.y >= by).slice().sort((a,b) => b.y - a.y);
   currentLost = YV_WILD.lost.filter(w => w.y >= by).slice().sort((a,b) => b.y - a.y);
-  $('wildCards').innerHTML = [
-    tile('est', Math.floor(s.years) * 17000, 'big', '+', 'new species discovered during your life',
-      'Scientists describe roughly 17,000 species a year — mostly insects, plants and deep-sea things. The famous ones are below.'),
-    tile('calc', currentLost.length, 'int', '', 'famous species lost during your life',
-      'The ones the world noticed by name. The true total, counting the small and unnoticed, is estimated to be far higher.'),
-  ].join('');
+  $('wildCards').innerHTML =
+    wstat(Math.floor(s.years) * 17000, 'big', '+', 'new species discovered during your life') +
+    wstat(currentLost.length, 'int', '', 'famous species lost during your life');
   $('wildFound').innerHTML = currentFound.length
-    ? currentFound.map((w,i) => wildRow(w,'found',i)).join('')
+    ? currentFound.map((w,i) => spCard(w,'found',i)).join('')
     : '<div class="empty">None of the famous ones yet — you are very new here. The discoveries are coming.</div>';
   $('wildLost').innerHTML = currentLost.length
-    ? currentLost.map((w,i) => wildRow(w,'lost',i)).join('')
+    ? currentLost.map((w,i) => spCard(w,'lost',i)).join('')
     : '<div class="empty">None of the famous ones yet. Let\'s keep it that way.</div>';
 }
 
@@ -384,6 +416,99 @@ function makePoster(){
   });
 }
 
+/* ---------- birthday picker (custom — no native calendar) ---------- */
+const MONTHS = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+const MONTH_FULL = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+let picked = { y:null, m:null, d:null };
+let dpStep = 'decade';        // 'decade' | 'year' | 'month' | 'day'
+let dpDecade = null;
+function daysIn(y, m){ return new Date(y, m, 0).getDate(); }  // m is 1-based
+function dobString(){
+  if (!picked.y || !picked.m || !picked.d) return null;
+  return picked.y + '-' + String(picked.m).padStart(2,'0') + '-' + String(picked.d).padStart(2,'0');
+}
+function updateDobBtn(){
+  const btn = $('dobBtn');
+  if (dobString()){
+    btn.innerHTML = `${MONTH_FULL[picked.m-1]} ${picked.d}, ${picked.y} <span class="chev">›</span>`;
+    btn.classList.remove('placeholder');
+  } else {
+    btn.innerHTML = `Select your birthday <span class="chev">›</span>`;
+    btn.classList.add('placeholder');
+  }
+}
+function renderPicker(){
+  const crumbs = [
+    ['Year', picked.y, 'decade'],
+    ['Month', picked.m ? MONTHS[picked.m-1] : null, 'month'],
+    ['Day', picked.d, 'day'],
+  ];
+  $('dpCrumbs').innerHTML = crumbs.map(([l, v, step]) =>
+    `<button type="button" class="crumb ${v != null ? 'set' : ''} ${dpStep === step ? 'now' : ''}" data-step="${step}">${l}${v != null ? ': ' + v : ''}</button>`
+  ).join('<span style="color:var(--muted); align-self:center">›</span>');
+  const step = $('dpStep');
+  if (dpStep === 'decade'){
+    let btns = '';
+    for (let d = 2020; d >= 1920; d -= 10)
+      btns += `<button type="button" class="dp-btn decade ${dpDecade === d ? 'sel' : ''}" data-dec="${d}">${d}s</button>`;
+    step.innerHTML = `<p class="dp-title">Which decade were you born in?</p><div class="dp-grid cols2">${btns}</div>`;
+  } else if (dpStep === 'year'){
+    let btns = '';
+    for (let y = dpDecade; y <= Math.min(dpDecade + 9, 2026); y++)
+      btns += `<button type="button" class="dp-btn ${picked.y === y ? 'sel' : ''}" data-y="${y}">${y}</button>`;
+    step.innerHTML = `<p class="dp-title">Which year?</p><div class="dp-grid cols5">${btns}</div>`;
+  } else if (dpStep === 'month'){
+    step.innerHTML = `<p class="dp-title">Which month?</p><div class="dp-grid cols4">` +
+      MONTHS.map((m, i) => `<button type="button" class="dp-btn ${picked.m === i+1 ? 'sel' : ''}" data-m="${i+1}">${m}</button>`).join('') + `</div>`;
+  } else if (dpStep === 'day'){
+    const n = daysIn(picked.y, picked.m);
+    let btns = '';
+    for (let d = 1; d <= n; d++)
+      btns += `<button type="button" class="dp-btn ${picked.d === d ? 'sel' : ''}" data-d="${d}">${d}</button>`;
+    step.innerHTML = `<p class="dp-title">${MONTH_FULL[picked.m-1]} ${picked.y} — which day?</p><div class="dp-grid cols7">${btns}</div>`;
+  }
+}
+function openPicker(){
+  $('dobPicker').classList.remove('hidden');
+  $('dpErr').classList.add('hidden');
+  dpStep = !picked.y ? 'decade' : !picked.m ? 'month' : !picked.d ? 'day' : 'decade';
+  if (picked.y) dpDecade = Math.floor(picked.y / 10) * 10;
+  renderPicker();
+}
+$('dobBtn').addEventListener('click', () => {
+  if ($('dobPicker').classList.contains('hidden')) openPicker();
+  else $('dobPicker').classList.add('hidden');
+});
+$('dpCrumbs').addEventListener('click', e => {
+  const c = e.target.closest('.crumb'); if (!c) return;
+  const step = c.dataset.step;
+  if (step === 'month' && !picked.y) return;
+  if (step === 'day' && !picked.m) return;
+  dpStep = step;
+  renderPicker();
+});
+$('dpStep').addEventListener('click', e => {
+  const b = e.target.closest('.dp-btn'); if (!b) return;
+  if (b.dataset.dec){ dpDecade = Number(b.dataset.dec); dpStep = 'year'; }
+  else if (b.dataset.y){
+    picked.y = Number(b.dataset.y);
+    if (picked.d && picked.m && picked.d > daysIn(picked.y, picked.m)) picked.d = null;
+    dpStep = 'month';
+  }
+  else if (b.dataset.m){
+    picked.m = Number(b.dataset.m);
+    if (picked.d && picked.d > daysIn(picked.y, picked.m)) picked.d = null;
+    dpStep = 'day';
+  }
+  else if (b.dataset.d){
+    picked.d = Number(b.dataset.d);
+    updateDobBtn();
+    $('dobPicker').classList.add('hidden');
+    return;
+  }
+  renderPicker();
+});
+
 /* ---------- entry / wiring ---------- */
 function showStory(){
   $('entryView').classList.add('hidden');
@@ -400,8 +525,8 @@ function loadProfile(){
 }
 $('entryForm').addEventListener('submit', e => {
   e.preventDefault();
-  const dob = $('dobInput').value;
-  if (!dob) return;
+  const dob = dobString();
+  if (!dob){ openPicker(); $('dpErr').classList.remove('hidden'); return; }
   profile = { dob, name: $('nameInput').value.trim() };
   localStorage.setItem(LS_KEY, JSON.stringify(profile));
   birth = new Date(dob + 'T12:00:00');
@@ -418,16 +543,16 @@ $('changeBtn').addEventListener('click', () => {
 $('prevYear').addEventListener('click', () => setExplorer(exYear-1, false));
 $('nextYear').addEventListener('click', () => setExplorer(exYear+1, false));
 $('yearSlider').addEventListener('input', e => setExplorer(Number(e.target.value), false));
-$('tabWorld').addEventListener('click', () => { exTab='world'; $('tabWorld').classList.add('active'); $('tabUS').classList.remove('active'); renderEvents(); });
-$('tabUS').addEventListener('click', () => { exTab='us'; $('tabUS').classList.add('active'); $('tabWorld').classList.remove('active'); renderEvents(); });
+$('tabWorld').addEventListener('click', () => { exTab='world'; $('tabWorld').classList.add('active'); $('tabUS').classList.remove('active'); renderEvents(); $('eventList').scrollLeft = 0; });
+$('tabUS').addEventListener('click', () => { exTab='us'; $('tabUS').classList.add('active'); $('tabWorld').classList.remove('active'); renderEvents(); $('eventList').scrollLeft = 0; });
 $('posterBtn').addEventListener('click', makePoster);
 $('eventList').addEventListener('click', e => {
-  const el = e.target.closest('.event.tappable'); if (!el) return;
+  const el = e.target.closest('.ev-card'); if (!el) return;
   const item = currentItems[Number(el.dataset.i)]; if (!item) return;
   openDive(item.t, diveMeta(exYear), item.d);
 });
 const wildClick = e => {
-  const el = e.target.closest('.wild-row'); if (!el) return;
+  const el = e.target.closest('.sp-card'); if (!el) return;
   const arr = el.dataset.kind === 'found' ? currentFound : currentLost;
   const item = arr[Number(el.dataset.i)]; if (!item) return;
   openDive(item.n, diveMeta(item.y), item.d);
@@ -442,7 +567,10 @@ const saved = loadProfile();
 if (saved){
   profile = saved;
   birth = new Date(saved.dob + 'T12:00:00');
-  $('dobInput').value = saved.dob;
+  const [sy, sm, sd] = saved.dob.split('-').map(Number);
+  picked = { y: sy, m: sm, d: sd };
+  dpDecade = Math.floor(sy / 10) * 10;
+  updateDobBtn();
   $('nameInput').value = saved.name || '';
   showStory();
 }
