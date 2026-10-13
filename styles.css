@@ -6047,6 +6047,7 @@ body.modal-open{overflow:hidden}
   flex:0 0 auto;display:flex;align-items:center;gap:16px;flex-wrap:wrap;
   padding:14px 24px 12px;border-bottom:1px solid var(--line);
 }
+.music-heading-row,.music-actions-row,.music-filter-row{display:contents}
 /* Overrides the site's .eyebrow, which is sized for a section label read once
    on the way past rather than for a header on a surface being worked in. */
 .music-eyebrow{display:flex;align-items:center;gap:14px;margin:0;color:var(--accent);font-size:22px;font-weight:700;letter-spacing:.18em}
@@ -7965,6 +7966,20 @@ body:has(> .music-remote.at-tr:not([hidden])) .profile-btn{display:none}
 .music-custom-icon,.music-rail-toggle{display:none}
 .music-rail .music-rail-toggle{display:none}
 @media(max-width:900px){
+  .music-head{flex-direction:column;align-items:stretch;padding:12px 12px 12px 14px;gap:10px}
+  .music-heading-row,.music-actions-row,.music-filter-row{display:flex;align-items:center;gap:10px;min-width:0}
+  .music-heading-row{padding-right:90px;min-height:38px}
+  .music-heading-row .music-eyebrow{font-size:20px;letter-spacing:.14em}
+  .music-heading-row .mode-tag{font-size:10px;padding:4px 8px;white-space:nowrap}
+  .music-modal .music-head .music-head-gap{display:none}
+  .music-actions-row{min-height:44px}
+  .music-actions-row .music-count{order:0;font-size:12px;letter-spacing:.06em}
+  .music-actions-row #musicBackups{order:1}
+  .music-actions-row #musicAdd{order:2;margin-left:auto}
+  .music-actions-row .music-admin-btn{padding:0 9px;gap:6px;font-size:12px;white-space:nowrap}
+  .music-filter-row .music-sort{flex:0 0 auto}
+  .music-filter-row .music-sort button{padding:8px 10px;font-size:12px;letter-spacing:.06em}
+  .music-filter-row .music-search{flex:1 1 0;width:0;min-width:0;height:44px;padding:9px 12px;font-size:16px}
   .music-rail .music-rail-toggle{display:flex;font-size:23px;line-height:1}
   .music-custom-icon{display:flex;flex:0 0 auto}
   .music-rail-add .music-rail-plus{display:block;font-size:25px;line-height:1;color:var(--accent)}

@@ -3496,6 +3496,10 @@ iframe with an original link and a stated automatic-repeat limitation; no
 login credentials or Meta app token are used. Other providers retain native
 iframes and their own playback controls. Closing unloads non-YouTube media.
 
+On mobile the Music header has three rows: title/mode, song count with Backups
+and Add Song at the far right, then Title/Artist sorting with search on the right.
+The three row wrappers use display:contents on desktop, retaining its layout.
+
 On mobile the playlist rail expands over the list through its menu button,
 empty space or new-playlist plus, showing names and the existing creation form.
 An outside tap collapses it. The row membership picker remains separate.

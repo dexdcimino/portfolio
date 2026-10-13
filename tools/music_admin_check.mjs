@@ -485,6 +485,16 @@ try {
   await editor.page.click('.music-picker-okay');
   await editor.page.click('#musicViewAll');
   await editor.page.setViewport({ width: 390, height: 844 });
+  for (const width of [320, 390]) {
+    await editor.page.setViewport({ width, height: 844 });
+    const header = await editor.page.evaluate(() => {
+      const rect = selector => { const r = document.querySelector(selector).getBoundingClientRect(); return { left: r.left, right: r.right, cy: (r.top + r.bottom) / 2, bottom: r.bottom, top: r.top }; };
+      return { count: rect('#musicCount'), backups: rect('#musicBackups'), add: rect('#musicAdd'), sort: rect('.music-sort'), search: rect('#musicSearch') };
+    });
+    note(Math.abs(header.count.cy - header.backups.cy) < 2 && Math.abs(header.add.cy - header.count.cy) < 2 && header.count.right <= header.backups.left && header.backups.right <= header.add.left && header.add.right <= width - 12, `mobile ${width}: count, Backups and far-right Add Song must share a row: ${JSON.stringify(header)}`);
+    note(Math.abs(header.sort.cy - header.search.cy) < 2 && header.sort.right < header.search.left && header.search.right <= width - 12 && header.search.top > header.add.bottom, `mobile ${width}: search must sit right of Title/Artist below the song actions: ${JSON.stringify(header)}`);
+    await editor.page.screenshot({ path: join(ROOT, `.notes-dev/shots/music-header-${width}.png`) });
+  }
   at = await centre(editor.page, `.music-row[data-v="${target}"] .music-playlist-add`);
   await editor.page.mouse.click(at.x, at.y);
   const mobilePicker = await editor.page.evaluate(() => { const r = document.getElementById('musicPlaylistPicker').getBoundingClientRect(); return { left: r.left, right: r.right, top: r.top, bottom: r.bottom }; });
@@ -493,6 +503,7 @@ try {
   await editor.page.click('.music-picker-okay');
   note(await editor.page.$eval('#musicRows .music-row', row => { const meta = row.querySelector('.music-meta').getBoundingClientRect(), add = row.querySelector('.music-playlist-add').getBoundingClientRect(); return add.left > meta.right && Math.abs((add.top + add.bottom) / 2 - (meta.top + meta.bottom) / 2) < 2; }), 'owner mobile playlist icon must stay on the right of its song');
   await viewer.page.setViewport({ width: 390, height: 844 });
+  note(await viewer.page.evaluate(() => { const sort = document.querySelector('.music-sort').getBoundingClientRect(), search = document.getElementById('musicSearch').getBoundingClientRect(), count = document.getElementById('musicCount').getBoundingClientRect(); return Math.abs(sort.top - search.top) < 3 && sort.right < search.left && count.bottom < search.top; }), 'visitor mobile header must keep search beside sorting and song count above');
   note(await viewer.page.$eval('#musicRows .music-row', row => { const meta = row.querySelector('.music-meta').getBoundingClientRect(), add = row.querySelector('.music-playlist-add').getBoundingClientRect(); return add.left > meta.right && Math.abs((add.top + add.bottom) / 2 - (meta.top + meta.bottom) / 2) < 2; }), 'visitor mobile playlist icon must stay on the right of its song');
   await viewer.page.setViewport({ width: 1400, height: 950 });
   const plus = await editor.page.$eval('#musicAddPlaylist', e => { const r = e.getBoundingClientRect(); return { w: r.width, h: r.height }; });

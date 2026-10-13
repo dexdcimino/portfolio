@@ -34,7 +34,7 @@
   <link rel="icon" id="faviconSvg" type="image/svg+xml" href="" />
   <link rel="preload" as="image" href="assets/logos/DEX.svg" />
   <link rel="preload" as="image" href="assets/logos/CIMINO.svg" />
-  <link rel="stylesheet" href="styles.css?v=227" />
+  <link rel="stylesheet" href="styles.css?v=228" />
   <!-- preload src="assets/mascots/mascot_limegreen.png" slot="hero-mascot" -->
   <link rel="preload" as="image" fetchpriority="high"
         href="assets/derived/mascots/mascot_limegreen-900.avif?v=6edad5f9"
@@ -5441,10 +5441,13 @@
         <h2 class="sr-only" id="music-dialog-title">Music</h2>
 
         <div class="music-head">
+          <div class="music-heading-row">
           <p class="eyebrow music-eyebrow">
             <span id="musicTitle">MUSIC</span>
           </p>
           <span class="mode-tag is-viewer" id="musicModeTag"><span class="icon" data-icon="eye" aria-hidden="true"></span><span>Viewer</span></span>
+          </div>
+          <div class="music-actions-row">
           <p class="music-count" id="musicCount" role="status" aria-live="polite">LOADING</p>
           <span class="music-head-gap music-head-gap-admin" aria-hidden="true"></span>
           <!-- TUNES ONLY. Hidden through MUSIC, and hidden is not the lock: the
@@ -5458,7 +5461,9 @@
                   aria-expanded="false" aria-controls="musicBackupsPanel" hidden>
             <span class="icon" data-icon="resume" aria-hidden="true"></span><span>Backups</span>
           </button>
+          </div>
           <span class="music-head-gap" aria-hidden="true"></span>
+          <div class="music-filter-row">
           <!-- Two buttons, not a <select>: there are exactly two answers. -->
           <div class="music-sort" role="group" aria-label="Sort the list">
             <button type="button" id="musicSortTitle" aria-pressed="true">TITLE</button>
@@ -5467,6 +5472,7 @@
           <input class="music-search" id="musicSearch" type="search"
                  placeholder="Search title or artist" aria-label="Search tracks"
                  autocomplete="off" spellcheck="false">
+          </div>
         </div>
 
         <!-- ADD A SONG: paste a link, the server looks up the title, you check
