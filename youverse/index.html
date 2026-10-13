@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>YouVerse — Everything that's happened while you've been alive</title>
+<meta name="description" content="Enter your birthday. See everything that has happened in your body, on Earth, and out in space during your lifetime.">
+<meta name="theme-color" content="#070b14">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand"><span class="brand-mark">✦</span> YouVerse</div>
+  <button id="changeBtn" class="ghost-btn hidden" type="button">Change date</button>
+</header>
+
+<main>
+  <!-- ENTRY -->
+  <section id="entryView" class="entry">
+    <div class="entry-card">
+      <div class="entry-mark">✦</div>
+      <h1>Everything that's happened<br>while <em>you've</em> been alive.</h1>
+      <p class="entry-sub">Your body. Your planet. Your trip through space.<br>One birthday is all it takes.</p>
+      <form id="entryForm">
+        <label class="field">
+          <span>Your birthday</span>
+          <input id="dobInput" type="date" required min="1920-01-01" max="2026-12-31">
+        </label>
+        <label class="field">
+          <span>First name <small>(optional — for your poster)</small></span>
+          <input id="nameInput" type="text" maxlength="24" placeholder="e.g. Alex" autocomplete="given-name">
+        </label>
+        <button class="cta" type="submit">See my story →</button>
+      </form>
+      <p class="privacy">Stays on your device. Nothing is sent anywhere.</p>
+    </div>
+  </section>
+
+  <!-- STORY -->
+  <section id="storyView" class="hidden">
+    <div class="hero">
+      <p class="hero-kicker" id="heroKicker">Your story so far</p>
+      <h2 class="hero-title" id="heroTitle">You've been alive</h2>
+      <div class="hero-seconds"><span id="secondsAlive">0</span><small>seconds</small></div>
+      <p class="hero-line" id="heroLine"></p>
+      <div class="hero-grid">
+        <div class="hero-stat"><span class="hs-num" id="daysAlive">–</span><span class="hs-label">days alive</span></div>
+        <div class="hero-stat"><span class="hs-num" id="heartbeats">–</span><span class="hs-label">heartbeats</span></div>
+        <div class="hero-stat"><span class="hs-num" id="galacticMiles">–</span><span class="hs-label">miles through the galaxy</span></div>
+      </div>
+      <div class="firstday" id="firstDay"></div>
+    </div>
+
+    <section class="chapter">
+      <h3><span class="ch-icon">🫀</span> Your Body</h3>
+      <p class="ch-sub">What this machine has done so far.</p>
+      <div class="cards" id="bodyCards"></div>
+    </section>
+
+    <section class="chapter">
+      <h3><span class="ch-icon">🌍</span> Your Planet</h3>
+      <p class="ch-sub">How Earth changed during your watch.</p>
+      <div class="cards" id="planetCards"></div>
+    </section>
+
+    <section class="chapter">
+      <h3><span class="ch-icon">🚀</span> Your Trip Through Space</h3>
+      <p class="ch-sub">You are nowhere near where you started — and you'll never pass that spot again.</p>
+      <div class="cards" id="spaceCards"></div>
+    </section>
+
+    <section class="chapter explorer">
+      <h3><span class="ch-icon">🗓️</span> Your Years</h3>
+      <p class="ch-sub">Pick any year of your life. See the biggest things that happened in the world — and in the U.S. — while you lived it.</p>
+      <div class="chips" id="ageChips"></div>
+      <div class="year-nav">
+        <button id="prevYear" class="nav-arrow" type="button" aria-label="Previous year">‹</button>
+        <div class="year-center">
+          <div class="year-big" id="yearBig">2000</div>
+          <div class="year-age" id="yearAge">You were 10</div>
+        </div>
+        <button id="nextYear" class="nav-arrow" type="button" aria-label="Next year">›</button>
+      </div>
+      <input id="yearSlider" type="range" step="1">
+      <div class="tabs">
+        <button id="tabWorld" class="tab active" type="button">🌐 World</button>
+        <button id="tabUS" class="tab" type="button">🇺🇸 United States</button>
+      </div>
+      <div id="eventList" class="events"></div>
+    </section>
+
+    <section class="chapter poster-sec">
+      <h3><span class="ch-icon">🖼️</span> Take It With You</h3>
+      <p class="ch-sub">Your whole story on one poster.</p>
+      <button id="posterBtn" class="cta" type="button">Download my poster</button>
+      <canvas id="posterCanvas" width="1080" height="1350" class="hidden"></canvas>
+    </section>
+
+    <footer class="foot">
+      <p>Numbers marked <b>Exact</b> are counted from your date. <b>Calculated</b> uses known rates (your heart, Earth's orbit). <b>Estimate</b> uses long-run averages — honest ballparks, labeled as such.</p>
+      <p>Sources: UN &amp; World Bank population · NASA exoplanet archive · NOAA Mauna Loa CO₂ · ITU internet figures · USGS earthquake averages.</p>
+      <p class="foot-brand">✦ YouVerse — a Dex Cimino creation · dexcimino.com</p>
+    </footer>
+  </section>
+</main>
+
+<script src="data.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
