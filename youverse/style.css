@@ -122,7 +122,7 @@ html.journey{scroll-snap-type:y mandatory; scroll-padding-top:57px}
 .scene h3{font-size:clamp(31px,7vw,46px); margin:0 0 6px; font-weight:850; line-height:1.08}
 .ch-icon{margin-right:8px}
 .ch-sub{color:var(--muted); margin:0 0 20px; font-size:16.5px; line-height:1.55; max-width:600px}
-.spanel{flex:1; display:flex; flex-direction:column; justify-content:center; min-height:0}
+.spanel{flex:1; display:flex; flex-direction:column; justify-content:flex-start; padding-top:3.5vh; min-height:0}
 .tiles{display:grid; grid-template-columns:1fr; gap:12px}
 @media(min-width:640px){.tiles{grid-template-columns:1fr 1fr}}
 @media(min-width:1000px){.tiles{grid-template-columns:1fr 1fr 1fr}}
