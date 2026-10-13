@@ -150,7 +150,14 @@ html.journey main{scroll-snap-type:y mandatory}
 .scene h3{font-size:clamp(31px,7vw,46px); margin:0 0 6px; font-weight:850; line-height:1.08}
 .ch-icon{margin-right:8px}
 .ch-sub{color:var(--muted); margin:0 0 20px; font-size:16.5px; line-height:1.55; max-width:600px}
-/* stat rows: number + accent label on the left, big description on the right — all stats, one page, no tabs */
+/* horizontal sub-pages inside a chapter */
+.hpages{flex:1; min-height:0; display:flex; overflow-x:auto; scroll-snap-type:x mandatory; -webkit-overflow-scrolling:touch}
+.hpage{flex:0 0 100%; scroll-snap-align:start; scroll-snap-stop:always; display:flex; padding:0 2px; min-width:0}
+.hpage .stats{flex:1}
+.pagedots{display:flex; gap:7px; justify-content:center; align-items:center; padding-top:11px; flex:none}
+.pagedots i{width:7px; height:7px; border-radius:50%; background:var(--line); transition:background .3s}
+.pagedots i.on{background:var(--accent)}
+.pagedots .pd-hint{color:var(--muted); font-size:11.5px; font-weight:700; letter-spacing:1.4px; text-transform:uppercase; margin-right:6px}
 .stats{flex:1; min-height:0; display:flex; flex-direction:column; gap:9px; max-width:920px; width:100%}
 .srow{flex:1; min-height:0; overflow:hidden; background:var(--panel); border:1px solid var(--line);
   border-radius:var(--radius); padding:12px 18px; display:flex; align-items:center; gap:18px}
