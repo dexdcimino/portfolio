@@ -21,7 +21,7 @@
   <!-- ENTRY -->
   <section id="entryView" class="entry">
     <div class="entry-card">
-      <div class="entry-mark">✦</div>
+      <img class="entry-icon" src="icon.svg" alt="">
       <h1>Everything that's happened<br>while <em>you've</em> been alive.</h1>
       <p class="entry-sub">Your body. Your planet. Your fellow earthlings.<br>Your trip through space. One birthday is all it takes.</p>
       <form id="entryForm">
@@ -39,54 +39,77 @@
     </div>
   </section>
 
-  <!-- STORY -->
+  <!-- STORY: a journey in scenes -->
   <section id="storyView" class="hidden">
-    <div class="hero">
-      <p class="hero-kicker" id="heroKicker">Your story so far</p>
-      <h2 class="hero-title" id="heroTitle">You've been alive</h2>
-      <div class="hero-seconds"><span id="secondsAlive">0</span><small>seconds</small></div>
-      <p class="hero-line" id="heroLine"></p>
-      <div class="hero-grid">
-        <div class="hero-stat"><span class="hs-num" id="daysAlive">–</span><span class="hs-label">days alive</span></div>
-        <div class="hero-stat"><span class="hs-num" id="heartbeats">–</span><span class="hs-label">heartbeats</span></div>
-        <div class="hero-stat"><span class="hs-num" id="galacticMiles">–</span><span class="hs-label">miles through the galaxy</span></div>
+    <nav id="dotNav" class="dotnav" aria-label="Chapters">
+      <button type="button" data-target="sceneHero" data-label="You"><i></i></button>
+      <button type="button" data-target="sceneBody" data-label="Body"><i></i></button>
+      <button type="button" data-target="scenePlanet" data-label="Planet"><i></i></button>
+      <button type="button" data-target="sceneWild" data-label="Earthlings"><i></i></button>
+      <button type="button" data-target="sceneSpace" data-label="Space"><i></i></button>
+      <button type="button" data-target="sceneYears" data-label="Your Years"><i></i></button>
+      <button type="button" data-target="scenePoster" data-label="Poster"><i></i></button>
+    </nav>
+
+    <!-- SCENE: HERO -->
+    <section class="scene hero" id="sceneHero">
+      <img class="hero-avatar" src="icon.svg" alt="">
+      <p class="hero-kicker rv" id="heroKicker">Your story so far</p>
+      <div class="hero-seconds rv"><span id="secondsAlive">0</span></div>
+      <p class="hero-seclabel rv">seconds alive — and counting</p>
+      <p class="hero-line rv" id="heroLine"></p>
+      <div class="hero-trio rv">
+        <div class="hstat"><span class="hs-num" id="daysAlive">–</span><span class="hs-label">days alive</span></div>
+        <div class="hstat"><span class="hs-num" id="heartbeats">–</span><span class="hs-label">heartbeats</span></div>
+        <div class="hstat"><span class="hs-num" id="galacticMiles">–</span><span class="hs-label">miles through the galaxy</span></div>
       </div>
-      <div class="firstday" id="firstDay"></div>
-    </div>
-
-    <section class="chapter">
-      <h3><span class="ch-icon">🫀</span> Your Body</h3>
-      <p class="ch-sub">What this machine has done so far.</p>
-      <div class="cards" id="bodyCards"></div>
+      <div class="firstday rv" id="firstDay"></div>
+      <div class="scroll-cue" aria-hidden="true">Swipe — your life in scenes<span>↓</span></div>
     </section>
 
-    <section class="chapter">
-      <h3><span class="ch-icon">🌍</span> Your Planet</h3>
-      <p class="ch-sub">How Earth changed during your watch.</p>
-      <div class="cards" id="planetCards"></div>
+    <!-- SCENE: BODY -->
+    <section class="scene" id="sceneBody">
+      <p class="ch-kicker rv">Chapter one</p>
+      <h3 class="rv"><span class="ch-icon">🫀</span> Your Body</h3>
+      <p class="ch-sub rv">What this machine has done so far — without a single day off.</p>
+      <div class="tiles" id="bodyCards"></div>
     </section>
 
-    <section class="chapter">
-      <h3><span class="ch-icon">🚀</span> Your Trip Through Space</h3>
-      <p class="ch-sub">You are nowhere near where you started — and you'll never pass that spot again.</p>
-      <div class="cards" id="spaceCards"></div>
+    <!-- SCENE: PLANET -->
+    <section class="scene" id="scenePlanet">
+      <p class="ch-kicker rv">Chapter two</p>
+      <h3 class="rv"><span class="ch-icon">🌍</span> Your Planet</h3>
+      <p class="ch-sub rv">How Earth changed during your watch.</p>
+      <div class="tiles" id="planetCards"></div>
     </section>
 
-    <section class="chapter">
-      <h3><span class="ch-icon">🐾</span> Your Fellow Earthlings</h3>
-      <p class="ch-sub">You never had this planet to yourself. These are the other lives that began — and ended — during yours. Tap any of them for photos and the full story.</p>
-      <div class="cards" id="wildCards"></div>
-      <h4 class="wild-h">🌟 Found during your life</h4>
+    <!-- SCENE: EARTHLINGS -->
+    <section class="scene" id="sceneWild">
+      <p class="ch-kicker rv">Chapter three</p>
+      <h3 class="rv"><span class="ch-icon">🐾</span> Your Fellow Earthlings</h3>
+      <p class="ch-sub rv">You never had this planet to yourself. The other lives that began — and ended — during yours. Tap any of them for photos and the full story.</p>
+      <div class="tiles" id="wildCards"></div>
+      <h4 class="wild-h rv">🌟 Found during your life</h4>
       <div id="wildFound" class="wild-list"></div>
-      <h4 class="wild-h">🕯️ Lost during your life</h4>
+      <h4 class="wild-h rv">🕯️ Lost during your life</h4>
       <div id="wildLost" class="wild-list"></div>
     </section>
 
-    <section class="chapter explorer">
-      <h3><span class="ch-icon">🗓️</span> Your Years</h3>
-      <p class="ch-sub">Slide through your life by age. See the biggest things that happened in the world — and in the U.S. — at every age. Tap any event for the full story.</p>
-      <div class="chips" id="ageChips"></div>
-      <div class="year-nav">
+    <!-- SCENE: SPACE -->
+    <section class="scene" id="sceneSpace">
+      <p class="ch-kicker rv">Chapter four</p>
+      <h3 class="rv"><span class="ch-icon">🚀</span> Your Trip Through Space</h3>
+      <p class="ch-sub rv">You are nowhere near where you started — and you'll never pass that spot again.</p>
+      <div class="tiles" id="spaceCards"></div>
+    </section>
+
+    <!-- SCENE: YEARS (the time machine) -->
+    <section class="scene explorer" id="sceneYears">
+      <p class="ch-kicker rv">Chapter five · the time machine</p>
+      <h3 class="rv"><span class="ch-icon">🗓️</span> Your Years</h3>
+      <p class="ch-sub rv">Travel back through your own life. Pick an age — see the biggest things that happened in the world, and in the U.S., while you lived it. Tap any event for the full story.</p>
+      <div class="chips rv" id="ageChips"></div>
+      <div class="year-nav rv">
         <button id="prevYear" class="nav-arrow" type="button" aria-label="Previous year">‹</button>
         <div class="year-center">
           <div class="year-big" id="yearBig">Age 10</div>
@@ -94,26 +117,27 @@
         </div>
         <button id="nextYear" class="nav-arrow" type="button" aria-label="Next year">›</button>
       </div>
-      <input id="yearSlider" type="range" step="1">
-      <div class="tabs">
+      <input id="yearSlider" class="rv" type="range" step="1">
+      <div class="tabs rv">
         <button id="tabWorld" class="tab active" type="button">🌐 World</button>
         <button id="tabUS" class="tab" type="button">🇺🇸 United States</button>
       </div>
-      <div id="eventList" class="events"></div>
+      <div id="eventList" class="events rv"></div>
     </section>
 
-    <section class="chapter poster-sec">
-      <h3><span class="ch-icon">🖼️</span> Take It With You</h3>
-      <p class="ch-sub">Your whole story on one poster.</p>
-      <button id="posterBtn" class="cta" type="button">Download my poster</button>
+    <!-- SCENE: POSTER -->
+    <section class="scene poster-sec" id="scenePoster">
+      <p class="ch-kicker rv">Final chapter</p>
+      <h3 class="rv"><span class="ch-icon">🖼️</span> Take It With You</h3>
+      <p class="ch-sub rv">Your whole story on one poster.</p>
+      <button id="posterBtn" class="cta rv" type="button">Download my poster</button>
       <canvas id="posterCanvas" width="1080" height="1350" class="hidden"></canvas>
+      <footer class="foot rv">
+        <p>Numbers marked <b>Exact</b> are counted from your date. <b>Calculated</b> uses known rates (your heart, Earth's orbit). <b>Estimate</b> uses long-run averages — honest ballparks, labeled as such.</p>
+        <p>Sources: UN &amp; World Bank population · NASA exoplanet archive · NOAA Mauna Loa CO₂ · ITU internet figures · USGS earthquake averages · IUCN Red List species records · Wikipedia for deep-dive summaries.</p>
+        <p class="foot-brand">✦ YouVerse — a Dex Cimino creation · dexcimino.com</p>
+      </footer>
     </section>
-
-    <footer class="foot">
-      <p>Numbers marked <b>Exact</b> are counted from your date. <b>Calculated</b> uses known rates (your heart, Earth's orbit). <b>Estimate</b> uses long-run averages — honest ballparks, labeled as such.</p>
-      <p>Sources: UN &amp; World Bank population · NASA exoplanet archive · NOAA Mauna Loa CO₂ · ITU internet figures · USGS earthquake averages · IUCN Red List species records · Wikipedia for deep-dive summaries.</p>
-      <p class="foot-brand">✦ YouVerse — a Dex Cimino creation · dexcimino.com</p>
-    </footer>
   </section>
 </main>
 
