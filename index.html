@@ -1417,7 +1417,7 @@
              exactly as #wpThumbs follows Wallpapers. -->
         <div class="ai-grid ai-grid-side" id="aiApps">
           <!-- Order is DOM order — there is no sort key. After the placeholder:
-               Mobius 3D, Inko, dexnote, MindSplit, ThemeDock, NodeBlast,
+               YouVerse, Mobius 3D, Inko, dexnote, MindSplit, ThemeDock, NodeBlast,
                dexddc (dexnote and ThemeDock swapped, Dex 2026-10-09). The icon block in each
                card is generated from the one-line directive by
                tools/bake_markup.py; never typed. -->
@@ -1442,6 +1442,24 @@
             <span class="ai-card-eye ai-card-eye-soon" aria-hidden="true">
               <span class="icon" data-icon="eye-outline"></span>
             </span>
+          </article>
+          <!-- YOUVERSE (Dex go, 2026-10-13): top of the software list, the
+               first real app, so the panel rests on it. Plain JS like Inko,
+               everything computed on the visitor's device. -->
+          <article class="ai-card" id="youverseCard" data-app-modal="/youverse/" data-link-preview data-app-title="YouVerse" data-gallery="youverse" data-kind="WEB APP" data-stack="VANILLA JS"
+             data-desc-lead="Everything that's happened while you've been alive."
+             data-desc-body="Enter your birthday and YouVerse tells your life as a story in numbers: heartbeats and breaths, miles ridden around the Sun and through the galaxy, people added to Earth, worlds discovered — plus the biggest world and U.S. events for every single year you have lived, browsable year by year. It ends with a poster of your story. Everything runs on your device; your birthday never leaves it."><a class="ai-card-link" href="/youverse/" target="_blank" rel="noopener noreferrer"><strong>YouVerse</strong><span>Your life in numbers<span class="icon inline-arrow" data-icon="arrow-ne" aria-hidden="true"></span></span></a>
+            <picture class="ai-card-iconwrap">
+              <img class="ai-card-icon" src="/youverse/icon.svg" alt="" width="512" height="512" loading="lazy" decoding="async">
+            </picture>
+            <a class="ai-card-gh" href="https://github.com/dexdcimino/portfolio/tree/main/youverse" target="_blank" rel="noopener noreferrer"
+               data-tip="Source on GitHub" data-tip-pos="above" aria-label="YouVerse source on GitHub">
+              <span class="icon" data-icon="github" aria-hidden="true"></span>
+            </a>
+            <button class="ai-card-eye" type="button" data-tip="Functional preview" data-tip-pos="above"
+                    aria-label="Open a functional preview of YouVerse">
+              <span class="icon" data-icon="eye" aria-hidden="true"></span>
+            </button>
           </article>
           <!-- MOBIUS 3D: a desktop app and this page's preview from ONE source,
                github.com/dexdcimino/mobius-3d. The eye opens /mobius/ -- a
