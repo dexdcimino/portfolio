@@ -485,6 +485,8 @@ try {
   await editor.page.click('.music-picker-okay');
   await editor.page.click('#musicViewAll');
   await editor.page.setViewport({ width: 390, height: 844 });
+  await editor.page.setViewport({ width: 1400, height: 950 });
+  note(await editor.page.$eval('#musicRows .music-row', row => { const left = sel => row.querySelector(sel).getBoundingClientRect().left; return left('.music-copy') < left('.music-rename') && left('.music-rename') < left('.music-playlist-add') && left('.music-playlist-add') < left('.music-del'); }), 'desktop song actions must keep their original order');
   for (const width of [320, 390]) {
     await editor.page.setViewport({ width, height: 844 });
     const header = await editor.page.evaluate(() => {
@@ -493,6 +495,23 @@ try {
     });
     note(Math.abs(header.count.cy - header.backups.cy) < 2 && Math.abs(header.add.cy - header.count.cy) < 2 && header.count.right <= header.backups.left && header.backups.right <= header.add.left && header.add.right <= width - 12, `mobile ${width}: count, Backups and far-right Add Song must share a row: ${JSON.stringify(header)}`);
     note(Math.abs(header.sort.cy - header.search.cy) < 2 && header.sort.right < header.search.left && header.search.right <= width - 12 && header.search.top > header.add.bottom, `mobile ${width}: search must sit right of Title/Artist below the song actions: ${JSON.stringify(header)}`);
+    const actions = await editor.page.$eval('#musicRows .music-row', row => {
+      const rect = sel => { const r = row.querySelector(sel).getBoundingClientRect(); return { left: r.left, right: r.right, cy: (r.top + r.bottom) / 2, width: r.width, height: r.height }; };
+      return { meta: rect('.music-meta'), copy: rect('.music-copy'), del: rect('.music-del'), edit: rect('.music-rename'), playlist: rect('.music-playlist-add') };
+    });
+    note(actions.copy.right <= actions.del.left && actions.del.right <= actions.edit.left && actions.edit.right <= actions.playlist.left && Object.values(actions).every(r => Math.abs(r.cy - actions.meta.cy) < 2), `mobile ${width}: Copy, Delete, Edit and Playlist must share the title/artist row in that order: ${JSON.stringify(actions)}`);
+    note(actions.del.width === actions.copy.width && actions.del.height === actions.copy.height && actions.del.width === actions.edit.width && actions.del.height === actions.edit.height, `mobile ${width}: delete must match copy/edit size`);
+    const flagged = await editor.page.$eval('#musicRows .music-row', row => {
+      const flag = row.querySelector('.music-flag'), wasHidden = flag.hidden; flag.hidden = false;
+      const mid = sel => { const r = row.querySelector(sel).getBoundingClientRect(); return (r.top + r.bottom) / 2; };
+      const fits = ['.music-copy', '.music-del', '.music-rename', '.music-playlist-add', '.music-flag'].every(sel => Math.abs(mid(sel) - mid('.music-meta')) < 2);
+      flag.hidden = wasHidden; return fits;
+    });
+    note(flagged, `mobile ${width}: a playback warning must not push delete onto another row`);
+    await editor.page.click('#musicRows .music-row .music-del');
+    const armedRow = await editor.page.$eval('#musicRows .music-row', row => { const meta = row.querySelector('.music-meta').getBoundingClientRect(), del = row.querySelector('.music-del').getBoundingClientRect(); return { cy: (del.top + del.bottom) / 2, metaCY: (meta.top + meta.bottom) / 2, height: row.getBoundingClientRect().height, armed: row.querySelector('.music-del').classList.contains('is-armed') }; });
+    note(armedRow.armed && Math.abs(armedRow.cy - armedRow.metaCY) < 2, `mobile ${width}: confirming deletion must stay on the same song row`);
+    await editor.page.click('#musicSearch');
     await editor.page.screenshot({ path: join(ROOT, `.notes-dev/shots/music-header-${width}.png`) });
   }
   at = await centre(editor.page, `.music-row[data-v="${target}"] .music-playlist-add`);

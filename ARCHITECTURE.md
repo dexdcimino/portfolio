@@ -3499,6 +3499,9 @@ iframes and their own playback controls. Closing unloads non-YouTube media.
 On mobile the Music header has three rows: title/mode, song count with Backups
 and Add Song at the far right, then Title/Artist sorting with search on the right.
 The three row wrappers use display:contents on desktop, retaining its layout.
+Mobile editor song rows explicitly place Copy, Delete, Edit and Playlist on
+one grid row. Copy/Delete/Edit share a compact 26x30px size; flagged songs
+reserve a final alert cell. Desktop ordering and two-press deletion remain intact.
 
 On mobile the playlist rail expands over the list through its menu button,
 empty space or new-playlist plus, showing names and the existing creation form.

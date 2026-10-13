@@ -6565,7 +6565,7 @@ html.dex-cursor .music-meta{cursor:var(--dex-cursor-pointer,pointer)}
 @media(max-width:900px){
   .music-row .music-flagcell:has(.music-flag[hidden]){display:none}
   .music-row:has(.music-flag:not([hidden])){grid-template-columns:34px minmax(0,1fr) 24px 22px 30px}
-  .music-modal.is-admin .music-row:has(.music-flag:not([hidden])){grid-template-columns:34px minmax(0,1fr) 24px 22px 28px 30px 30px;gap:6px}
+  .music-modal.is-admin .music-row:has(.music-flag:not([hidden])){grid-template-columns:30px minmax(0,1fr) 26px 26px 26px 30px 22px;gap:5px}
   .music-shell{width:100vw;height:100dvh;border-radius:0;border:0}
   .music-close{top:10px;left:auto;right:10px;margin-left:0}
   .music-head{padding:12px 12px 12px 14px;gap:10px}
@@ -6580,7 +6580,21 @@ html.dex-cursor .music-meta{cursor:var(--dex-cursor-pointer,pointer)}
      characters of a URL, and the copy button is what it was there for. The
      button moves into the row as its own square cell. */
   .music-row{grid-template-columns:34px minmax(0,1fr) 24px 30px;gap:8px}
-  .music-modal.is-admin .music-row{grid-template-columns:34px minmax(0,1fr) 24px 28px 30px 30px}
+  .music-modal.is-admin .music-row{grid-template-columns:30px minmax(0,1fr) 26px 26px 26px 30px;gap:5px;padding-inline:8px}
+  .music-modal.is-admin .music-row > *{grid-row:1}
+  .music-modal.is-admin .music-row > .music-play{grid-column:1}
+  .music-modal.is-admin .music-row > .music-meta{grid-column:2}
+  .music-modal.is-admin .music-row > .music-linkcell{grid-column:3}
+  .music-modal.is-admin .music-row > .music-delcell{grid-column:4}
+  .music-modal.is-admin .music-row > .music-renamecell{grid-column:5}
+  .music-modal.is-admin .music-row > .music-playlist-add{grid-column:6}
+  .music-modal.is-admin .music-row > .music-flagcell{grid-column:7}
+  .music-modal.is-admin .music-row .music-copy,
+  .music-modal.is-admin .music-row .music-rename,
+  .music-modal.is-admin .music-row .music-del:not(.is-armed){width:26px;height:30px;min-width:0;min-height:0}
+  .music-modal.is-admin .music-row .music-copy,.music-modal.is-admin .music-row .music-rename{opacity:.7}
+  .music-modal.is-admin .music-row .music-copy .icon,.music-modal.is-admin .music-row .music-rename .icon{width:18px;height:18px}
+  .music-modal.is-admin .music-row .music-del.is-armed{max-width:none}
   .music-add-found{grid-template-columns:minmax(0,1fr)}
   .music-add-thumb{display:none}
   .music-link{display:none}
