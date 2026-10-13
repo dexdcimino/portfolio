@@ -5647,3 +5647,33 @@ Canvas colour retains its own
 exclusive panel. The existing file-fingerprint update mechanism and
 network-first service worker deliver this same change to web and installed
 apps; no manually maintained cache version is needed.
+
+
+## 2026-10-13 — Music playlist accepts provider embeds
+
+Replace the YouTube-only add/store gate with one shared URL parser in
+`lib/music-embeds.js`. Support public Instagram posts/Reels/TV, Vimeo,
+SoundCloud, Spotify, TikTok and Bandcamp's generated player URL in addition
+to YouTube. Normalize copied share parameters and embed snippets; never
+execute pasted HTML or admit arbitrary frame hosts. Preserve YouTube ids and
+rebuild every stored provider frame URL from the allowlist.
+
+The simple integration uses each provider's own visible controls. The site
+can unload/reopen a frame and change entries, but does not invent playback
+state, timing, volume, automatic next or background playback for providers
+without an integrated API. Native embeds stop on overlay close and cannot
+start behind another overlay. An Open original link handles restricted posts.
+YouTube retains its current behavior. CSP admits only the six new frame
+origins; external scripts remain confined to the providers' own frames.
+
+Research: Instagram's official `https://www.instagram.com/embed.js` constructs
+permalink + `embed/` frames (fetched successfully); a public Reel embed returned
+HTTP 200. Spotify's embed tutorial, SoundCloud's widget documentation, TikTok's
+embed-player documentation and Bandcamp's help describe their official player
+URLs. No metadata scraping or private-media bypass is used.
+
+The music editor checker also now follows the repository's existing three
+backup slots, seven editor columns and SURE? delete wording. It names the two
+pre-existing cursor-boot CSP hashes separately from provider errors. The
+legacy full music checker still requires migration from the removed Stop
+button; its new --playlist-core mode verifies the existing queue behavior.

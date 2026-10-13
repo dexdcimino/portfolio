@@ -7102,6 +7102,7 @@ const MediaBus = (() => {
      is the only proof there is something on the other end. Until then a load()
      navigates the frame instead of commanding it. */
   let ready = false;
+  let nativeEmbed = false;
 
   /* The bar's X, and only the bar's X, means END IT. Everything else that
      closes the overlay hands the music to the corner.
@@ -7420,6 +7421,7 @@ const MediaBus = (() => {
      time the overlay is open, so this is a real state with a real reader, not a
      blank waiting to be filled. */
   function idle() {
+    nativeUI(null);
     nowTitle.textContent = 'Nothing playing';
     nowArtist.textContent = `${queue.length} in ${view === 'repeat' ? 'REPEAT' : 'ALL'}`;
     if (screen) screen.classList.remove('is-live');
@@ -7466,12 +7468,12 @@ const MediaBus = (() => {
     mark();
     const icon = btnToggle.querySelector('.icon');
     if (icon) icon.dataset.icon = playing ? 'pause' : 'play';
-    btnToggle.setAttribute('aria-label', playing ? 'Pause' : 'Play');
-    MediaBus.playbackState(me, playing);
+    btnToggle.setAttribute('aria-label', nativeEmbed ? (playing ? 'Close embed' : 'Open embed') : (playing ? 'Pause' : 'Play'));
+    MediaBus.playbackState(me, playing && !nativeEmbed);
     paintFs();
     /* The sound is inside a cross-origin iframe, so this document has to make
        one of its own to be the thing the OS media keys are pointed at. */
-    MediaBus.holdSession(armed && playing);
+    MediaBus.holdSession(armed && playing && !nativeEmbed);
     /* THE ONE SIGNAL A REMOTE READS. `armed` means the embed is holding a
        track -- playing or paused -- which is exactly "there is music to
        control", and it is already the flag every other answer in here is
@@ -7488,7 +7490,7 @@ const MediaBus = (() => {
      origin. Everything below goes through here so there is one place that
      knows the protocol. */
   function post(message) {
-    if (!frame.contentWindow) return;
+    if (nativeEmbed || !frame.contentWindow) return;
     try { frame.contentWindow.postMessage(JSON.stringify(message), ORIGIN); }
     catch { /* not loaded yet, or navigated away — the next command re-sends */ }
   }
@@ -7516,6 +7518,18 @@ const MediaBus = (() => {
     return `${ORIGIN}/embed/${encodeURIComponent(v)}?${params}`;
   }
 
+  function nativeUI(source) {
+    nativeEmbed = !!source?.e;
+    modal.classList.toggle('has-native-embed', nativeEmbed);
+    const help = $('musicEmbedHelp'), link = $('musicEmbedOriginal');
+    help.hidden = !nativeEmbed;
+    if (source?.e) { help.firstChild.textContent = `Use ${source.p}'s player controls. Public posts must allow embedding. `; link.href = source.u; }
+    else link.removeAttribute('href');
+    for (const el of [scrubEl, volEl, btnMute, btnLoop, fsScrubEl, fsVolEl, fsBtns.mute, fsBtns.loop]) {
+      if (el) el.disabled = nativeEmbed;
+    }
+  }
+
   function load(i, fromClick, walking) {
     const track = queue[i];
     if (!track) return;
@@ -7541,7 +7555,10 @@ const MediaBus = (() => {
        to -1 while the audio carries on -- so the thing that failed cannot be
        looked up as queue[index] when the failure arrives. This is what the
        flag is hung on. */
+    const wasNative = nativeEmbed;
     current = track;
+    const source = window.MusicEmbeds.parse(track.v);
+    nativeUI(source);
     nowTitle.textContent = track.t;
     nowArtist.textContent = track.a;
     bar.hidden = false;
@@ -7556,8 +7573,8 @@ const MediaBus = (() => {
        a hand-built URL is a second cache entry for our own bytes and a
        hand-picked width goes stale against `sizes`. Neither applies to a remote
        thumbnail with one canonical name. */
-    const thumb = `https://i.ytimg.com/vi/${encodeURIComponent(track.v)}/mqdefault.jpg`;
-    if (thumbEl) thumbEl.src = thumb;
+    const thumb = nativeEmbed ? '' : `https://i.ytimg.com/vi/${encodeURIComponent(track.v)}/mqdefault.jpg`;
+    if (thumbEl) { if (thumb) thumbEl.src = thumb; else thumbEl.removeAttribute('src'); }
     // ...and the same picture goes to Windows' media flyout and the media keys.
     MediaBus.nowPlaying(me, { title: track.t, artist: track.a, artwork: thumb });
     try { localStorage.setItem(LAST_KEY, track.v); } catch { /* private mode */ }
@@ -7566,7 +7583,11 @@ const MediaBus = (() => {
        command to a player that is already alive. Reloading the iframe each
        time would throw away the gesture that permits sound and flash a black
        box between songs. */
-    if (!armed) {
+    if (nativeEmbed) {
+      calm(); deadRun = 0;
+      frame.src = source.e;
+      armed = true; ready = false;
+    } else if (!armed || wasNative) {
       frame.src = srcFor(track.v);
       armed = true;
       ready = false;
@@ -7671,6 +7692,7 @@ const MediaBus = (() => {
      second would read the old time and restart again instead of stepping back
      a track. */
   function restart() {
+    if (nativeEmbed) { resume(); return; }
     cmd('seekTo', [0, true]);
     position = 0;
     paintTime(0);
@@ -7700,8 +7722,8 @@ const MediaBus = (() => {
     load(next, true);
   }
 
-  function pause() { cmd('pauseVideo'); playing = false; paint(); }
-  function resume() { cmd('playVideo'); playing = true; paint(); MediaBus.solo(me); }
+  function pause() { if (nativeEmbed) frame.removeAttribute('src'); else cmd('pauseVideo'); playing = false; paint(); }
+  function resume() { if (nativeEmbed && current) frame.src = window.MusicEmbeds.parse(current.v).e; else cmd('playVideo'); playing = true; paint(); MediaBus.solo(me); }
 
   /* Stop is not pause: the frame has to actually stop and let go of its src,
      or a closed overlay leaves a player holding the last frame of a video
@@ -8323,13 +8345,13 @@ const MediaBus = (() => {
      re-sent on every navigation — which is only the first load here, because
      everything after it is loadVideoById. */
   frame.addEventListener('load', () => {
-    if (!armed) return;
+    if (!armed || nativeEmbed) return;
     post({ event: 'listening', id: 1, channel: 'widget' });
     pushVolume();
   });
 
   window.addEventListener('message', (event) => {
-    if (event.origin !== ORIGIN) return;
+    if (nativeEmbed || event.origin !== ORIGIN) return;
     if (!frame.contentWindow || event.source !== frame.contentWindow) return;
     let data;
     try { data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data; }
@@ -8456,6 +8478,7 @@ const MediaBus = (() => {
      positioned by ordinary CSS — and close()+show() never takes the iframe out
      of the document, so the audio does not even blink. */
   function redock() {
+    if (nativeEmbed) { stop(); return; }
     // The pill is the controller outside the modal (Dex, 2026-10-05). The
     // dialog stays open non-modally (hidden) so the YouTube iframe keeps
     // playing — a closed dialog hides its content and YouTube pauses.
@@ -8686,7 +8709,7 @@ const MediaBus = (() => {
     addTitle.value = '';
     addArtist.value = '';
     addFound.hidden = true;
-    addNote.textContent = 'Paste a YouTube link.';
+    addNote.textContent = 'Paste a music/video link or embed code.';
     delete addNote.dataset.tone;
     delete addPanel.dataset.v;
     addSave.disabled = true;
@@ -8709,18 +8732,20 @@ const MediaBus = (() => {
     addFound.hidden = true;
     addSave.disabled = true;
     delete addNote.dataset.tone;
-    if (!value) { addNote.textContent = 'Paste a YouTube link.'; return; }
+    if (!value) { addNote.textContent = 'Paste a music/video link or embed code.'; return; }
     addNote.textContent = 'Looking it up…';
     const data = await edit('lookup', { url: value }, { quiet: true });
     if (seq !== lookSeq || !data) return;
     if (data.error) { addNote.textContent = `${capital(data.error)}.`; addNote.dataset.tone = 'bad'; return; }
     if (data.already) { addNote.textContent = 'That one is already in the playlist.'; addNote.dataset.tone = 'bad'; return; }
     addPanel.dataset.v = data.v;
-    addThumb.src = `https://i.ytimg.com/vi/${data.v}/mqdefault.jpg`;
+    addThumb.hidden = data.p !== 'YouTube';
+    if (!addThumb.hidden) addThumb.src = `https://i.ytimg.com/vi/${data.v}/mqdefault.jpg`;
+    else addThumb.removeAttribute('src');
     addTitle.value = data.t || '';
     addArtist.value = data.a || '';
     addFound.hidden = false;
-    addNote.textContent = data.t ? 'Check the title and artist, then add it.' : 'No title came back — type one in.';
+    addNote.textContent = data.p !== 'YouTube' ? `${data.p} embed — enter the title and artist. Playback uses its own controls; availability depends on the provider.` : data.t ? 'Check the title and artist, then add it.' : 'No title came back — type one in.';
     syncSave();
     (data.t ? addSave : addTitle).focus();
   }
@@ -8923,7 +8948,7 @@ const MediaBus = (() => {
 
     /* Closing the LIST is not stopping the MUSIC. A track still playing keeps
        playing, in the corner, and the page carries on around it. */
-    if (!ending && armed) { redock(); return; }
+    if (!ending && armed && !nativeEmbed) { redock(); return; }
 
     modal.classList.remove('is-docked');
     if (expandBtn) expandBtn.hidden = true;
@@ -8938,6 +8963,9 @@ const MediaBus = (() => {
   $('musicClose')?.addEventListener('click', () => closeModal(modal));
   /* Reset mode tag on close */
   modal?.addEventListener('close', () => {
+    // bindModal can skip its cleanup when another dialog takes over. Providers
+    // without a playback API must still unload rather than sound behind it.
+    if (nativeEmbed && !modal.open) { stop(); stopSync(); }
     if (window.setModeTag) window.setModeTag('musicModeTag', false);
   });
 
@@ -8965,7 +8993,7 @@ const MediaBus = (() => {
           if (!loaded) await fetchTracks();
           // fetchTracks populates `tracks`; queue is only set by render().
           // Use tracks directly.
-          const list = (typeof tracks !== 'undefined' && tracks.length) ? tracks : [];
+          const list = (typeof tracks !== 'undefined' && tracks.length) ? tracks.filter(t => !window.MusicEmbeds.parse(t.v)?.e) : [];
           let idx = 0;
           try {
             const lastV = localStorage.getItem(LAST_KEY);

@@ -3459,9 +3459,31 @@ chess lobby, which holds nothing to leak, and it means the caps in
 
 ## Music overlay (code `MUSIC`)
 
-A playlist of YouTube links behind the same door as the notes: type `MUSIC`
+A playlist of supported music/video embeds behind the same door as the notes: type `MUSIC`
 into the tilde keypad or the Idea Vault to listen, or `TUNES` to edit it. Not in
 the nav, not linked anywhere.
+
+`lib/music-embeds.js` is the shared browser/server URL allowlist. It accepts
+YouTube, public Instagram posts/Reels/TV, Vimeo, SoundCloud, Spotify, TikTok
+and Bandcamp EmbeddedPlayer URLs, or their iframe/Instagram embed snippets.
+Pasted markup is never executed. Only the approved URL is extracted and
+normalized; stored embed URLs are reconstructed rather than trusted.
+Instagram's shortcode is one `/p/` identity across Reel links and embed code.
+
+YouTube retains its existing transport, time, volume, auto-advance and docking.
+The other providers render their own interactive player, with a larger frame,
+a note and an Open original link. The site's toggle unloads/reopens those
+frames; Previous/Next select entries manually. Unsupported seek/volume/repeat
+controls are disabled or hidden. Closing the overlay unloads these providers,
+and they are excluded from hidden autoplay behind another overlay. Their
+availability remains subject to provider restrictions; lookup does not promise
+that a private or embedding-disabled post will play. No Meta app token needed.
+
+Validation: `node tools/music_embed_check.mjs`, `node tools/music_admin_check.mjs`
+and `node tools/music_check.mjs --playlist-core`. The full legacy music checker
+still references the removed `musicStop` control and needs migration to the
+current pill. The core mode checks the existing YouTube playlist, permissions,
+shuffle cycle and history before those legacy layout checks.
 
 ```
 tracklist.txt            the SEED and the copy in git: Title|Artist|URL[|R]
@@ -3478,7 +3500,7 @@ lib/music-store.js       the LIVE list in Vercel Blob, its backups, TUNES_PASSWO
 api/music/playlist.js    GET is public; every edit needs a token TUNES earned
 tools/music_check.mjs    427 checks in a real browser, serves the repo itself,
                          reaches NO network — the embed is intercepted
-tools/music_admin_check.mjs  67 checks: the store, the API, and TUNES editing
+tools/music_admin_check.mjs  the store, the API, Instagram and TUNES editing
                          while a MUSIC screen watches it change
 tools/music_flag_check.mjs  21 checks that DO reach YouTube: a real embed
                          refusing a real video, over https, see below

@@ -34,7 +34,7 @@
   <link rel="icon" id="faviconSvg" type="image/svg+xml" href="" />
   <link rel="preload" as="image" href="assets/logos/DEX.svg" />
   <link rel="preload" as="image" href="assets/logos/CIMINO.svg" />
-  <link rel="stylesheet" href="styles.css?v=223" />
+  <link rel="stylesheet" href="styles.css?v=225" />
   <!-- preload src="assets/mascots/mascot_limegreen.png" slot="hero-mascot" -->
   <link rel="preload" as="image" fetchpriority="high"
         href="assets/derived/mascots/mascot_limegreen-900.avif?v=6edad5f9"
@@ -5473,9 +5473,9 @@
              it and add it. Nothing is written without a person seeing it. -->
         <form class="music-add" id="musicAddPanel" hidden autocomplete="off">
           <label class="music-add-url">
-            <span>YouTube link</span>
-            <input id="musicAddUrl" type="url" inputmode="url" spellcheck="false"
-                   placeholder="https://youtu.be/…">
+            <span>Music/video link or embed code</span>
+            <input id="musicAddUrl" type="text" inputmode="url" spellcheck="false"
+                   placeholder="YouTube, Instagram, Vimeo, SoundCloud, Spotify, TikTok or Bandcamp embed">
           </label>
           <div class="music-add-found" id="musicAddFound" hidden>
             <img class="music-add-thumb" id="musicAddThumb" alt="" width="320" height="180">
@@ -5663,6 +5663,7 @@
             <div class="music-now">
               <strong class="music-now-title" id="musicNowTitle"></strong>
               <span class="music-now-artist" id="musicNowArtist"></span>
+              <p id="musicEmbedHelp" hidden>Use the embedded player controls. <a id="musicEmbedOriginal" target="_blank" rel="noopener noreferrer">Open original</a></p>
             </div>
           </div>
 
@@ -6035,6 +6036,7 @@
     </form>
   </dialog>
 
-  <script src="script.js?v=224"></script>
+  <script src="lib/music-embeds.js"></script>
+  <script src="script.js?v=225"></script>
 </body>
 </html>

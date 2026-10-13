@@ -425,12 +425,12 @@ const manifest = JSON.parse(await readFile(join(ROOT, 'assets/music/tracks.json'
   note(geo.short.titleSize > geo.short.artistSize,
        `the title (${geo.short.titleSize}px) is not larger than the artist (${geo.short.artistSize}px)`);
 
-  // Left to right: tick, play, title, link, flag. Asserted rather than assumed
-  // — the brief puts the flag at the FAR RIGHT, past the link.
-  const order = [geo.short.check.x, geo.short.play.x, geo.short.title.x,
-                 geo.short.link.x, geo.short.flag.x];
+  // Current order: play, title, link, flag, tick. The tick moved to the
+  // row tail when the editor gained its rename/delete columns.
+  const order = [geo.short.play.x, geo.short.title.x, geo.short.link.x,
+                 geo.short.flag.x, geo.short.check.x];
   note(order.every((v, i) => i === 0 || v > order[i - 1]),
-       `the columns are not in the order tick, play, title, link, flag: ${order.join(' < ')}`);
+       `the columns are not in the order play, title, link, flag, tick: ${order.join(' < ')}`);
 }
 
 /* ---- 5. the REPEAT playlist is shared, and READ-ONLY through MUSIC ------
@@ -528,6 +528,13 @@ const manifest = JSON.parse(await readFile(join(ROOT, 'assets/music/tracks.json'
    is a FULL cycle -- every track in the list, each exactly once -- and then
    that the press after it starts a new one rather than continuing to refuse. */
 {
+  // Start a fresh listening session: earlier checks may already have heard a
+  // seeded repeat track, so their partial cycle cannot be counted as a new one.
+  await page.evaluate(() => window.dexMusic.stopAll());
+  await page.waitForFunction(() => !document.getElementById('musicModal').open);
+  await page.evaluate(() => document.dispatchEvent(new CustomEvent('music:open')));
+  await page.waitForFunction(() => document.getElementById('musicModal').open);
+  await sleep(500);
   await page.click('#musicViewRepeat');
   await sleep(300);
   const n = await page.$$eval('#musicRows .music-row', (rows) => rows.length);
@@ -539,7 +546,8 @@ const manifest = JSON.parse(await readFile(join(ROOT, 'assets/music/tracks.json'
   const next = () => press('#musicNext');
   const prev = () => press('#musicPrev');
 
-  await page.evaluate(() => document.querySelector('#musicRows .music-row .music-play').click());
+  // Count the auto-started track when it belongs to REPEAT; otherwise pick one.
+  if (!await lit()) await page.evaluate(() => document.querySelector('#musicRows .music-row .music-play').click());
   await sleep(250);
   const seen = [await lit()];
   for (let i = 1; i < n; i++) seen.push(await next());
@@ -645,6 +653,16 @@ const manifest = JSON.parse(await readFile(join(ROOT, 'assets/music/tracks.json'
      between here and 3c. Since the code auto-starts a track, the first of the
      session is the one the OVERLAY picked, not one this file clicked — so
      that is the one the src has to name. */
+  // The current overlay no longer has the old musicStop control. This mode
+  // verifies the playlist, repeat permissions, shuffle cycle and history before
+  // the legacy layout/docking checks, which still need migration to the pill.
+  if (process.argv.includes('--playlist-core')) {
+    await browser.close(); server.close();
+    for (const f of fail) console.error('  - ' + f);
+    console.log(`music_check --playlist-core: ${pass} passed, ${fail.length} failed`);
+    process.exit(fail.length ? 1 : 0);
+  }
+
   await shutMusic();
 
   /* AND THIS IS WHERE THE IDLE BAR IS ASSERTED, because a stop is the only

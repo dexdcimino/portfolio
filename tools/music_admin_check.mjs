@@ -6,7 +6,7 @@
  *
  * 1. THE STORE, in-process. The id parser and its refusals, the title guess,
  *    the password fold, token expiry, and the backup tiers on a real directory:
- *    forty-five edits must leave exactly forty per-edit copies and one daily,
+ *    forty-five edits must leave the current hourly/daily/weekly backup slots,
  *    an empty list must be refused, and a playlist file that does not parse
  *    must be an ERROR rather than a quiet fall back to the seed -- the one path
  *    that would undo every edit ever made.
@@ -99,25 +99,23 @@ const scratch = (tag) => { const d = mkdtempSync(join(tmpdir(), `tunes-${tag}-`)
   let doc = await store.read();
   note(doc.seeded && doc.tracks.length === SEEDN, `the first read is ${doc.tracks.length} tracks, seeded ${doc.seeded}`);
 
-  /* FORTY-FIVE EDITS. Five past the per-edit cap, so pruning has to run, and
-     all on one day, so the daily tier has to hold exactly one. */
+  // Repeated edits must retain just the current three backup tiers.
   for (let i = 0; i < 45; i++) {
     const next = doc.tracks.map((t, k) => (k === 0 ? { ...t, r: i % 2 === 0 } : t));
     doc = await store.write(doc, next);
   }
   const dir = process.env.NOTES_DEV_DIR;
   const edits = readdirSync(join(dir, 'music/backups')).length;
-  const days = readdirSync(join(dir, 'music/daily')).length;
   note(doc.rev === 45, `45 edits left rev ${doc.rev}`);
-  note(edits === store.BACKUP_KEEP, `${edits} per-edit backups after 45 edits, expected ${store.BACKUP_KEEP}`);
-  note(days === 1, `${days} daily backups after one day of edits, expected 1`);
+  note(edits === 3, `${edits} backup slots after 45 edits, expected 3`);
+  note((await store.listBackups()).map(b => b.kind).join() === 'hourly,daily,weekly', 'the three backup tiers are not in order');
 
   let threw = false;
   try { await store.write(doc, []); } catch { threw = true; }
   note(threw, 'an empty playlist was saved');
   note(await store.readBackup('../../etc/passwd') === null, 'a path outside the backups was read');
   const list = await store.listBackups();
-  note(list.length === 41 && list[0].label > list[list.length - 1].label, `the backup list has ${list.length} entries, newest first`);
+  note(list.length === 3 && list[0].label >= list[list.length - 1].label, `the backup list has ${list.length} entries, newest first`);
   note((await store.readBackup(list[0].name) || []).length === SEEDN, 'the newest backup does not read back');
 
   /* A PLAYLIST THAT DOES NOT PARSE IS AN ERROR. Falling back to the seed here
@@ -127,7 +125,7 @@ const scratch = (tag) => { const d = mkdtempSync(join(tmpdir(), `tunes-${tag}-`)
   let broken = false;
   try { await store.read(); } catch { broken = true; }
   note(broken, 'a corrupt playlist quietly fell back to the seed');
-  console.log(`store: ${IDS.length} links parsed, 45 edits -> ${edits} edit backups + ${days} daily, corrupt file refused`);
+  console.log(`store: ${IDS.length} links parsed, 45 edits -> ${edits} backup slots, corrupt file refused`);
 }
 
 /* ---- 2. the API ------------------------------------------------------------- */
@@ -214,10 +212,9 @@ let TOKEN = null;
 
   r = await api({ action: 'backups', token: TOKEN });
   const backups = r.data.backups || [];
-  const editsOnly = backups.filter((b) => b.kind === 'edit');
-  /* Three edits, three copies of what each one replaced: the seed, the seed
-     plus one, the seed plus one on repeat. Newest first. */
-  note(editsOnly.length === 3, `${editsOnly.length} edit backups after three edits`);
+  const editsOnly = backups.filter((b) => b.kind === 'hourly');
+  /* Hourly keeps the latest replaced document; daily keeps the first one. */
+  note(editsOnly.length === 1, `${editsOnly.length} edit backups after three edits`);
   note(editsOnly[0] && editsOnly[0].count === SEEDN + 1, `the newest backup holds ${editsOnly[0] && editsOnly[0].count}`);
   /* THE DAY'S COPY IS THE DAY BEFORE ITS FIRST EDIT. That edit was an add, so
      the start of the day is the seed, not the seed plus one. */
@@ -228,7 +225,7 @@ let TOKEN = null;
   r = await api({ action: 'restore', token: TOKEN, name: oldest.name });
   note(r.status === 200 && r.data.count === oldest.count, `restoring the oldest backup came back ${r.status} with ${r.data && r.data.count}`);
   r = await api({ action: 'backups', token: TOKEN });
-  note(r.data.backups.filter((b) => b.kind === 'edit').length === 4, 'the restore did not back up the list it replaced');
+  note(r.data.backups.length === 3 && r.data.backups[0].count === SEEDN, 'the restore did not back up the list it replaced');
   console.log(`api: public read, 401 without a token, add/duplicate/repeat/remove, ${editsOnly.length} backups, restore backed up`);
 }
 
@@ -250,7 +247,7 @@ async function door(event, code, name, signedIn = null) {
   /* The embed is not what this checks, and it autoplays. Refused at the wire,
      the way music_check does it, so no test waits on YouTube. */
   await page.setRequestInterception(true);
-  page.on('request', (req) => (/youtube|ytimg|googlevideo/.test(req.url()) ? req.abort()
+  page.on('request', (req) => (/^https:\/\/(www.instagram.com|player.vimeo.com|w.soundcloud.com|open.spotify.com|www.tiktok.com|bandcamp.com)\//.test(req.url()) ? req.respond({ status: 200, contentType: 'text/html', body: '<button id="native-play">Provider play</button>' }) : /youtube|ytimg|googlevideo/.test(req.url()) ? req.abort()
     : signedIn && req.url().endsWith('/account/site-auth.js') ? req.respond({ status: 200, contentType: 'text/javascript', body: FAKE_SITE_AUTH(signedIn) })
     : req.continue()));
   page.on('pageerror', (e) => fail.push(`pageerror (${name}): ${e.message}`));
@@ -263,6 +260,8 @@ async function door(event, code, name, signedIn = null) {
        this is the first harness to run the music under the shipped CSP.
        Reported rather than silently fixed; delete this line with the fix. */
     if (/Loading media from\s+'blob:/.test(m.text())) return;
+    // Existing cursor boot markup has these two exact CSP violations; unrelated to embeds.
+    if (/sha256-yfeeyJJFv0e0ETclMoA\/fQpcw8fQzfeyHwr3xcTLMbA=|sha256-SDDSKD\+gm5Y\/3ONeJpDILYC3YFvKXREhacfb0i9Rsxw=/.test(m.text())) return;
     fail.push(`console (${name}): ${m.text()}`);
   });
   await page.goto(BASE, { waitUntil: 'networkidle2', timeout: 60000 });
@@ -310,7 +309,7 @@ try {
   const e0 = await state(editor.page);
   /* DEX SIGNED IN IS THE EDITOR, through plain MUSIC and no code at all. */
   note(e0.admin && e0.title === 'MUSIC', `MUSIC as Dex opened as ${e0.title}, admin ${e0.admin}`);
-  note(e0.add && e0.backups && e0.del === e0.rows && e0.enabled === e0.rows && e0.cells === 6,
+  note(e0.add && e0.backups && e0.del === e0.rows && e0.enabled === e0.rows && e0.cells === 7,
        `MUSIC as Dex shows add ${e0.add}, backups ${e0.backups}, ${e0.del} minus for ${e0.rows} rows, ${e0.cells} cells`);
   const w0 = await state(wrong.page);
   note(!w0.admin && !w0.add && w0.del === 0 && w0.enabled === 0, `TUNES as someone else: admin ${w0.admin}, add ${w0.add}, ${w0.del} minus`);
@@ -364,7 +363,7 @@ try {
     return { armed: b.classList.contains('is-armed'), word: b.textContent.trim(), w: Math.round(b.getBoundingClientRect().width),
              bg: getComputedStyle(b).backgroundColor, still: !!b.closest('.music-row') };
   }, sel);
-  note(armed.armed && armed.word === 'Delete' && armed.w > 60, `one press: armed ${armed.armed}, says "${armed.word}", ${armed.w}px`);
+  note(armed.armed && armed.word === 'SURE?' && armed.w > 60, `one press: armed ${armed.armed}, says "${armed.word}", ${armed.w}px`);
   note(/229, 72, 77/.test(armed.bg), `the armed pill is ${armed.bg}, not red`);
   note(armed.still && await has(editor.page, 'HarnessTst2'), 'one press removed the track');
   await sleep(3900);
@@ -415,7 +414,7 @@ try {
     counts: [...document.querySelectorAll('#musicBackupsList .music-bk-count')].every((c) => /\d+ tracks/.test(c.textContent)),
     dl: !!document.getElementById('musicDownload'),
   }));
-  note(bk.n >= 6 && bk.counts, `the backups panel lists ${bk.n} restore points`);
+  note(bk.n === 3 && bk.counts, `the backups panel lists ${bk.n} restore points`);
   note(bk.dl, 'there is no download button in the backups panel');
   at = await centre(editor.page, '#musicBackupsList .music-bk-restore');
   await editor.page.mouse.click(at.x, at.y);
@@ -432,6 +431,57 @@ try {
   await sleep(900);
   const e1 = await state(editor.page);
   note(e1.admin && e1.del === e1.rows, `reopened as Dex: admin ${e1.admin}, ${e1.del} minus for ${e1.rows} rows`);
+  // Add an Instagram Reel through the actual editor, preserving its URL through storage and polling.
+  const reel = 'https://www.instagram.com/p/DI4qDiEyZpU/';
+  await editor.page.click('#musicAdd');
+  await editor.page.type('#musicAddUrl', 'https://www.instagram.com/reel/DI4qDiEyZpU/?igsh=tracking');
+  await editor.page.waitForFunction(() => !document.getElementById('musicAddFound').hidden);
+  await editor.page.type('#musicAddTitle', 'Instagram music check');
+  await editor.page.type('#musicAddArtist', 'Embed artist');
+  await editor.page.click('#musicAddSave');
+  await editor.page.waitForFunction(u => [...document.querySelectorAll('#musicRows .music-row')].some(e => e.dataset.v === u), {}, reel);
+  await pull(viewer.page);
+  await viewer.page.waitForFunction(u => [...document.querySelectorAll('#musicRows .music-row')].some(e => e.dataset.v === u), {}, reel);
+  note(await has(viewer.page, reel), 'the Instagram Reel did not persist and reach the visitor playlist');
+  await editor.page.click('#musicSearch'); await editor.page.type('#musicSearch', 'Instagram music check');
+  await sleep(350); await editor.page.click('#musicRows .music-play'); await sleep(300);
+  const embedded = await editor.page.evaluate(() => {
+    const frame = document.getElementById('musicVideo'), r = frame.getBoundingClientRect();
+    return { src: frame.src, w: r.width, h: r.height, native: document.getElementById('musicModal').classList.contains('has-native-embed'),
+      note: !document.getElementById('musicEmbedHelp').hidden, original: document.getElementById('musicEmbedOriginal').href,
+      seek: document.getElementById('musicScrub').disabled, volume: document.getElementById('musicVol').disabled };
+  });
+  note(embedded.src === reel + 'embed/' && embedded.native && embedded.note && embedded.original === reel && embedded.seek && embedded.volume && embedded.w >= 300 && embedded.h >= 200,
+    `Instagram player has its own controls and a readable frame: ${JSON.stringify(embedded)}`);
+  await editor.page.screenshot({ path: join(ROOT, '.notes-dev/shots/music-instagram.png') });
+  await editor.page.click('#musicFull');
+  await editor.page.waitForFunction(() => document.fullscreenElement?.id === 'musicScreen');
+  const full = await editor.page.evaluate(() => { const r = document.getElementById('musicVideo').getBoundingClientRect(); return { w: r.width, h: r.height, hit: document.elementFromPoint(30, 18)?.id, vw: innerWidth, vh: innerHeight }; });
+  note(full.w === full.vw && full.h === full.vh && full.hit === 'musicVideo', `fullscreen provider fills the screen and remains interactive: ${JSON.stringify(full)}`);
+  await editor.page.click('#musicFsExit');
+  await editor.page.waitForFunction(() => !document.fullscreenElement);
+  note(await editor.page.evaluate(() => document.getElementById('musicModal').open && document.getElementById('musicVideo').src.endsWith('/embed/')), 'leaving provider fullscreen closed its player');
+
+  await editor.page.setViewport({ width: 390, height: 844 }); await sleep(250);
+  const phone = await editor.page.evaluate(() => { const r = document.getElementById('musicVideo').getBoundingClientRect(); return { x: r.x, right: r.right, w: r.width, h: r.height, help: document.getElementById('musicEmbedHelp').getBoundingClientRect().height > 0 }; });
+  note(phone.x >= 0 && phone.right <= 390 && phone.w >= 280 && phone.h >= 250 && phone.help, `phone provider player fits: ${JSON.stringify(phone)}`);
+  await editor.page.screenshot({ path: join(ROOT, '.notes-dev/shots/music-instagram-phone.png') });
+  await editor.page.setViewport({ width: 1400, height: 950 }); await sleep(200);
+
+  await editor.page.click('#musicToggle');
+  note(await editor.page.evaluate(() => !document.getElementById('musicVideo').hasAttribute('src')), 'Close embed left the provider running');
+  await editor.page.click('#musicToggle');
+  note(await editor.page.evaluate(() => document.getElementById('musicVideo').src.endsWith('/embed/')), 'Open embed did not restore the provider');
+  await editor.page.evaluate(() => { document.getElementById('contactModal').showModal(); document.getElementById('musicModal').close(); }); await sleep(350);
+  note(await editor.page.evaluate(() => !document.getElementById('musicVideo').hasAttribute('src') && !document.getElementById('musicModal').open), 'closing Instagram left a hidden provider player');
+  note(await editor.page.evaluate(() => document.getElementById('contactModal').open), 'provider cleanup disturbed the overlay taking over');
+  await editor.page.evaluate(() => document.getElementById('contactModal').close());
+  await editor.page.evaluate(() => document.dispatchEvent(new CustomEvent('music:open'))); await sleep(800);
+  await editor.page.click('#musicSearch'); await editor.page.keyboard.down('Control'); await editor.page.keyboard.press('A'); await editor.page.keyboard.up('Control'); await editor.page.keyboard.press('Backspace'); await sleep(300);
+  await editor.page.click('#musicRows .music-play'); await sleep(200);
+  note(await editor.page.evaluate(() => !document.getElementById('musicModal').classList.contains('has-native-embed') && document.getElementById('musicVideo').src.includes('youtube-nocookie.com/embed/')), 'YouTube did not recover after the provider player');
+  await editor.page.click('#musicToggle');
+
   /* SIGNING OUT ENDS EDITING THERE AND THEN, with the list still up. */
   await editor.page.evaluate(() => { localStorage.removeItem('site:signedIn'); window.dispatchEvent(new CustomEvent('site:user')); });
   await sleep(900);

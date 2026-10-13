@@ -73,8 +73,9 @@ module.exports = async function handler(req, res) {
     if (!store.tokenOk(body.token)) return res.status(401).json({ error: 'not allowed' });
 
     if (action === 'lookup') {
-      const v = store.parseId(body.url);
-      if (!v) return res.status(400).json({ error: 'that is not a YouTube video link' });
+      const source = store.parseEmbed(body.url);
+      if (!source) return res.status(400).json({ error: 'use a YouTube, Instagram post/Reel, Vimeo, SoundCloud, Spotify or TikTok link, or a Bandcamp player embed' });
+      const v = source.v;
       const doc = await store.read();
       const already = doc.tracks.some((t) => t.v === v);
       let guess = { t: '', a: '' };
@@ -82,7 +83,7 @@ module.exports = async function handler(req, res) {
          end without YouTube, which would otherwise decide the result of a test
          about this site. Never set on a deploy -- and if it were, the form still
          works: it asks for the title instead of guessing it. */
-      if (!process.env.MUSIC_LOOKUP_OFFLINE) try {
+      if (!source.e && !process.env.MUSIC_LOOKUP_OFFLINE) try {
         const ctrl = new AbortController();
         const timer = setTimeout(() => ctrl.abort(), 6000);
         const r = await fetch(`https://www.youtube.com/oembed?format=json&url=${encodeURIComponent(`https://www.youtube.com/watch?v=${v}`)}`,
@@ -98,7 +99,7 @@ module.exports = async function handler(req, res) {
           return res.status(422).json({ error: 'that video cannot be embedded, or it is gone', v });
         }
       } catch { /* no title is not a reason to refuse: the form asks for one */ }
-      return res.status(200).json({ v, t: guess.t, a: guess.a, already });
+      return res.status(200).json({ v, p: source.p, u: source.u, t: guess.t, a: guess.a, already });
     }
 
     if (action === 'backups') {
