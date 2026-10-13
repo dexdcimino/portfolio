@@ -157,20 +157,20 @@ function renderStory(){
       srow('est', s.breaths, 'compact', '', 'breaths', 'Roughly 16 a minute, sleeping and waking, since your very first one.'),
       srow('est', s.days*2000, 'compact', '', 'gallons of blood pumped', `Enough to fill about ${Math.max(1, Math.round(s.days*2000/660000))} Olympic swimming pools.`),
       srow('est', s.days*16*60*17, 'compact', '', 'blinks', 'About 17 a minute while you\'re awake.'),
-      srow('est', s.days*3.3e11, 'compact', '', 'cells replaced by your body', 'Almost none of the cells you were born with are still you. You are a Ship of Theseus.'),
+      srow('est', s.days*3.3e11, 'compact', '', 'cells replaced', 'Almost none of the cells you were born with are still you. You are a Ship of Theseus.'),
     ],
     [
-      srow('est', walkMiles, 'compact', '', 'miles you have walked', walkLaps >= 1 ? `That is ${walkLaps.toFixed(1)} laps around the entire Earth.` : `That is ${Math.round(walkLaps*100)}% of the way around the entire Earth.`),
+      srow('est', walkMiles, 'compact', '', 'miles walked', walkLaps >= 1 ? `That is ${walkLaps.toFixed(1)} laps around the entire Earth.` : `That is ${Math.round(walkLaps*100)}% of the way around the entire Earth.`),
       srow('est', s.days*3, 'compact', '', 'meals eaten', 'Give or take a few thousand snacks.'),
-      srow('est', s.days*16000, 'compact', '', 'words you have spoken', `About ${commas(Math.round(s.days*16000/80000))} novels\' worth, said out loud.`),
-      srow('est', s.days*15, 'compact', '', 'times you have laughed', 'Roughly 15 a day — the good stuff adds up.'),
-      srow('est', s.days*4, 'compact', '', 'dreams you have dreamed', 'Several a night. You forgot almost every single one.'),
+      srow('est', s.days*16000, 'compact', '', 'words spoken', `About ${commas(Math.round(s.days*16000/80000))} novels\' worth, said out loud.`),
+      srow('est', s.days*15, 'compact', '', 'laughs', 'Roughly 15 a day — the good stuff adds up.'),
+      srow('est', s.days*4, 'compact', '', 'dreams dreamed', 'Several a night. You forgot almost every single one.'),
     ],
     [
-      srow('est', s.days*8, 'compact', '', 'hours spent asleep', 'About a third of your life, gone to recharging.'),
-      srow('est', s.days*2, 'compact', '', 'hours spent dreaming', 'Around 2 hours a night inside worlds your brain built for free.'),
-      srow('est', s.years*1.378, 'compact', '', 'feet of fingernail grown', 'All ten fingers, end to end, at about 3.5 mm a month each.'),
-      srow('est', s.years*0.5, 'compact', '', 'feet a single hair could grow', 'If you had never cut it — about 6 inches a year, every year.'),
+      srow('est', s.days*8, 'compact', '', 'hours asleep', 'About a third of your life, gone to recharging.'),
+      srow('est', s.days*2, 'compact', '', 'hours dreaming', 'Around 2 hours a night inside worlds your brain built for free.'),
+      srow('est', s.years*1.378, 'compact', '', 'feet of fingernails', 'All ten fingers, end to end, at about 3.5 mm a month each.'),
+      srow('est', s.years*0.5, 'compact', '', 'feet of hair growth', 'If you had never cut it — about 6 inches a year, every year.'),
       srow('est', s.years*1.4, 'compact', '', 'pounds of skin shed', 'You leave a trail of yourself everywhere you go.'),
     ],
   ]);
@@ -180,39 +180,39 @@ function renderStory(){
   const crossed = MILESTONES.filter(([, y]) => by < Number(y) && Number(y) <= new Date().getFullYear());
   fillPages('planetPages', 'planetDots', [
     [
-      srow('calc', (s.popN - s.popB)*1e9, 'plusCompact', '', 'people added to Earth',
+      srow('calc', (s.popN - s.popB)*1e9, 'plusCompact', '', 'people added',
         `From ${s.popB.toFixed(2)} billion when you arrived to ${s.popN.toFixed(2)} billion now.`),
-      srow('est', s.years*134e6, 'compact', '', 'babies born since you',
+      srow('est', s.years*134e6, 'compact', '', 'babies born',
         'Every one of them arrived into a world that already had you in it.'),
       s.netB < 0.05
-        ? srow('calc', null, null, 'basically zero', 'internet users at your birth',
+        ? srow('calc', null, null, 'basically zero', 'internet users then',
           `Today: ${compactFmt(s.netN*1e9)}. The internet grew up alongside you.`)
-        : srow('calc', s.netB*1e9, 'compact', '', 'internet users at your birth',
+        : srow('calc', s.netB*1e9, 'compact', '', 'internet users then',
           `Today: ${compactFmt(s.netN*1e9)}. The internet grew up alongside you.`),
       srow('calc', s.co2N - s.co2B, 'plus0', ' ppm', 'more CO₂ in every breath',
         `Air at your birth: ${s.co2B.toFixed(0)} ppm. Air today: ${s.co2N.toFixed(0)} ppm.`),
       srow('calc', s.warmed, 'temp', '', 'warmer planet',
         'The global average temperature rise on your watch.'),
-      srow('est', s.years*145, 'compact', '', 'earthquakes, magnitude 6+',
+      srow('est', s.years*145, 'compact', '', 'earthquakes mag 6+',
         'The ground under you has never really sat still (USGS average).'),
-      srow('calc', s.secs*44, 'compact', '', 'lightning strikes on Earth',
+      srow('calc', s.secs*44, 'compact', '', 'lightning strikes',
         'About 44 flashes every second, planet-wide (NASA).'),
     ],
     [
-      srow('est', s.years*15, 'compact', '', 'earthquakes, magnitude 7+',
+      srow('est', s.years*15, 'compact', '', 'earthquakes mag 7+',
         'The big, damaging kind — about 15 a year worldwide (USGS).'),
       srow('est', s.years*55, 'compact', '', 'volcanic eruptions',
         'Somewhere on Earth, roughly one a week, your whole life.'),
-      srow('est', s.days*100000, 'compact', '', 'flights flown by humanity',
+      srow('est', s.days*100000, 'compact', '', 'flights flown',
         'Around 100,000 takeoffs and landings every single day.'),
-      srow('est', s.years*80e6, 'compact', '', 'cars built by humanity',
+      srow('est', s.years*80e6, 'compact', '', 'cars built',
         'Roughly 80 million new cars roll out every year.'),
       srow('calc', null, null, crossed.length ? String(crossed.length) : '0',
-        'world population milestones passed',
+        'population milestones',
         crossed.length
           ? crossed.map(([b, y]) => `${b} billion in ${y}`).join(' · ') + ' — you were here for all of them.'
           : 'The world hit 8 billion in 2022 — before your time. Next up: 9 billion, expected around 2037.'),
-      srow('est', s.days*12, 'compact', '', 'hours of daylight lived under',
+      srow('est', s.days*12, 'compact', '', 'hours of daylight',
         'Half a life in light, half in dark — on average, wherever you are.'),
     ],
   ]);
@@ -222,33 +222,33 @@ function renderStory(){
   const neoB = Math.round(interp(NEO_ANCHORS, bYF)), neoN = Math.round(interp(NEO_ANCHORS, nYF));
   fillPages('spacePages', 'spaceDots', [
     [
-      srow('calc', s.galaxyMiles, 'compact', '', 'miles through the galaxy',
+      srow('calc', s.galaxyMiles, 'compact', '', 'Milky Way miles',
         'The Sun orbits the Milky Way at ~514,000 mph. You ride along.'),
       srow('calc', s.sunMiles, 'compact', '', 'miles around the Sun',
         `${s.years.toFixed(1)} full laps at ~584 million miles each.`),
       srow('exact', s.moons, 'compact', '', 'full moons',
         'Every 29.5 days, like clockwork, whether you looked up or not.'),
-      srow('calc', s.exoN - s.exoB, 'compact', '', 'planets discovered beyond our solar system',
+      srow('calc', s.exoN - s.exoB, 'compact', '', 'planets discovered',
         `Known when you were born: ${commas(s.exoB)}. Known today: ${commas(s.exoN)}.`),
-      srow('est', s.years*4.7, 'dec1', '', 'eclipses have occurred',
+      srow('est', s.years*4.7, 'dec1', '', 'eclipses',
         'Solar and lunar, somewhere on Earth — about 4–5 a year.'),
       s.issOrbits > 0
-        ? srow('calc', s.issOrbits, 'compact', '', 'ISS orbits during your life',
+        ? srow('calc', s.issOrbits, 'compact', '', 'ISS orbits',
           'One lap of Earth every ~93 minutes, this many times since ' + (birth < new Date(1998,10,20) ? 'it launched in 1998.' : 'you arrived.'))
-        : srow('calc', null, null, '0', 'ISS orbits during your life', 'The Space Station launched in 1998 — it will catch up.'),
+        : srow('calc', null, null, '0', 'ISS orbits', 'The Space Station launched in 1998 — it will catch up.'),
     ],
     [
-      srow('est', s.years*3, 'compact', '', 'stars born in the Milky Way',
+      srow('est', s.years*3, 'compact', '', 'Milky Way stars born',
         'Only about three a year now — our galaxy has mostly settled down.'),
-      srow('est', null, null, '0 so far', 'supernovae in the Milky Way',
+      srow('est', null, null, '0 so far', 'Milky Way supernovae',
         'Our galaxy averages one every ~50 years. The last one anyone saw was in 1604 — yours is overdue.'),
-      srow('est', s.days*2.75e8, 'compact', '', 'stars born in the observable universe',
+      srow('est', s.days*2.75e8, 'compact', '', 'stars born universe-wide',
         'About 275 million every single day, by the best astronomical estimates.'),
-      srow('est', s.secs*30, 'compact', '', 'supernovae across the universe',
+      srow('est', s.secs*30, 'compact', '', 'supernovae universe-wide',
         'Roughly 30 stars explode every second, somewhere out there.'),
-      srow('calc', neoN - neoB, 'compact', '', 'near-Earth asteroids catalogued',
+      srow('calc', neoN - neoB, 'compact', '', 'near-Earth asteroids',
         `Known when you were born: ${commas(neoB)}. Known today: ${commas(neoN)}.`),
-      srow('calc', s.years*0.1247, 'compact', '', 'feet the Moon has drifted away',
+      srow('calc', s.years*0.1247, 'compact', '', 'feet the Moon drifted',
         'It slips about 1.5 inches further from you every year.'),
     ],
   ]);
@@ -377,37 +377,78 @@ function renderEvents(){
   const items = data[exTab] || [];
   currentItems = items;
   list.innerHTML = items.map((e,i) =>
-    `<div class="ev-card" data-i="${i}" role="button" tabindex="0"><div class="card-media"><img data-wiki="${e.t.replace(/"/g,'&quot;')}" alt=""></div><div class="card-body"><div class="et">${e.t}</div><div class="ed">${e.d}</div><div class="go">The full story ›</div></div></div>`).join('')
+    `<div class="ev-card" data-i="${i}" role="button" tabindex="0"><div class="card-media"><img data-wiki="${e.t.replace(/"/g,'&quot;')}" data-fb="${exTab}" alt=""></div><div class="card-body"><div class="et">${e.t}</div><div class="ed">${e.d}</div><div class="go">The full story ›</div></div></div>`).join('')
     || '<div class="empty">No entries for this view yet.</div>';
   hydrateImages(list);
 }
 
 /* ---------- wikipedia thumbnails for cards (same source as the deep-dive) ---------- */
 const wikiImgCache = new Map();
-function wikiThumb(title){
+/* Card images, resolved through a chain so a card is never left blank:
+   hand-picked overrides → the best of several Wikipedia matches (first page
+   that actually has a photo) → the pageimages API → a Wikimedia Commons
+   photo search → a category fallback photo (Blue Marble / Capitol / fox /
+   thylacine, all verified live). */
+const FALLBACK_IMG = {
+  world: 'https://thumb.wikimedia.org/wikipedia/commons/thumb/9/97/The_Earth_seen_from_Apollo_17.jpg/960px-The_Earth_seen_from_Apollo_17.jpg',
+  us: 'https://thumb.wikimedia.org/wikipedia/commons/thumb/5/5a/US_Capitol_dome_Jan_2006.jpg/960px-US_Capitol_dome_Jan_2006.jpg',
+  found: 'https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c4/Red_Fox_drinking_from_a_lake_in_Gennevilliers%2C_France.jpg/960px-Red_Fox_drinking_from_a_lake_in_Gennevilliers%2C_France.jpg',
+  lost: 'https://thumb.wikimedia.org/wikipedia/commons/thumb/0/07/Thylacinus_cynocephalus_at_Hobart_Zoo_1928.jpg/960px-Thylacinus_cynocephalus_at_Hobart_Zoo_1928.jpg',
+};
+const YV_IMG_OVERRIDES = {};  /* filled by the coverage audit: title -> image URL */
+function wikiImage(title){
+  if (YV_IMG_OVERRIDES[title]) return Promise.resolve(YV_IMG_OVERRIDES[title]);
   if (wikiImgCache.has(title)) return wikiImgCache.get(title);
   const p = (async () => {
     try {
       const s = await fetch('https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch='
-        + encodeURIComponent(title) + '&srlimit=1&format=json&origin=*').then(r => r.json());
-      const hit = s.query && s.query.search && s.query.search[0];
-      if (!hit) return null;
-      const sum = await fetch('https://en.wikipedia.org/api/rest_v1/page/summary/'
-        + encodeURIComponent(hit.title.replace(/ /g,'_'))).then(r => r.json());
-      return (sum.thumbnail && sum.thumbnail.source) || null;
-    } catch(e){ return null; }
+        + encodeURIComponent(title) + '&srlimit=4&format=json&origin=*').then(r => r.json());
+      const hits = (s.query && s.query.search) || [];
+      for (const hit of hits){
+        const sum = await fetch('https://en.wikipedia.org/api/rest_v1/page/summary/'
+          + encodeURIComponent(hit.title.replace(/ /g,'_'))).then(r => r.json()).catch(() => null);
+        if (sum && sum.thumbnail && sum.thumbnail.source) return sum.thumbnail.source;
+      }
+      if (hits.length){
+        const pi = await fetch('https://en.wikipedia.org/w/api.php?action=query&prop=pageimages&piprop=original|thumbnail&pithumbsize=900&titles='
+          + encodeURIComponent(hits[0].title) + '&format=json&origin=*').then(r => r.json()).catch(() => null);
+        const pages = pi && pi.query && pi.query.pages;
+        if (pages){ const pg = Object.values(pages)[0]; if (pg && (pg.thumbnail || pg.original)) return (pg.thumbnail || pg.original).source; }
+      }
+      const cs = await fetch('https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrsearch='
+        + encodeURIComponent(title + ' filetype:bitmap') + '&gsrnamespace=6&gsrlimit=4&prop=imageinfo&iiprop=url|size|mime&iiurlwidth=900&format=json&origin=*')
+        .then(r => r.json()).catch(() => null);
+      const cpages = cs && cs.query && cs.query.pages;
+      if (cpages){
+        const cands = Object.values(cpages)
+          .filter(pg => pg.imageinfo && pg.imageinfo[0] && /^image\/(jpeg|png|webp)$/.test(pg.imageinfo[0].mime || '') && (pg.imageinfo[0].width || 0) >= 500)
+          .sort((a, b) => (a.index || 99) - (b.index || 99));
+        if (cands.length) return cands[0].imageinfo[0].thumburl || cands[0].imageinfo[0].url;
+      }
+    } catch(e){}
+    return null;
   })();
   wikiImgCache.set(title, p);
   return p;
 }
+/* Thumbnails load lazily: only when a card scrolls near view, so a rail of
+   70+ species doesn't fire 70+ Wikipedia lookups up front. */
+const thumbObserver = ('IntersectionObserver' in window) ? new IntersectionObserver(entries => {
+  entries.forEach(en => { if (en.isIntersecting){ thumbObserver.unobserve(en.target); loadThumb(en.target); } });
+}, {rootMargin: '300px'}) : null;
+async function loadThumb(img){
+  let src = await wikiImage(img.dataset.wiki);
+  if (!src) src = FALLBACK_IMG[img.dataset.fb] || null;
+  if (src){
+    img.onerror = () => { const fb = FALLBACK_IMG[img.dataset.fb]; if (fb && img.src !== fb) img.src = fb; };
+    img.src = src;
+    const card = img.closest('.ev-card, .sp-card');
+    if (card) card.classList.add('has-img');
+  }
+}
 function hydrateImages(scope){
-  scope.querySelectorAll('img[data-wiki]').forEach(async img => {
-    const src = await wikiThumb(img.dataset.wiki);
-    if (src){
-      img.src = src;
-      const card = img.closest('.ev-card, .sp-card');
-      if (card) card.classList.add('has-img');
-    }
+  scope.querySelectorAll('img[data-wiki]').forEach(img => {
+    if (thumbObserver) thumbObserver.observe(img); else loadThumb(img);
   });
 }
 
@@ -425,11 +466,17 @@ async function openDive(title, meta, fallback){
   document.body.style.overflow = 'hidden';
   try {
     const s = await fetch('https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch='
-      + encodeURIComponent(title) + '&srlimit=1&format=json&origin=*').then(r => r.json());
-    const hit = s.query && s.query.search && s.query.search[0];
-    if (!hit) throw new Error('no hit');
-    const sum = await fetch('https://en.wikipedia.org/api/rest_v1/page/summary/'
-      + encodeURIComponent(hit.title.replace(/ /g,'_'))).then(r => r.json());
+      + encodeURIComponent(title) + '&srlimit=3&format=json&origin=*').then(r => r.json());
+    const hits = (s.query && s.query.search) || [];
+    if (!hits.length) throw new Error('no hit');
+    /* best article = the first hit whose page has both a summary and a photo */
+    let hit = hits[0], sum = null;
+    for (const h of hits){
+      const sm = await fetch('https://en.wikipedia.org/api/rest_v1/page/summary/'
+        + encodeURIComponent(h.title.replace(/ /g,'_'))).then(r => r.json()).catch(() => null);
+      if (sm && sm.extract){ hit = h; sum = sm; if (sm.thumbnail) break; }
+    }
+    if (!sum) throw new Error('no summary');
     const url = (sum.content_urls && sum.content_urls.desktop && sum.content_urls.desktop.page)
       || ('https://en.wikipedia.org/wiki/' + encodeURIComponent(hit.title.replace(/ /g,'_')));
     const img = sum.thumbnail ? `<img class="dive-img" src="${sum.thumbnail.source}" alt="">` : '';
@@ -452,7 +499,7 @@ function closeDive(){
 /* ---------- fellow earthlings ---------- */
 function spCard(w, kind, i){
   return `<div class="sp-card" data-kind="${kind}" data-i="${i}" role="button" tabindex="0">` +
-    `<div class="card-media"><img data-wiki="${w.n.replace(/"/g,'&quot;')}" alt=""></div><div class="card-body">` +
+    `<div class="card-media"><img data-wiki="${w.n.replace(/"/g,'&quot;')}" data-fb="${kind}" alt=""></div><div class="card-body">` +
     `<div class="sp-main"><span class="sp-name">${w.n}</span><span class="sp-year">${w.y}</span></div>` +
     `<div class="sp-note">${w.d}</div><div class="go">Photos + full story ›</div></div></div>`;
 }
@@ -495,7 +542,7 @@ function makePoster(){
   const rows = [
     [commas(s.days), 'days alive'],
     [commas(s.heartbeats), 'heartbeats'],
-    [bigFmt(s.galaxyMiles), 'miles through the galaxy'],
+    [bigFmt(s.galaxyMiles), 'Milky Way miles'],
     [commas(s.moons), 'full moons witnessed'],
     ['+' + bigFmt((s.popN - s.popB)*1e9), 'people added to Earth'],
     [commas(s.exoN - s.exoB), 'new worlds discovered'],
@@ -676,7 +723,7 @@ function showInstallSheet(){
     : ios ? '<ol style="margin:0 0 16px;padding-left:20px;font-size:15px;line-height:1.6;color:#c9d6ee;"><li>Tap the <b>Share</b> button in Safari</li><li>Tap <b>Add to Home Screen</b></li></ol>'
     : '<ol style="margin:0 0 16px;padding-left:20px;font-size:15px;line-height:1.6;color:#c9d6ee;"><li>Open the browser <b>menu</b> (⋮)</li><li>Tap <b>Install app</b> or <b>Add to Home screen</b></li></ol>';
   t.innerHTML = '<div style="background:#0e1626;border:1px solid #1d2c47;border-radius:18px;padding:26px;max-width:350px;width:100%;color:#eef4ff;">' +
-    '<img src="icon-512.png" alt="" style="width:60px;height:60px;border-radius:15px;display:block;margin-bottom:14px;">' +
+    '<img src="icon-512.png" alt="" style="width:60px;height:60px;border-radius:50%;display:block;margin-bottom:14px;">' +
     '<h3 style="margin:0 0 10px;font-size:20px;">Install YouVerse</h3>' + steps +
     '<button data-go style="width:100%;background:linear-gradient(90deg,#35e0c8,#2bb7d8);border:none;border-radius:12px;padding:14px;font-weight:800;cursor:pointer;color:#04241f;font-size:16px;">' + (deferredPrompt ? 'Install' : 'Got it') + '</button></div>';
   t.querySelector('[data-go]').onclick = async () => {
