@@ -11067,7 +11067,17 @@ let openReader = () => {};
       const embedUrl = (isCrossOriginUrl || isInkoPath) ? url : url + (url.includes('?') ? '&' : '?') + 'embed=1';
       // Set src on open, not in the markup: otherwise every visitor downloads
       // the whole bundle whether or not they ever click the card.
-      if (frame.getAttribute('src') !== embedUrl) frame.setAttribute('src', embedUrl);
+      // ALWAYS navigate fresh (Bash, 2026-10-13): the old equality guard
+      // below meant a frame that once landed on a Chrome error page (say a
+      // framing block that was fixed server-side minutes later) could never
+      // recover in that tab — Back restores the dead frame from bfcache,
+      // the guard saw src already "correct", and no navigation ever
+      // happened again; refreshing instead navigated the TAB to the app
+      // (replaceState above had already rewritten its URL). Blanking first,
+      // then setting the URL in a tick, forces a real load — with current
+      // response headers — on every single open, for every app.
+      frame.setAttribute('src', 'about:blank');
+      setTimeout(() => frame.setAttribute('src', embedUrl), 0);
       openModal(dialog, dialog.querySelector('.app-shell'), null, opener);
       // Show the app's URL while the preview is open
       try {
