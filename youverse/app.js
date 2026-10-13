@@ -18,9 +18,20 @@ function bigFmt(n){
   if (n >= 1e6)  return (n/1e6).toFixed(1).replace(/\.0$/,'') + ' million';
   return commas(n);
 }
+function compactFmt(n){
+  const a = Math.abs(n);
+  const trim = v => v.toFixed(2).replace(/\.?0+$/,'');
+  if (a >= 1e12) return trim(n/1e12) + 'T';
+  if (a >= 1e9) return trim(n/1e9) + 'B';
+  if (a >= 1e6) return trim(n/1e6) + 'M';
+  if (a >= 1e3) return trim(n/1e3) + 'K';
+  return commas(n);
+}
 const FMT = {
   int: v => commas(v),
   big: v => bigFmt(v),
+  compact: v => compactFmt(v),
+  plusCompact: v => '+' + compactFmt(v),
   plusBig: v => '+' + bigFmt(v),
   plus0: v => '+' + Math.round(v),
   temp: v => '+' + v.toFixed(1) + ' °C',
@@ -98,11 +109,12 @@ function computeStats(){
   };
 }
 const TAG = {exact:'<span class="tag exact">Exact</span>', calc:'<span class="tag calc">Calculated</span>', est:'<span class="tag est">Estimate</span>'};
-/* tile(tag, raw, fmt, suffix, lbl, sub) — when raw is null, suffix carries the full display HTML. */
-function tile(tag, raw, fmt, suffix, lbl, sub){
+/* stat row: compact number + accent label on the left, description on the right.
+   When raw is null, suffix carries the full display HTML. */
+function srow(tag, raw, fmt, suffix, lbl, sub){
   const attrs = raw != null ? ` data-count="${raw}" data-fmt="${fmt}" data-suffix="${suffix || ''}"` : '';
   const disp = raw != null ? FMT[fmt](raw) + (suffix || '') : suffix;
-  return `<div class="tile rv">${TAG[tag]}<div class="num"${attrs}>${disp}</div><div class="lbl">${lbl}</div><div class="sub">${sub}</div></div>`;
+  return `<div class="srow"><div class="s-left"><div class="num"${attrs}>${disp}</div><div class="lbl">${lbl}${TAG[tag]}</div></div><div class="sub">${sub}</div></div>`;
 }
 function wstat(raw, fmt, suffix, lbl){
   return `<div class="wstat rv"><div class="num" data-count="${raw}" data-fmt="${fmt}" data-suffix="${suffix || ''}">${FMT[fmt](raw) + (suffix || '')}</div><div class="lbl">${lbl}</div></div>`;
@@ -116,70 +128,60 @@ function renderStory(){
   dEl.textContent = commas(s.days);
   dEl.dataset.count = s.days; dEl.dataset.fmt = 'int'; dEl.dataset.suffix = '';
   const gEl = $('galacticMiles');
-  gEl.textContent = bigFmt(s.galaxyMiles);
-  gEl.dataset.count = s.galaxyMiles; gEl.dataset.fmt = 'big'; gEl.dataset.suffix = '';
+  gEl.textContent = compactFmt(s.galaxyMiles);
+  gEl.dataset.count = s.galaxyMiles; gEl.dataset.fmt = 'compact'; gEl.dataset.suffix = '';
   $('heroLine').innerHTML =
     `Born <b>${birth.toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})}</b> · ` +
     `Earth has carried you <b>${s.years.toFixed(1)} years</b> around the Sun — and counting.`;
 
-  /* Body — three tabbed panels */
-  $('bodyTiles0').innerHTML = [
-    tile('calc', null, null, '<span id="bodyHeartbeats">' + commas(s.heartbeats) + '</span>', 'heartbeats', 'At a lifetime average of ~72 beats a minute — never once a break.'),
-    tile('est', s.breaths, 'int', '', 'breaths', 'Roughly 16 a minute, sleeping and waking, since your very first one.'),
-  ].join('');
-  $('bodyTiles1').innerHTML = [
-    tile('est', s.days*8, 'hrs', '', 'spent asleep', 'About a third of your life.'),
-    tile('est', s.days*2, 'hrs', '', 'spent dreaming', 'Around 2 hours a night inside worlds your brain built for free.'),
-  ].join('');
-  $('bodyTiles2').innerHTML = [
-    tile('est', s.days*3, 'int', '', 'meals eaten', 'Give or take a few thousand snacks.'),
-    tile('est', s.days/27, 'int', '', 'brand-new skins', 'Your outer layer replaces itself about every 27 days.'),
-    tile('est', s.days*16*60*17, 'big', '', 'blinks', 'About 17 a minute while you\'re awake.'),
+  /* Body — every stat on one page */
+  $('bodyStats').innerHTML = [
+    srow('calc', null, null, '<span id="bodyHeartbeats">' + compactFmt(s.heartbeats) + '</span>', 'heartbeats', 'At a lifetime average of ~72 beats a minute — never once a break.'),
+    srow('est', s.breaths, 'compact', '', 'breaths', 'Roughly 16 a minute, sleeping and waking, since your very first one.'),
+    srow('est', s.days*8, 'hrs', '', 'spent asleep', 'About a third of your life, gone to dreams and recharging.'),
+    srow('est', s.days*2, 'hrs', '', 'spent dreaming', 'Around 2 hours a night inside worlds your brain built for free.'),
+    srow('est', s.days*3, 'int', '', 'meals eaten', 'Give or take a few thousand snacks.'),
+    srow('est', Math.round(s.days/27), 'int', '', 'brand-new skins', 'Your outer layer replaces itself about every 27 days.'),
+    srow('est', s.days*16*60*17, 'compact', '', 'blinks', 'About 17 a minute while you\'re awake.'),
   ].join('');
 
-  /* Planet — three tabbed panels */
-  $('planetTiles0').innerHTML = [
-    tile('calc', (s.popN - s.popB)*1e9, 'plusBig', '', 'people added to Earth',
+  /* Planet — every stat on one page */
+  $('planetStats').innerHTML = [
+    srow('calc', (s.popN - s.popB)*1e9, 'plusCompact', '', 'people added to Earth',
       `From ${s.popB.toFixed(2)} billion when you arrived to ${s.popN.toFixed(2)} billion now.`),
-    tile('est', s.years*134e6, 'big', '', 'babies born since you',
+    srow('est', s.years*134e6, 'compact', '', 'babies born since you',
       'Every one of them arrived into a world that already had you in it.'),
     s.netB < 0.05
-      ? tile('calc', null, null, 'basically zero', 'internet users when you were born',
-        `Today: ${bigFmt(s.netN*1e9)}. The internet grew up alongside you.`)
-      : tile('calc', s.netB*1e9, 'big', '', 'internet users when you were born',
-        `Today: ${bigFmt(s.netN*1e9)}. The internet grew up alongside you.`),
-  ].join('');
-  $('planetTiles1').innerHTML = [
-    tile('calc', s.co2N - s.co2B, 'plus0', ' ppm', 'more CO₂ in every breath',
+      ? srow('calc', null, null, 'basically zero', 'internet users at your birth',
+        `Today: ${compactFmt(s.netN*1e9)}. The internet grew up alongside you.`)
+      : srow('calc', s.netB*1e9, 'compact', '', 'internet users at your birth',
+        `Today: ${compactFmt(s.netN*1e9)}. The internet grew up alongside you.`),
+    srow('calc', s.co2N - s.co2B, 'plus0', ' ppm', 'more CO₂ in every breath',
       `Air at your birth: ${s.co2B.toFixed(0)} ppm. Air today: ${s.co2N.toFixed(0)} ppm.`),
-    tile('calc', s.warmed, 'temp', '', 'warmer planet',
+    srow('calc', s.warmed, 'temp', '', 'warmer planet',
       'The global average temperature rise on your watch.'),
-  ].join('');
-  $('planetTiles2').innerHTML = [
-    tile('est', s.years*145, 'int', '', 'earthquakes, magnitude 6+',
+    srow('est', s.years*145, 'int', '', 'earthquakes, magnitude 6+',
       'The ground under you has never really sat still (USGS average).'),
-    tile('calc', s.secs*44, 'big', '', 'lightning strikes on Earth',
+    srow('calc', s.secs*44, 'compact', '', 'lightning strikes on Earth',
       'About 44 flashes every second, planet-wide (NASA).'),
   ].join('');
 
-  /* Space — two tabbed panels */
-  $('spaceTiles0').innerHTML = [
-    tile('calc', s.galaxyMiles, 'big', '', 'miles through the galaxy',
+  /* Space — every stat on one page */
+  $('spaceStats').innerHTML = [
+    srow('calc', s.galaxyMiles, 'compact', '', 'miles through the galaxy',
       'The Sun orbits the Milky Way at ~514,000 mph. You ride along.'),
-    tile('calc', s.sunMiles, 'big', '', 'miles around the Sun',
+    srow('calc', s.sunMiles, 'compact', '', 'miles around the Sun',
       `${s.years.toFixed(1)} full laps at ~584 million miles each.`),
-    tile('exact', s.moons, 'int', '', 'full moons',
+    srow('exact', s.moons, 'int', '', 'full moons',
       'Every 29.5 days, like clockwork, whether you looked up or not.'),
-  ].join('');
-  $('spaceTiles1').innerHTML = [
-    tile('calc', s.exoN - s.exoB, 'int', '', 'planets discovered beyond our solar system',
+    srow('calc', s.exoN - s.exoB, 'int', '', 'planets discovered beyond our solar system',
       `Known when you were born: ${commas(s.exoB)}. Known today: ${commas(s.exoN)}.`),
-    tile('est', s.years*4.7, 'dec1', '', 'eclipses have occurred',
+    srow('est', s.years*4.7, 'dec1', '', 'eclipses have occurred',
       'Solar and lunar, somewhere on Earth — about 4–5 a year.'),
     s.issOrbits > 0
-      ? tile('calc', s.issOrbits, 'int', '', 'ISS orbits during your life',
+      ? srow('calc', s.issOrbits, 'compact', '', 'ISS orbits during your life',
         'One lap of Earth every ~93 minutes, this many times since ' + (birth < new Date(1998,10,20) ? 'it launched in 1998.' : 'you arrived.'))
-      : tile('calc', null, null, '0', 'ISS orbits during your life', 'The Space Station launched in 1998 — it will catch up.'),
+      : srow('calc', null, null, '0', 'ISS orbits during your life', 'The Space Station launched in 1998 — it will catch up.'),
   ].join('');
 
   /* First day */
@@ -203,8 +205,8 @@ function startTicker(){
   const tick = () => {
     const secs = (Date.now() - birth.getTime())/1000;
     $('secondsAlive').textContent = commas(secs);
-    $('heartbeats').textContent = bigFmt(secs*1.2);
-    const bh = $('bodyHeartbeats'); if (bh) bh.textContent = commas(secs*1.2);
+    $('heartbeats').textContent = compactFmt(secs*1.2);
+    const bh = $('bodyHeartbeats'); if (bh) bh.textContent = compactFmt(secs*1.2);
   };
   tick();
   ticker = setInterval(tick, 250);
@@ -251,16 +253,12 @@ document.querySelectorAll('.dotnav button').forEach(b =>
     if (t) t.scrollIntoView({behavior: 'smooth'});
   }));
 
-/* ---------- in-scene tab bars ---------- */
+/* ---------- earthlings found/lost toggle ---------- */
 document.querySelectorAll('.subtabs').forEach(bar => {
   bar.addEventListener('click', e => {
     const btn = e.target.closest('.stab'); if (!btn) return;
     bar.querySelectorAll('.stab').forEach(b => b.classList.toggle('active', b === btn));
-    const scene = document.getElementById(bar.dataset.scene);
-    if (btn.dataset.panel){
-      scene.querySelectorAll('.spanel').forEach(p =>
-        p.classList.toggle('hidden', p.dataset.panel !== btn.dataset.panel));
-    } else if (btn.dataset.list){
+    if (btn.dataset.list){
       $('wildFound').classList.toggle('hidden', btn.dataset.list !== 'found');
       $('wildLost').classList.toggle('hidden', btn.dataset.list !== 'lost');
     }
@@ -310,8 +308,38 @@ function renderEvents(){
   const items = data[exTab] || [];
   currentItems = items;
   list.innerHTML = items.map((e,i) =>
-    `<div class="ev-card" data-i="${i}" role="button" tabindex="0"><div class="et">${e.t}</div><div class="ed">${e.d}</div><div class="go">The full story ›</div></div>`).join('')
+    `<div class="ev-card" data-i="${i}" role="button" tabindex="0"><div class="card-media"><img data-wiki="${e.t.replace(/"/g,'&quot;')}" alt=""></div><div class="card-body"><div class="et">${e.t}</div><div class="ed">${e.d}</div><div class="go">The full story ›</div></div></div>`).join('')
     || '<div class="empty">No entries for this view yet.</div>';
+  hydrateImages(list);
+}
+
+/* ---------- wikipedia thumbnails for cards (same source as the deep-dive) ---------- */
+const wikiImgCache = new Map();
+function wikiThumb(title){
+  if (wikiImgCache.has(title)) return wikiImgCache.get(title);
+  const p = (async () => {
+    try {
+      const s = await fetch('https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch='
+        + encodeURIComponent(title) + '&srlimit=1&format=json&origin=*').then(r => r.json());
+      const hit = s.query && s.query.search && s.query.search[0];
+      if (!hit) return null;
+      const sum = await fetch('https://en.wikipedia.org/api/rest_v1/page/summary/'
+        + encodeURIComponent(hit.title.replace(/ /g,'_'))).then(r => r.json());
+      return (sum.thumbnail && sum.thumbnail.source) || null;
+    } catch(e){ return null; }
+  })();
+  wikiImgCache.set(title, p);
+  return p;
+}
+function hydrateImages(scope){
+  scope.querySelectorAll('img[data-wiki]').forEach(async img => {
+    const src = await wikiThumb(img.dataset.wiki);
+    if (src){
+      img.src = src;
+      const card = img.closest('.ev-card, .sp-card');
+      if (card) card.classList.add('has-img');
+    }
+  });
 }
 
 /* ---------- deep-dive sheet (Wikipedia live summary) ---------- */
@@ -355,8 +383,9 @@ function closeDive(){
 /* ---------- fellow earthlings ---------- */
 function spCard(w, kind, i){
   return `<div class="sp-card" data-kind="${kind}" data-i="${i}" role="button" tabindex="0">` +
+    `<div class="card-media"><img data-wiki="${w.n.replace(/"/g,'&quot;')}" alt=""></div><div class="card-body">` +
     `<div class="sp-main"><span class="sp-name">${w.n}</span><span class="sp-year">${w.y}</span></div>` +
-    `<div class="sp-note">${w.d}</div><div class="go">Photos + full story ›</div></div>`;
+    `<div class="sp-note">${w.d}</div><div class="go">Photos + full story ›</div></div></div>`;
 }
 function renderWild(){
   const by = birth.getFullYear();
@@ -364,7 +393,7 @@ function renderWild(){
   currentFound = YV_WILD.found.filter(w => w.y >= by).slice().sort((a,b) => b.y - a.y);
   currentLost = YV_WILD.lost.filter(w => w.y >= by).slice().sort((a,b) => b.y - a.y);
   $('wildCards').innerHTML =
-    wstat(Math.floor(s.years) * 17000, 'big', '+', 'new species discovered during your life') +
+    wstat(Math.floor(s.years) * 17000, 'compact', '+', 'new species discovered during your life') +
     wstat(currentLost.length, 'int', '', 'famous species lost during your life');
   $('wildFound').innerHTML = currentFound.length
     ? currentFound.map((w,i) => spCard(w,'found',i)).join('')
@@ -372,6 +401,8 @@ function renderWild(){
   $('wildLost').innerHTML = currentLost.length
     ? currentLost.map((w,i) => spCard(w,'lost',i)).join('')
     : '<div class="empty">None of the famous ones yet. Let\'s keep it that way.</div>';
+  hydrateImages($('wildFound'));
+  hydrateImages($('wildLost'));
 }
 
 /* ---------- poster ---------- */
@@ -454,12 +485,12 @@ function renderPanel(){
     if (yearStep === 'decade'){
       let btns = '';
       for (let d = 2020; d >= 1920; d -= 10)
-        btns += `<button type="button" class="dp-btn decade ${dpDecade === d ? 'sel' : ''}" data-dec="${d}">${d}s</button>`;
+        btns += `<button type="button" class="dp-btn decade ${dpDecade === d ? 'sel' : ''}" data-dec="${d}">${String(d).slice(0,2)}<span class="tail">${String(d).slice(2)}s</span></button>`;
       step.innerHTML = `<p class="dp-title">Year — first, the decade</p><div class="dp-grid cols2">${btns}</div>`;
     } else {
       let btns = '';
       for (let y = dpDecade; y <= Math.min(dpDecade + 9, 2026); y++)
-        btns += `<button type="button" class="dp-btn ${picked.y === y ? 'sel' : ''}" data-y="${y}">${y}</button>`;
+        btns += `<button type="button" class="dp-btn ${picked.y === y ? 'sel' : ''}" data-y="${y}">${String(y).slice(0,2)}<span class="tail">${String(y).slice(2)}</span></button>`;
       step.innerHTML = `<p class="dp-title">Year — the ${dpDecade}s</p><div class="dp-grid cols5">${btns}</div>`;
     }
   }
