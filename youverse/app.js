@@ -1,6 +1,6 @@
 'use strict';
 /* YouVerse — everything that's happened while you've been alive.
-   All math runs on-device. Anchor datasets in data.js (YV_ANCHORS / YV_EVENTS). */
+   A journey in scenes. All math runs on-device. Data in data.js (YV_ANCHORS / YV_EVENTS / YV_WILD). */
 
 const $ = id => document.getElementById(id);
 const LS_KEY = 'youverse-profile-v1';
@@ -11,7 +11,7 @@ let ticker = null;
 let exYear = null;       // explorer year
 let exTab = 'world';     // 'world' | 'us'
 
-/* ---------- formatting ---------- */
+/* ---------- formatting (one system everywhere: commas, or spelled-out units) ---------- */
 const commas = n => Math.round(n).toLocaleString('en-US');
 function bigFmt(n){
   if (n >= 1e12) return (n/1e12).toFixed(2).replace(/\.?0+$/,'') + ' trillion';
@@ -19,6 +19,15 @@ function bigFmt(n){
   if (n >= 1e6)  return (n/1e6).toFixed(1).replace(/\.0$/,'') + ' million';
   return commas(n);
 }
+const FMT = {
+  int: v => commas(v),
+  big: v => bigFmt(v),
+  plusBig: v => '+' + bigFmt(v),
+  plus0: v => '+' + Math.round(v),
+  temp: v => '+' + v.toFixed(1) + ' °C',
+  hrs: v => commas(v) + ' hrs',
+  dec1: v => v.toFixed(1),
+};
 
 /* ---------- anchor interpolation ---------- */
 function interp(table, x){
@@ -31,15 +40,15 @@ function interp(table, x){
   }
   return table[yrs[yrs.length-1]];
 }
-function yearFloat(d){ // 1990.5 ≈ July 2, 1990
+function yearFloat(d){
   const start = new Date(d.getFullYear(),0,1);
   const next = new Date(d.getFullYear()+1,0,1);
   return d.getFullYear() + (d - start)/(next - start);
 }
 
 /* ---------- astronomy ---------- */
-function moonPhase(date){ // returns {name, emoji, illum 0..1}
-  const known = Date.UTC(2000,0,6,18,14); // new moon
+function moonPhase(date){
+  const known = Date.UTC(2000,0,6,18,14);
   const synodic = 29.53058867;
   const age = (((date.getTime() - known)/86400000) % synodic + synodic) % synodic;
   const illum = (1 - Math.cos(2*Math.PI*age/synodic))/2;
@@ -77,32 +86,39 @@ function computeStats(){
   const issDays = Math.max(0, (now - Math.max(birth, issStart))/86400000);
   return {
     now, secs, days, years,
-    heartbeats: secs * 1.2,                    // ~72 bpm lifetime average
+    heartbeats: secs * 1.2,
     breaths: secs * (16/60),
     popB, popN, netB, netN, exoB, exoN, co2B, co2N,
     warmed: Math.max(0, tmpN - tmpB),
-    sunMiles: years * 584e6,                   // Earth's orbit: ~584M miles/yr
-    galaxyMiles: years * 4.5e9,                // Sun carries us ~514,000 mph around the galaxy
+    sunMiles: years * 584e6,
+    galaxyMiles: years * 4.5e9,
     moons: Math.floor(days/29.53058867),
     issOrbits: issDays * 15.5,
     issYears: issDays/365.25,
   };
 }
 const TAG = {exact:'<span class="tag exact">Exact</span>', calc:'<span class="tag calc">Calculated</span>', est:'<span class="tag est">Estimate</span>'};
-function card(tag, num, lbl, sub){ return `<div class="card">${TAG[tag]}<div class="num">${num}</div><div class="lbl">${lbl}</div><div class="sub">${sub}</div></div>`; }
+/* tile(tag, raw, fmt, suffix, lbl, sub) — when raw is null, suffix carries the full display HTML (live/string values). */
+function tile(tag, raw, fmt, suffix, lbl, sub){
+  const attrs = raw != null ? ` data-count="${raw}" data-fmt="${fmt}" data-suffix="${suffix || ''}"` : '';
+  const disp = raw != null ? FMT[fmt](raw) + (suffix || '') : suffix;
+  return `<div class="tile rv">${TAG[tag]}<div class="num"${attrs}>${disp}</div><div class="lbl">${lbl}</div><div class="sub">${sub}</div></div>`;
+}
 
 function renderStory(){
   const s = computeStats();
   const by = birth.getFullYear();
   const who = profile.name ? `${profile.name}, you've` : "You've";
   $('heroKicker').textContent = profile.name ? `${profile.name}'s story so far` : 'Your story so far';
-  $('heroTitle').textContent = `${who} been alive`;
-  $('daysAlive').textContent = commas(s.days);
-  $('galacticMiles').textContent = bigFmt(s.galaxyMiles);
+  const dEl = $('daysAlive');
+  dEl.textContent = commas(s.days);
+  dEl.dataset.count = s.days; dEl.dataset.fmt = 'int'; dEl.dataset.suffix = '';
+  const gEl = $('galacticMiles');
+  gEl.textContent = bigFmt(s.galaxyMiles);
+  gEl.dataset.count = s.galaxyMiles; gEl.dataset.fmt = 'big'; gEl.dataset.suffix = '';
   $('heroLine').innerHTML =
-    `Since ${birth.toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})}, Earth has carried you ` +
-    `<b>${bigFmt(s.sunMiles)} miles</b> around the Sun — and the Sun has carried you ` +
-    `<b>${bigFmt(s.galaxyMiles)} miles</b> through the Milky Way. Scroll: this is your life, measured.`;
+    `Born <b>${birth.toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})}</b> · ` +
+    `Earth has carried you <b>${s.years.toFixed(1)} years</b> around the Sun — and counting.`;
 
   const mp = moonPhase(birth);
   const weekday = birth.toLocaleDateString('en-US',{weekday:'long'});
@@ -112,48 +128,51 @@ function renderStory(){
     `You are a <b>${generation(by)}</b> — one of about <b>${bigFmt(interp(YV_ANCHORS.popWorldB, by)*1e9)} people</b> on Earth that year.`;
 
   $('bodyCards').innerHTML = [
-    card('calc', '<span id="bodyHeartbeats">' + commas(s.heartbeats) + '</span>', 'heartbeats', 'At a lifetime average of ~72 beats a minute — it has never once taken a break.'),
-    card('est', commas(s.breaths), 'breaths', 'Roughly 16 a minute, sleeping and waking, since your very first one.'),
-    card('est', commas(s.days*8) + ' hrs', 'spent asleep', 'About a third of your life — roughly ' + commas(s.days*8/24) + ' full days of dreaming included below.'),
-    card('est', commas(s.days*2) + ' hrs', 'spent dreaming', 'Around 2 hours a night inside worlds your brain built for free.'),
-    card('est', commas(s.days*3), 'meals eaten', 'Give or take a few thousand snacks we won\'t tell anyone about.'),
-    card('est', commas(s.days/27), 'brand-new skins', 'Your outer layer fully replaces itself about every 27 days.'),
-    card('est', bigFmt(s.days*16*60*17), 'blinks', 'About 17 a minute while you\'re awake. You\'ve missed a lot of very short moments.'),
+    tile('calc', null, null, '<span id="bodyHeartbeats">' + commas(s.heartbeats) + '</span>', 'heartbeats', 'At a lifetime average of ~72 beats a minute — it has never once taken a break.'),
+    tile('est', s.breaths, 'int', '', 'breaths', 'Roughly 16 a minute, sleeping and waking, since your very first one.'),
+    tile('est', s.days*8, 'hrs', '', 'spent asleep', 'About a third of your life — roughly ' + commas(s.days*8/24) + ' full days, dreaming included below.'),
+    tile('est', s.days*2, 'hrs', '', 'spent dreaming', 'Around 2 hours a night inside worlds your brain built for free.'),
+    tile('est', s.days*3, 'int', '', 'meals eaten', 'Give or take a few thousand snacks we won\'t tell anyone about.'),
+    tile('est', s.days/27, 'int', '', 'brand-new skins', 'Your outer layer fully replaces itself about every 27 days.'),
+    tile('est', s.days*16*60*17, 'big', '', 'blinks', 'About 17 a minute while you\'re awake. You\'ve missed a lot of very short moments.'),
   ].join('');
 
   $('planetCards').innerHTML = [
-    card('calc', '+' + bigFmt((s.popN - s.popB)*1e9), 'people added to Earth',
+    tile('calc', (s.popN - s.popB)*1e9, 'plusBig', '', 'people added to Earth',
       `From ${s.popB.toFixed(2)} billion when you arrived to ${s.popN.toFixed(2)} billion now — net, after every goodbye.`),
-    card('est', bigFmt(s.years*134e6), 'babies born since you',
+    tile('est', s.years*134e6, 'big', '', 'babies born since you',
       'Roughly 134 million a year. Every one of them arrived into a world that already had you in it.'),
-    card('calc', s.netB < 0.05 ? 'basically zero' : bigFmt(s.netB*1e9), 'internet users when you were born',
-      `Today: ${bigFmt(s.netN*1e9)}. The internet grew up alongside you — most of humanity got online during your lifetime.`),
-    card('calc', '+' + (s.co2N - s.co2B).toFixed(0) + ' ppm', 'more CO₂ in every breath',
+    s.netB < 0.05
+      ? tile('calc', null, null, 'basically zero', 'internet users when you were born',
+        `Today: ${bigFmt(s.netN*1e9)}. The internet grew up alongside you — most of humanity got online during your lifetime.`)
+      : tile('calc', s.netB*1e9, 'big', '', 'internet users when you were born',
+        `Today: ${bigFmt(s.netN*1e9)}. The internet grew up alongside you — most of humanity got online during your lifetime.`),
+    tile('calc', s.co2N - s.co2B, 'plus0', ' ppm', 'more CO₂ in every breath',
       `Air at your birth: ${s.co2B.toFixed(0)} ppm. Air today: ${s.co2N.toFixed(0)} ppm (Mauna Loa measurements).`),
-    card('calc', '+' + s.warmed.toFixed(1) + ' °C', 'warmer planet',
+    tile('calc', s.warmed, 'temp', '', 'warmer planet',
       'The global average temperature rise that has happened on your watch.'),
-    card('est', commas(s.years*145), 'earthquakes, magnitude 6+',
+    tile('est', s.years*145, 'int', '', 'earthquakes, magnitude 6+',
       'Earth\'s long-run average is ~145 a year (USGS). The ground under you has never really sat still.'),
-    card('calc', bigFmt(s.secs*44), 'lightning strikes on Earth',
+    tile('calc', s.secs*44, 'big', '', 'lightning strikes on Earth',
       'About 44 flashes every second, planet-wide, your whole life (NASA).'),
   ].join('');
 
   $('spaceCards').innerHTML = [
-    card('calc', bigFmt(s.galaxyMiles), 'miles through the galaxy',
+    tile('calc', s.galaxyMiles, 'big', '', 'miles through the galaxy',
       'The Sun orbits the Milky Way at ~514,000 mph, and you ride along. You will never pass your starting point again.'),
-    card('calc', bigFmt(s.sunMiles), 'miles around the Sun',
+    tile('calc', s.sunMiles, 'big', '', 'miles around the Sun',
       `${s.years.toFixed(1)} full laps at ~584 million miles each. Happy every-orbit, roughly ${commas(Math.floor(s.years))} times over.`),
-    card('exact', commas(s.moons), 'full moons',
+    tile('exact', s.moons, 'int', '', 'full moons',
       'Every 29.5 days, like clockwork, whether you looked up or not.'),
-    card('calc', commas(s.exoN - s.exoB), 'planets discovered beyond our solar system',
+    tile('calc', s.exoN - s.exoB, 'int', '', 'planets discovered beyond our solar system',
       `Known when you were born: ${commas(s.exoB)}. Known today: ${commas(s.exoN)} (NASA Exoplanet Archive, approx). An entire science was born with you.`),
-    card('est', commas(s.years*4.7), 'eclipses have occurred',
+    tile('est', s.years*4.7, 'dec1', '', 'eclipses have occurred',
       'Solar and lunar, somewhere on Earth — about 4–5 a year.'),
     s.issOrbits > 0
-      ? card('calc', commas(s.issOrbits), 'ISS orbits during your life',
+      ? tile('calc', s.issOrbits, 'int', '', 'ISS orbits during your life',
         'The International Space Station circles Earth every ~93 minutes. It has lapped the planet this many times since ' +
         (birth < new Date(1998,10,20) ? 'it launched in 1998.' : 'you arrived.'))
-      : card('calc', '0', 'ISS orbits during your life', 'The Space Station launched in 1998 — it will catch up.'),
+      : tile('calc', null, null, '0', 'ISS orbits during your life', 'The Space Station launched in 1998 — it will catch up.'),
   ].join('');
 
   buildChips();
@@ -168,14 +187,55 @@ function startTicker(){
   const tick = () => {
     const secs = (Date.now() - birth.getTime())/1000;
     $('secondsAlive').textContent = commas(secs);
-    $('heartbeats').textContent = commas(secs*1.2);
+    $('heartbeats').textContent = bigFmt(secs*1.2);
     const bh = $('bodyHeartbeats'); if (bh) bh.textContent = commas(secs*1.2);
   };
   tick();
   ticker = setInterval(tick, 250);
 }
 
-/* ---------- year explorer ---------- */
+/* ---------- scene reveals, count-ups, dot nav ---------- */
+function runCount(el){
+  if (el.dataset.done) return; el.dataset.done = '1';
+  const raw = parseFloat(el.dataset.count);
+  if (!isFinite(raw)) return;
+  const fmt = FMT[el.dataset.fmt] || FMT.int, suf = el.dataset.suffix || '';
+  if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches){
+    el.textContent = fmt(raw) + suf; return;
+  }
+  const t0 = performance.now(), dur = 1300;
+  const step = t => {
+    const p = Math.min(1, (t - t0)/dur), e = 1 - Math.pow(1 - p, 3);
+    el.textContent = fmt(raw * e) + suf;
+    if (p < 1) requestAnimationFrame(step); else el.textContent = fmt(raw) + suf;
+  };
+  requestAnimationFrame(step);
+}
+function initJourney(){
+  const rvs = document.querySelectorAll('#storyView .rv');
+  rvs.forEach((el, i) => el.style.setProperty('--d', (Math.min(i % 6, 5) * 0.07) + 's'));
+  const io = new IntersectionObserver(es => es.forEach(e => {
+    if (!e.isIntersecting) return;
+    e.target.classList.add('in');
+    e.target.querySelectorAll('[data-count]').forEach(runCount);
+    io.unobserve(e.target);
+  }), {threshold: .15});
+  rvs.forEach(el => io.observe(el));
+  const sceneIO = new IntersectionObserver(es => es.forEach(e => {
+    if (e.isIntersecting){
+      document.querySelectorAll('.dotnav button').forEach(b =>
+        b.classList.toggle('active', b.dataset.target === e.target.id));
+    }
+  }), {rootMargin: '-45% 0px -45% 0px'});
+  document.querySelectorAll('#storyView .scene').forEach(sc => sceneIO.observe(sc));
+}
+document.querySelectorAll('.dotnav button').forEach(b =>
+  b.addEventListener('click', () => {
+    const t = document.getElementById(b.dataset.target);
+    if (t) t.scrollIntoView({behavior: 'smooth'});
+  }));
+
+/* ---------- year explorer (the time machine) ---------- */
 function explorerBounds(){
   const lo = Math.max(1950, birth.getFullYear());
   const hi = new Date().getFullYear();
@@ -189,7 +249,7 @@ function buildChips(){
     .filter(([,y]) => y>=1950 && y<=nowY && !seen.has(y) && seen.add(y))
     .map(([l,y]) => `<button type="button" class="chip" data-year="${y}">${l}</button>`).join('');
   document.querySelectorAll('.chip').forEach(c =>
-    c.addEventListener('click', () => setExplorer(Number(c.dataset.year), true)));
+    c.addEventListener('click', () => setExplorer(Number(c.dataset.year), false)));
 }
 function setExplorer(year, scroll){
   const [lo, hi] = explorerBounds();
@@ -201,6 +261,8 @@ function setExplorer(year, scroll){
   $('yearAge').textContent = age === 0 ? `${exYear} · where your story starts`
     : exYear === new Date().getFullYear() ? `${exYear} · you, right now`
     : `${exYear} · you turned ${age} this year`;
+  const yc = document.querySelector('.year-center');
+  if (yc){ yc.classList.remove('warp'); void yc.offsetWidth; yc.classList.add('warp'); }
   $('prevYear').disabled = exYear <= lo;
   $('nextYear').disabled = exYear >= hi;
   document.querySelectorAll('.chip').forEach(c =>
@@ -259,7 +321,7 @@ function closeDive(){
 
 /* ---------- fellow earthlings ---------- */
 function wildRow(w, kind, i){
-  return `<div class="wild-row" data-kind="${kind}" data-i="${i}" role="button" tabindex="0">` +
+  return `<div class="wild-row rv" data-kind="${kind}" data-i="${i}" role="button" tabindex="0">` +
     `<div class="wild-main"><span class="wild-name">${w.n}</span><span class="wild-year">${w.y}</span></div>` +
     `<div class="wild-note">${w.d}</div><div class="go">Photos + full story ›</div></div>`;
 }
@@ -269,9 +331,9 @@ function renderWild(){
   currentFound = YV_WILD.found.filter(w => w.y >= by).slice().sort((a,b) => b.y - a.y);
   currentLost = YV_WILD.lost.filter(w => w.y >= by).slice().sort((a,b) => b.y - a.y);
   $('wildCards').innerHTML = [
-    card('est', bigFmt(Math.floor(s.years) * 17000) + '+', 'new species discovered during your life',
+    tile('est', Math.floor(s.years) * 17000, 'big', '+', 'new species discovered during your life',
       'Scientists describe roughly 17,000 species a year — mostly insects, plants and deep-sea things. The famous ones are below.'),
-    card('calc', String(currentLost.length), 'famous species lost during your life',
+    tile('calc', currentLost.length, 'int', '', 'famous species lost during your life',
       'The ones the world noticed by name. The true total, counting the small and unnoticed, is estimated to be far higher.'),
   ].join('');
   $('wildFound').innerHTML = currentFound.length
@@ -327,7 +389,9 @@ function showStory(){
   $('entryView').classList.add('hidden');
   $('storyView').classList.remove('hidden');
   $('changeBtn').classList.remove('hidden');
+  document.documentElement.classList.add('journey');
   renderStory();
+  initJourney();
   window.scrollTo({top:0});
 }
 function loadProfile(){
@@ -347,6 +411,7 @@ $('changeBtn').addEventListener('click', () => {
   $('storyView').classList.add('hidden');
   $('changeBtn').classList.add('hidden');
   $('entryView').classList.remove('hidden');
+  document.documentElement.classList.remove('journey');
   if (ticker) clearInterval(ticker);
   window.scrollTo({top:0});
 });
