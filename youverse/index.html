@@ -23,7 +23,7 @@
     <div class="entry-card">
       <div class="entry-mark">✦</div>
       <h1>Everything that's happened<br>while <em>you've</em> been alive.</h1>
-      <p class="entry-sub">Your body. Your planet. Your trip through space.<br>One birthday is all it takes.</p>
+      <p class="entry-sub">Your body. Your planet. Your fellow earthlings.<br>Your trip through space. One birthday is all it takes.</p>
       <form id="entryForm">
         <label class="field">
           <span>Your birthday</span>
@@ -72,15 +72,25 @@
       <div class="cards" id="spaceCards"></div>
     </section>
 
+    <section class="chapter">
+      <h3><span class="ch-icon">🐾</span> Your Fellow Earthlings</h3>
+      <p class="ch-sub">You never had this planet to yourself. These are the other lives that began — and ended — during yours. Tap any of them for photos and the full story.</p>
+      <div class="cards" id="wildCards"></div>
+      <h4 class="wild-h">🌟 Found during your life</h4>
+      <div id="wildFound" class="wild-list"></div>
+      <h4 class="wild-h">🕯️ Lost during your life</h4>
+      <div id="wildLost" class="wild-list"></div>
+    </section>
+
     <section class="chapter explorer">
       <h3><span class="ch-icon">🗓️</span> Your Years</h3>
-      <p class="ch-sub">Pick any year of your life. See the biggest things that happened in the world — and in the U.S. — while you lived it.</p>
+      <p class="ch-sub">Slide through your life by age. See the biggest things that happened in the world — and in the U.S. — at every age. Tap any event for the full story.</p>
       <div class="chips" id="ageChips"></div>
       <div class="year-nav">
         <button id="prevYear" class="nav-arrow" type="button" aria-label="Previous year">‹</button>
         <div class="year-center">
-          <div class="year-big" id="yearBig">2000</div>
-          <div class="year-age" id="yearAge">You were 10</div>
+          <div class="year-big" id="yearBig">Age 10</div>
+          <div class="year-age" id="yearAge">2000 · you turned 10 this year</div>
         </div>
         <button id="nextYear" class="nav-arrow" type="button" aria-label="Next year">›</button>
       </div>
@@ -101,11 +111,20 @@
 
     <footer class="foot">
       <p>Numbers marked <b>Exact</b> are counted from your date. <b>Calculated</b> uses known rates (your heart, Earth's orbit). <b>Estimate</b> uses long-run averages — honest ballparks, labeled as such.</p>
-      <p>Sources: UN &amp; World Bank population · NASA exoplanet archive · NOAA Mauna Loa CO₂ · ITU internet figures · USGS earthquake averages.</p>
+      <p>Sources: UN &amp; World Bank population · NASA exoplanet archive · NOAA Mauna Loa CO₂ · ITU internet figures · USGS earthquake averages · IUCN Red List species records · Wikipedia for deep-dive summaries.</p>
       <p class="foot-brand">✦ YouVerse — a Dex Cimino creation · dexcimino.com</p>
     </footer>
   </section>
 </main>
+
+<!-- DEEP-DIVE SHEET -->
+<div id="diveSheet" class="sheet hidden" role="dialog" aria-modal="true">
+  <div class="sheet-backdrop" id="diveBackdrop"></div>
+  <div class="sheet-card">
+    <button id="diveClose" class="sheet-x" type="button" aria-label="Close">✕</button>
+    <div id="diveBody"></div>
+  </div>
+</div>
 
 <script src="data.js"></script>
 <script src="app.js"></script>
