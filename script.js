@@ -81,7 +81,10 @@ if (performance.getEntriesByType('navigation')[0]?.type === 'reload') {
   history.scrollRestoration = 'manual';
   // #resume and #notes survive: both reopen their overlay from the hash, and
   // neither names an element to scroll to, so neither can drag the page down.
-  if (location.hash && location.hash !== '#resume' && location.hash !== '#notes') {
+  // #resume/<tab> survives with #resume (DEEP LINKS, end of file): it reopens
+  // the same overlay on the named document.
+  if (location.hash && location.hash !== '#resume' && location.hash !== '#notes'
+      && !location.hash.startsWith('#resume/')) {
     try {
       history.replaceState(null, '', location.pathname + location.search);
     } catch { /* file:// throws in some browsers */ }
@@ -817,6 +820,15 @@ const sections = ['home', 'work', 'games', 'ai', 'about', 'codes']
 // happened and the spy is reporting where the reader actually is.
 let hashSyncReady = false;
 
+// Owned by the DEEP LINKS router at the end of this file: the two-segment
+// hash (#section/tab) currently in force, and the spy id whose region
+// contains the section it names. Declared here because syncHash reads them;
+// assigned there. syncHash only runs once hashSyncReady flips at load, by
+// which time the whole script — this block included — has been evaluated.
+let deepHash = null;
+let deepRegion = null;
+let deepStamp = 0;
+
 function syncHash(id) {
   if (!hashSyncReady) return;                                   // let the arrival fragment stand
   // The resume overlay pushes #resume, so a cached "last written" value goes
@@ -824,6 +836,23 @@ function syncHash(id) {
   // location instead — same dedup (updateMotion runs every rAF and Safari rate-
   // limits replaceState) without a cache that can drift.
   if (document.body.classList.contains('modal-open')) return;   // overlay owns the hash
+  // A #section/tab deep link names a tab inside a section the spy may only
+  // know by its parent — #toolkit/3d reads as 'about' from here, because the
+  // spy does not list toolkit or picks separately. While the spy is reporting
+  // the region that contains the named section, the tab half of the URL is
+  // part of the reader's place too: leave it. Once the spy reports somewhere
+  // else, hand the URL back to the spy.
+  if (deepHash) {
+    if (deepRegion === id) return;
+    // A smooth scroll can pass through other sections on its way to the
+    // named one (a nav animation, a find-in-page jump): for a moment the spy
+    // honestly reports somewhere the reader is only passing through. Inside
+    // the grace window after a deep hash is set, that is transit, not a
+    // departure — leave the URL and the claim on it alone.
+    if (performance.now() - deepStamp < 1200) return;
+    deepHash = null;
+    deepRegion = null;
+  }
   const hash = id === 'home' ? '' : `#${id}`;
   if (hash === location.hash) return;
   try {
@@ -13009,3 +13038,176 @@ const PORTRAIT_LABEL = {
   sync();
   mq.addEventListener('change', sync);
 })();
+
+/* ==========================================================================
+   DEEP LINKS  (#section/tab)
+   Every tabbed area gets a shareable URL that lands on the tab itself:
+   /#ai/clips opens the AI Lab on Clips, /#toolkit/3d the Toolkit on 3D,
+   /#resume/cover-letter the resume overlay on the cover letter. Single-
+   segment hashes (#ai, #resume, #notes) behave exactly as they always have —
+   this only ADDS the second segment.
+
+   Slugs are the tabs' reader-facing names, not their element ids: the AI
+   Wallpapers tab is #ai/wallpapers (id ai-tab-images), Clips is #ai/clips
+   (ai-tab-videos), Madness is #ai/madness (ai-tab-madlabs). The id spellings
+   still resolve as aliases, so a link built either way lands, and the URL is
+   rewritten to the canonical slug.
+
+   'about' has no tablist of its own — its tabs ARE the Toolkit's, the
+   about-sub section directly under it — so #about/3d resolves to the Toolkit
+   and the URL is rewritten to the canonical #toolkit/3d.
+
+   Two tab rows are deliberately NOT routed. The work overlay's tabs are
+   per-item category sets inside a modal, not one fixed row a URL could name.
+   The Idea Vault's filter tabs live inside the passcode-gated vault modal —
+   reaching them takes a vault code, not a link.
+
+   Clicking (or arrowing to) a tab rewrites the URL to match, via
+   replaceState — the same no-history-entry choice syncHash makes — and the
+   scroll spy leaves a deep hash alone while the reader stays in the region
+   it names (see syncHash), so the copied link keeps naming what is on
+   screen until the reader actually leaves the area.
+   ========================================================================== */
+
+const DEEP_TAB_SETS = [
+  { section: 'ai', el: 'ai', region: 'ai', tablist: '.ai-tabs', tabs: [
+    ['apps', 'ai-tab-apps'],
+    ['wallpapers', 'ai-tab-images', 'images'],
+    ['clips', 'ai-tab-videos', 'videos'],
+    ['concepts', 'ai-tab-concepts'],
+    ['prompts', 'ai-tab-prompts'],
+    ['madness', 'ai-tab-madlabs', 'madlabs'],
+  ] },
+  { section: 'toolkit', el: 'toolkit', region: 'about', tablist: '.tk-tabs', tabs: [
+    ['3d', 'tk-tab-software', 'software'],
+    ['2d', 'tk-tab-2d'],
+    ['engine', 'tk-tab-engines', 'engines'],
+    ['dev-stack', 'tk-tab-devstack', 'devstack'],
+    ['team-tools', 'tk-tab-team', 'team'],
+  ] },
+  { section: 'picks', el: 'picks', region: 'about', tablist: '.pk-tabs', tabs: [
+    ['games', 'pk-tab-games'],
+    ['movies', 'pk-tab-movies'],
+    ['shows', 'pk-tab-shows'],
+    ['songs', 'pk-tab-songs'],
+    ['toons', 'pk-tab-toons', 'tunes'],
+    ['quotes', 'pk-tab-quotes'],
+    ['pods', 'pk-tab-pods'],
+    ['prefs', 'pk-tab-prefs'],
+  ] },
+];
+
+// A section name that borrows another section's tab set (see the header).
+const DEEP_SECTION_ALIAS = { about: 'toolkit' };
+
+// slug (canonical or alias) -> { set, canon, tabId }; tab id -> { set, canon }.
+const deepBySlug = new Map();
+const deepCanonByTab = new Map();
+for (const set of DEEP_TAB_SETS) {
+  for (const [canon, tabId, ...aliases] of set.tabs) {
+    deepCanonByTab.set(tabId, { set, canon });
+    for (const slug of [canon, ...aliases]) deepBySlug.set(`${set.section}/${slug}`, { set, canon, tabId });
+  }
+}
+
+// The resume overlay's two documents. Its default keeps the plain #resume
+// spelling the overlay has always used; only the cover letter needs a segment.
+const DEEP_RESUME_TABS = { resume: 'tab-resume', 'cover-letter': 'tab-cover', cover: 'tab-cover' };
+const deepResumeHash = tabId => (tabId === 'tab-cover' ? '#resume/cover-letter' : '#resume');
+
+function parseDeepHash() {
+  const m = /^#([^/]+)\/([^/]+)$/.exec(location.hash || '');
+  if (!m) return null;
+  try {
+    return { section: decodeURIComponent(m[1]).toLowerCase(), tab: decodeURIComponent(m[2]).toLowerCase() };
+  } catch { return null; }                       // a malformed % escape names nothing
+}
+
+function writeDeepHash(hash) {
+  if (location.hash === hash) return;
+  try { history.replaceState(null, '', hash); } catch { /* file:// throws in some browsers */ }
+}
+
+// The reload path's landing, reused: arrive exactly, in one step, rather than
+// animating through the sections in between — the spy measures where the page
+// IS, and a slow pass through other sections would read as leaving this one.
+// offsetTop alone is not a document position: the about-sub sections sit
+// inside a wrapper, so their offsetTop is relative to it. Walk the chain.
+const deepDocTop = el => { let t = 0; for (let n = el; n; n = n.offsetParent) t += n.offsetTop; return t; };
+const deepScroll = el => window.scrollTo({ top: deepDocTop(el), left: 0, behavior: 'instant' });
+
+function applyDeepLink() {
+  const parsed = parseDeepHash();
+  if (!parsed) return;
+
+  if (parsed.section === 'resume') {
+    const tabId = DEEP_RESUME_TABS[parsed.tab];
+    if (!tabId || !resumeModal) return;         // unknown document: the plain
+                                                // #resume behaviour is not ours
+                                                // to invent a variant of
+    deepHash = deepResumeHash(tabId);
+    deepRegion = null;                          // the overlay owns the hash while open
+    if (resumeModal.open) selectTab(tabId);
+    else { openResume(null); selectTab(tabId); }  // openResume lands on the
+                                                  // resume; selectTab then
+                                                  // names the linked document
+    writeDeepHash(deepHash);
+    return;
+  }
+
+  const set = DEEP_TAB_SETS.find(s => s.section === (DEEP_SECTION_ALIAS[parsed.section] ?? parsed.section));
+  if (!set) return;                             // unknown section: ignore gracefully
+  if (document.body.classList.contains('modal-open')) return;   // an overlay is
+                                                // up; do not pull the page
+                                                // around underneath it
+  const target = document.getElementById(set.el);
+  if (!target) return;
+  const hit = deepBySlug.get(`${set.section}/${parsed.tab}`);
+  if (!hit) {
+    // Known section, unknown tab: land on the section with its default tab —
+    // the one a fresh load already selects — and leave the URL for the spy.
+    deepScroll(target);
+    return;
+  }
+  deepHash = `#${set.section}/${hit.canon}`;
+  deepRegion = set.region;
+  deepStamp = performance.now();
+  writeDeepHash(deepHash);                      // canonicalise aliases (#ai/images)
+  deepScroll(target);
+  document.getElementById(hit.tabId)?.click();  // initTabs owns what a click does
+}
+
+// Keep the URL naming the tab on screen: initTabs flips aria-selected for
+// clicks, arrow keys and programmatic selection alike, so watch that rather
+// than re-wiring every control. The write is replaceState, so tabbing around
+// never stacks history entries.
+for (const set of DEEP_TAB_SETS) {
+  const tablist = document.querySelector(set.tablist);
+  if (!tablist) continue;
+  const sync = () => {
+    const info = deepCanonByTab.get(tablist.querySelector('[aria-selected="true"]')?.id);
+    if (!info) return;
+    deepHash = `#${set.section}/${info.canon}`;
+    deepRegion = set.region;
+    deepStamp = performance.now();
+    writeDeepHash(deepHash);
+  };
+  new MutationObserver(sync).observe(tablist, { attributes: true, attributeFilter: ['aria-selected'], subtree: true });
+}
+
+// The resume overlay's own tab clicks, for the same reason. (Its keyboard
+// path calls selectTab directly; the hash then catches up on the next click
+// or close, and the overlay owns the URL in between either way.)
+resumeTabs.forEach(tab => tab.addEventListener('click', () => writeDeepHash(deepResumeHash(tab.id))));
+
+// Following a section link is a decision to be somewhere else: hand the URL
+// back to the spy before its own handler runs (capture beats the target's
+// bubble listeners), or syncHash would keep preserving the deep hash.
+document.addEventListener('click', event => {
+  if (!event.target.closest('.nav-link, .resume-mini, a[href="#home"]')) return;
+  deepHash = null;
+  deepRegion = null;
+}, true);
+
+window.addEventListener('load', applyDeepLink);
+window.addEventListener('hashchange', applyDeepLink);
