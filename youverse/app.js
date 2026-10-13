@@ -26,7 +26,7 @@ function compactFmt(n){
   if (a >= 1e9) return trim(n/1e9) + 'B';
   if (a >= 1e6) return trim(n/1e6) + 'M';
   if (a >= 1e3) return trim(n/1e3) + 'K';
-  return commas(n);
+  return Number.isInteger(n) ? commas(n) : trim(n);
 }
 const FMT = {
   int: v => commas(v),
@@ -125,8 +125,12 @@ function fillPages(pagesId, dotsId, pages){
   $(pagesId).innerHTML = pages.map(rows =>
     `<div class="hpage rv"><div class="stats">${rows.join('')}</div></div>`).join('');
   $(dotsId).innerHTML = '<span class="pd-hint">Swipe</span>' +
-    pages.map((_, i) => `<i class="${i === 0 ? 'on' : ''}"></i>`).join('');
+    pages.map((_, i) => `<button type="button" class="pdot ${i === 0 ? 'on' : ''}" data-page="${i}" aria-label="Page ${i + 1}"></button>`).join('');
   $(pagesId).scrollLeft = 0;
+  $(dotsId).querySelectorAll('.pdot').forEach(b => b.addEventListener('click', () => {
+    const el = $(pagesId);
+    el.scrollTo({left: Number(b.dataset.page) * el.clientWidth, behavior: 'smooth'});
+  }));
 }
 const NEO_ANCHORS = {1990:130, 1995:400, 2000:1000, 2005:3400, 2010:7000, 2015:13000, 2020:24000, 2026:39000};
 
@@ -585,7 +589,7 @@ $('dpStep').addEventListener('click', e => {
   const el = $(p); if (!el) return;
   el.addEventListener('scroll', () => {
     const i = Math.round(el.scrollLeft / Math.max(1, el.clientWidth));
-    $(d).querySelectorAll('i').forEach((dot, j) => dot.classList.toggle('on', j === i));
+    $(d).querySelectorAll('.pdot').forEach((dot, j) => dot.classList.toggle('on', j === i));
   }, {passive:true});
 });
 
