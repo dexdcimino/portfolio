@@ -4,9 +4,7 @@
    All math runs on-device. Data in data.js (YV_ANCHORS / YV_EVENTS / YV_WILD). */
 
 const $ = id => document.getElementById(id);
-const LS_KEY = 'youverse-profile-v1';
-
-let profile = null;      // {dob:'YYYY-MM-DD', name:''}
+let profile = null;      // {dob:'YYYY-MM-DD', name:''} — session only, never saved
 let birth = null;        // Date at local noon on dob
 let ticker = null;
 let exYear = null;       // explorer year
@@ -416,128 +414,116 @@ function makePoster(){
   });
 }
 
-/* ---------- birthday picker (custom — no native calendar) ---------- */
+/* ---------- birthday picker: Month / Day / Year — tap any part, in any order ---------- */
 const MONTHS = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
 const MONTH_FULL = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-let picked = { y:null, m:null, d:null };
-let dpStep = 'decade';        // 'decade' | 'year' | 'month' | 'day'
+let picked = { m:null, d:null, y:null };
+let activeSel = null;          // 'month' | 'day' | 'year' | null (panel closed)
+let yearStep = 'decade';       // inside the Year panel: decade grid, then the years
 let dpDecade = null;
-function daysIn(y, m){ return new Date(y, m, 0).getDate(); }  // m is 1-based
+function daysIn(y, m){ return new Date(y || 2000, m, 0).getDate(); }  // m 1-based; leap-safe default year
 function dobString(){
-  if (!picked.y || !picked.m || !picked.d) return null;
+  if (!picked.m || !picked.d || !picked.y) return null;
   return picked.y + '-' + String(picked.m).padStart(2,'0') + '-' + String(picked.d).padStart(2,'0');
 }
-function updateDobBtn(){
-  const btn = $('dobBtn');
-  if (dobString()){
-    btn.innerHTML = `${MONTH_FULL[picked.m-1]} ${picked.d}, ${picked.y} <span class="chev">›</span>`;
-    btn.classList.remove('placeholder');
-  } else {
-    btn.innerHTML = `Select your birthday <span class="chev">›</span>`;
-    btn.classList.add('placeholder');
-  }
+function updateSelectors(){
+  $('selMonthVal').textContent = picked.m ? MONTHS[picked.m-1] : '—';
+  $('selDayVal').textContent = picked.d || '—';
+  $('selYearVal').textContent = picked.y || '—';
+  [['selMonth','month','m'],['selDay','day','d'],['selYear','year','y']].forEach(([id, k, pk]) => {
+    $(id).classList.toggle('active', activeSel === k);
+    $(id).classList.toggle('set', !!picked[pk]);
+  });
+  $('dobReadout').innerHTML = (!picked.m && !picked.d && !picked.y)
+    ? 'Your birthday: <b>—</b>'
+    : 'Your birthday: <b>' + (picked.m ? MONTH_FULL[picked.m-1] : 'Month') + ' ' + (picked.d || '—') + ', ' + (picked.y || '——') + '</b>';
 }
-function renderPicker(){
-  const crumbs = [
-    ['Year', picked.y, 'decade'],
-    ['Month', picked.m ? MONTHS[picked.m-1] : null, 'month'],
-    ['Day', picked.d, 'day'],
-  ];
-  $('dpCrumbs').innerHTML = crumbs.map(([l, v, step]) =>
-    `<button type="button" class="crumb ${v != null ? 'set' : ''} ${dpStep === step ? 'now' : ''}" data-step="${step}">${l}${v != null ? ': ' + v : ''}</button>`
-  ).join('<span style="color:var(--muted); align-self:center">›</span>');
+function renderPanel(){
   const step = $('dpStep');
-  if (dpStep === 'decade'){
+  if (!activeSel){ $('dpPanel').classList.add('hidden'); return; }
+  $('dpPanel').classList.remove('hidden');
+  if (activeSel === 'month'){
+    step.innerHTML = '<p class="dp-title">Month</p><div class="dp-grid cols4">' +
+      MONTHS.map((m, i) => `<button type="button" class="dp-btn ${picked.m === i+1 ? 'sel' : ''}" data-m="${i+1}">${m}</button>`).join('') + '</div>';
+  } else if (activeSel === 'day'){
+    const n = picked.m ? daysIn(picked.y, picked.m) : 31;
     let btns = '';
-    for (let d = 2020; d >= 1920; d -= 10)
-      btns += `<button type="button" class="dp-btn decade ${dpDecade === d ? 'sel' : ''}" data-dec="${d}">${d}s</button>`;
-    step.innerHTML = `<p class="dp-title">Which decade were you born in?</p><div class="dp-grid cols2">${btns}</div>`;
-  } else if (dpStep === 'year'){
-    let btns = '';
-    for (let y = dpDecade; y <= Math.min(dpDecade + 9, 2026); y++)
-      btns += `<button type="button" class="dp-btn ${picked.y === y ? 'sel' : ''}" data-y="${y}">${y}</button>`;
-    step.innerHTML = `<p class="dp-title">Which year?</p><div class="dp-grid cols5">${btns}</div>`;
-  } else if (dpStep === 'month'){
-    step.innerHTML = `<p class="dp-title">Which month?</p><div class="dp-grid cols4">` +
-      MONTHS.map((m, i) => `<button type="button" class="dp-btn ${picked.m === i+1 ? 'sel' : ''}" data-m="${i+1}">${m}</button>`).join('') + `</div>`;
-  } else if (dpStep === 'day'){
-    const n = daysIn(picked.y, picked.m);
-    let btns = '';
-    for (let d = 1; d <= n; d++)
-      btns += `<button type="button" class="dp-btn ${picked.d === d ? 'sel' : ''}" data-d="${d}">${d}</button>`;
-    step.innerHTML = `<p class="dp-title">${MONTH_FULL[picked.m-1]} ${picked.y} — which day?</p><div class="dp-grid cols7">${btns}</div>`;
+    for (let d = 1; d <= n; d++) btns += `<button type="button" class="dp-btn ${picked.d === d ? 'sel' : ''}" data-d="${d}">${d}</button>`;
+    step.innerHTML = `<p class="dp-title">Day${picked.m ? ' — ' + MONTH_FULL[picked.m-1] : ''}</p><div class="dp-grid cols7">${btns}</div>`;
+  } else if (activeSel === 'year'){
+    if (yearStep === 'decade'){
+      let btns = '';
+      for (let d = 2020; d >= 1920; d -= 10)
+        btns += `<button type="button" class="dp-btn decade ${dpDecade === d ? 'sel' : ''}" data-dec="${d}">${d}s</button>`;
+      step.innerHTML = `<p class="dp-title">Year — first, the decade</p><div class="dp-grid cols2">${btns}</div>`;
+    } else {
+      let btns = '';
+      for (let y = dpDecade; y <= Math.min(dpDecade + 9, 2026); y++)
+        btns += `<button type="button" class="dp-btn ${picked.y === y ? 'sel' : ''}" data-y="${y}">${y}</button>`;
+      step.innerHTML = `<p class="dp-title">Year — the ${dpDecade}s</p><div class="dp-grid cols5">${btns}</div>`;
+    }
   }
 }
-function openPicker(){
-  $('dobPicker').classList.remove('hidden');
+function openSel(k){
+  activeSel = (activeSel === k) ? null : k;
+  if (k === 'year' && activeSel === 'year'){
+    if (picked.y){ dpDecade = Math.floor(picked.y / 10) * 10; yearStep = 'year'; }
+    else yearStep = 'decade';
+  }
   $('dpErr').classList.add('hidden');
-  dpStep = !picked.y ? 'decade' : !picked.m ? 'month' : !picked.d ? 'day' : 'decade';
-  if (picked.y) dpDecade = Math.floor(picked.y / 10) * 10;
-  renderPicker();
+  updateSelectors(); renderPanel();
 }
-$('dobBtn').addEventListener('click', () => {
-  if ($('dobPicker').classList.contains('hidden')) openPicker();
-  else $('dobPicker').classList.add('hidden');
-});
-$('dpCrumbs').addEventListener('click', e => {
-  const c = e.target.closest('.crumb'); if (!c) return;
-  const step = c.dataset.step;
-  if (step === 'month' && !picked.y) return;
-  if (step === 'day' && !picked.m) return;
-  dpStep = step;
-  renderPicker();
-});
+function afterPick(){
+  if (picked.m && picked.d && picked.d > daysIn(picked.y, picked.m)) picked.d = null;  // e.g. Feb 29 → non-leap year
+  const next = [['m','month'],['d','day'],['y','year']].find(([pk]) => !picked[pk]);
+  activeSel = next ? next[1] : null;
+  if (activeSel === 'year') yearStep = 'decade';
+  updateSelectors(); renderPanel();
+}
+$('selMonth').addEventListener('click', () => openSel('month'));
+$('selDay').addEventListener('click', () => openSel('day'));
+$('selYear').addEventListener('click', () => openSel('year'));
 $('dpStep').addEventListener('click', e => {
   const b = e.target.closest('.dp-btn'); if (!b) return;
-  if (b.dataset.dec){ dpDecade = Number(b.dataset.dec); dpStep = 'year'; }
-  else if (b.dataset.y){
-    picked.y = Number(b.dataset.y);
-    if (picked.d && picked.m && picked.d > daysIn(picked.y, picked.m)) picked.d = null;
-    dpStep = 'month';
-  }
-  else if (b.dataset.m){
-    picked.m = Number(b.dataset.m);
-    if (picked.d && picked.d > daysIn(picked.y, picked.m)) picked.d = null;
-    dpStep = 'day';
-  }
-  else if (b.dataset.d){
-    picked.d = Number(b.dataset.d);
-    updateDobBtn();
-    $('dobPicker').classList.add('hidden');
-    return;
-  }
-  renderPicker();
+  if (b.dataset.dec){ dpDecade = Number(b.dataset.dec); yearStep = 'year'; renderPanel(); return; }
+  if (b.dataset.m) picked.m = Number(b.dataset.m);
+  else if (b.dataset.d) picked.d = Number(b.dataset.d);
+  else if (b.dataset.y) picked.y = Number(b.dataset.y);
+  afterPick();
 });
 
 /* ---------- entry / wiring ---------- */
 function showStory(){
   $('entryView').classList.add('hidden');
   $('storyView').classList.remove('hidden');
-  $('changeBtn').classList.remove('hidden');
   document.documentElement.classList.add('journey');
   renderStory();
   initJourney();
   window.scrollTo({top:0});
 }
-function loadProfile(){
-  try { const p = JSON.parse(localStorage.getItem(LS_KEY)); if (p && p.dob) return p; } catch(e){}
-  return null;
-}
+/* Nothing persists: closing the app wipes the slate. Reopening always starts here. */
 $('entryForm').addEventListener('submit', e => {
   e.preventDefault();
   const dob = dobString();
-  if (!dob){ openPicker(); $('dpErr').classList.remove('hidden'); return; }
+  if (!dob){
+    activeSel = !picked.m ? 'month' : !picked.d ? 'day' : 'year';
+    if (activeSel === 'year') yearStep = 'decade';
+    updateSelectors(); renderPanel();
+    $('dpErr').classList.remove('hidden');
+    return;
+  }
   profile = { dob, name: $('nameInput').value.trim() };
-  localStorage.setItem(LS_KEY, JSON.stringify(profile));
   birth = new Date(dob + 'T12:00:00');
   showStory();
 });
-$('changeBtn').addEventListener('click', () => {
+$('startOverBtn').addEventListener('click', () => {
   $('storyView').classList.add('hidden');
-  $('changeBtn').classList.add('hidden');
   $('entryView').classList.remove('hidden');
   document.documentElement.classList.remove('journey');
   if (ticker) clearInterval(ticker);
+  picked = { m:null, d:null, y:null }; activeSel = null; dpDecade = null;
+  $('nameInput').value = '';
+  updateSelectors(); renderPanel();
   window.scrollTo({top:0});
 });
 $('prevYear').addEventListener('click', () => setExplorer(exYear-1, false));
@@ -563,14 +549,4 @@ $('diveClose').addEventListener('click', closeDive);
 $('diveBackdrop').addEventListener('click', closeDive);
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDive(); });
 
-const saved = loadProfile();
-if (saved){
-  profile = saved;
-  birth = new Date(saved.dob + 'T12:00:00');
-  const [sy, sm, sd] = saved.dob.split('-').map(Number);
-  picked = { y: sy, m: sm, d: sd };
-  dpDecade = Math.floor(sy / 10) * 10;
-  updateDobBtn();
-  $('nameInput').value = saved.name || '';
-  showStory();
-}
+updateSelectors();
