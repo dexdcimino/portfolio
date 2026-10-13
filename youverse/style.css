@@ -5,6 +5,8 @@
 }
 *{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
 html{scroll-behavior:smooth}
+html,body{overflow-x:hidden}
+.scene > *{min-width:0}
 body{margin:0; background:var(--bg); color:var(--text); font-size:16.5px;
   font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
   background-image:radial-gradient(1px 1px at 12% 22%,#ffffff55 50%,transparent 51%),
@@ -45,8 +47,11 @@ main{max-width:1120px; margin:0 auto; padding:0 16px}
 .field{display:block; text-align:left}
 .field > span{display:block; font-size:14.5px; color:var(--muted); margin-bottom:7px; font-weight:600}
 .field small{opacity:.75}
-.name-field input{width:100%; padding:16px; border-radius:12px; border:1px solid var(--line);
-  background:#0a1120; color:var(--text); font-size:20px; font-weight:600; text-align:center; color-scheme:dark}
+.name-field input{width:100%; padding:16px; border-radius:12px; border:1.5px solid var(--line);
+  background:#0a1120; color:var(--text); font-size:20px; font-weight:600; text-align:center; color-scheme:dark; outline:none}
+.name-field input::placeholder{color:#8499bd; opacity:1}
+.name-field input:focus{border:1.5px solid transparent;
+  background:linear-gradient(#0a1120,#0a1120) padding-box, linear-gradient(90deg,var(--accent),#2bb7d8) border-box}
 .cta{width:100%; padding:16px; border:none; border-radius:14px; cursor:pointer;
   background:linear-gradient(90deg,var(--accent),#2bb7d8); color:#04241f;
   font-size:18px; font-weight:800}
@@ -75,6 +80,8 @@ main{max-width:1120px; margin:0 auto; padding:0 16px}
   padding:13px 2px; font-size:17px; font-weight:700; cursor:pointer}
 .dp-btn:active{transform:scale(.96)}
 .dp-btn.sel{background:var(--accent); color:#04241f; border-color:var(--accent)}
+.dp-btn .tail{color:var(--accent); font-size:1.3em; font-weight:900}
+.dp-btn.sel .tail{color:#04241f}
 .dp-btn.decade{padding:14px 2px; font-size:16.5px}
 .dp-grid.cols7 .dp-btn{padding:10px 0; font-size:16px}
 .dp-err{color:#ff9c9c; font-size:14.5px; margin:10px 0 0; text-align:left}
@@ -98,8 +105,8 @@ html.journey{scroll-snap-type:y mandatory; scroll-padding-top:57px}
 .scene-mid .carousel{flex:1; min-height:0; align-items:stretch}
 #sceneWild .carousel{flex:1; min-height:0}
 
-/* chapter dot navigation — anchored to the bottom so every dot sits in thumb range */
-.dotnav{position:fixed; right:10px; bottom:16px; z-index:30;
+/* chapter dot navigation — top right, page indicator style */
+.dotnav{position:fixed; right:10px; top:calc(57px + 10px); z-index:30;
   display:flex; flex-direction:column; gap:12px}
 .dotnav button{background:none; border:none; padding:4px; cursor:pointer; display:flex; align-items:center; gap:7px; flex-direction:row-reverse}
 .dotnav i{width:8px; height:8px; border-radius:50%; border:2px solid var(--muted); display:block; transition:all .3s}
@@ -115,7 +122,7 @@ html.journey{scroll-snap-type:y mandatory; scroll-padding-top:57px}
   box-shadow:0 12px 44px rgba(53,224,200,.22); animation:floaty 5.5s ease-in-out infinite}
 @keyframes floaty{0%,100%{transform:translateY(0) rotate(-1.2deg)}50%{transform:translateY(-9px) rotate(1.2deg)}}
 .hero-kicker{color:var(--accent); font-weight:800; letter-spacing:2.5px; text-transform:uppercase; font-size:13px; margin:0}
-.hero-seconds{font-size:clamp(54px,13.5vw,112px); font-weight:900; font-variant-numeric:tabular-nums; line-height:1.02; margin-top:8px}
+.hero-seconds{font-size:clamp(42px,10.8vw,100px); font-weight:900; font-variant-numeric:tabular-nums; line-height:1.02; margin-top:8px; max-width:100%}
 .hero-seclabel{font-size:16px; font-weight:700; letter-spacing:2.5px; text-transform:uppercase; color:var(--soft); margin:7px 0 0}
 .hero-line{color:var(--muted); font-size:17px; margin:18px auto 0; max-width:540px; line-height:1.55}
 .hero-line b{color:var(--text)}
@@ -135,14 +142,21 @@ html.journey{scroll-snap-type:y mandatory; scroll-padding-top:57px}
 .scene h3{font-size:clamp(31px,7vw,46px); margin:0 0 6px; font-weight:850; line-height:1.08}
 .ch-icon{margin-right:8px}
 .ch-sub{color:var(--muted); margin:0 0 20px; font-size:16.5px; line-height:1.55; max-width:600px}
-.spanel{flex:1; display:flex; flex-direction:column; justify-content:flex-start; padding-top:3.5vh; min-height:0}
-.tiles{display:grid; grid-template-columns:1fr; gap:12px}
-@media(min-width:640px){.tiles{grid-template-columns:1fr 1fr}}
-@media(min-width:1000px){.tiles{grid-template-columns:1fr 1fr 1fr}}
-.tile{background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:20px}
-.tile .num{font-size:clamp(30px,6.6vw,46px); font-weight:900; font-variant-numeric:tabular-nums; line-height:1.08}
-.tile .lbl{font-weight:750; margin-top:6px; font-size:17.5px; line-height:1.3}
-.tile .sub{color:var(--muted); font-size:14.5px; line-height:1.5; margin-top:5px}
+/* stat rows: number + accent label on the left, big description on the right — all stats, one page, no tabs */
+.stats{flex:1; min-height:0; display:flex; flex-direction:column; gap:9px; max-width:920px; width:100%}
+.srow{flex:1; min-height:0; overflow:hidden; background:var(--panel); border:1px solid var(--line);
+  border-radius:var(--radius); padding:12px 18px; display:flex; align-items:center; gap:18px}
+.srow .s-left{flex:none; width:138px; min-width:0}
+.srow .num{font-size:31px; font-weight:900; font-variant-numeric:tabular-nums; line-height:1.05; white-space:nowrap}
+.srow .lbl{color:var(--accent); font-weight:800; margin-top:4px; font-size:15.5px; line-height:1.25}
+.srow .sub{color:var(--soft); font-size:16px; line-height:1.5; min-width:0}
+@media(max-width:520px){
+  .srow{gap:13px; padding:10px 14px}
+  .srow .s-left{width:108px}
+  .srow .num{font-size:24px}
+  .srow .lbl{font-size:13.5px}
+  .srow .sub{font-size:14.5px}
+}
 .tag{display:inline-block; font-size:10.5px; font-weight:800; letter-spacing:1px; text-transform:uppercase;
   padding:3px 8px; border-radius:999px; margin-bottom:10px}
 .tag.exact{background:rgba(53,224,200,.15); color:var(--accent)}
@@ -163,7 +177,11 @@ html.journey{scroll-snap-type:y mandatory; scroll-padding-top:57px}
 .carousel{display:flex; gap:12px; overflow-x:auto; scroll-snap-type:x mandatory;
   padding:8px 2px 12px; -webkit-overflow-scrolling:touch; align-items:stretch}
 .ev-card{flex:0 0 82%; scroll-snap-align:center; background:#0a1120; border:1px solid var(--line);
-  border-radius:16px; padding:18px; cursor:pointer; display:flex; flex-direction:column; height:100%}
+  border-radius:16px; padding:0; overflow:hidden; cursor:pointer; display:flex; flex-direction:column; height:100%}
+.card-media{height:0; flex:none; overflow:hidden; transition:height .45s ease}
+.has-img .card-media{height:106px}
+.card-media img{width:100%; height:100%; object-fit:cover; display:block}
+.card-body{padding:15px 17px; display:flex; flex-direction:column; flex:1; min-height:0}
 .ev-card .et{font-weight:800; font-size:18px; line-height:1.3}
 .ev-card .ed{color:var(--muted); font-size:15px; line-height:1.55; margin-top:6px;
   display:-webkit-box; -webkit-line-clamp:4; -webkit-box-orient:vertical; overflow:hidden}
@@ -171,7 +189,8 @@ html.journey{scroll-snap-type:y mandatory; scroll-padding-top:57px}
 .carousel .empty{color:var(--muted); font-size:15px; padding:12px 2px}
 .go{color:var(--accent); font-size:13px; font-weight:800; letter-spacing:.4px}
 .sp-card{flex:0 0 82%; scroll-snap-align:center; background:var(--panel); border:1px solid var(--line);
-  border-radius:16px; padding:18px; cursor:pointer; display:flex; flex-direction:column; height:100%}
+  border-radius:16px; padding:0; overflow:hidden; cursor:pointer; display:flex; flex-direction:column; height:100%}
+.sp-card .card-body{padding:15px 17px}
 .sp-main{display:flex; justify-content:space-between; align-items:flex-start; gap:10px}
 .sp-name{font-weight:800; font-size:18px; line-height:1.3}
 .sp-year{color:var(--accent); font-weight:800; font-size:13.5px; background:rgba(53,224,200,.12);
@@ -216,7 +235,7 @@ html.journey{scroll-snap-type:y mandatory; scroll-padding-top:57px}
 .over-btn{background:none; border:1px solid var(--line); color:var(--muted); border-radius:12px;
   padding:13px; font-size:15px; font-weight:700; cursor:pointer; width:100%}
 .over-btn:active{transform:scale(.98)}
-.foot{margin-top:48px; color:var(--muted); font-size:13px; line-height:1.6; text-align:center; max-width:640px}
+.foot{margin-top:40px; color:var(--muted); font-size:15px; line-height:1.65; text-align:center; max-width:640px}
 .foot-brand{color:var(--text); font-weight:700; margin-top:12px}
 
 /* ---------- deep-dive sheet ---------- */
@@ -238,15 +257,7 @@ html.journey{scroll-snap-type:y mandatory; scroll-padding-top:57px}
 .dive-btn.ghost{background:#0a1120; color:var(--text); border:1px solid var(--line)}
 .dive-src{color:var(--muted); font-size:12px; margin:12px 0 0}
 
-@media(max-width:639px){
-  /* compact row tiles: number left, words right — three stats fit without crowding out the bottom tabs */
-  .tiles{gap:10px}
-  .tile{position:relative; padding:15px 16px; display:grid; grid-template-columns:minmax(104px,auto) 1fr; column-gap:14px; align-items:center}
-  .tile .tag{position:absolute; top:10px; right:12px; margin:0}
-  .tile .num{font-size:29px; grid-row:1 / span 2}
-  .tile .lbl{margin-top:0; font-size:16px; padding-right:64px}
-  .tile .sub{font-size:13px; margin-top:2px}
-}
+.srow .tag{margin:0 0 0 6px; vertical-align:2px}
 @media(max-height:700px){
   .scene{padding-top:16px}
   .scene h3{font-size:28px}
