@@ -31,50 +31,60 @@ html{scrollbar-width:none; -ms-overflow-style:none}
 
 main{max-width:1120px; margin:0 auto; padding:0 16px}
 
-/* ---------- entry ---------- */
-.entry{display:flex; justify-content:center; padding:34px 0 60px}
-.entry-card{width:100%; max-width:460px; background:linear-gradient(180deg,var(--panel2),var(--panel));
-  border:1px solid var(--line); border-radius:24px; padding:32px 26px; text-align:center}
-.entry-icon{width:86px; height:86px; border-radius:22px}
-.entry-card h1{font-size:27px; line-height:1.25; margin:16px 0 10px}
-.entry-card h1 em{color:var(--accent); font-style:normal}
-.entry-sub{color:var(--muted); font-size:16.5px; line-height:1.5; margin:0 0 22px}
-.field{display:block; text-align:left; margin-bottom:16px}
+/* ---------- entry: one screen, no scroll; display up top, controls in the bottom half ---------- */
+.entry{height:calc(100svh - 57px); display:flex; flex-direction:column; max-width:520px; margin:0 auto;
+  padding:18px 4px 16px; overflow:hidden}
+.entry-head{text-align:center}
+.entry-icon{width:64px; height:64px; border-radius:18px}
+.entry-head h1{font-size:24px; line-height:1.25; margin:12px 0 8px}
+.entry-head h1 em{color:var(--accent); font-style:normal}
+.entry-sub{color:var(--muted); font-size:16px; line-height:1.5; margin:0}
+.dob-readout{margin:16px 0 0; font-size:19px; color:var(--muted)}
+.dob-readout b{color:var(--accent); font-size:21px}
+.entry-controls{margin-top:auto; display:flex; flex-direction:column; gap:13px}
+.field{display:block; text-align:left}
 .field > span{display:block; font-size:14.5px; color:var(--muted); margin-bottom:7px; font-weight:600}
-.field small{opacity:.7}
-.field input[type="text"]{width:100%; padding:14px; border-radius:12px; border:1px solid var(--line);
-  background:#0a1120; color:var(--text); font-size:17px; color-scheme:dark}
+.field small{opacity:.75}
+.name-field input{width:100%; padding:16px; border-radius:12px; border:1px solid var(--line);
+  background:#0a1120; color:var(--text); font-size:20px; font-weight:600; text-align:center; color-scheme:dark}
 .cta{width:100%; padding:16px; border:none; border-radius:14px; cursor:pointer;
   background:linear-gradient(90deg,var(--accent),#2bb7d8); color:#04241f;
   font-size:18px; font-weight:800}
 .cta:active{transform:scale(.98)}
-.privacy{color:var(--muted); font-size:13px; margin:14px 0 0}
+.privacy{color:var(--muted); font-size:13px; margin:0; text-align:center}
 
-/* birthday picker (custom — no native calendar) */
-.dob-btn{width:100%; padding:15px 16px; border-radius:12px; border:1px solid var(--line);
-  background:#0a1120; color:var(--text); font-size:17.5px; font-weight:700; cursor:pointer;
-  display:flex; justify-content:space-between; align-items:center; text-align:left}
-.dob-btn .chev{color:var(--accent); font-size:20px}
-.dob-btn.placeholder{color:var(--muted); font-weight:600}
-.dob-picker{margin-top:12px; background:#0a1120; border:1px solid var(--line); border-radius:16px; padding:14px}
-.dp-crumbs{display:flex; gap:7px; flex-wrap:wrap; margin-bottom:6px}
-.crumb{border:1px solid var(--line); border-radius:999px; padding:7px 13px; font-size:14.5px;
-  color:var(--muted); background:none; cursor:pointer; font-weight:600}
-.crumb.set{color:var(--text); border-color:var(--accent); font-weight:800}
-.crumb.now{color:var(--accent); border-color:var(--accent); font-weight:800}
-.dp-title{font-size:15px; color:var(--muted); margin:10px 0 9px; font-weight:700; text-align:left}
+/* birthday selectors: Month / Day / Year — tap any, in any order */
+.sel-row{display:flex; gap:8px}
+.sel-btn{flex:1; background:#0a1120; border:1px solid var(--line); border-radius:12px; padding:10px 4px 12px;
+  cursor:pointer; color:var(--text); display:flex; flex-direction:column; align-items:center; gap:2px; min-height:64px}
+.sel-btn .sel-lbl{font-size:12.5px; font-weight:800; letter-spacing:1.2px; text-transform:uppercase; color:var(--muted)}
+.sel-btn .sel-val{font-size:19px; font-weight:800}
+.sel-btn.active{border-color:var(--accent); box-shadow:0 0 0 1px var(--accent)}
+.sel-btn.active .sel-lbl{color:var(--accent)}
+.sel-btn.set .sel-val{color:var(--accent)}
+
+/* picker panel (swaps in place above the CTA — the page never scrolls) */
+.dob-picker{background:#0a1120; border:1px solid var(--line); border-radius:16px; padding:12px; margin-top:10px}
+.dp-title{font-size:15px; color:var(--muted); margin:2px 0 9px; font-weight:700; text-align:left}
 .dp-grid{display:grid; gap:8px}
 .dp-grid.cols2{grid-template-columns:repeat(2,1fr)}
 .dp-grid.cols4{grid-template-columns:repeat(4,1fr)}
 .dp-grid.cols5{grid-template-columns:repeat(5,1fr)}
 .dp-grid.cols7{grid-template-columns:repeat(7,1fr)}
 .dp-btn{background:var(--panel); border:1px solid var(--line); color:var(--text); border-radius:12px;
-  padding:14px 2px; font-size:17px; font-weight:700; cursor:pointer}
+  padding:13px 2px; font-size:17px; font-weight:700; cursor:pointer}
 .dp-btn:active{transform:scale(.96)}
 .dp-btn.sel{background:var(--accent); color:#04241f; border-color:var(--accent)}
-.dp-btn.decade{padding:16px 2px; font-size:16.5px}
-.dp-grid.cols7 .dp-btn{padding:11px 0; font-size:16px}
-.dp-err{color:#ff9c9c; font-size:14.5px; margin:12px 0 0; text-align:left}
+.dp-btn.decade{padding:14px 2px; font-size:16.5px}
+.dp-grid.cols7 .dp-btn{padding:10px 0; font-size:16px}
+.dp-err{color:#ff9c9c; font-size:14.5px; margin:10px 0 0; text-align:left}
+@media(max-height:740px){
+  .entry-icon{width:48px; height:48px}
+  .entry-head h1{font-size:21px; margin:8px 0 6px}
+  .dob-readout{margin-top:10px; font-size:17px}
+  .sel-btn{min-height:56px}
+  .dp-btn{padding:10px 2px}
+}
 
 /* ---------- the journey: one screen per scene, swipe to page ---------- */
 html.journey{scroll-snap-type:y mandatory; scroll-padding-top:57px}
@@ -83,10 +93,13 @@ html.journey{scroll-snap-type:y mandatory; scroll-padding-top:57px}
 .rv{opacity:0; transform:translateY(24px); transition:opacity .65s ease, transform .65s cubic-bezier(.2,.7,.2,1);
   transition-delay:var(--d,0s)}
 .rv.in{opacity:1; transform:none}
-.scene-bottom{margin-top:auto; padding-top:12px}
+.scene-bottom{margin-top:auto; padding-top:12px; display:flex; flex-direction:column; gap:10px; flex:none}
+.scene-mid{flex:1; min-height:0; display:flex; flex-direction:column}
+.scene-mid .carousel{flex:1; min-height:0; align-items:stretch}
+#sceneWild .carousel{flex:1; min-height:0}
 
-/* chapter dot navigation */
-.dotnav{position:fixed; right:10px; top:50%; transform:translateY(-50%); z-index:30;
+/* chapter dot navigation — anchored to the bottom so every dot sits in thumb range */
+.dotnav{position:fixed; right:10px; bottom:16px; z-index:30;
   display:flex; flex-direction:column; gap:12px}
 .dotnav button{background:none; border:none; padding:4px; cursor:pointer; display:flex; align-items:center; gap:7px; flex-direction:row-reverse}
 .dotnav i{width:8px; height:8px; border-radius:50%; border:2px solid var(--muted); display:block; transition:all .3s}
@@ -150,7 +163,7 @@ html.journey{scroll-snap-type:y mandatory; scroll-padding-top:57px}
 .carousel{display:flex; gap:12px; overflow-x:auto; scroll-snap-type:x mandatory;
   padding:8px 2px 12px; -webkit-overflow-scrolling:touch; align-items:stretch}
 .ev-card{flex:0 0 82%; scroll-snap-align:center; background:#0a1120; border:1px solid var(--line);
-  border-radius:16px; padding:18px; cursor:pointer; display:flex; flex-direction:column; min-height:196px}
+  border-radius:16px; padding:18px; cursor:pointer; display:flex; flex-direction:column; height:100%}
 .ev-card .et{font-weight:800; font-size:18px; line-height:1.3}
 .ev-card .ed{color:var(--muted); font-size:15px; line-height:1.55; margin-top:6px;
   display:-webkit-box; -webkit-line-clamp:4; -webkit-box-orient:vertical; overflow:hidden}
@@ -158,7 +171,7 @@ html.journey{scroll-snap-type:y mandatory; scroll-padding-top:57px}
 .carousel .empty{color:var(--muted); font-size:15px; padding:12px 2px}
 .go{color:var(--accent); font-size:13px; font-weight:800; letter-spacing:.4px}
 .sp-card{flex:0 0 82%; scroll-snap-align:center; background:var(--panel); border:1px solid var(--line);
-  border-radius:16px; padding:18px; cursor:pointer; display:flex; flex-direction:column; min-height:210px}
+  border-radius:16px; padding:18px; cursor:pointer; display:flex; flex-direction:column; height:100%}
 .sp-main{display:flex; justify-content:space-between; align-items:flex-start; gap:10px}
 .sp-name{font-weight:800; font-size:18px; line-height:1.3}
 .sp-year{color:var(--accent); font-weight:800; font-size:13.5px; background:rgba(53,224,200,.12);
@@ -168,21 +181,21 @@ html.journey{scroll-snap-type:y mandatory; scroll-padding-top:57px}
 .sp-card .go{margin-top:auto; padding-top:10px}
 
 /* earthlings stat chips */
-.wild-stats{display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:8px}
+.wild-stats{display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:8px; flex:none}
 .wstat{background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:16px}
 .wstat .num{font-size:clamp(24px,6vw,34px); font-weight:900; font-variant-numeric:tabular-nums; line-height:1.1}
 .wstat .lbl{font-size:14.5px; font-weight:700; margin-top:4px; line-height:1.4}
 
 /* ---------- years: the time machine ---------- */
-.chips{display:flex; flex-wrap:wrap; gap:8px; margin:8px 0 4px}
-.chip{border:1px solid var(--line); background:#0a1120; color:var(--muted); border-radius:999px; padding:8px 14px; font-size:14px; cursor:pointer}
+.chips{display:flex; flex-wrap:nowrap; gap:8px; overflow-x:auto; padding-bottom:2px}
+.chip{border:1px solid var(--line); background:#0a1120; color:var(--muted); border-radius:999px; padding:9px 15px; font-size:14px; cursor:pointer; flex:none}
 .chip.active{color:#04241f; background:var(--accent); border-color:var(--accent); font-weight:800}
 .year-center{text-align:center; margin:10px 0 6px}
 .year-big{font-size:clamp(54px,14vw,88px); font-weight:900; line-height:1; font-variant-numeric:tabular-nums}
 .year-center.warp .year-big{animation:yearWarp .45s cubic-bezier(.2,.8,.3,1)}
 @keyframes yearWarp{0%{transform:scale(1.07); filter:blur(2px); opacity:.55}100%{transform:scale(1); filter:blur(0); opacity:1}}
 .year-age{color:var(--accent); font-weight:700; margin-top:8px; font-size:17.5px}
-.year-controls{display:flex; align-items:center; gap:12px; margin-top:12px}
+.year-controls{display:flex; align-items:center; gap:12px}
 .nav-arrow{width:54px; height:54px; border-radius:50%; border:1px solid var(--line); background:#0a1120;
   color:var(--text); font-size:31px; line-height:1; cursor:pointer; flex:none}
 .nav-arrow:active{transform:scale(.94)}
@@ -197,9 +210,12 @@ html.journey{scroll-snap-type:y mandatory; scroll-padding-top:57px}
 .gen-line b{color:var(--accent)}
 
 /* ---------- poster ---------- */
-.poster-sec{align-items:center; text-align:center; justify-content:center}
+.poster-sec{align-items:center; text-align:center}
 .poster-sec .ch-sub{margin-left:auto; margin-right:auto}
-.poster-sec .cta{max-width:440px}
+.poster-sec .scene-bottom{width:100%; max-width:440px}
+.over-btn{background:none; border:1px solid var(--line); color:var(--muted); border-radius:12px;
+  padding:13px; font-size:15px; font-weight:700; cursor:pointer; width:100%}
+.over-btn:active{transform:scale(.98)}
 .foot{margin-top:48px; color:var(--muted); font-size:13px; line-height:1.6; text-align:center; max-width:640px}
 .foot-brand{color:var(--text); font-weight:700; margin-top:12px}
 
@@ -222,6 +238,21 @@ html.journey{scroll-snap-type:y mandatory; scroll-padding-top:57px}
 .dive-btn.ghost{background:#0a1120; color:var(--text); border:1px solid var(--line)}
 .dive-src{color:var(--muted); font-size:12px; margin:12px 0 0}
 
+@media(max-width:639px){
+  /* compact row tiles: number left, words right — three stats fit without crowding out the bottom tabs */
+  .tiles{gap:10px}
+  .tile{position:relative; padding:15px 16px; display:grid; grid-template-columns:minmax(104px,auto) 1fr; column-gap:14px; align-items:center}
+  .tile .tag{position:absolute; top:10px; right:12px; margin:0}
+  .tile .num{font-size:29px; grid-row:1 / span 2}
+  .tile .lbl{margin-top:0; font-size:16px; padding-right:64px}
+  .tile .sub{font-size:13px; margin-top:2px}
+}
+@media(max-height:700px){
+  .scene{padding-top:16px}
+  .scene h3{font-size:28px}
+  .year-big{font-size:52px}
+  .hero-avatar{width:72px; height:72px}
+}
 @media(prefers-reduced-motion:reduce){
   .rv{transition:none; opacity:1; transform:none}
   .hero-avatar, .scroll-cue span{animation:none}
