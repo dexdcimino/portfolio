@@ -103,7 +103,8 @@ html.journey main{scroll-snap-type:y mandatory}
 }
 
 /* ---------- the journey: one screen per scene, swipe to page ---------- */
-.scene{height:100%; scroll-snap-align:start; scroll-snap-stop:always;
+#storyView{display:flex; flex-direction:column; height:800%}  /* 8 scenes × exactly one screen each */
+.scene{flex:1 0 0%; min-height:0; scroll-snap-align:start; scroll-snap-stop:always;
   display:flex; flex-direction:column; padding:24px 2px 18px; position:relative; overflow:hidden}
 .rv{opacity:0; transform:translateY(24px); transition:opacity .65s ease, transform .65s cubic-bezier(.2,.7,.2,1);
   transition-delay:var(--d,0s)}
