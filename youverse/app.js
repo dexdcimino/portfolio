@@ -706,11 +706,14 @@ updateSelectors();
    It exists because dexcimino.com itself is an installed app ("dexdc",
    scope "/") on Dex's phone: a download tap inside that app's window opens
    this page INSIDE the site app, where no install prompt can fire and there
-   is no browser menu — the old Inko-style sheet just showed menu steps that
-   do not exist there, so installs silently went nowhere. MindSplit's sheet
-   detects that window (display-mode: standalone) and says so, and it WAITS
-   for the prompt: if beforeinstallprompt arrives while the sheet is open,
-   the steps vanish and the button becomes Install. */
+   is no browser menu. The sheet detects that window (display-mode:
+   standalone) and says so, and it WAITS for the prompt: if
+   beforeinstallprompt arrives while the sheet is open, the steps vanish
+   and the button becomes Install.
+   ALL styling lives in style.css (.ish-* classes) — the /youverse/ CSP is
+   style-src 'self', which strips inline styles and <style> elements; the
+   first version of this sheet used inline styles and rendered as naked
+   text with a giant icon on Dex's phone (2026-10-14). */
 const YV_EMBED = new URLSearchParams(location.search).has('embed');
 if ('serviceWorker' in navigator && !YV_EMBED){
   navigator.serviceWorker.register('/youverse/sw.js', { scope: '/youverse/', updateViaCache: 'none' }).catch(() => {});
@@ -725,17 +728,17 @@ function showInstallSheet(){
   const standalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
   const t = document.createElement('div');
   t.id = 'install-sheet';
-  t.style.cssText = 'position:fixed;inset:0;background:rgba(2,6,10,.62);z-index:10000;display:flex;align-items:flex-end;justify-content:center;';
+  t.className = 'ish-scrim';
   t.innerHTML =
-    '<style>@keyframes ishUp{from{transform:translateY(60px);opacity:.4}to{transform:translateY(0);opacity:1}}</style>' +
-    '<div style="width:100%;max-width:560px;height:52%;min-height:360px;background:#0e1626;color:#eef4ff;border-radius:30px 30px 0 0;padding:12px 22px calc(env(safe-area-inset-bottom,0px) + 20px);display:flex;flex-direction:column;animation:ishUp 340ms cubic-bezier(.22,1,.36,1);">' +
-      '<div style="width:40px;height:6px;border-radius:99px;background:#1d2c47;margin:2px auto 16px;"></div>' +
-      '<img src="icon-512.png" alt="" style="width:58px;height:58px;border-radius:50%;display:block;margin-bottom:12px;">' +
-      '<h3 style="margin:0 0 6px;font-size:21px;">Install ' + name + '</h3>' +
-      '<p style="margin:0 0 16px;font-size:14.5px;line-height:1.5;color:#c9d6ee;">It goes on your home screen and opens like any other app.</p>' +
-      '<div data-steps style="display:flex;flex-direction:column;gap:9px;overflow-y:auto;"></div>' +
-      '<div style="flex:1;"></div>' +
-      '<button data-go style="width:100%;background:linear-gradient(90deg,#35e0c8,#2bb7d8);border:none;border-radius:14px;padding:16px;font-weight:800;cursor:pointer;color:#04241f;font-size:16.5px;">Got it</button>' +
+    '<div class="ish-sheet">' +
+      '<div class="ish-handle"></div>' +
+      '<button class="ish-x" type="button" aria-label="Close">\u2715</button>' +
+      '<img class="ish-icon" src="icon-512.png" alt="">' +
+      '<h3 class="ish-title">Install ' + name + '</h3>' +
+      '<p class="ish-sub">It goes on your home screen and opens like any other app.</p>' +
+      '<div class="ish-steps" data-steps></div>' +
+      '<div class="ish-spacer"></div>' +
+      '<button class="ish-go" data-go type="button">Got it</button>' +
     '</div>';
   const stepsBox = t.querySelector('[data-steps]');
   const goBtn = t.querySelector('[data-go]');
@@ -746,19 +749,18 @@ function showInstallSheet(){
       : ios ? ['Tap the Share button in Safari', 'Tap Add to Home Screen']
       : ['Open the browser menu (\u22ee)', 'Tap Install app or Add to Home screen'];
     stepsBox.innerHTML = steps ? steps.map((s, i) =>
-      '<div style="display:flex;align-items:center;gap:12px;background:rgba(255,255,255,.05);border-radius:14px;padding:11px 13px;">' +
-      '<span style="width:27px;height:27px;flex:none;border-radius:50%;background:linear-gradient(90deg,#35e0c8,#2bb7d8);color:#04241f;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13.5px;">' + (i + 1) + '</span>' +
-      '<span style="font-size:14.5px;line-height:1.45;">' + s + '</span></div>').join('') : '';
+      '<div class="ish-step"><span class="ish-num">' + (i + 1) + '</span><span class="ish-steptext">' + s + '</span></div>').join('') : '';
     goBtn.textContent = (__ip && !standalone) ? 'Install' : 'Got it';
   }
+  function close(){ window.removeEventListener('app:installable', render); t.remove(); }
   render();
   window.addEventListener('app:installable', render);
   goBtn.onclick = async () => {
-    window.removeEventListener('app:installable', render);
     if (__ip && !standalone){ __ip.prompt(); try { await __ip.userChoice; } catch (e) {} __ip = null; }
-    t.remove();
+    close();
   };
-  t.onclick = e => { if (e.target === t){ window.removeEventListener('app:installable', render); t.remove(); } };
+  t.querySelector('.ish-x').onclick = close;
+  t.onclick = e => { if (e.target === t) close(); };
   document.body.appendChild(t);
 }
 if (!YV_EMBED && new URLSearchParams(location.search).has('install')){
