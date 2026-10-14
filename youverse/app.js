@@ -533,7 +533,7 @@ function pagerInit(){
   }, { passive: false });
   document.addEventListener('keydown', e => {
     if (!PAGER.ready || view.classList.contains('hidden')) return;
-    if (!$('diveSheet').classList.contains('hidden')) return;
+    if (typeof diveOpen !== 'undefined' && diveOpen) return;
     if (e.key === 'ArrowDown' || e.key === 'PageDown'){ pagerGoTo(PAGER.i + 1); e.preventDefault(); }
     else if (e.key === 'ArrowUp' || e.key === 'PageUp'){ pagerGoTo(PAGER.i - 1); e.preventDefault(); }
     else if (e.key === 'Home') pagerGoTo(0);
@@ -611,35 +611,45 @@ function setExplorer(year, scroll){
   });
   /* (no scrollIntoView: the transform pager positions chapters itself) */
 }
-/* Years whose pool is bigger than one screenful rotate: a date-seeded
-   shuffle picks the 10 on display, so a different mix shows on different
-   days. Nothing is stored — the seed is just today's date. */
-function rotateSubset(items, year, tab){
-  if (items.length <= 10) return items;
-  const now = new Date();
-  const str = year + '|' + tab + '|' + now.getFullYear() + '-' + (now.getMonth()+1) + '-' + now.getDate();
+/* Rotation (batch #5, Dex's scheme): the TOP FIVE stay pinned at the
+   front in rank order — the headliners are always the headliners — and
+   the REST scatter by date seed, so repeat visits rearrange the tail
+   and it takes a long while before the same layout comes round again.
+   The whole pool shows (a year's rail runs to ~20 cards now). Nothing
+   is stored; the seed is just today's date. */
+function seededShuffle(arr, str){
   let h = 2166136261;
   for (let i = 0; i < str.length; i++){ h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); }
   let seed = h >>> 0;
   const rnd = () => (seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0) / 4294967296;
-  const arr = items.slice();
-  for (let i = arr.length - 1; i > 0; i--){ const j = Math.floor(rnd() * (i + 1)); const t = arr[i]; arr[i] = arr[j]; arr[j] = t; }
-  return arr.slice(0, 10);
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--){ const j = Math.floor(rnd() * (i + 1)); const t = a[i]; a[i] = a[j]; a[j] = t; }
+  return a;
+}
+function scatterWithPinned(items, seedKey){
+  if (items.length <= 5) return items.slice();
+  const now = new Date();
+  const day = now.getFullYear() + '-' + (now.getMonth()+1) + '-' + now.getDate();
+  return items.slice(0, 5).concat(seededShuffle(items.slice(5), seedKey + '|' + day));
 }
 function renderEvents(){
   const data = YV_EVENTS[String(exYear)];
   const list = $('eventList');
   if (!data){ list.innerHTML = '<div class="empty">Our event archive starts in 1950 — this year is beyond it for now.</div>'; currentItems = []; return; }
-  const items = rotateSubset(data[exTab] || [], exYear, exTab);
+  const items = scatterWithPinned(data[exTab] || [], 'years|' + exYear + '|' + exTab);
   currentItems = items;
-  list.innerHTML = items.map((e,i) =>
+  /* A year with nothing yet (a fresh in-progress year, a birth year
+     that just started) gets a friendly line, never a sad empty rail;
+     a sparse year gets the same spirit as a tail note (batch #5). */
+  list.innerHTML = items.length ? items.map((e,i) =>
     `<div class="ev-card" data-i="${i}" role="button" tabindex="0"><div class="card-media"><img data-wiki="${e.t.replace(/"/g,'&quot;')}" data-fb="${exTab}" alt=""></div><div class="card-body"><div class="et">${e.t}</div><div class="ed">${e.d}</div><div class="go">The full story ›</div></div></div>`).join('')
-    || '<div class="empty">No entries for this view yet.</div>';
+    + (items.length < 5 ? '<div class="empty">This year is still being written — check back as it unfolds.</div>' : '')
+    : '<div class="empty">A fresh new year — hopefully a good one. Nothing historical yet; this page is still being written.</div>';
   hydrateImages(list);
   warmAhead(items);
-  /* a year shows at most 10 cards — load every thumb NOW, in order, so
-     no card is ever arrived at blank; the observer/scroll preloads are
-     just nets underneath */
+  /* a year shows its whole pool (up to ~20 cards) — load every thumb
+     NOW, in order, so no card is ever arrived at blank; the observer/
+     scroll preloads are just nets underneath */
   list.querySelectorAll('img[data-wiki]').forEach(img => loadThumb(img));
   bindRailPreload(list, '.ev-card');
 }
@@ -657,14 +667,27 @@ const FALLBACK_IMG = {
   found: 'https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c4/Red_Fox_drinking_from_a_lake_in_Gennevilliers%2C_France.jpg/960px-Red_Fox_drinking_from_a_lake_in_Gennevilliers%2C_France.jpg',
   lost: 'https://thumb.wikimedia.org/wikipedia/commons/thumb/0/07/Thylacinus_cynocephalus_at_Hobart_Zoo_1928.jpg/960px-Thylacinus_cynocephalus_at_Hobart_Zoo_1928.jpg',
 };
-const YV_IMG_OVERRIDES = {};  /* filled by the coverage audit: title -> image URL */
+const YV_IMG_OVERRIDES = {
+  /* 'Vampire hedgehog' is Hylomys macarong (Dalat gymnure, described
+     2023). Verified Oct 2026: NO freely licensed photo of the species
+     exists — Commons has no macarong media at all, and the real photos
+     sit in press/paper coverage under non-free terms. A bare search
+     resolved the card to a Sonic the Hedgehog cartoon. Honest fix
+     (Dex, batch #5 item 8): resolve the image from its cousin's
+     article instead — the Bornean short-tailed gymnure (Hylomys
+     dorsalis), a real gymnure photo hosted on Wikipedia — and the
+     card's own text says that's what the picture shows. A value that
+     is not a URL is used as the Wikipedia search term. */
+  'Vampire hedgehog': 'Bornean short-tailed gymnure',
+};
 function wikiImage(title){
-  if (YV_IMG_OVERRIDES[title]) return Promise.resolve(YV_IMG_OVERRIDES[title]);
+  const ovr = YV_IMG_OVERRIDES[title];
+  if (ovr && /^https?:/.test(ovr)) return Promise.resolve(ovr);
   if (wikiImgCache.has(title)) return wikiImgCache.get(title);
   const p = (async () => {
     try {
       const s = await fetch('https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch='
-        + encodeURIComponent(title) + '&srlimit=4&format=json&origin=*').then(r => r.json());
+        + encodeURIComponent(ovr || title) + '&srlimit=4&format=json&origin=*').then(r => r.json());
       const hits = (s.query && s.query.search) || [];
       for (const hit of hits){
         const sum = await fetch('https://en.wikipedia.org/api/rest_v1/page/summary/'
@@ -678,7 +701,7 @@ function wikiImage(title){
         if (pages){ const pg = Object.values(pages)[0]; if (pg && (pg.thumbnail || pg.original)) return (pg.thumbnail || pg.original).source; }
       }
       const cs = await fetch('https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrsearch='
-        + encodeURIComponent(title + ' filetype:bitmap') + '&gsrnamespace=6&gsrlimit=4&prop=imageinfo&iiprop=url|size|mime&iiurlwidth=900&format=json&origin=*')
+        + encodeURIComponent((ovr || title) + ' filetype:bitmap') + '&gsrnamespace=6&gsrlimit=4&prop=imageinfo&iiprop=url|size|mime&iiurlwidth=900&format=json&origin=*')
         .then(r => r.json()).catch(() => null);
       const cpages = cs && cs.query && cs.query.pages;
       if (cpages){
@@ -799,11 +822,40 @@ function diveMeta(year){
   const age = year === new Date().getFullYear() ? ageNow() : ageAt(new Date(year, 11, 31));
   return age <= 0 ? `${year} · the year you were born` : `${year} · you were ${age}`;
 }
+/* Sheet open/close + the system Back button (batch #5): opening the
+   sheet pushes a history state, so Android's edge-swipe / Back CLOSES
+   THE SHEET instead of minimizing the whole app. Every UI close path
+   pops that same state, so the back stack never accumulates junk.
+   The slide itself is one CSS transition on a fixed-height card whose
+   content is laid out BEFORE the sheet becomes visible (see
+   showDiveSheet) — no collapsed-chunk-then-lurch. */
+let diveOpen = false, diveHist = false;
+function showDiveSheet(){
+  const sh = $('diveSheet');
+  void sh.offsetWidth;  /* commit the laid-out content + start transform */
+  sh.classList.add('open');
+  sh.setAttribute('aria-hidden', 'false');
+  document.body.style.overflow = 'hidden';
+  diveOpen = true;
+  if (!diveHist){
+    diveHist = true;
+    try { history.pushState({ yvDive: 1 }, ''); } catch(e){}
+  }
+}
+function hideDiveSheet(){
+  const sh = $('diveSheet');
+  sh.classList.remove('open');
+  sh.setAttribute('aria-hidden', 'true');
+  document.body.style.overflow = '';
+  diveOpen = false;
+}
+addEventListener('popstate', () => {
+  if (diveHist){ diveHist = false; if (diveOpen) hideDiveSheet(); }
+});
 async function openDive(title, meta, fallback){
   const body = $('diveBody');
   body.innerHTML = `<div class="dive-kicker">${meta}</div><h4 class="dive-title">${title}</h4><p class="dive-loading">Digging up the full story…</p>`;
-  $('diveSheet').classList.remove('hidden');
-  document.body.style.overflow = 'hidden';
+  showDiveSheet();
   try {
     const s = await fetch('https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch='
       + encodeURIComponent(title) + '&srlimit=3&format=json&origin=*').then(r => r.json());
@@ -837,8 +889,8 @@ async function openDive(title, meta, fallback){
   }
 }
 function closeDive(){
-  $('diveSheet').classList.add('hidden');
-  document.body.style.overflow = '';
+  if (diveHist){ history.back(); }  /* popstate closes the sheet */
+  else if (diveOpen) hideDiveSheet();
 }
 
 /* ---------- fellow earthlings ---------- */
@@ -851,17 +903,20 @@ function spCard(w, kind, i){
 function renderWild(){
   const by = birth.getFullYear();
   const s = computeStats();
-  currentFound = YV_WILD.found.filter(w => w.y >= by).slice().sort((a,b) => b.y - a.y);
-  currentLost = YV_WILD.lost.filter(w => w.y >= by).slice().sort((a,b) => b.y - a.y);
+  /* rank = dataset order: found reads newest-first; lost is stored
+     most-notable-first (see data.js). Top five pinned, the rest
+     scatter by date — same scheme as the Years rails (batch #5) */
+  currentFound = scatterWithPinned(YV_WILD.found.filter(w => w.y >= by).slice().sort((a,b) => b.y - a.y), 'wild|found|' + by);
+  currentLost = scatterWithPinned(YV_WILD.lost.filter(w => w.y >= by), 'wild|lost|' + by);
   $('wildCards').innerHTML =
     wstat(Math.floor(s.years) * 17000, 'compact', '+', 'new species discovered during your life') +
-    wstat(currentLost.length, 'int', '', 'famous species lost during your life');
+    wstat(currentLost.length, 'int', '', 'notable species lost during your life');
   $('wildFound').innerHTML = currentFound.length
     ? currentFound.map((w,i) => spCard(w,'found',i)).join('')
     : '<div class="empty">None of the famous ones yet — you are very new here. The discoveries are coming.</div>';
   $('wildLost').innerHTML = currentLost.length
     ? currentLost.map((w,i) => spCard(w,'lost',i)).join('')
-    : '<div class="empty">None of the famous ones yet. Let\'s keep it that way.</div>';
+    : '<div class="empty">None of the notable ones yet. Let\'s keep it that way.</div>';
   hydrateImages($('wildFound'), wildObserver);
   hydrateImages($('wildLost'), wildObserver);
   /* same ahead-loading as the Years rail — scroll mechanics untouched */
@@ -872,40 +927,99 @@ function renderWild(){
     rail.querySelectorAll('img[data-wiki]').forEach((img, i) => { if (i < 5) loadThumb(img); }));
 }
 
-/* ---------- poster ---------- */
+/* ---------- poster ----------
+   Batch #5 redesign (Dex: the old one was "just six numbers"). A real
+   keepsake layout: name + born line, the live seconds count as the hero
+   number, a two-column stat grid, the first-day story, the Earthlings
+   ledger, two headlines from the birth year, and the brand footer —
+   drawn like a poster, not a stat dump. */
+function wrapText(ctx, text, cx, y, maxW, lh, maxLines){
+  const words = String(text).split(/\s+/);
+  const lines = [];
+  let line = '';
+  for (const w of words){
+    const t = line ? line + ' ' + w : w;
+    if (line && ctx.measureText(t).width > maxW){ lines.push(line); line = w; }
+    else line = t;
+  }
+  if (line) lines.push(line);
+  const cap = maxLines || 3;
+  const out = lines.slice(0, cap);
+  if (lines.length > cap && out.length) out[out.length - 1] += '…';
+  out.forEach((l, i) => ctx.fillText(l, cx, y + i * lh));
+  return out.length;
+}
 function makePoster(){
   const s = computeStats();
+  const by = birth.getFullYear();
   const cv = $('posterCanvas'), ctx = cv.getContext('2d');
-  const g = ctx.createLinearGradient(0,0,0,1350);
+  const W = 1080, H = 1350;
+  const g = ctx.createLinearGradient(0,0,0,H);
   g.addColorStop(0,'#0b1526'); g.addColorStop(1,'#071018');
-  ctx.fillStyle = g; ctx.fillRect(0,0,1080,1350);
+  ctx.fillStyle = g; ctx.fillRect(0,0,W,H);
+  /* seeded stars (same sky every render — no Math.random flicker) */
+  let rng = 987654321;
+  const rnd = () => (rng = (Math.imul(rng, 1664525) + 1013904223) >>> 0) / 4294967296;
   ctx.fillStyle = '#35e0c8';
-  for (let i=0;i<160;i++){ ctx.globalAlpha = Math.random()*0.5+0.1; ctx.beginPath();
-    ctx.arc(Math.random()*1080, Math.random()*1350, Math.random()*1.8, 0, 7); ctx.fill(); }
+  for (let i=0;i<170;i++){ ctx.globalAlpha = rnd()*0.5+0.1; ctx.beginPath();
+    ctx.arc(rnd()*W, rnd()*H, rnd()*1.8, 0, 7); ctx.fill(); }
   ctx.globalAlpha = 1;
+  ctx.strokeStyle = 'rgba(53,224,200,.45)'; ctx.lineWidth = 3;
+  ctx.strokeRect(36, 36, W-72, H-72);
   ctx.textAlign = 'center';
-  ctx.fillStyle = '#35e0c8'; ctx.font = '700 44px system-ui';
-  ctx.fillText('✦  Y O U V E R S E', 540, 130);
-  ctx.fillStyle = '#eef4ff'; ctx.font = '850 64px system-ui';
-  ctx.fillText(profile.name ? `${profile.name.toUpperCase()}'S LIFE IN NUMBERS` : 'A LIFE IN NUMBERS', 540, 225);
-  ctx.fillStyle = '#8fa3bf'; ctx.font = '500 34px system-ui';
-  ctx.fillText('Born ' + birth.toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'}), 540, 285);
-  const rows = [
+  /* header: brand, name, born line */
+  ctx.fillStyle = '#35e0c8'; ctx.font = '700 40px system-ui';
+  ctx.fillText('✦  Y O U V E R S E  ✦', 540, 118);
+  const name = ((profile && profile.name) || '').trim();
+  ctx.fillStyle = '#eef4ff'; ctx.font = '850 66px system-ui';
+  ctx.fillText(name ? name.toUpperCase() : 'A LIFE, SO FAR', 540, 202);
+  ctx.fillStyle = '#8fa3bf'; ctx.font = '500 33px system-ui';
+  ctx.fillText('Born ' + birth.toLocaleDateString('en-US',{weekday:'long', month:'long', day:'numeric', year:'numeric'}), 540, 258);
+  /* hero: seconds alive, live */
+  ctx.fillStyle = '#35e0c8'; ctx.font = '900 90px system-ui';
+  ctx.fillText(commas(s.secs), 540, 374);
+  ctx.fillStyle = '#8fa3bf'; ctx.font = '700 26px system-ui';
+  ctx.fillText('S E C O N D S   A L I V E  —  A N D   C O U N T I N G', 540, 418);
+  /* stat grid, two columns */
+  const cells = [
     [commas(s.days), 'days alive'],
-    [commas(s.heartbeats), 'heartbeats'],
-    [bigFmt(s.galaxyMiles), 'Milky Way miles'],
+    [compactFmt(s.heartbeats), 'heartbeats'],
+    [bigFmt(s.galaxyMiles), 'miles through the galaxy'],
     [commas(s.moons), 'full moons witnessed'],
-    ['+' + bigFmt((s.popN - s.popB)*1e9), 'people added to Earth'],
+    ['+' + bigFmt((s.popN - s.popB)*1e9), 'people joined Earth'],
     [commas(s.exoN - s.exoB), 'new worlds discovered'],
   ];
-  rows.forEach(([n,l],i)=>{
-    const y = 430 + i*130;
-    ctx.fillStyle = '#eef4ff'; ctx.font = '850 58px system-ui'; ctx.fillText(n, 540, y);
-    ctx.fillStyle = '#8fa3bf'; ctx.font = '600 30px system-ui'; ctx.fillText(l, 540, y+48);
+  cells.forEach(([n,l],i)=>{
+    const cxp = i % 2 === 0 ? 292 : 788, yp = 512 + Math.floor(i/2) * 116;
+    ctx.fillStyle = '#eef4ff'; ctx.font = '850 46px system-ui'; ctx.fillText(n, cxp, yp);
+    ctx.fillStyle = '#8fa3bf'; ctx.font = '600 25px system-ui'; ctx.fillText(l, cxp, yp + 38);
   });
-  ctx.fillStyle = '#35e0c8'; ctx.font = '700 32px system-ui';
-  ctx.fillText('dexcimino.com/youverse', 540, 1280);
+  const div = y => { ctx.strokeStyle = 'rgba(143,163,191,.35)'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(300, y); ctx.lineTo(780, y); ctx.stroke(); };
+  div(872);
+  /* chapter zero: the day it began */
+  const mp = moonPhase(birth);
+  ctx.fillStyle = '#35e0c8'; ctx.font = '800 27px system-ui';
+  ctx.fillText('T H E   D A Y   I T   B E G A N', 540, 924);
+  ctx.fillStyle = '#c9d6ee'; ctx.font = '500 30px system-ui';
+  wrapText(ctx, `That night the Moon was a ${mp.name.toLowerCase()} — ${Math.round(mp.illum*100)}% lit — and about ${bigFmt(interp(YV_ANCHORS.popWorldB, by)*1e9)} people were already here, waiting.`, 540, 968, 880, 40, 3);
+  /* fellow earthlings ledger */
+  const lostN = YV_WILD.lost.filter(w => w.y >= by).length;
+  ctx.fillStyle = '#35e0c8'; ctx.font = '800 27px system-ui';
+  ctx.fillText('F E L L O W   E A R T H L I N G S', 540, 1118);
+  ctx.fillStyle = '#c9d6ee'; ctx.font = '500 30px system-ui';
+  ctx.fillText(`${commas(Math.floor(s.years) * 17000)}+ species discovered · ${lostN} notable species lost`, 540, 1162);
+  /* two headlines from the birth year */
+  const evs = ((YV_EVENTS[String(by)] || {}).world || []).slice(0, 2);
+  if (evs.length){
+    ctx.fillStyle = '#8fa3bf'; ctx.font = '600 25px system-ui';
+    wrapText(ctx, 'The year you arrived: ' + evs.map(e => e.t).join('  ·  '), 540, 1204, 900, 34, 2);
+  }
+  /* footer */
+  ctx.fillStyle = '#35e0c8'; ctx.font = '700 30px system-ui';
+  ctx.fillText('Made with YouVerse · dexcimino.com', 540, 1290);
   cv.toBlob(b => {
+    if (!b) return;
     const a = document.createElement('a');
     a.href = URL.createObjectURL(b); a.download = 'youverse-poster.png'; a.click();
     setTimeout(()=>URL.revokeObjectURL(a.href), 4000);
@@ -1036,7 +1150,17 @@ $('nextYear').addEventListener('click', () => setExplorer(exYear+1, false));
 $('yearSlider').addEventListener('input', e => setExplorer(Number(e.target.value), false));
 $('tabWorld').addEventListener('click', () => { exTab='world'; $('tabWorld').classList.add('active'); $('tabUS').classList.remove('active'); renderEvents(); $('eventList').scrollLeft = 0; });
 $('tabUS').addEventListener('click', () => { exTab='us'; $('tabUS').classList.add('active'); $('tabWorld').classList.remove('active'); renderEvents(); $('eventList').scrollLeft = 0; });
-$('posterBtn').addEventListener('click', makePoster);
+$('posterBtn').addEventListener('click', () => {
+  const btn = $('posterBtn');
+  if (btn.disabled) return;
+  /* instant tap feedback (batch #5): the button answers NOW, not after
+     the canvas renders — pressed state + "Saving…" until the save fires */
+  btn.disabled = true;
+  const old = btn.textContent;
+  btn.textContent = 'Saving…';
+  try { makePoster(); } catch(e){}
+  setTimeout(() => { btn.disabled = false; btn.textContent = old; }, 1600);
+});
 $('eventList').addEventListener('click', e => {
   const el = e.target.closest('.ev-card'); if (!el) return;
   const item = currentItems[Number(el.dataset.i)]; if (!item) return;
