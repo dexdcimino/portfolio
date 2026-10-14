@@ -24,6 +24,84 @@ function bunnySrc(url) {
   return url.replace('play_720p.mp4', 'play_' + r + '.mp4');
 }
 
+/* ---------- Adaptive streaming (HLS) ------------------------------------- */
+
+/* A one-time rendition pick cannot react when a connection dips mid-play:
+   the chosen file either fits the pipe or the player starves, which is the
+   stall Dex kept hitting on the featured film. Bunny Stream also serves an
+   HLS playlist per upload (play_NNNp.mp4 -> playlist.m3u8), and adaptive
+   playback shifts quality segment by segment as bandwidth moves, so a dip
+   costs a softer picture for a few seconds instead of a frozen one.
+   attachStream() below is the only route in: hls.js where it can run,
+   native HLS where the browser has it built in, and on any failure the
+   bunnySrc MP4 — exactly the behaviour before this existed. */
+let hlsLoader = null;
+function loadHls() {
+  if (window.Hls) return Promise.resolve(window.Hls);
+  if (!hlsLoader) {
+    hlsLoader = new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = 'vendor/hls.min.js';
+      s.onload = () => resolve(window.Hls);
+      s.onerror = () => { hlsLoader = null; reject(new Error('hls.js failed to load')); };
+      document.head.appendChild(s);
+    });
+  }
+  return hlsLoader;
+}
+
+function streamPlaylist(url) {
+  if (!url || !/play_\d+p\.mp4/.test(url)) return null;
+  return url.replace(/play_\d+p\.mp4/, 'playlist.m3u8');
+}
+
+/* Attach the best source for a Bunny MP4 url to a <video>. onReady fires
+   once a source is live (synchronously for the plain-MP4 route, after the
+   library lands for the adaptive one) — callers play() from there. The
+   returned teardown destroys the Hls instance, if one was made; a torn-down
+   attach never touches the video afterwards. */
+function attachStream(video, mp4Url, onReady) {
+  let hls = null, dead = false;
+  const ready = () => { if (!dead && onReady) onReady(); };
+  const fallback = () => {
+    if (dead) return;
+    if (hls) { const h = hls; hls = null; h.destroy(); }
+    const t = video.currentTime || 0;
+    video.src = bunnySrc(mp4Url);
+    if (t > 0) video.addEventListener('loadedmetadata',
+      () => { try { video.currentTime = t; } catch {} }, { once: true });
+    ready();
+  };
+  const playlist = streamPlaylist(mp4Url);
+  if (!playlist) { video.src = bunnySrc(mp4Url); ready(); return () => {}; }
+  const native = () => {
+    if (dead) return;
+    if (video.canPlayType && video.canPlayType('application/vnd.apple.mpegurl')) {
+      video.src = playlist;
+      ready();
+    } else fallback();
+  };
+  loadHls().then(Hls => {
+    if (dead) return;
+    if (!Hls || !Hls.isSupported()) { native(); return; }
+    hls = new Hls({
+      enableWorker: true,
+      startLevel: -1,               // ABR chooses the opening level
+      capLevelToPlayerSize: true,   // never fetch pixels the slot cannot show
+    });
+    /* Recoverable errors are hls.js's own business (it retries and shifts
+       level on its own); a fatal one hands the film back to the MP4. */
+    hls.on(Hls.Events.ERROR, (_, data) => { if (data && data.fatal) fallback(); });
+    hls.loadSource(playlist);
+    hls.attachMedia(video);
+    ready();
+  }).catch(native);
+  return () => {
+    dead = true;
+    if (hls) { hls.destroy(); hls = null; }
+  };
+}
+
 /* ---------- Dex signed in is admin, everywhere -------------------------- */
 
 /* DEX SIGNED IN IS ADMIN (Dex, 2026-10-08): "being signed in on my account
@@ -2540,6 +2618,10 @@ if (workModal) {
       setTimeout(open, 1100);
     });
     if (!src || !/^https:/.test(src) || !video) return;
+    /* Warm the adaptive library while the visitor is still travelling to
+       the section, so the first play does not wait on it. A failure here is
+       not fatal: attachStream retries on demand and falls back to the MP4. */
+    if (streamPlaylist(item.dataset.src)) loadHls().catch(() => {});
 
     const mmss = t => Number.isFinite(t) && t >= 0
       ? Math.floor(t / 60) + ':' + String(Math.floor(t % 60)).padStart(2, '0') : '0:00';
@@ -2581,8 +2663,18 @@ if (workModal) {
       floatPaint();
       floatUpdate();
     }
+    let detachStream = null;
     function start() {
-      if (!video.src) { video.src = src; video.preload = 'auto'; }
+      if (!detachStream) {
+        /* The source attaches on first play, as before — adaptively where
+           the upload offers a playlist. attachStream calls back once a
+           source is live, and that callback is the play, so a start asked
+           for while the library is still landing is not lost. The player
+           itself lives for the page, so the teardown is never called. */
+        video.preload = 'auto';
+        detachStream = attachStream(video, item.dataset.src, () => { if (wanted) video.play().catch(() => {}); });
+        return;
+      }
       video.play().catch(() => {});   // a refused autoplay leaves the poster and the disc up
     }
     /* Sound on, the video keeps playing when it scrolls away (Dex), and a copy
@@ -10849,13 +10941,24 @@ let openReader = () => {};
       icon(mute, video.muted ? 'volume-slash' : 'volume');
       mute.setAttribute('aria-label', video.muted ? 'Unmute' : 'Mute');
     };
+    let detachStream = null, attachPlay = false;
     const start = () => {
-      if (!video.src) { video.src = src; video.preload = 'auto'; }
+      if (!detachStream) {
+        /* The source attaches on first play, adaptively where the upload
+           offers a playlist; the attach callback is the play. attachPlay
+           carries the intent, so a pause that lands while the source is
+           still attaching is not overridden when it arrives. */
+        video.preload = 'auto';
+        attachPlay = true;
+        detachStream = attachStream(video, src, () => { if (attachPlay) video.play().catch(() => {}); });
+        return;
+      }
+      attachPlay = true;
       video.play().catch(() => {});   // a refused play leaves the poster and the disc up
     };
     const flip = () => {
       touched = true;
-      if (video.paused || video.ended) start(); else video.pause();
+      if (video.paused || video.ended) start(); else { attachPlay = false; video.pause(); }
     };
     const flipFull = () => {
       if (document.fullscreenElement) document.exitFullscreen?.();
@@ -10923,13 +11026,18 @@ let openReader = () => {};
       control: isLive,
       touched: () => touched,
       toggle: flip,
-      pause: () => video.pause(),
+      pause: () => { attachPlay = false; video.pause(); },
     });
     video.addEventListener('play', () => MediaBus.solo(me));
     return {
       root, video,
-      pause: () => video.pause(),
-      destroy: () => { video.pause(); document.removeEventListener('fullscreenchange', onFsChange); },
+      pause: () => { attachPlay = false; video.pause(); },
+      destroy: () => {
+        attachPlay = false;
+        video.pause();
+        if (detachStream) { detachStream(); detachStream = null; }
+        document.removeEventListener('fullscreenchange', onFsChange);
+      },
     };
   };
 
@@ -10958,7 +11066,7 @@ let openReader = () => {};
              rides along as `source` — the filmstrip and the tray read it,
              and the enlarge view builds a player of its own from `video`. */
           const video = {
-            src: bunnySrc(vid.dataset.src),
+            src: vid.dataset.src,
             audio: vid.hasAttribute('data-audio'),
             name: card.querySelector('strong')?.textContent || fig.dataset.title || 'Video',
             label: vid.getAttribute('aria-label') || fig.dataset.title || '',
