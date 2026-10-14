@@ -751,6 +751,7 @@ function showInstallSheet(){
     stepsBox.innerHTML = steps ? steps.map((s, i) =>
       '<div class="ish-step"><span class="ish-num">' + (i + 1) + '</span><span class="ish-steptext">' + s + '</span></div>').join('') : '';
     goBtn.textContent = (__ip && !standalone) ? 'Install' : 'Got it';
+    t.querySelector('.ish-sheet').classList.toggle('ish-tall', !!steps);
   }
   function close(){ window.removeEventListener('app:installable', render); t.remove(); }
   render();
