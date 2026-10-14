@@ -1,16 +1,31 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+<svg xmlns="http://www.w3.org/2000/svg"
+     width="1024" height="1024" viewBox="0 0 300 300">
   <defs>
-    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#d2ff5e"/>
-      <stop offset="1" stop-color="#8fe000"/>
+    <linearGradient id="yaptap-disc" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#222322"/>
+      <stop offset="0.55" stop-color="#111211"/>
+      <stop offset="1" stop-color="#080808"/>
+    </linearGradient>
+    <linearGradient id="yaptap-lime" gradientUnits="userSpaceOnUse"
+                    x1="96" y1="65" x2="214" y2="250">
+      <stop offset="0" stop-color="#E5FC70"/>
+      <stop offset="0.5" stop-color="#CEFA49"/>
+      <stop offset="1" stop-color="#AAF12F"/>
+    </linearGradient>
+    <linearGradient id="yaptap-mic" gradientUnits="userSpaceOnUse"
+                    x1="150" y1="90" x2="150" y2="224">
+      <stop offset="0" stop-color="#10110E"/>
+      <stop offset="1" stop-color="#090A08"/>
     </linearGradient>
   </defs>
-  <rect width="512" height="512" rx="112" fill="#0a0d0a"/>
-  <!-- speech bubble: it traps talk -->
-  <circle cx="256" cy="232" r="152" fill="url(#g)"/>
-  <path d="M168 348 L150 448 L262 372 Z" fill="url(#g)"/>
-  <!-- microphone -->
-  <rect x="232" y="128" width="48" height="118" rx="24" fill="#0a0d0a"/>
-  <path d="M196 208 v18 a60 60 0 0 0 120 0 v-18" fill="none" stroke="#0a0d0a" stroke-width="17" stroke-linecap="round"/>
-  <path d="M256 288 v30" fill="none" stroke="#0a0d0a" stroke-width="17" stroke-linecap="round"/>
+  <circle cx="150" cy="150" r="142" fill="url(#yaptap-disc)"/>
+  <path fill="url(#yaptap-lime)"
+        d="M150 55C202 55 246 97 246 150C246 202 203 244 150 244C138 244 126 241 115 237L68 254L83 215C66 197 56 175 56 150C56 97 98 55 150 55Z"/>
+  <g fill="url(#yaptap-mic)">
+    <rect x="127" y="90" width="46" height="79" rx="23"/>
+    <rect x="143" y="195" width="14" height="29" rx="5"/>
+    <path d="M111 162C112 181 129 195 150 195C171 195 189 181 190 162"
+          fill="none" stroke="url(#yaptap-mic)"
+          stroke-width="14" stroke-linecap="round"/>
+  </g>
 </svg>
