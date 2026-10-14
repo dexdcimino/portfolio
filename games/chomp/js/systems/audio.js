@@ -228,7 +228,7 @@ function start() {
   // Hands the graph the levels the pause menu already stored — this is the
   // single settings path, not a second one.
   attachBusGraph(graph);
-  samples = createSamplePlayer({ ctx, destination: graph.fx, basePath: 'assets/audio/' });
+  samples = createSamplePlayer({ ctx, destination: graph.fx, basePath: 'https://dexcimino-media.b-cdn.net/games/chomp/assets/audio/' });
   for (const [name, [file, opts]] of Object.entries(SAMPLES)) {
     const loading = samples.load(name, file, opts);
     // The track can only start once its buffer is decoded, and it is the one
