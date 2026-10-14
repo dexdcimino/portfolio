@@ -92,6 +92,15 @@ function attachStream(video, mp4Url, onReady) {
     /* Recoverable errors are hls.js's own business (it retries and shifts
        level on its own); a fatal one hands the film back to the MP4. */
     hls.on(Hls.Events.ERROR, (_, data) => { if (data && data.fatal) fallback(); });
+    /* A failure hls.js cannot see — the media element itself refusing the
+       blob (a policy block, say) never reaches its error channel, and the
+       attach would sit dead. If the element errors before it ever plays
+       while an Hls instance owns it, that is fatal too. */
+    const guard = () => { if (hls) fallback(); };
+    video.addEventListener('error', guard);
+    const unguard = () => video.removeEventListener('error', guard);
+    video.addEventListener('playing', unguard, { once: true });
+    video.addEventListener('loadedmetadata', unguard, { once: true });
     hls.loadSource(playlist);
     hls.attachMedia(video);
     ready();
