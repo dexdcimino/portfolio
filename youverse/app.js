@@ -4,11 +4,31 @@
    All math runs on-device. Data in data.js (YV_ANCHORS / YV_EVENTS / YV_WILD). */
 
 const $ = id => document.getElementById(id);
-let profile = null;      // {dob:'YYYY-MM-DD', name:''} — session only, never saved
+let profile = null;      // {dob:'YYYY-MM-DD', name:''} — remembered on this device (localStorage)
 let birth = null;        // Date at local noon on dob
 let ticker = null;
 let exYear = null;       // explorer year
 let exTab = 'world';     // 'world' | 'us'
+
+/* ---------- device memory (Dex's call, 2026-10-14: re-entering a
+   birthday on every open was annoying — remember it on THIS device
+   only; the last page's "Start over" wipes it) ---------- */
+const YV_STORE_KEY = 'youverse:profile';
+function saveProfile(){
+  try { localStorage.setItem(YV_STORE_KEY, JSON.stringify(profile)); } catch(e){}
+}
+function loadProfile(){
+  try {
+    const p = JSON.parse(localStorage.getItem(YV_STORE_KEY) || 'null');
+    if (!p || !/^\d{4}-\d{2}-\d{2}$/.test(p.dob || '')) return null;
+    const d = new Date(p.dob + 'T12:00:00');
+    if (isNaN(d) || d > new Date()) return null;
+    return { dob: p.dob, name: String(p.name || '').slice(0, 24) };
+  } catch(e){ return null; }
+}
+function clearProfile(){
+  try { localStorage.removeItem(YV_STORE_KEY); } catch(e){}
+}
 
 /* ---------- formatting (one system everywhere) ---------- */
 const commas = n => Math.round(n).toLocaleString('en-US');
@@ -185,7 +205,8 @@ function renderStory(){
     ],
   ]);
 
-  /* Planet — two swipeable pages */
+  /* Planet — three swipeable pages (rows rebalanced 2026-10-14: page one
+     carried 7 rows, more than one screen can hold at short viewports) */
   const MILESTONES = [[6,'1999'],[7,'2011'],[8,'2022']];
   const crossed = MILESTONES.filter(([, y]) => by < Number(y) && Number(y) <= new Date().getFullYear());
   fillPages('planetPages', 'planetDots', [
@@ -201,16 +222,18 @@ function renderStory(){
           `Today: ${compactFmt(s.netN*1e9)}. The internet grew up alongside you.`),
       srow('calc', s.co2N - s.co2B, 'plus0', ' ppm', 'more CO₂ in every breath',
         `Air at your birth: ${s.co2B.toFixed(0)} ppm. Air today: ${s.co2N.toFixed(0)} ppm.`),
+    ],
+    [
       srow('calc', s.warmed, 'temp', '', 'warmer planet',
         'The global average temperature rise on your watch.'),
       srow('est', s.years*145, 'compact', '', 'earthquakes mag 6+',
         'The ground under you has never really sat still (USGS average).'),
       srow('calc', s.secs*44, 'compact', '', 'lightning strikes',
         'About 44 flashes every second, planet-wide (NASA).'),
-    ],
-    [
       srow('est', s.years*15, 'compact', '', 'earthquakes mag 7+',
         'The big, damaging kind — about 15 a year worldwide (USGS).'),
+    ],
+    [
       srow('est', s.years*55, 'compact', '', 'volcanic eruptions',
         'Somewhere on Earth, roughly one a week, your whole life.'),
       srow('est', s.days*100000, 'compact', '', 'flights flown',
@@ -230,6 +253,8 @@ function renderStory(){
   /* Space — two swipeable pages; page two is the stars */
   const bYF = yearFloat(birth), nYF = yearFloat(new Date());
   const neoB = Math.round(interp(NEO_ANCHORS, bYF)), neoN = Math.round(interp(NEO_ANCHORS, nYF));
+  /* Space — three swipeable pages (rebalanced 2026-10-14 like Planet:
+     6 rows a page squeezed the stat rows a few px past one screen) */
   fillPages('spacePages', 'spaceDots', [
     [
       srow('calc', s.galaxyMiles, 'compact', '', 'Milky Way miles',
@@ -240,18 +265,20 @@ function renderStory(){
         'Every 29.5 days, like clockwork, whether you looked up or not.'),
       srow('calc', s.exoN - s.exoB, 'compact', '', 'planets discovered',
         `Known when you were born: ${commas(s.exoB)}. Known today: ${commas(s.exoN)}.`),
+    ],
+    [
       srow('est', s.years*4.7, 'dec1', '', 'eclipses',
         'Solar and lunar, somewhere on Earth — about 4–5 a year.'),
       s.issOrbits > 0
         ? srow('calc', s.issOrbits, 'compact', '', 'ISS orbits',
           'One lap of Earth every ~93 minutes, this many times since ' + (birth < new Date(1998,10,20) ? 'it launched in 1998.' : 'you arrived.'))
         : srow('calc', null, null, '0', 'ISS orbits', 'The Space Station launched in 1998 — it will catch up.'),
-    ],
-    [
       srow('est', s.years*3, 'compact', '', 'Milky Way stars born',
         'Only about three a year now — our galaxy has mostly settled down.'),
       srow('est', null, null, '0 so far', 'Milky Way supernovae',
         'Our galaxy averages one every ~50 years. The last one anyone saw was in 1604 — yours is overdue.'),
+    ],
+    [
       srow('est', s.days*2.75e8, 'compact', '', 'stars born universe-wide',
         'About 275 million every single day, by the best astronomical estimates.'),
       srow('est', s.secs*30, 'compact', '', 'supernovae universe-wide',
@@ -292,7 +319,7 @@ function startTicker(){
   ticker = setInterval(tick, 250);
 }
 
-/* ---------- scene reveals, count-ups, dot nav ---------- */
+/* ---------- scene reveals + count-ups (driven by the pager) ---------- */
 function runCount(el){
   if (el.dataset.done) return; el.dataset.done = '1';
   const raw = parseFloat(el.dataset.count);
@@ -309,29 +336,140 @@ function runCount(el){
   };
   requestAnimationFrame(step);
 }
+function activateScene(i){
+  const sc = PAGER.scenes[i]; if (!sc) return;
+  sc.querySelectorAll('.rv').forEach(el => el.classList.add('in'));
+  sc.querySelectorAll('[data-count]').forEach(runCount);
+  document.querySelectorAll('.dotnav button').forEach(b =>
+    b.classList.toggle('active', b.dataset.target === sc.id));
+}
 function initJourney(){
   const rvs = document.querySelectorAll('#storyView .rv');
   rvs.forEach((el, i) => el.style.setProperty('--d', (Math.min(i % 6, 5) * 0.07) + 's'));
-  const io = new IntersectionObserver(es => es.forEach(e => {
-    if (!e.isIntersecting) return;
-    e.target.classList.add('in');
-    e.target.querySelectorAll('[data-count]').forEach(runCount);
-    io.unobserve(e.target);
-  }), {threshold: .15});
-  rvs.forEach(el => io.observe(el));
-  const sceneIO = new IntersectionObserver(es => es.forEach(e => {
-    if (e.isIntersecting){
-      document.querySelectorAll('.dotnav button').forEach(b =>
-        b.classList.toggle('active', b.dataset.target === e.target.id));
-    }
-  }), {rootMargin: '-45% 0px -45% 0px'});
-  document.querySelectorAll('#storyView .scene').forEach(sc => sceneIO.observe(sc));
 }
+
+/* ---------- the chapter pager ----------
+   Transform-based and gesture-owned: ONE swipe = ONE chapter, from
+   every chapter, in both directions, at any swipe speed. A gesture
+   moves the target by at most ±1; a new gesture mid-transition
+   retargets from the live position instead of being eaten. Vertical
+   movement is read from pointer events on the pager viewport — the
+   horizontal rails use touch-action:pan-x, so the browser consumes
+   only their horizontal pans (pointercancel aborts the pager drag)
+   and vertical drags that start on a rail bubble up here untouched.
+   Nothing in the journey scrolls natively, so no chapter can trap a
+   swipe or scroll internally. */
+const PAGER = { i: 0, n: 0, H: 0, scenes: [], ready: false };
+function pagerRender(dragPx){
+  const d = dragPx || 0;
+  PAGER.scenes.forEach((sc, k) => {
+    sc.style.transform = `translate3d(0, ${(k - PAGER.i) * PAGER.H + d}px, 0)`;
+    sc.classList.toggle('far', d === 0 && Math.abs(k - PAGER.i) > 1);
+  });
+}
+function pagerGoTo(i, instant){
+  if (!PAGER.ready) return;
+  PAGER.i = Math.max(0, Math.min(PAGER.n - 1, i));
+  $('storyView').classList.toggle('anim', !instant);
+  pagerRender(0);
+  activateScene(PAGER.i);
+}
+function pagerInit(){
+  const view = $('storyView');
+  PAGER.scenes = [...view.querySelectorAll('.scene')];
+  PAGER.n = PAGER.scenes.length;
+  PAGER.H = view.clientHeight;
+  PAGER.i = 0;
+  PAGER.ready = true;
+  pagerRender(0);
+  if (window.ResizeObserver){
+    new ResizeObserver(() => {
+      const h = view.clientHeight;
+      if (h && h !== PAGER.H){ PAGER.H = h; view.classList.remove('anim'); pagerRender(0); }
+    }).observe(view);
+  }
+}
+(function initPagerInput(){
+  const view = document.getElementById('storyView');
+  let drag = null, suppressClickUntil = 0;
+  const liveDragPx = () => {
+    const sc = PAGER.scenes[PAGER.i]; if (!sc) return 0;
+    const t = getComputedStyle(sc).transform;
+    if (!t || t === 'none') return 0;
+    const m = t.match(/matrix\(([^)]+)\)/);
+    return m ? Number(m[1].split(',')[5]) || 0 : 0;
+  };
+  view.addEventListener('pointerdown', e => {
+    if (!PAGER.ready || e.isPrimary === false) return;
+    view.classList.remove('anim');
+    drag = { x0: e.clientX, y0: e.clientY, d0: liveDragPx(), d: liveDragPx(), mode: null,
+             samples: [{ y: e.clientY, t: performance.now() }] };
+    pagerRender(drag.d0);
+  });
+  view.addEventListener('pointermove', e => {
+    if (!drag || e.isPrimary === false) return;
+    const dx = e.clientX - drag.x0, dy = e.clientY - drag.y0;
+    if (!drag.mode){
+      if (Math.abs(dy) > 9 && Math.abs(dy) > Math.abs(dx) * 1.15) drag.mode = 'v';
+      else if (Math.abs(dx) > 9) drag.mode = 'h';
+    }
+    if (drag.mode !== 'v') return;
+    let off = dy;
+    if ((PAGER.i === 0 && off > 0) || (PAGER.i === PAGER.n - 1 && off < 0)) off *= 0.35;
+    drag.d = drag.d0 + off;
+    drag.samples.push({ y: e.clientY, t: performance.now() });
+    if (drag.samples.length > 6) drag.samples.shift();
+    pagerRender(drag.d);
+  });
+  const endDrag = () => {
+    if (!drag) return;
+    let target = PAGER.i;
+    if (drag.mode === 'v'){
+      const d = drag.d || 0, s = drag.samples;
+      let v = 0;
+      if (s.length > 1 && s[s.length - 1].t > s[0].t)
+        v = (s[s.length - 1].y - s[0].y) / (s[s.length - 1].t - s[0].t);
+      if (d <= -58 || v <= -0.32) target = PAGER.i + 1;
+      else if (d >= 58 || v >= 0.32) target = PAGER.i - 1;
+      if (Math.abs(d) > 12) suppressClickUntil = performance.now() + 350;
+    }
+    drag = null;
+    pagerGoTo(target);
+  };
+  view.addEventListener('pointerup', endDrag);
+  view.addEventListener('pointercancel', () => { drag = null; pagerGoTo(PAGER.i); });
+  view.addEventListener('click', e => {
+    if (performance.now() < suppressClickUntil){ e.stopPropagation(); e.preventDefault(); }
+  }, true);
+  let wheelAcc = 0, wheelIdle = null, lastNav = 0;
+  view.addEventListener('wheel', e => {
+    if (!PAGER.ready) return;
+    e.preventDefault();
+    const unit = e.deltaMode === 1 ? 33 : e.deltaMode === 2 ? PAGER.H : 1;
+    wheelAcc += e.deltaY * unit;
+    clearTimeout(wheelIdle);
+    wheelIdle = setTimeout(() => { wheelAcc = 0; }, 280);
+    const now = performance.now();
+    if (Math.abs(wheelAcc) > 55 && now - lastNav > 140){
+      pagerGoTo(PAGER.i + (wheelAcc > 0 ? 1 : -1));
+      wheelAcc = 0; lastNav = now;
+    }
+  }, { passive: false });
+  document.addEventListener('keydown', e => {
+    if (!PAGER.ready || view.classList.contains('hidden')) return;
+    if (!$('diveSheet').classList.contains('hidden')) return;
+    if (e.key === 'ArrowDown' || e.key === 'PageDown'){ pagerGoTo(PAGER.i + 1); e.preventDefault(); }
+    else if (e.key === 'ArrowUp' || e.key === 'PageUp'){ pagerGoTo(PAGER.i - 1); e.preventDefault(); }
+    else if (e.key === 'Home') pagerGoTo(0);
+    else if (e.key === 'End') pagerGoTo(PAGER.n - 1);
+  });
+})();
 document.querySelectorAll('.dotnav button').forEach(b =>
   b.addEventListener('click', () => {
-    const t = document.getElementById(b.dataset.target);
-    if (t) t.scrollIntoView({behavior: 'smooth'});
+    const idx = PAGER.scenes.findIndex(sc => sc.id === b.dataset.target);
+    if (idx >= 0) pagerGoTo(idx);
   }));
+window.__yv = { goTo: pagerGoTo, index: () => PAGER.i };
 
 /* ---------- earthlings found/lost toggle ---------- */
 document.querySelectorAll('.subtabs').forEach(bar => {
@@ -381,7 +519,7 @@ function setExplorer(year, scroll){
     c.classList.toggle('active', Number(c.dataset.year) === exYear));
   renderEvents();
   const car = $('eventList'); if (car) car.scrollLeft = 0;
-  if (scroll) $('yearBig').scrollIntoView({block:'nearest', behavior:'smooth'});
+  /* (no scrollIntoView: the transform pager positions chapters itself) */
 }
 /* Years whose pool is bigger than one screenful rotate: a date-seeded
    shuffle picks the 10 on display, so a different mix shows on different
@@ -708,10 +846,13 @@ function showStory(){
   $('storyView').classList.remove('hidden');
   document.documentElement.classList.add('journey');
   renderStory();
+  pagerInit();
   initJourney();
-  document.querySelector('main').scrollTo({top:0});
+  pagerGoTo(0, true);
 }
-/* Nothing persists: closing the app wipes the slate. Reopening always starts here. */
+/* The birthday is remembered on this device: submitting saves it, and
+   reopening the app goes straight back into the story (boot code at
+   the bottom). The poster's "Start over" wipes the saved entry. */
 $('entryForm').addEventListener('submit', e => {
   e.preventDefault();
   const dob = dobString();
@@ -723,9 +864,12 @@ $('entryForm').addEventListener('submit', e => {
   }
   profile = { dob, name: $('nameInput').value.trim() };
   birth = new Date(dob + 'T12:00:00');
+  saveProfile();
   showStory();
 });
 $('startOverBtn').addEventListener('click', () => {
+  clearProfile();
+  profile = null;
   $('storyView').classList.add('hidden');
   $('entryView').classList.remove('hidden');
   document.documentElement.classList.remove('journey');
@@ -733,7 +877,6 @@ $('startOverBtn').addEventListener('click', () => {
   picked = { m:null, d:null, y:null }; activeSel = null;
   $('nameInput').value = '';
   updateSelectors(); renderPanel();
-  document.querySelector('main').scrollTo({top:0});
 });
 $('prevYear').addEventListener('click', () => setExplorer(exYear-1, false));
 $('nextYear').addEventListener('click', () => setExplorer(exYear+1, false));
@@ -759,6 +902,19 @@ $('diveBackdrop').addEventListener('click', closeDive);
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDive(); });
 
 updateSelectors();
+
+/* ---------- remembered birthday: skip the entry on reopen ---------- */
+(function restoreProfile(){
+  const saved = loadProfile();
+  if (!saved) return;
+  profile = saved;
+  birth = new Date(saved.dob + 'T12:00:00');
+  const [yy, mm, dd] = saved.dob.split('-').map(Number);
+  picked = { m: mm, d: dd, y: yy };
+  $('nameInput').value = saved.name || '';
+  updateSelectors();
+  showStory();
+})();
 
 /* ---------- installing (the MindSplit arrangement, ported 2026-10-14) ----------
    The AI Lab card's download button opens /youverse/?install=1. The sheet is
