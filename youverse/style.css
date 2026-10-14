@@ -32,7 +32,9 @@ html{scrollbar-width:none; -ms-overflow-style:none}
 .ghost-btn:active{transform:scale(.97)}
 
 main{flex:1; min-height:0; overflow-y:auto; overflow-x:hidden; width:100%; max-width:1120px; margin:0 auto; padding:0 16px; touch-action:pan-y}
-html.journey main{scroll-snap-type:y mandatory}
+/* In the journey the transform pager owns all vertical movement — main
+   itself never scrolls, so no nested scroller can trap a swipe. */
+html.journey main{overflow:hidden}
 
 /* ---------- entry: one screen, no scroll; display up top, controls in the bottom half ---------- */
 .entry{height:100%; display:flex; flex-direction:column; max-width:520px; margin:0 auto;
@@ -103,9 +105,16 @@ html.journey main{scroll-snap-type:y mandatory}
 }
 
 /* ---------- the journey: one screen per scene, swipe to page ---------- */
-#storyView{display:flex; flex-direction:column; height:800%}  /* 8 scenes × exactly one screen each */
-.scene{flex:1 0 0%; min-height:0; scroll-snap-align:start;
-  display:flex; flex-direction:column; padding:24px 2px 18px; position:relative; overflow:hidden}
+/* ---------- the journey: transform pager — one screen per scene, one
+   swipe per chapter, guaranteed by the pager itself (app.js), not by
+   scroll geometry. Scenes are absolutely stacked in a clipped viewport;
+   vertical gestures anywhere page the chapter; horizontal rails keep
+   their own native pan-x (see .carousel/.hpages touch-action). ---------- */
+#storyView{position:relative; height:100%; overflow:hidden; touch-action:none}
+.scene{position:absolute; inset:0; height:100%; min-height:0;
+  display:flex; flex-direction:column; padding:20px 2px 12px; overflow:hidden}
+#storyView.anim .scene{transition:transform .48s cubic-bezier(.22,.8,.26,1)}
+.scene.far{visibility:hidden}
 .rv{opacity:0; transform:translateY(24px); transition:opacity .65s ease, transform .65s cubic-bezier(.2,.7,.2,1);
   transition-delay:var(--d,0s)}
 .rv.in{opacity:1; transform:none}
@@ -152,7 +161,7 @@ html.journey main{scroll-snap-type:y mandatory}
 .ch-icon{margin-right:8px}
 .ch-sub{color:var(--muted); margin:0 0 20px; font-size:16.5px; line-height:1.55; max-width:600px}
 /* horizontal sub-pages inside a chapter */
-.hpages{flex:1; min-height:0; display:flex; overflow-x:auto; scroll-snap-type:x mandatory; -webkit-overflow-scrolling:touch; overscroll-behavior-x:contain; touch-action:pan-x pan-y}
+.hpages{flex:1; min-height:0; display:flex; overflow-x:auto; -webkit-overflow-scrolling:touch; overscroll-behavior-x:contain; touch-action:pan-x}
 .hpage{flex:0 0 100%; scroll-snap-align:start; display:flex; padding:0 2px; min-width:0}
 .hpage .stats{flex:1}
 .pagedots{display:flex; gap:7px; justify-content:center; align-items:center; padding-top:11px; flex:none}
@@ -191,13 +200,23 @@ html.journey main{scroll-snap-type:y mandatory}
 .tab.active{background:var(--accent); color:#04241f; border-color:var(--accent)}
 
 /* horizontal swipe carousels */
-.carousel{display:flex; gap:12px; overflow-x:auto; scroll-snap-type:x mandatory;
-  padding:8px 2px 12px; -webkit-overflow-scrolling:touch; align-items:stretch; overscroll-behavior-x:contain; touch-action:pan-x pan-y}
-.ev-card{flex:0 0 82%; scroll-snap-align:start; background:#0a1120; border:1px solid var(--line);
+/* horizontal swipe carousels: NO scroll snap at all — a hard flick must
+   travel as far as its momentum carries it, many cards at once. Only a
+   finger drag (no momentum) stops where it stops. pan-x only: vertical
+   gestures over a rail belong to the chapter pager, never the rail. */
+.carousel{display:flex; gap:12px; overflow-x:auto;
+  padding:8px 2px 12px; -webkit-overflow-scrolling:touch; align-items:stretch; overscroll-behavior-x:contain; touch-action:pan-x}
+.ev-card{flex:0 0 82%; background:#0a1120; border:1px solid var(--line);
   border-radius:16px; padding:0; overflow:hidden; cursor:pointer; display:flex; flex-direction:column; height:100%}
-.card-media{height:0; flex:none; overflow:hidden; background:var(--media-bg,#ffffff)}
+/* The media AREA flexes to the space the card gives it, but the fill hugs
+   the image itself: the img box shrink-wraps the picture at its fitted
+   size (max constraints only), the sampled fill paints that box exactly,
+   and the area around the box stays transparent (card shows through). */
+.card-media{height:0; flex:none; overflow:hidden; background:transparent;
+  display:flex; align-items:center; justify-content:center}
 .has-img .card-media{height:auto; flex:1 1 auto; min-height:150px}
-.card-media img{width:100%; height:100%; object-fit:contain; object-position:center; display:block;
+.card-media img{width:auto; height:auto; max-width:100%; max-height:100%; object-fit:contain; display:block;
+  background:var(--media-bg,#ffffff); border-radius:6px;
   opacity:0; transition:opacity .35s ease}
 .card-media img.ld{opacity:1}
 .card-body{padding:15px 17px; display:flex; flex-direction:column; flex:0 0 auto; min-height:0}
@@ -209,7 +228,7 @@ html.journey main{scroll-snap-type:y mandatory}
 .ev-card .go{padding-top:2px}
 .carousel .empty{color:var(--muted); font-size:15px; padding:12px 2px}
 .go{color:var(--accent); font-size:13px; font-weight:800; letter-spacing:.4px}
-.sp-card{flex:0 0 82%; scroll-snap-align:start; background:var(--panel); border:1px solid var(--line);
+.sp-card{flex:0 0 82%; background:var(--panel); border:1px solid var(--line);
   border-radius:16px; padding:0; overflow:hidden; cursor:pointer; display:flex; flex-direction:column; height:100%}
 .sp-card .card-body{padding:15px 17px}
 .sp-main{display:flex; justify-content:space-between; align-items:flex-start; gap:10px}
@@ -227,7 +246,7 @@ html.journey main{scroll-snap-type:y mandatory}
 .wstat .lbl{font-size:14.5px; font-weight:700; margin-top:4px; line-height:1.4}
 
 /* ---------- years: the time machine ---------- */
-.chips{display:flex; flex-wrap:nowrap; gap:8px; overflow-x:auto; padding-bottom:2px}
+.chips{display:flex; flex-wrap:nowrap; gap:8px; overflow-x:auto; padding-bottom:2px; touch-action:pan-x}
 .chip{border:1px solid var(--line); background:#0a1120; color:var(--muted); border-radius:999px; padding:9px 15px; font-size:14px; cursor:pointer; flex:none}
 .chip.active{color:#04241f; background:var(--accent); border-color:var(--accent); font-weight:800}
 .year-center{text-align:center; margin:10px 0 6px}
@@ -274,7 +293,7 @@ html.journey main{scroll-snap-type:y mandatory}
   border:1px solid var(--line); background:#0a1120; color:var(--text); font-size:16px; cursor:pointer}
 .dive-kicker{color:var(--accent); font-weight:800; font-size:12.5px; letter-spacing:1.6px; text-transform:uppercase}
 .dive-title{font-size:24px; margin:6px 40px 10px 0; line-height:1.2}
-.dive-img{width:100%; max-height:300px; object-fit:contain; background:var(--media-bg,#ffffff); border-radius:14px; border:1px solid var(--line); margin:4px 0 12px}
+.dive-img{display:block; width:auto; max-width:100%; margin:4px auto 12px; max-height:300px; object-fit:contain; background:var(--media-bg,#ffffff); border-radius:14px; border:1px solid var(--line)}
 .dive-text{color:var(--text); font-size:16px; line-height:1.65; margin:0}
 .dive-loading{color:var(--muted); font-size:15px}
 .dive-links{display:flex; flex-wrap:wrap; gap:9px; margin-top:18px}
@@ -312,3 +331,58 @@ html.journey main{scroll-snap-type:y mandatory}
 .ish-sheet.ish-tall{height:74%}
 .ish-spacer{flex:1}
 .ish-go{width:100%;background:linear-gradient(90deg,#35e0c8,#2bb7d8);border:none;border-radius:14px;padding:16px;font-weight:800;cursor:pointer;color:#04241f;font-size:16.5px}
+
+/* ---------- one-screen guarantee: condensation tiers ----------
+   Every chapter must fit ONE screen at short viewports — content is
+   tightened (type, padding, gaps, media floors), never scrolled within
+   the chapter and never clipped. Verified by measurement at
+   390x844 / 390x740 / 360x670. */
+@media(max-height:760px){
+  .scene{padding-top:14px; padding-bottom:10px}
+  .stats{gap:7px}
+  .srow{padding:9px 14px; gap:13px}
+  .pagedots{padding-top:7px}
+  .wild-stats{gap:9px; margin-bottom:4px}
+  .wstat{padding:12px 14px}
+  .has-img .card-media{min-height:100px}
+  .card-body{padding:12px 15px}
+  .ev-card .ed{-webkit-line-clamp:3}
+  .firstday{font-size:15.5px; line-height:1.58}
+  .ch-sub{margin-bottom:12px}
+  .foot{margin-top:24px}
+}
+@media(max-height:690px){
+  .scene{padding-top:10px; padding-bottom:8px}
+  .scene h3{font-size:26px}
+  .ch-kicker{margin-bottom:4px; font-size:11.5px}
+  .stats{gap:6px}
+  .srow{padding:7px 11px; gap:10px}
+  .srow .s-left{width:102px}
+  .srow .num{font-size:20px}
+  .srow .lbl{font-size:14.5px; margin-top:3px; line-height:1.2}
+  .srow .sub{font-size:13.5px; line-height:1.42}
+  .pagedots{padding-top:5px}
+  .wstat{padding:10px 12px}
+  .wstat .num{font-size:23px}
+  .wstat .lbl{font-size:13.5px}
+  .has-img .card-media{min-height:90px}
+  .card-body{padding:10px 13px}
+  .ev-card .et, .sp-name{font-size:16px}
+  .ev-card .ed{-webkit-line-clamp:3; font-size:14px}
+  .sp-note{-webkit-line-clamp:4; font-size:14px}
+  .year-big{font-size:46px}
+  .year-center{margin:4px 0 2px}
+  .year-age{font-size:16px; margin-top:5px}
+  .chip{padding:7px 13px}
+  .tab{padding:10px}
+  .stab{padding:11px 6px}
+  .nav-arrow{width:46px; height:46px; font-size:27px}
+  .scene-bottom{gap:7px; padding-top:8px}
+  .hero-avatar{width:64px; height:64px; margin-bottom:12px}
+  .hero-trio{margin-top:20px}
+  .firstday{font-size:15px; line-height:1.52}
+  .fd-count{font-size:17.5px; margin-bottom:10px}
+  .gen-line{font-size:18.5px; margin-top:12px}
+  .foot{font-size:13.5px; margin-top:16px; line-height:1.5}
+  .poster-explain{font-size:15px}
+}
