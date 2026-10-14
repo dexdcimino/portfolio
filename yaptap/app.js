@@ -48,8 +48,17 @@ let pendingBulk = false;    // the delete confirm is for the whole selection
 let selMode = false;
 const selectedIds = new Set();
 let dragSel = null;           // { anchorIdx, base:Set } while a drag runs
-let swallowUntil = 0;         // clicks landing before this time belong to a long-press/drag
-const swallowed = () => { if (Date.now() < swallowUntil){ swallowUntil = 0; return true; } return false; };
+/* The click ONE fired hold produces as its own finger lifts — and no
+   other click. It is scoped to the gesture: armed with the anchor
+   card's id at release, eaten only by a click on THAT card within
+   150ms, and cleared by any new pointerdown. (v1.7.2 armed a flat
+   450ms time window at release; when the release click landed on a
+   part of the card with no click handler of its own — the common
+   grip — the window outlived it and ate the user's first real
+   selection tap instead: a ~1s stall before taps registered, Dex,
+   2026-10-14. The window is gone; taps toggle instantly now.) */
+let swallowClick = null;      // {t, id} of the hold's own release click
+const swallowed = (id) => { const s = swallowClick; if (!s) return false; swallowClick = null; return s.id === id && (Date.now() - s.t) < 150; };
 
 /* ---------------- text cleanup: light grammar polish on final results ---------------- */
 function polish(s){
@@ -270,7 +279,14 @@ function render(){
   banner.classList.toggle('hidden', !showDraft);
   if (showDraft){
     const tail = finalText.trim().split(/\s+/).slice(-40).join(' ');
-    banner.textContent = 'Current note (not saved yet):\n' + tail;
+    // the label is chrome, not content (v1.7.3): muted, so it can
+    // never be read as part of the transcription; the words keep
+    // the banner's own styling
+    banner.textContent = '';
+    const lab = document.createElement('span');
+    lab.className = 'draft-label';
+    lab.textContent = 'Current note (not saved yet):';
+    banner.append(lab, document.createTextNode('\n' + tail));
   }
 
   // live caption: the tail of what's being said, one smooth line
@@ -296,13 +312,14 @@ function render(){
   bm.classList.toggle('live', state === 'live');
   bm.classList.toggle('paused', state === 'paused');
 
-  /* Recording faces (v1.7.2): while live, both faces are the WHITE
-     MIC over the wave's red blob; otherwise the pill wears the LIME
-     MIC and the bubble its full logo. Only the art swaps — a face
-     never changes size between states (the v1.7.1 shrink is gone). */
+  /* Recording faces (v1.7.2, circle v1.7.3): while live, both faces
+     are the WHITE MIC over the wave's red blob; otherwise both wear
+     the full LOGO — the record control is a circle, the bubble's
+     twin. Only the art swaps — a face never changes size between
+     states (the v1.7.1 shrink is gone). */
   const rf = $('recordFace');
   if (rf){
-    const want = state === 'live' ? 'mic-white.svg' : 'mic-lime.svg';
+    const want = state === 'live' ? 'mic-white.svg' : 'icon-512.png';
     if (!rf.src.endsWith(want)) rf.src = want;
   }
   const bf = bm.querySelector('.bubble-face');
@@ -443,13 +460,13 @@ function renderList(){
     } else {
       el.querySelector('.note-meta').textContent = displayMeta(n);
       el.querySelector('.note-meta').addEventListener('click', ev => {
-        if (swallowed()) return;
+        if (swallowed(n.id)) return;
         if (selMode){ toggleSelected(n.id); return; }
         toggleExpand(n, el);
       });
     }
     el.querySelector('.note-rename').addEventListener('click', () => {
-      if (swallowed()) return;
+      if (swallowed(n.id)) return;
       if (selMode){ toggleSelected(n.id); return; }
       if (namingId === n.id){ finishNameEdit(); return; }
       flushEdit();
@@ -459,7 +476,7 @@ function renderList(){
       if (input){ input.focus(); input.setSelectionRange(input.value.length, input.value.length); }
     });
     el.querySelector('.note-copy').addEventListener('click', () => {
-      if (swallowed()) return;
+      if (swallowed(n.id)) return;
       if (selMode){
         /* In-card buttons act on the SELECTION (v1.7.2): on a
            selected card, copy is the popup's Copy — the whole
@@ -474,7 +491,7 @@ function renderList(){
       copyText(n.text);
     });
     el.querySelector('.note-del').addEventListener('click', () => {
-      if (swallowed()) return;
+      if (swallowed(n.id)) return;
       if (selMode){
         /* Same rule for trash (v1.7.2): on a selected card it is the
            popup's Delete — the same count-aware confirm modal,
@@ -804,6 +821,7 @@ function stopEdge(){
   if (dragSel) dragSel.raf = 0;
 }
 $('listItems').addEventListener('pointerdown', e => {
+  swallowClick = null; // a new gesture supersedes any pending swallow
   if (e.target.closest('.note-body') || e.target.closest('.note-name-input')) return;
   const card = e.target.closest('.note');
   if (!card) return;
@@ -842,11 +860,13 @@ function endPress(){
   if (!pressCand) return;
   clearTimeout(pressCand.timer);
   const wasFired = pressCand.fired;
+  const firedId = pressCand.id;
   pressCand = null;
   if (dragSel) stopEdge();
   dragSel = null;
   $('selPop').classList.remove('sweeping');
-  if (wasFired) swallowUntil = Date.now() + 450; // eat the click this press ends with
+  // eat ONLY the click this press ends with: same card, immediately
+  if (wasFired) swallowClick = { t: Date.now(), id: firedId };
 }
 document.addEventListener('pointerup', endPress);
 document.addEventListener('pointercancel', endPress);
@@ -990,10 +1010,11 @@ $('optClose').addEventListener('click', () => {
    Android app's WaveRingView v2: the amplitude breathes (2.6s, never
    fully asleep), the blend m drifts the apparent frequency (3.9s), the
    wave rotates (7s), the radius pulsates (±3.5%, 1.7s), the stroke
-   varies (1.9s), a second ring at 0.65 amplitude runs its phase
-   BACKWARD so the two weave, and a soft red glow at the centre —
-   swelling on the same breath as the amplitude — lights the bubble's
-   face from behind. Recording red #FF4757 with a #FF8291 echo.
+   varies (1.9s), and a soft red glow at the centre — swelling on
+   the same breath as the amplitude — lights the bubble's face from
+   behind. Recording red #FF4757. (The counter-phase echo ring from
+   v1.4–v1.7.2 is GONE, v1.7.3: a second r(θ) with its own phase read
+   as the stroke separating from the fill — see drawWaveFrame.)
    NOTHING CLIPS: R is solved from the canvas — R = (avail − Amax −
    strokeMax/2) / (1 + pulseMax), avail = half the canvas minus 3px —
    and the glow is a fill whose radius (R + 0.55·A) stays inside the
@@ -1034,19 +1055,27 @@ function drawWaveFrame(ctx, t){
   const main = pathOf(A, phi, 0);
   ctx.fillStyle = '#ee3b4b';
   ctx.fill(main);
-  // the glow: a pool of red light over the fill, breathing with the wave
+  // the glow: a pool of red light over the fill, breathing with the
+  // wave — CLIPPED TO THE WAVE'S OWN PATH (v1.7.3). It used to be a
+  // plain circle of radius R + 0.55·A: at the wave's troughs its light
+  // spilled past the fill's edge, and the old counter-phase echo ring
+  // stroked a second, different r(θ) over the top — together they
+  // read as the stroke drifting off the blob for half the cycle
+  // (Dex, 2026-10-14). Now there is ONE silhouette: this path, filled,
+  // lit from inside, and stroked — nothing red exists outside it.
   const glow = 0.10 + 0.28 * Math.pow(breathEnv, 1.6);
   const gr = R + A * 0.55;
   const grad = ctx.createRadialGradient(44, 44, 0, 44, 44, gr);
   grad.addColorStop(0, 'rgba(255,71,87,' + glow.toFixed(3) + ')');
   grad.addColorStop(1, 'rgba(255,71,87,0)');
+  ctx.save();
+  ctx.clip(main);
   ctx.beginPath();
   ctx.arc(44, 44, gr, 0, 2 * Math.PI);
   ctx.fillStyle = grad;
   ctx.fill();
+  ctx.restore();
   ctx.lineCap = 'round';
-  ctx.strokeStyle = '#ff8291'; ctx.lineWidth = Math.max(1, stroke * 0.38);
-  ctx.stroke(pathOf(A * 0.65, -0.9 * phi, 0.5));
   ctx.strokeStyle = '#ff4757'; ctx.lineWidth = stroke;
   ctx.stroke(main);
   return { R, A, mix, phi, stroke, glow };
