@@ -607,7 +607,7 @@ function setExplorer(year, scroll){
      so this warms the pool's front — the cache does the rest) */
   [-1, 1].forEach(dy => {
     const d2 = YV_EVENTS[String(exYear + dy)];
-    if (d2) (d2[exTab] || []).slice(0, 10).forEach(e => { if (!e.i) wikiImage(e.t); });
+    if (d2) (d2[exTab] || []).slice(0, 10).forEach(e => { if (e.i){ const im = new Image(); im.src = e.i; } });
   });
   /* (no scrollIntoView: the transform pager positions chapters itself) */
 }
@@ -654,12 +654,10 @@ function renderEvents(){
   bindRailPreload(list, '.ev-card');
 }
 
-/* ---------- wikipedia thumbnails for cards (same source as the deep-dive) ---------- */
-const wikiImgCache = new Map();
-/* Card images (batch #6 rework). Order: a PRECOMPUTED subject photo
-   baked into data.js as YV_IMGS (resolved offline with a deep
-   Wikipedia/Wikidata/Commons search per card) → the live lookup chain
-   below (backstop for anything unprecomputed) → a TOPICAL pool photo
+/* ---------- card images: baked data only (batch #6 v8) ---------- */
+/* Card images. Order: a PRECOMPUTED subject photo baked into data.js
+   as YV_IMGS (resolved offline with a deep Wikipedia/Wikidata/Commons
+   search per card, then audited card-by-card) → a TOPICAL pool photo
    (generic scene matching the card's subject matter, never repeated
    inside one rail) → no image at all (the media box collapses; a
    text-only card beats a wrong photo). The old single shared fallback
@@ -721,7 +719,13 @@ const YV_POOL = {
     "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/72/Ch%C3%A2teau_Frontenac_city_at_night.jpg/960px-Ch%C3%A2teau_Frontenac_city_at_night.jpg"],
   "misc": ["https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d2/Hot_air_balloon_and_moon.jpg/960px-Hot_air_balloon_and_moon.jpg",
     "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/50/Grand_Reading_Room.jpg/960px-Grand_Reading_Room.jpg",
-    "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/23/Multicolored_aurora_borealis_pillar_over_Brastad.jpg/960px-Multicolored_aurora_borealis_pillar_over_Brastad.jpg"],
+    "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/23/Multicolored_aurora_borealis_pillar_over_Brastad.jpg/960px-Multicolored_aurora_borealis_pillar_over_Brastad.jpg",
+    "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/31/Double_Octuple_Newspaper_Press.jpg/960px-Double_Octuple_Newspaper_Press.jpg",
+    "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/3a/Vintage_Rank-Arena_television_set_%28Model_C1210%29_%2825065374823%29.jpg/960px-Vintage_Rank-Arena_television_set_%28Model_C1210%29_%2825065374823%29.jpg",
+    "https://thumb.wikimedia.org/wikipedia/commons/thumb/8/8d/T%C3%A4schhorn_%2815079807177%29.jpg/960px-T%C3%A4schhorn_%2815079807177%29.jpg",
+    "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/9c/Breaking_wave_July_2007-1.jpg/960px-Breaking_wave_July_2007-1.jpg",
+    "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/90/Night_in_Shinjuku_3.JPG/960px-Night_in_Shinjuku_3.JPG",
+    "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/29/Desert_highway.jpg/960px-Desert_highway.jpg"],
 };
 /* ordered: first match wins; tested against title + description text */
 const YV_TOPIC_RULES = [
@@ -759,55 +763,6 @@ function poolPick(img, used){
   }
   return null;
 }
-const YV_IMG_OVERRIDES = {
-  /* 'Vampire hedgehog' is Hylomys macarong (Dalat gymnure, described
-     2023). Verified Oct 2026: NO freely licensed photo of the species
-     exists — Commons has no macarong media at all, and the real photos
-     sit in press/paper coverage under non-free terms. A bare search
-     resolved the card to a Sonic the Hedgehog cartoon. Honest fix
-     (Dex, batch #5 item 8): resolve the image from its cousin's
-     article instead — the Bornean short-tailed gymnure (Hylomys
-     dorsalis), a real gymnure photo hosted on Wikipedia — and the
-     card's own text says that's what the picture shows. A value that
-     is not a URL is used as the Wikipedia search term. */
-  'Vampire hedgehog': 'Bornean short-tailed gymnure',
-};
-function wikiImage(title){
-  const ovr = YV_IMG_OVERRIDES[title];
-  if (ovr && /^https?:/.test(ovr)) return Promise.resolve(ovr);
-  if (wikiImgCache.has(title)) return wikiImgCache.get(title);
-  const p = (async () => {
-    try {
-      const s = await fetch('https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch='
-        + encodeURIComponent(ovr || title) + '&srlimit=4&format=json&origin=*').then(r => r.json());
-      const hits = (s.query && s.query.search) || [];
-      for (const hit of hits){
-        const sum = await fetch('https://en.wikipedia.org/api/rest_v1/page/summary/'
-          + encodeURIComponent(hit.title.replace(/ /g,'_'))).then(r => r.json()).catch(() => null);
-        if (sum && sum.thumbnail && sum.thumbnail.source) return sum.thumbnail.source;
-      }
-      if (hits.length){
-        const pi = await fetch('https://en.wikipedia.org/w/api.php?action=query&prop=pageimages&piprop=original|thumbnail&pithumbsize=900&titles='
-          + encodeURIComponent(hits[0].title) + '&format=json&origin=*').then(r => r.json()).catch(() => null);
-        const pages = pi && pi.query && pi.query.pages;
-        if (pages){ const pg = Object.values(pages)[0]; if (pg && (pg.thumbnail || pg.original)) return (pg.thumbnail || pg.original).source; }
-      }
-      const cs = await fetch('https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrsearch='
-        + encodeURIComponent((ovr || title) + ' filetype:bitmap') + '&gsrnamespace=6&gsrlimit=4&prop=imageinfo&iiprop=url|size|mime&iiurlwidth=900&format=json&origin=*')
-        .then(r => r.json()).catch(() => null);
-      const cpages = cs && cs.query && cs.query.pages;
-      if (cpages){
-        const cands = Object.values(cpages)
-          .filter(pg => pg.imageinfo && pg.imageinfo[0] && /^image\/(jpeg|png|webp)$/.test(pg.imageinfo[0].mime || '') && (pg.imageinfo[0].width || 0) >= 500)
-          .sort((a, b) => (a.index || 99) - (b.index || 99));
-        if (cands.length) return cands[0].imageinfo[0].thumburl || cands[0].imageinfo[0].url;
-      }
-    } catch(e){}
-    return null;
-  })();
-  wikiImgCache.set(title, p);
-  return p;
-}
 /* Thumbnails load ahead of the scroll, never on arrival (batch #4):
    a 300px margin only started the (slow, multi-call) Wikipedia lookup
    when a card was already a step away, so the next card showed blank and
@@ -828,9 +783,8 @@ function makeThumbObserver(margin){
 const thumbObserver = makeThumbObserver('1600px');
 const wildObserver = makeThumbObserver('1200px');
 function warmAhead(items){
-  (items || []).forEach((e, i) => {
-    const p = e.i ? Promise.resolve(e.i) : wikiImage(e.t);
-    if (i < 6) p.then(u => { if (u){ const im = new Image(); im.src = u; } });
+  (items || []).slice(0, 6).forEach(e => {
+    if (e.i){ const im = new Image(); im.src = e.i; }
   });
 }
 /* Index-based rail preload: on scroll, load the thumbs a few cards
@@ -888,23 +842,20 @@ function paintMediaBg(img){
 async function loadThumb(img){
   if (img.dataset.started) return;
   img.dataset.started = '1';
-  const scope = railScope(img);
-  const used = scope._usedImgs || (scope._usedImgs = new Set());
-  /* stage 1: the precomputed subject photo; stage 2: the live chain;
-     stage 3: a topical pool photo. A URL already used in this rail is
-     demoted at every stage — no image ever repeats inside one rail. */
-  let src = img.dataset.pi || null;
-  if (src && used.has(src)) src = null;
-  if (!src) src = await wikiImage(img.dataset.wiki);
-  if (src && used.has(src)) src = null;
-  if (!src) src = poolPick(img, used);
+  /* The card's image is DECIDED at hydrate time, in DOM order (see
+     hydrateImages): the precomputed subject photo baked into data.js,
+     or — only for cards with no baked photo — a topical pool photo
+     pre-assigned to this exact card. There is NO live lookup and NO
+     substitution anywhere in the card path (batch #6 v8): nothing can
+     throttle, race, demote, or paint a fallback over a card whose
+     baked photo exists, so every render of a card — first open, scrub
+     return, chapter hop, freeze/thaw — shows the exact same image. */
+  let src = img.dataset.pi || img.dataset.pool || null;
   if (!src){ img.remove(); return; }   /* text-only card beats a wrong photo */
-  used.add(src);
   img.onerror = () => {
     if (!img.isConnected) return;
-    const alt = poolPick(img, used);
-    if (alt && img.src !== alt) img.src = alt;
-    else img.remove();
+    if (!img.dataset.retried){ img.dataset.retried = '1'; const s = img.src; img.src = ''; img.src = s; }
+    else img.remove();   /* baked photo failed twice: no image, never a substitute photo */
   };
   img.addEventListener('load', () => { img.classList.add('ld'); paintMediaBg(img); });
   img.src = src;
@@ -915,7 +866,18 @@ async function loadThumb(img){
 function hydrateImages(scope, obs){
   const o = obs || thumbObserver;
   scope._usedImgs = new Set();   /* fresh rail render → fresh uniqueness set */
-  scope.querySelectorAll('img[data-wiki]').forEach(img => {
+  const imgs = scope.querySelectorAll('img[data-wiki]');
+  /* Decide every pool assignment NOW, in DOM order: which image a
+     pool card gets must never depend on the order lazy loads happen
+     to fire in (that order-dependence is what made revisits toggle). */
+  imgs.forEach(img => { if (img.dataset.pi) scope._usedImgs.add(img.dataset.pi); });
+  imgs.forEach(img => {
+    if (!img.dataset.pi && !img.dataset.pool){
+      const p = poolPick(img, scope._usedImgs);
+      if (p) img.dataset.pool = p;
+    }
+  });
+  imgs.forEach(img => {
     if (o) o.observe(img); else loadThumb(img);
   });
 }
