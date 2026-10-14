@@ -7,11 +7,11 @@
    reaches the next launch without this file changing. Icons never change
    under one name, so those are cache-first. Only GET is handled; the
    Wikipedia lookups are another origin and are never touched. */
-const CACHE = 'youverse-shell-v4';
+const CACHE = 'youverse-shell-v5';
 const SHELL = ['/youverse/', '/youverse/index.html', '/youverse/app.js', '/youverse/data.js',
   '/youverse/style.css', '/youverse/manifest.webmanifest'];
 const ICONS = ['/youverse/icon-192.png', '/youverse/icon-512.png',
-  '/youverse/icon-maskable-512.png', '/youverse/apple-touch-icon.png'];
+  '/youverse/icon-maskable-512.png', '/youverse/apple-touch-icon.png', '/youverse/icon-circle.png'];
 
 self.addEventListener('install', event => {
   event.waitUntil(
