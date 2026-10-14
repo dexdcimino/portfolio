@@ -56,6 +56,16 @@ function yearFloat(d){
   const next = new Date(d.getFullYear()+1,0,1);
   return d.getFullYear() + (d - start)/(next - start);
 }
+/* Actual age in COMPLETED years — never rounds up. You are N from your Nth
+   birthday until the day before your (N+1)th. Every age the app shows comes
+   from here, never from subtracting years or rounding a fractional age. */
+function ageAt(on){
+  let a = on.getFullYear() - birth.getFullYear();
+  const m = on.getMonth() - birth.getMonth();
+  if (m < 0 || (m === 0 && on.getDate() < birth.getDate())) a--;
+  return a;
+}
+const ageNow = () => ageAt(new Date());
 
 /* ---------- astronomy + generations ---------- */
 function moonPhase(date){
@@ -146,7 +156,7 @@ function renderStory(){
   gEl.dataset.count = s.galaxyMiles; gEl.dataset.fmt = 'compact'; gEl.dataset.suffix = '';
   $('heroLine').innerHTML =
     `Born <b>${birth.toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})}</b> · ` +
-    `Earth has carried you <b>${s.years.toFixed(1)} years</b> around the Sun — and counting.`;
+    `you are <b>${ageNow()} years old</b> — that's ${ageNow()} full laps around the Sun, and counting.`;
 
   /* Body — three swipeable pages */
   const walkMiles = s.days * 5000 * 0.000473;
@@ -258,6 +268,7 @@ function renderStory(){
   const weekday = birth.toLocaleDateString('en-US',{weekday:'long'});
   const gi = genInfo(by);
   $('firstDay').innerHTML =
+    `<span class="fd-count">This is day <b>${commas(s.days)}</b> of your story — <b>${compactFmt(s.heartbeats)}</b> heartbeats in, and counting.</span>` +
     `You arrived on a <b>${weekday}</b>. That night the Moon was a <b>${mp.name.toLowerCase()}</b> ${mp.emoji} — ` +
     `${Math.round(mp.illum*100)}% lit. About <b>${bigFmt(interp(YV_ANCHORS.popWorldB, by)*1e9)} people</b> were already here, waiting.` +
     `<span class="gen-line">You are ${gi.art} <b>${gi.name}</b> — ${gi.text}</span>`;
@@ -356,9 +367,11 @@ function setExplorer(year, scroll){
   const slider = $('yearSlider');
   slider.min = lo; slider.max = hi; slider.value = exYear;
   const age = exYear - birth.getFullYear();
+  const nowY = new Date().getFullYear();
   $('yearBig').textContent = age === 0 ? 'Born' : `Age ${age}`;
   $('yearAge').textContent = age === 0 ? `${exYear} · where your story starts`
-    : exYear === new Date().getFullYear() ? `${exYear} · you, right now`
+    : exYear === nowY && ageNow() < age ? `${exYear} · you turn ${age} this year`
+    : exYear === nowY ? `${exYear} · you, right now`
     : `${exYear} · you turned ${age} this year`;
   const yc = document.querySelector('.year-center');
   if (yc){ yc.classList.remove('warp'); void yc.offsetWidth; yc.classList.add('warp'); }
@@ -370,11 +383,26 @@ function setExplorer(year, scroll){
   const car = $('eventList'); if (car) car.scrollLeft = 0;
   if (scroll) $('yearBig').scrollIntoView({block:'nearest', behavior:'smooth'});
 }
+/* Years whose pool is bigger than one screenful rotate: a date-seeded
+   shuffle picks the 10 on display, so a different mix shows on different
+   days. Nothing is stored — the seed is just today's date. */
+function rotateSubset(items, year, tab){
+  if (items.length <= 10) return items;
+  const now = new Date();
+  const str = year + '|' + tab + '|' + now.getFullYear() + '-' + (now.getMonth()+1) + '-' + now.getDate();
+  let h = 2166136261;
+  for (let i = 0; i < str.length; i++){ h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); }
+  let seed = h >>> 0;
+  const rnd = () => (seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0) / 4294967296;
+  const arr = items.slice();
+  for (let i = arr.length - 1; i > 0; i--){ const j = Math.floor(rnd() * (i + 1)); const t = arr[i]; arr[i] = arr[j]; arr[j] = t; }
+  return arr.slice(0, 10);
+}
 function renderEvents(){
   const data = YV_EVENTS[String(exYear)];
   const list = $('eventList');
   if (!data){ list.innerHTML = '<div class="empty">Our event archive starts in 1950 — this year is beyond it for now.</div>'; currentItems = []; return; }
-  const items = data[exTab] || [];
+  const items = rotateSubset(data[exTab] || [], exYear, exTab);
   currentItems = items;
   list.innerHTML = items.map((e,i) =>
     `<div class="ev-card" data-i="${i}" role="button" tabindex="0"><div class="card-media"><img data-wiki="${e.t.replace(/"/g,'&quot;')}" data-fb="${exTab}" alt=""></div><div class="card-body"><div class="et">${e.t}</div><div class="ed">${e.d}</div><div class="go">The full story ›</div></div></div>`).join('')
@@ -436,12 +464,38 @@ function wikiImage(title){
 const thumbObserver = ('IntersectionObserver' in window) ? new IntersectionObserver(entries => {
   entries.forEach(en => { if (en.isIntersecting){ thumbObserver.unobserve(en.target); loadThumb(en.target); } });
 }, {rootMargin: '300px'}) : null;
+/* An article image must never sit on transparency: its box gets a real
+   fill — white by default; when the photo's own edges are opaque and dark
+   (a photo that fills its frame), a tone sampled from those edges, so the
+   letterbox blends instead of glowing. */
+function paintMediaBg(img){
+  const box = img.closest('.card-media') || img;
+  if (!box) return;
+  try {
+    const cv = document.createElement('canvas'); cv.width = cv.height = 24;
+    const cx = cv.getContext('2d', {willReadFrequently: true});
+    cx.drawImage(img, 0, 0, 24, 24);
+    const px = cx.getImageData(0, 0, 24, 24).data;
+    let r = 0, g = 0, b = 0, n = 0, opaque = 0, total = 0;
+    for (let y = 0; y < 24; y++) for (let x = 0; x < 24; x++){
+      if (x > 1 && x < 22 && y > 1 && y < 22) continue;
+      const i = (y * 24 + x) * 4; total++;
+      if (px[i + 3] > 200){ opaque++; r += px[i]; g += px[i + 1]; b += px[i + 2]; n++; }
+    }
+    if (!n || opaque / total < 0.6){ box.style.setProperty('--media-bg', '#ffffff'); return; }
+    r /= n; g /= n; b /= n;
+    const lum = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+    box.style.setProperty('--media-bg', lum < 0.32 ? `rgb(${r|0},${g|0},${b|0})` : '#ffffff');
+  } catch(e){ box.style.setProperty('--media-bg', '#ffffff'); }
+}
 async function loadThumb(img){
   let src = await wikiImage(img.dataset.wiki);
   if (!src) src = FALLBACK_IMG[img.dataset.fb] || null;
   if (src){
     img.onerror = () => { const fb = FALLBACK_IMG[img.dataset.fb]; if (fb && img.src !== fb) img.src = fb; };
+    img.addEventListener('load', () => { img.classList.add('ld'); paintMediaBg(img); });
     img.src = src;
+    if (img.complete && img.naturalWidth){ img.classList.add('ld'); paintMediaBg(img); }
     const card = img.closest('.ev-card, .sp-card');
     if (card) card.classList.add('has-img');
   }
@@ -456,7 +510,8 @@ function hydrateImages(scope){
 let currentItems = [];
 let currentFound = [], currentLost = [];
 function diveMeta(year){
-  const age = year - birth.getFullYear();
+  if (year <= birth.getFullYear()) return `${year} · the year you were born`;
+  const age = year === new Date().getFullYear() ? ageNow() : ageAt(new Date(year, 11, 31));
   return age <= 0 ? `${year} · the year you were born` : `${year} · you were ${age}`;
 }
 async function openDive(title, meta, fallback){
@@ -485,6 +540,11 @@ async function openDive(title, meta, fallback){
       `<div class="dive-links"><a class="dive-btn" href="${url}" target="_blank" rel="noopener">Read the full story ↗</a>` +
       `<a class="dive-btn ghost" href="https://www.youtube.com/results?search_query=${encodeURIComponent(title)}" target="_blank" rel="noopener">▶ Watch it</a></div>` +
       `<p class="dive-src">${img ? 'Summary + photo via Wikipedia' : 'Summary via Wikipedia'}</p>`;
+    const di = body.querySelector('.dive-img');
+    if (di){
+      if (di.complete && di.naturalWidth){ di.classList.add('ld'); paintMediaBg(di); }
+      else di.addEventListener('load', () => { di.classList.add('ld'); paintMediaBg(di); });
+    }
   } catch(e) {
     body.innerHTML = `<div class="dive-kicker">${meta}</div><h4 class="dive-title">${title}</h4>` +
       `<p class="dive-text">${fallback}</p>` +
