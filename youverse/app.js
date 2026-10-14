@@ -4,6 +4,23 @@
    All math runs on-device. Data in data.js (YV_ANCHORS / YV_EVENTS / YV_WILD). */
 
 const $ = id => document.getElementById(id);
+
+/* ---------- true visible height ----------
+   CSS dvh/vh over-report the visible height in some shells (in-app
+   browsers, WebViews, standalone windows inset by system bars): the page
+   box ends up ~half an inch taller than the screen, so content scrolls
+   and bottom buttons hide. innerHeight is the height the user can
+   actually see in every shell — publish it as --ah and let all
+   height-critical CSS size from it. Refreshed on resize / rotation /
+   keyboard (visualViewport) changes. */
+function setAppH(){
+  document.documentElement.style.setProperty('--ah', window.innerHeight + 'px');
+}
+setAppH();
+addEventListener('resize', setAppH);
+addEventListener('orientationchange', setAppH);
+if (window.visualViewport) visualViewport.addEventListener('resize', setAppH);
+
 let profile = null;      // {dob:'YYYY-MM-DD', name:''} — remembered on this device (localStorage)
 let birth = null;        // Date at local noon on dob
 let ticker = null;
@@ -150,8 +167,16 @@ function wstat(raw, fmt, suffix, lbl){
   return `<div class="wstat rv"><div class="num" data-count="${raw}" data-fmt="${fmt}" data-suffix="${suffix || ''}">${FMT[fmt](raw) + (suffix || '')}</div><div class="lbl">${lbl}</div></div>`;
 }
 
-/* Fill a chapter's horizontal sub-pages + its page dots. */
-function fillPages(pagesId, dotsId, pages){
+/* Fill a chapter's horizontal sub-pages + its page dots. When `per` is
+   given, `pages` is the chapter's page-arrays flattened and re-chunked —
+   batch #4 (Dex): FIVE rows on every page, first page full; the .stats
+   grid gives every card the exact same height on every page. */
+function fillPages(pagesId, dotsId, pages, per){
+  if (per){
+    const flat = pages.flat();
+    pages = [];
+    for (let i = 0; i < flat.length; i += per) pages.push(flat.slice(i, i + per));
+  }
   $(pagesId).innerHTML = pages.map(rows =>
     `<div class="hpage rv"><div class="stats">${rows.join('')}</div></div>`).join('');
   $(dotsId).innerHTML = '<span class="pd-hint">Swipe</span>' +
@@ -163,6 +188,52 @@ function fillPages(pagesId, dotsId, pages){
   }));
 }
 const NEO_ANCHORS = {1990:130, 1995:400, 2000:1000, 2005:3400, 2010:7000, 2015:13000, 2020:24000, 2026:39000};
+
+/* Page one must fit ONE screen at ANY height × font-scale combo — and
+   font scale is invisible to CSS, so static tiers can never guarantee
+   it. Measure the real rendered overflow and step the type down until
+   it fits: full sizes whenever they fit (Dex's +4pt/+2pt chapter-zero
+   sizes included), tighter steps only on screens that need them. */
+function fitHero(){
+  const sc = $('sceneHero'); if (!sc || !sc.clientHeight) return;
+  const first = sc.querySelector('.hero-first'); if (!first) return;
+  const over = () => (first.offsetTop + first.offsetHeight) - (sc.clientHeight - 44);
+  sc.classList.remove('tight1', 'tight2', 'tight3');
+  if (over() > 0) sc.classList.add('tight1');
+  if (over() > 0) sc.classList.add('tight2');
+  if (over() > 0) sc.classList.add('tight3');
+}
+let fitHeroQueued = false;
+addEventListener('resize', () => {
+  if (fitHeroQueued) return;
+  fitHeroQueued = true;
+  requestAnimationFrame(() => { fitHeroQueued = false; fitHero(); fitStats(); });
+});
+
+/* Same measured-fit idea for the stat chapters (batch #4): cards are
+   grid-locked to one uniform height (5 per page), so when a screen's
+   height × font-scale makes a row's text taller than its card, step
+   the row type down until nothing clips inside its card. Cards never
+   change height; only the type breathes, and only when measured
+   overflow says it must. */
+function fitStats(){
+  ['sceneBody', 'scenePlanet', 'sceneSpace'].forEach(id => {
+    const sc = $(id); if (!sc) return;
+    const rows = [...sc.querySelectorAll('.srow')];
+    if (!rows.length) return;
+    const parts = [...sc.querySelectorAll('.srow .num, .srow .lbl, .srow .sub')];
+    parts.forEach(el => el.style.removeProperty('font-size'));
+    const over = () => rows.some(r => r.scrollHeight > r.clientHeight + 1);
+    let steps = 0;
+    while (over() && steps < 4){
+      steps++;
+      parts.forEach(el => {
+        const cur = parseFloat(getComputedStyle(el).fontSize);
+        el.style.setProperty('font-size', (cur * 0.88).toFixed(1) + 'px');
+      });
+    }
+  });
+}
 
 function renderStory(){
   const s = computeStats();
@@ -178,9 +249,8 @@ function renderStory(){
     `Born <b>${birth.toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})}</b> · ` +
     `you are <b>${ageNow()} years old</b> — that's ${ageNow()} full laps around the Sun, and counting.`;
 
-  /* Body — four swipeable pages (rows redistributed 4/4/4/3 in batch #3:
-     five rows a page left too little height per row at short viewports
-     and the row text clipped inside its card) */
+  /* Body — 15 rows, re-chunked FIVE per page (batch #4, Dex's call);
+     the .stats grid keeps every card the same height on every page */
   const walkMiles = s.days * 5000 * 0.000473;
   const walkLaps = walkMiles / 24901;
   fillPages('bodyPages', 'bodyDots', [
@@ -207,10 +277,9 @@ function renderStory(){
       srow('est', s.years*0.5, 'compact', '', 'feet of hair growth', 'If you had never cut it — about 6 inches a year, every year.'),
       srow('est', s.years*1.4, 'compact', '', 'pounds of skin shed', 'You leave a trail of yourself everywhere you go.'),
     ],
-  ]);
+  ], 5);
 
-  /* Planet — four swipeable pages (4/4/3/2 — batch #3: the old third page
-     carried 5 rows and its last card clipped at short viewports) */
+  /* Planet — 13 rows, re-chunked FIVE per page (batch #4) */
   const MILESTONES = [[6,'1999'],[7,'2011'],[8,'2022']];
   const crossed = MILESTONES.filter(([, y]) => by < Number(y) && Number(y) <= new Date().getFullYear());
   fillPages('planetPages', 'planetDots', [
@@ -254,13 +323,12 @@ function renderStory(){
       srow('est', s.days*12, 'compact', '', 'hours of daylight',
         'Half a life in light, half in dark — on average, wherever you are.'),
     ],
-  ]);
+  ], 5);
 
   /* Space — two swipeable pages; page two is the stars */
   const bYF = yearFloat(birth), nYF = yearFloat(new Date());
   const neoB = Math.round(interp(NEO_ANCHORS, bYF)), neoN = Math.round(interp(NEO_ANCHORS, nYF));
-  /* Space — three swipeable pages (rebalanced 2026-10-14 like Planet:
-     6 rows a page squeezed the stat rows a few px past one screen) */
+  /* Space — 12 rows, re-chunked FIVE per page (batch #4) */
   fillPages('spacePages', 'spaceDots', [
     [
       srow('calc', s.galaxyMiles, 'compact', '', 'Milky Way miles',
@@ -294,7 +362,7 @@ function renderStory(){
       srow('calc', s.years*0.1247, 'compact', '', 'feet the Moon drifted',
         'It slips about 1.5 inches further from you every year.'),
     ],
-  ]);
+  ], 5);
 
   /* First day */
   const mp = moonPhase(birth);
@@ -310,6 +378,8 @@ function renderStory(){
   renderWild();
   setExplorer(Math.min(new Date().getFullYear(), 2026), false);
   startTicker(s);
+  fitHero();
+  fitStats();
 }
 
 /* ---------- live ticker ---------- */
@@ -532,6 +602,13 @@ function setExplorer(year, scroll){
     c.classList.toggle('active', Number(c.dataset.year) === exYear));
   renderEvents();
   const car = $('eventList'); if (car) car.scrollLeft = 0;
+  /* warm the neighbouring years' image URLs so a year hop lands on
+     pictures that are already resolved (display subset rotates daily,
+     so this warms the pool's front — the cache does the rest) */
+  [-1, 1].forEach(dy => {
+    const d2 = YV_EVENTS[String(exYear + dy)];
+    if (d2) (d2[exTab] || []).slice(0, 10).forEach(e => wikiImage(e.t));
+  });
   /* (no scrollIntoView: the transform pager positions chapters itself) */
 }
 /* Years whose pool is bigger than one screenful rotate: a date-seeded
@@ -559,6 +636,12 @@ function renderEvents(){
     `<div class="ev-card" data-i="${i}" role="button" tabindex="0"><div class="card-media"><img data-wiki="${e.t.replace(/"/g,'&quot;')}" data-fb="${exTab}" alt=""></div><div class="card-body"><div class="et">${e.t}</div><div class="ed">${e.d}</div><div class="go">The full story ›</div></div></div>`).join('')
     || '<div class="empty">No entries for this view yet.</div>';
   hydrateImages(list);
+  warmAhead(items);
+  /* a year shows at most 10 cards — load every thumb NOW, in order, so
+     no card is ever arrived at blank; the observer/scroll preloads are
+     just nets underneath */
+  list.querySelectorAll('img[data-wiki]').forEach(img => loadThumb(img));
+  bindRailPreload(list, '.ev-card');
 }
 
 /* ---------- wikipedia thumbnails for cards (same source as the deep-dive) ---------- */
@@ -610,11 +693,59 @@ function wikiImage(title){
   wikiImgCache.set(title, p);
   return p;
 }
-/* Thumbnails load lazily: only when a card scrolls near view, so a rail of
-   70+ species doesn't fire 70+ Wikipedia lookups up front. */
-const thumbObserver = ('IntersectionObserver' in window) ? new IntersectionObserver(entries => {
-  entries.forEach(en => { if (en.isIntersecting){ thumbObserver.unobserve(en.target); loadThumb(en.target); } });
-}, {rootMargin: '300px'}) : null;
+/* Thumbnails load ahead of the scroll, never on arrival (batch #4):
+   a 300px margin only started the (slow, multi-call) Wikipedia lookup
+   when a card was already a step away, so the next card showed blank and
+   popped in. Now the Years rail resolves + preloads AHEAD — the whole
+   visible list's URLs resolve at render, the first cards' bytes preload,
+   a wide 1600px observer margin loads what's next, a direction-aware
+   scroll preload reaches further in the direction of travel, and the
+   neighbouring years' URLs warm in the background. The Earthlings rails
+   keep their exact scroll mechanics — only their lazy margin widened
+   (1200px, separate observer). */
+function makeThumbObserver(margin){
+  if (!('IntersectionObserver' in window)) return null;
+  const obs = new IntersectionObserver(entries => {
+    entries.forEach(en => { if (en.isIntersecting){ obs.unobserve(en.target); loadThumb(en.target); } });
+  }, {rootMargin: margin});
+  return obs;
+}
+const thumbObserver = makeThumbObserver('1600px');
+const wildObserver = makeThumbObserver('1200px');
+function warmAhead(items){
+  (items || []).forEach((e, i) => {
+    const p = wikiImage(e.t);
+    if (i < 6) p.then(u => { if (u){ const im = new Image(); im.src = u; } });
+  });
+}
+/* Index-based rail preload: on scroll, load the thumbs a few cards
+   AHEAD in the direction of travel. (The observer alone can't do this
+   job — an unloaded card img is a 0x0 point at its media box's centre,
+   which sits outside the rail's clip until the card is nearly on
+   screen; that was the blank-then-pop Dex kept hitting.) */
+function bindRailPreload(rail, cardSel){
+  if (!rail || rail.dataset.preBound) return;
+  rail.dataset.preBound = '1';
+  let lastLeft = 0, ticking = false;
+  rail.addEventListener('scroll', () => {
+    if (ticking) return;
+    ticking = true;
+    requestAnimationFrame(() => {
+      ticking = false;
+      const left = rail.scrollLeft, dir = left >= lastLeft ? 1 : -1;
+      lastLeft = left;
+      const cards = rail.querySelectorAll(cardSel);
+      if (!cards.length) return;
+      const step = cards[0].offsetWidth + 12;
+      const idx = Math.round(left / step);
+      const targets = dir > 0 ? [idx + 1, idx + 2, idx + 3, idx + 4, idx + 5] : [idx - 1, idx - 2, idx - 3];
+      targets.forEach(t => {
+        const img = cards[t] && cards[t].querySelector('img[data-wiki]');
+        if (img) loadThumb(img);
+      });
+    });
+  }, {passive: true});
+}
 /* An article image must never sit on transparency: its box gets a real
    fill — white by default; when the photo's own edges are opaque and dark
    (a photo that fills its frame), a tone sampled from those edges, so the
@@ -640,6 +771,8 @@ function paintMediaBg(img){
   } catch(e){ box.style.setProperty('--media-bg', '#ffffff'); }
 }
 async function loadThumb(img){
+  if (img.dataset.started) return;
+  img.dataset.started = '1';
   let src = await wikiImage(img.dataset.wiki);
   if (!src) src = FALLBACK_IMG[img.dataset.fb] || null;
   if (src){
@@ -651,9 +784,10 @@ async function loadThumb(img){
     if (card) card.classList.add('has-img');
   }
 }
-function hydrateImages(scope){
+function hydrateImages(scope, obs){
+  const o = obs || thumbObserver;
   scope.querySelectorAll('img[data-wiki]').forEach(img => {
-    if (thumbObserver) thumbObserver.observe(img); else loadThumb(img);
+    if (o) o.observe(img); else loadThumb(img);
   });
 }
 
@@ -728,8 +862,14 @@ function renderWild(){
   $('wildLost').innerHTML = currentLost.length
     ? currentLost.map((w,i) => spCard(w,'lost',i)).join('')
     : '<div class="empty">None of the famous ones yet. Let\'s keep it that way.</div>';
-  hydrateImages($('wildFound'));
-  hydrateImages($('wildLost'));
+  hydrateImages($('wildFound'), wildObserver);
+  hydrateImages($('wildLost'), wildObserver);
+  /* same ahead-loading as the Years rail — scroll mechanics untouched */
+  bindRailPreload($('wildFound'), '.sp-card');
+  bindRailPreload($('wildLost'), '.sp-card');
+  /* and warm the first screenful right away */
+  [$('wildFound'), $('wildLost')].forEach(rail =>
+    rail.querySelectorAll('img[data-wiki]').forEach((img, i) => { if (i < 5) loadThumb(img); }));
 }
 
 /* ---------- poster ---------- */
@@ -962,7 +1102,7 @@ function showInstallSheet(){
     '<div class="ish-sheet">' +
       '<div class="ish-handle"></div>' +
       '<button class="ish-x" type="button" aria-label="Close">\u2715</button>' +
-      '<img class="ish-icon" src="icon-512.png" alt="">' +
+      '<img class="ish-icon" src="icon-circle.png" alt="">' +
       '<h3 class="ish-title">Install ' + name + '</h3>' +
       '<p class="ish-sub">It goes on your home screen and opens like any other app.</p>' +
       '<div class="ish-steps" data-steps></div>' +
