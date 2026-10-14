@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="300" height="300" viewBox="0 0 300 300">
+  <!-- YapTap record-pill idle face (v1.7.2): the microphone ONLY, in
+       the accent lime — the mic group from Dex's yaptap-icon-new.svg,
+       centred on the canvas (its own centre is ~(150,157), hence the
+       -7 lift). While recording the pill swaps to mic-white.svg over
+       the wave's red blob. -->
+  <g transform="translate(-0.5,-7)" fill="#B8FF2E">
+    <rect x="127" y="90" width="46" height="79" rx="23"/>
+    <rect x="143" y="195" width="14" height="29" rx="5"/>
+    <path d="M111 162C112 181 129 195 150 195C171 195 189 181 190 162"
+          fill="none" stroke="#B8FF2E" stroke-width="14" stroke-linecap="round"/>
+  </g>
+</svg>
