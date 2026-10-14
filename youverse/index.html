@@ -25,7 +25,7 @@
   <!-- ENTRY: one screen, no scrolling. Display up top, every control in the bottom half. -->
   <section id="entryView" class="entry">
     <div class="entry-head">
-      <img class="entry-icon" src="icon-512.png" alt="">
+      <img class="entry-icon" src="icon-circle.png" alt="">
       <h1>Everything that's happened<br>while <em>you've</em> been alive.</h1>
       <p class="entry-sub">One birthday is all it takes.</p>
       <p class="dob-readout" id="dobReadout">Your birthday: <b>—</b></p>
@@ -36,7 +36,7 @@
         <input id="nameInput" type="text" maxlength="24" placeholder="Your name" autocomplete="off">
       </label>
       <div class="field">
-        <span>Your birthday <small>(tap any part, in any order)</small></span>
+        <span>Your birthday <small>(tap any part)</small></span>
         <div class="sel-row">
           <button type="button" class="sel-btn" id="selMonth"><span class="sel-lbl">Month</span><span class="sel-val" id="selMonthVal">—</span></button>
           <button type="button" class="sel-btn" id="selDay"><span class="sel-lbl">Day</span><span class="sel-val" id="selDayVal">—</span></button>
@@ -66,7 +66,7 @@
 
     <!-- HERO -->
     <section class="scene hero" id="sceneHero">
-      <img class="hero-avatar" src="icon-512.png" alt="">
+      <img class="hero-avatar" src="icon-circle.png" alt="">
       <p class="hero-kicker rv" id="heroKicker">Your story so far</p>
       <div class="hero-seconds rv"><span id="secondsAlive">0</span></div>
       <p class="hero-seclabel rv">seconds alive — and counting</p>
@@ -105,9 +105,9 @@
         </div>
         <input id="yearSlider" type="range" step="1" aria-label="Year">
         <div class="age-row">
-          <button id="prevYear" class="nav-arrow" type="button" aria-label="Age down">▼</button>
+          <button id="prevYear" class="nav-arrow" type="button" aria-label="Previous year"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15.2 4.6 L7.4 12 L15.2 19.4" fill="none" stroke="currentColor" stroke-width="4.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
           <div class="year-big" id="yearBig">Age 10</div>
-          <button id="nextYear" class="nav-arrow" type="button" aria-label="Age up">▲</button>
+          <button id="nextYear" class="nav-arrow" type="button" aria-label="Next year"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8.8 4.6 L16.6 12 L8.8 19.4" fill="none" stroke="currentColor" stroke-width="4.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
         </div>
       </div>
     </section>
@@ -131,7 +131,7 @@
     <!-- CHAPTER FOUR: EARTHLINGS -->
     <section class="scene" id="sceneWild">
       <p class="ch-kicker rv">Chapter four</p>
-      <h3 class="rv"><span class="ch-icon">🐾</span> Your Fellow Earthlings</h3>
+      <h3 class="rv"><span class="ch-icon">🐾</span> Fellow Earthlings</h3>
       <div class="wild-stats rv" id="wildCards"></div>
       <div id="wildFound" class="carousel"></div>
       <div id="wildLost" class="carousel hidden"></div>
@@ -153,14 +153,16 @@
 
     <!-- POSTER -->
     <section class="scene poster-sec" id="scenePoster">
-      <p class="ch-kicker rv">Final chapter</p>
-      <h3 class="rv"><span class="ch-icon">🖼️</span> Take It With You</h3>
-      <p class="ch-sub rv">Your whole story — every day, every heartbeat — on one poster.</p>
-      <p class="poster-explain rv">Tap the button below and the poster saves to your phone as a picture. Open it any time, even without this app. It's yours to keep.</p>
-      <footer class="foot rv">
-        <p>Sources: UN · World Bank · NASA · NOAA · ITU · USGS · IUCN · Wikipedia.</p>
-        <p class="foot-brand">✦ YouVerse — a Dex Cimino creation · dexcimino.com</p>
-      </footer>
+      <div class="poster-main">
+        <p class="ch-kicker rv">Final chapter</p>
+        <h3 class="rv"><span class="ch-icon">🖼️</span> Take It With You</h3>
+        <p class="ch-sub rv">Your whole story — every day, every heartbeat — on one poster.</p>
+        <p class="poster-explain rv">Tap the button below and the poster saves to your phone as a picture. Open it any time, even without this app. It's yours to keep.</p>
+        <footer class="foot rv">
+          <p>Sources: UN · World Bank · NASA · NOAA · ITU · USGS · IUCN · Wikipedia.</p>
+          <p class="foot-brand">✦ YouVerse — a Dex Cimino creation · dexcimino.com</p>
+        </footer>
+      </div>
       <div class="scene-bottom rv">
         <button id="posterBtn" class="cta" type="button">Download my poster</button>
         <p class="poster-note">Saves one picture to your phone — view it any time.</p>
