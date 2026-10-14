@@ -109,19 +109,67 @@ function tick(){
 const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
 if (!SR) $('srWarn').classList.remove('hidden');
 
+// Append a recognized chunk without duplicating words the recognizer
+// replays. Chrome restarts its speech session every few seconds and
+// re-delivers the last chunk as a fresh final; Android can too. Word-level
+// overlap merge: if the chunk starts with words the draft already ends
+// with, drop the overlap; if the whole chunk is already the draft's tail,
+// drop it entirely. (The "Testing Testing Testing" bug, 2026-10-14.)
+function mergeAppend(base, chunk){
+  const clean = x => (x || '').trim().replace(/\s+/g, ' ');
+  base = clean(base); chunk = clean(chunk);
+  if (!chunk) return base;
+  if (!base) return polish(chunk);
+  const bw = base.split(' '), cw = chunk.split(' ');
+  const norm = w => w.toLowerCase().replace(/[^a-z0-9']/g, '');
+  const maxK = Math.min(bw.length, cw.length, 60);
+  let k = 0;
+  outer:
+  for (let n = maxK; n > 0; n--){
+    for (let j = 0; j < n; j++){
+      if (norm(bw[bw.length - n + j]) !== norm(cw[j])) continue outer;
+    }
+    k = n; break;
+  }
+  if (k < cw.length){
+    // Out-of-order replay: the whole chunk already sits in the recent
+    // draft (recognizers replay recent audio after a restart) — drop it.
+    const win = bw.slice(-80).map(norm);
+    const needle = cw.map(norm);
+    outer2:
+    for (let a = 0; a + needle.length <= win.length; a++){
+      for (let j = 0; j < needle.length; j++){
+        if (win[a + j] !== needle[j]) continue outer2;
+      }
+      return polish(base);
+    }
+  }
+  const rest = cw.slice(k).join(' ');
+  return polish(rest ? (base + ' ' + rest) : base);
+}
+
 function newRec(){
   const r = new SR();
   r.lang = 'en-US';
   r.continuous = true;
   r.interimResults = true;
   r.maxAlternatives = 1;
+  // Chrome re-includes already-delivered finals in later events, so count
+  // finals per session and commit each exactly once; mergeAppend then
+  // swallows any cross-session replay on top of that.
+  let finalsHandled = 0;
   r.onresult = e => {
     let interim = '';
-    for (let i = e.resultIndex; i < e.results.length; i++){
+    let finalsSeen = 0;
+    for (let i = 0; i < e.results.length; i++){
       const res = e.results[i];
       if (res.isFinal){
-        const seg = polish(res[0].transcript);
-        if (seg) finalText = polish((finalText + ' ' + seg).trim());
+        finalsSeen++;
+        if (finalsSeen > finalsHandled){
+          finalsHandled = finalsSeen;
+          const seg = (res[0].transcript || '').trim();
+          if (seg) finalText = mergeAppend(finalText, seg);
+        }
       } else {
         interim += res[0].transcript;
       }
