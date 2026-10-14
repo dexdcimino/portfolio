@@ -71,6 +71,13 @@ button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
    the cards overflow, the column scrolls and app.js pins the header
    by scroll instead. */
 .list-scroll{flex:1;overflow-y:auto;min-height:0;margin-top:14px;display:flex;flex-direction:column}
+/* expanded-note lock (v1.7.2): with a note open the list is frozen —
+   overflow hidden kills gesture/wheel/chain scrolling while leaving
+   programmatic scrollTop (header pin, keyboard clearance) working;
+   the open note's body keeps its own scroll + momentum and swallows
+   its overscroll so nothing chains past it. */
+#listScroll.locked{overflow-y:hidden}
+#listScroll.locked .note-body{overscroll-behavior:none}
 #listItems{margin-top:auto}
 .list-empty{color:var(--muted);text-align:center;line-height:1.7;margin:auto 0;font-size:15px}
 /* The list builds upward: renderList shows oldest first, newest last,
@@ -178,11 +185,12 @@ button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
 .bubble-main.live{border-color:#ff8291}
 .bubble-main.paused{border-color:var(--amber)}
 /* while recording the face sits ABOVE the wave canvas and the button
-   itself goes clear (v1.7.1): the wave's own fill + rim show through
-   around a face shrunk into the glow pool, instead of the canvas
-   painting its black fill over a full-size face */
+   itself goes clear: the wave's red blob (canvas, z-index 3) shows
+   through around the face. The face itself is FULL SIZE in every
+   state (v1.7.2) — v1.7.1 shrank it to 42px into the glow pool and
+   Dex rejected the shrink; only its art swaps (logo idle, white mic
+   live, swapped in render()). */
 .bubble-main.live,.bubble-main.paused{background:transparent;border-color:rgba(0,0,0,0)}
-.bubble-main.live .bubble-face,.bubble-main.paused .bubble-face{width:42px;height:42px}
 .bubble-face{width:100%;height:100%;object-fit:cover;display:block;border-radius:50%}
 /* the recording wave rides on this canvas, centered on the bubble;
    88px box for a 68px bubble, and the wave's own math keeps its ink
