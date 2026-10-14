@@ -184,5 +184,6 @@ button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
 .ish-step{display:flex;align-items:center;gap:12px;background:rgba(255,255,255,.05);border-radius:14px;padding:11px 13px}
 .ish-num{width:27px;height:27px;flex:none;border-radius:50%;background:#b8ff2e;color:#0c1305;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13.5px}
 .ish-steptext{font-size:14.5px;line-height:1.45}
+.ish-sheet.ish-tall{height:74%}
 .ish-spacer{flex:1}
 .ish-go{width:100%;background:#b8ff2e;border:none;border-radius:14px;padding:16px;font-weight:800;cursor:pointer;color:#0c1305;font-size:16.5px}
