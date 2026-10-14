@@ -2,14 +2,24 @@
   --bg:#070b14; --panel:#0e1626; --panel2:#111d33; --line:#1d2c47;
   --text:#eef4ff; --soft:#c9d6ee; --muted:#8fa3bf; --accent:#35e0c8; --accent2:#7aa2ff;
   --radius:18px;
+  /* --ah = the TRUE visible app height in px, set from JS (innerHeight).
+     dvh/vh over-report the visible height in some shells (in-app browsers,
+     WebViews, standalone windows inset by system bars) — that mismatch is
+     what let earlier builds scroll ~half an inch and hide buttons. All
+     height-critical sizing derives from --ah so the layout is built on the
+     height the user can actually see. Falls back to 100dvh pre-JS. */
+  --ah:100dvh;
 }
 *{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
-html{scroll-behavior:smooth}
+html{scroll-behavior:smooth; height:100%; overscroll-behavior:none}
 html,body{overflow-x:hidden}
 .scene > *{min-width:0}
 body{margin:0; background:var(--bg); color:var(--text); font-size:16.5px;
   font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
-  display:flex; flex-direction:column; height:100dvh; overflow:hidden;
+  /* Fixed to the window: the body can never be taller than the screen it
+     sits in, so the DOCUMENT has nothing to scroll — in any shell. */
+  position:fixed; inset:0;
+  display:flex; flex-direction:column; overflow:hidden; overscroll-behavior:none;
   background-image:radial-gradient(1px 1px at 12% 22%,#ffffff55 50%,transparent 51%),
     radial-gradient(1px 1px at 78% 8%,#ffffff44 50%,transparent 51%),
     radial-gradient(1.5px 1.5px at 55% 35%,#ffffff33 50%,transparent 51%),
@@ -37,26 +47,32 @@ html{scrollbar-width:none; -ms-overflow-style:none}
 main{flex:1; min-height:0; overflow:hidden; width:100%; max-width:1120px; margin:0 auto; padding:0 16px}
 
 /* ---------- entry: one screen, no scroll; display up top, controls in the bottom half ---------- */
-.entry{height:100%; display:flex; flex-direction:column; justify-content:space-between;
-  max-width:520px; margin:0 auto; gap:10px;
-  padding:16px 4px calc(14px + env(safe-area-inset-bottom)); overflow:hidden}
-.entry-head{text-align:center}
-.entry-icon{width:64px; height:64px; border-radius:50%}  /* the logo art is a circle on black — mask circular so no black corners show */
-.entry-head h1{font-size:24px; line-height:1.25; margin:12px 0 8px}
+.entry{height:100%; display:flex; flex-direction:column; justify-content:center;
+  max-width:520px; margin:0 auto; gap:clamp(4px, calc(var(--ah)*.008), 20px);
+  padding:clamp(6px, calc(var(--ah)*.014), 16px) 4px calc(10px + env(safe-area-inset-bottom));
+  overflow:hidden; touch-action:none}
+.entry-head{text-align:center; flex:none}
+.entry-icon{width:clamp(46px, calc(var(--ah)*.088), 92px); height:clamp(46px, calc(var(--ah)*.088), 92px);
+  border-radius:50%; background:#0c1526; border:1.5px solid var(--line)}
+  /* the artwork itself (icon-circle.png) is the full composed circle —
+     it fills this box edge to edge, nothing masked, nothing cropped;
+     the ring is a plain border INSIDE the box (padding/shadow rings
+     either collapse at small sizes or leak scrollable overflow) */
+.entry-head h1{font-size:clamp(16px, min(5.2vw, calc(var(--ah)*.034)), 27px); line-height:1.25; margin:calc(var(--ah)*.008) 0 calc(var(--ah)*.005)}
 .entry-head h1 em{color:var(--accent); font-style:normal}
 .entry-sub{color:var(--muted); font-size:16px; line-height:1.5; margin:0}
-.dob-readout{margin:16px 0 0; font-size:19px; color:var(--muted)}
+.dob-readout{margin:calc(var(--ah)*.009) 0 0; font-size:19px; color:var(--muted)}
 .dob-readout b{color:var(--accent); font-size:21px}
-.entry-controls{display:flex; flex-direction:column; gap:12px}
+.entry-controls{display:flex; flex-direction:column; gap:clamp(5px, calc(var(--ah)*.009), 12px); flex:none}
 .field{display:block; text-align:left}
-.field > span{display:block; font-size:14.5px; color:var(--muted); margin-bottom:7px; font-weight:600}
+.field > span{display:block; font-size:clamp(12px, 3.8vw, 14.5px); color:var(--muted); margin-bottom:clamp(4px, calc(var(--ah)*.008), 7px); font-weight:600}
 .field small{opacity:.75}
-.name-field input{width:100%; padding:16px; border-radius:12px; border:1.5px solid var(--line);
+.name-field input{width:100%; padding:clamp(10px, calc(var(--ah)*.006 + 5px), 16px); border-radius:12px; border:1.5px solid var(--line);
   background:#0a1120; color:var(--text); font-size:20px; font-weight:600; text-align:center; color-scheme:dark; outline:none}
 .name-field input::placeholder{color:#8499bd; opacity:1}
 .name-field input:focus{border:1.5px solid transparent;
   background:linear-gradient(#0a1120,#0a1120) padding-box, linear-gradient(90deg,var(--accent),#2bb7d8) border-box}
-.cta{width:100%; padding:16px; border:none; border-radius:14px; cursor:pointer;
+.cta{width:100%; padding:clamp(11px, calc(var(--ah)*.006 + 5px), 16px); border:none; border-radius:14px; cursor:pointer;
   background:linear-gradient(90deg,var(--accent),#2bb7d8); color:#04241f;
   font-size:18px; font-weight:800}
 .cta:active{transform:scale(.98)}
@@ -64,8 +80,8 @@ main{flex:1; min-height:0; overflow:hidden; width:100%; max-width:1120px; margin
 
 /* birthday selectors: Month / Day / Year — tap any, in any order */
 .sel-row{display:flex; gap:8px}
-.sel-btn{flex:1; background:#0a1120; border:1px solid var(--line); border-radius:12px; padding:10px 4px 12px;
-  cursor:pointer; color:var(--text); display:flex; flex-direction:column; align-items:center; gap:2px; min-height:64px}
+.sel-btn{flex:1; background:#0a1120; border:1px solid var(--line); border-radius:12px; padding:6px 4px 7px;
+  cursor:pointer; color:var(--text); display:flex; flex-direction:column; align-items:center; gap:2px; min-height:clamp(48px, calc(var(--ah)*.078), 64px)}
 .sel-btn .sel-lbl{font-size:12.5px; font-weight:800; letter-spacing:1.2px; text-transform:uppercase; color:var(--muted)}
 .sel-btn .sel-val{font-size:19px; font-weight:800}
 .sel-btn.active{border-color:var(--accent); box-shadow:0 0 0 1px var(--accent)}
@@ -74,7 +90,7 @@ main{flex:1; min-height:0; overflow:hidden; width:100%; max-width:1120px; margin
 
 /* picker panel (swaps in place above the CTA — the page never scrolls) */
 .dob-picker{background:#0a1120; border:1px solid var(--line); border-radius:16px; padding:12px; margin-top:10px;
-  max-height:42svh; overflow-y:auto}
+  max-height:calc(var(--ah)*.40); overflow-y:auto; touch-action:pan-y}
 .dp-title{font-size:15px; color:var(--muted); margin:2px 0 9px; font-weight:700; text-align:left}
 .dp-grid{display:grid; gap:8px}
 .dp-grid.cols2{grid-template-columns:repeat(2,1fr)}
@@ -88,21 +104,18 @@ main{flex:1; min-height:0; overflow:hidden; width:100%; max-width:1120px; margin
 .dp-btn .tail{color:var(--accent); font-size:1.3em; font-weight:900}
 .dp-btn.sel .tail{color:#04241f}
 /* year picker: one quick scroll of full years, uniform style */
-.year-scroll{max-height:34svh; overflow-y:auto; padding:2px; position:relative}
+.year-scroll{max-height:calc(var(--ah)*.32); overflow-y:auto; padding:2px; position:relative; touch-action:pan-y}
 .dp-btn.yr{display:block; width:100%; text-align:center; font-size:20px; padding:12px; margin-bottom:6px}
 .dp-btn.yr.sel{background:var(--accent); color:#04241f; border-color:var(--accent)}
 /* while a picker panel is open, the entry head shrinks so everything still fits one screen */
-.entry.panel-open .entry-icon{width:40px; height:40px}
+.entry.panel-open .entry-icon{width:clamp(30px, calc(var(--ah)*.055), 44px); height:clamp(30px, calc(var(--ah)*.055), 44px)}
 .entry.panel-open .entry-head h1{font-size:19px; margin:6px 0 4px}
 .entry.panel-open .entry-sub{display:none}
 .entry.panel-open .dob-readout{margin-top:6px; font-size:16px}
 .dp-grid.cols7 .dp-btn{padding:10px 0; font-size:16px}
 .dp-err{color:#ff9c9c; font-size:14.5px; margin:10px 0 0; text-align:left}
 @media(max-height:740px){
-  .entry-icon{width:48px; height:48px}
-  .entry-head h1{font-size:21px; margin:8px 0 6px}
-  .dob-readout{margin-top:10px; font-size:17px}
-  .sel-btn{min-height:56px}
+  .dob-readout{font-size:17px}
   .dp-btn{padding:10px 2px}
 }
 
@@ -137,31 +150,57 @@ main{flex:1; min-height:0; overflow:hidden; width:100%; max-width:1120px; margin
 @media(max-width:520px){.dotnav{right:5px; gap:10px}.dotnav button::before{display:none}}
 
 /* ---------- hero (page one: hero + chapter zero, consolidated) ---------- */
-.hero{text-align:center; align-items:center; justify-content:flex-start; padding-bottom:calc(56px + env(safe-area-inset-bottom))}
+.hero{text-align:center; align-items:center; justify-content:space-evenly; padding-bottom:calc(56px + env(safe-area-inset-bottom))}
 .hero-avatar{width:56px; height:56px; border-radius:50%; margin-bottom:10px;
   box-shadow:0 12px 44px rgba(53,224,200,.22); animation:floaty 5.5s ease-in-out infinite}
 @keyframes floaty{0%,100%{transform:translateY(0) rotate(-1.2deg)}50%{transform:translateY(-9px) rotate(1.2deg)}}
 .hero-kicker{color:var(--accent); font-weight:800; letter-spacing:2.5px; text-transform:uppercase; font-size:13px; margin:0}
-.hero-seconds{font-size:clamp(38px,9.8vw,100px); font-weight:900; font-variant-numeric:tabular-nums; line-height:1.02; margin-top:4px; max-width:100%}
+.hero-seconds{font-size:clamp(38px,9.8vw,100px); font-weight:900; font-variant-numeric:tabular-nums; line-height:1.02; margin-top:4px; max-width:100%; white-space:nowrap}
+/* fitHero() steps (app.js measures the real overflow — see fitHero):
+   full sizes stay wherever they fit; these only land on screens whose
+   height × font-scale would otherwise push chapter zero off page one */
+.hero.tight1 .fd-kicker{font-size:14px}
+.hero.tight1 .firstday{font-size:15px}
+.hero.tight1 .fd-count{font-size:15px}
+.hero.tight1 .gen-line{font-size:15.5px}
+.hero.tight1 .hero-line{font-size:14.5px}
+.hero.tight1 .hero-seconds{font-size:34px}
+.hero.tight2 .fd-kicker{font-size:12.5px}
+.hero.tight2 .firstday{font-size:13px}
+.hero.tight2 .fd-count{font-size:13.5px}
+.hero.tight2 .gen-line{font-size:14px}
+.hero.tight2 .hero-line{font-size:13.5px}
+.hero.tight2 .hero-seconds{font-size:30px}
+.hero.tight2 .hero-avatar{width:40px; height:40px}
+.hero.tight3 .fd-kicker{font-size:11px}
+.hero.tight3 .firstday{font-size:11.5px}
+.hero.tight3 .fd-count{font-size:12px}
+.hero.tight3 .gen-line{font-size:12.5px}
+.hero.tight3 .hero-line{font-size:12px}
+.hero.tight3 .hero-seclabel{font-size:12.5px}
+.hero.tight3 .hero-seconds{font-size:26px}
+.hero.tight3 .hero-avatar{width:32px; height:32px}
+.hero.tight3 .hs-num{font-size:19px}
+.hero.tight3 .hs-label{font-size:11.5px}
 .hero-seclabel{font-size:14.5px; font-weight:700; letter-spacing:2px; text-transform:uppercase; color:var(--soft); margin:4px 0 0}
 .hero-line{color:var(--muted); font-size:16px; margin:9px auto 0; max-width:540px; line-height:1.45}
 .hero-line b{color:var(--text)}
-.hero-trio{display:flex; justify-content:center; align-items:stretch; margin:12px auto 0; max-width:840px; width:100%}
-.hstat{flex:1; padding:4px 8px; display:flex; flex-direction:column}
+.hero-trio{display:grid; grid-template-columns:repeat(3,1fr); margin:12px auto 0; max-width:840px; width:100%}
+.hstat{padding:4px 8px; display:flex; flex-direction:column; align-items:center; min-width:0}
 .hstat + .hstat{border-left:1px solid var(--line)}
-.hs-num{display:block; font-size:clamp(23px,5.4vw,38px); font-weight:850; font-variant-numeric:tabular-nums; line-height:1.12}
+.hs-num{display:flex; align-items:flex-end; justify-content:center; height:1.12em; font-size:clamp(23px,5.4vw,38px); font-weight:850; font-variant-numeric:tabular-nums; line-height:1.12}
 .hs-label{display:block; color:var(--soft); font-size:14px; font-weight:700; letter-spacing:1px;
-  text-transform:uppercase; margin-top:6px; line-height:1.4}
+  text-transform:uppercase; margin-top:6px; line-height:1.4; height:5.6em; overflow:hidden}
 .scroll-cue{position:absolute; bottom:12px; left:0; right:0; color:var(--muted); font-size:11.5px; font-weight:700;
   letter-spacing:2px; text-transform:uppercase; display:flex; flex-direction:column; align-items:center; gap:0; line-height:1.3}
 .scroll-cue span{font-size:15px; line-height:1.15; animation:cueDrop 1.8s ease-in-out infinite}
 @keyframes cueDrop{0%,100%{transform:translateY(0); opacity:.5}50%{transform:translateY(6px); opacity:1}}
 /* chapter zero, squeezed onto page one under the hero stats */
-.hero-first{width:100%; max-width:660px; margin:auto auto 0; text-align:left;
+.hero-first{width:100%; max-width:660px; margin:0 auto; text-align:center;
   border-top:1px solid var(--line); padding-top:8px}
 .fd-kicker{color:var(--accent); font-weight:800; letter-spacing:2.2px; text-transform:uppercase;
-  font-size:12px; margin:0 0 5px; text-align:center}
-.hero .firstday{font-size:14.8px; line-height:1.42; margin:0 auto}
+  font-size:16px; margin:0 0 5px; text-align:center}
+.hero .firstday{font-size:17.4px; line-height:1.42; margin:0 auto}
 .hero .fd-count{font-size:16.5px; margin-bottom:6px; line-height:1.35}
 .hero .gen-line{font-size:17px; margin-top:7px; line-height:1.38}
 
@@ -171,15 +210,16 @@ main{flex:1; min-height:0; overflow:hidden; width:100%; max-width:1120px; margin
 .ch-icon{margin-right:8px}
 .ch-sub{color:var(--muted); margin:0 0 20px; font-size:16.5px; line-height:1.55; max-width:600px}
 /* horizontal sub-pages inside a chapter */
-.hpages{flex:1; min-height:0; display:flex; overflow-x:auto; -webkit-overflow-scrolling:touch; overscroll-behavior-x:contain; touch-action:pan-x}
-.hpage{flex:0 0 100%; scroll-snap-align:start; display:flex; padding:0 2px; min-width:0}
+.hpages{flex:1; min-height:0; display:flex; overflow-x:auto; -webkit-overflow-scrolling:touch; overscroll-behavior-x:contain; touch-action:pan-x;
+  scroll-snap-type:x mandatory}
+.hpage{flex:0 0 100%; scroll-snap-align:start; scroll-snap-stop:always; display:flex; padding:0 2px; min-width:0}
 .hpage .stats{flex:1}
 .pagedots{display:flex; gap:7px; justify-content:center; align-items:center; padding-top:11px; flex:none}
 .pagedots .pdot{width:9px; height:9px; border-radius:50%; background:var(--line); border:none; padding:6px; cursor:pointer; background-clip:content-box}
 .pagedots .pdot.on{background-color:var(--accent)}
 .pagedots .pd-hint{color:var(--muted); font-size:11.5px; font-weight:700; letter-spacing:1.4px; text-transform:uppercase; margin-right:6px}
-.stats{flex:1; min-height:0; display:flex; flex-direction:column; gap:9px; max-width:920px; width:100%}
-.srow{flex:1; min-height:0; overflow:hidden; background:var(--panel); border:1px solid var(--line);
+.stats{flex:1; min-height:0; display:grid; grid-template-rows:repeat(5, minmax(0,1fr)); align-content:start; gap:9px; max-width:920px; width:100%}
+.srow{min-height:0; overflow:hidden; background:var(--panel); border:1px solid var(--line);
   border-radius:var(--radius); padding:12px 18px; display:flex; align-items:center; gap:18px}
 .srow .s-left{flex:none; width:150px; min-width:0; text-align:center}
 .srow .num{font-size:31px; font-weight:900; font-variant-numeric:tabular-nums; line-height:1.05; white-space:normal; overflow-wrap:anywhere}
@@ -193,6 +233,7 @@ main{flex:1; min-height:0; overflow:hidden; width:100%; max-width:1120px; margin
   .srow .lbl{font-size:16px}
   .srow .sub{font-size:14.5px}
 }
+/* (stat-row type fitting is measured + applied in JS — see fitStats) */
 .tag{display:inline-block; font-size:10.5px; font-weight:800; letter-spacing:1px; text-transform:uppercase;
   padding:3px 8px; border-radius:999px; margin-bottom:10px}
 .tag.exact{background:rgba(53,224,200,.15); color:var(--accent)}
@@ -266,8 +307,9 @@ main{flex:1; min-height:0; overflow:hidden; width:100%; max-width:1120px; margin
 .year-big{flex:1; text-align:center; font-size:clamp(42px,11.5vw,60px); font-weight:900; line-height:1; font-variant-numeric:tabular-nums}
 .year-big.warp{animation:yearWarp .45s cubic-bezier(.2,.8,.3,1)}
 @keyframes yearWarp{0%{transform:scale(1.07); filter:blur(2px); opacity:.55}100%{transform:scale(1); filter:blur(0); opacity:1}}
-.nav-arrow{width:52px; height:52px; border-radius:50%; border:1px solid var(--line); background:#0a1120;
-  color:var(--text); font-size:19px; line-height:1; cursor:pointer; flex:none}
+.nav-arrow{width:56px; height:56px; border-radius:18px; border:1px solid var(--line); background:#0a1120;
+  color:var(--text); line-height:1; cursor:pointer; flex:none; display:flex; align-items:center; justify-content:center}
+.nav-arrow svg{width:27px; height:27px; display:block}
 .nav-arrow:active{transform:scale(.94)}
 .nav-arrow:disabled{opacity:.3}
 #yearSlider{width:100%; accent-color:var(--accent); height:30px; display:block; margin:0}
@@ -281,16 +323,17 @@ main{flex:1; min-height:0; overflow:hidden; width:100%; max-width:1120px; margin
 .gen-line b{color:var(--accent)}
 
 /* ---------- poster ---------- */
-.poster-sec{align-items:center; text-align:center; justify-content:flex-end}
+.poster-sec{align-items:center; text-align:center; justify-content:flex-start}
+.poster-main{margin:auto 0; display:flex; flex-direction:column; align-items:center; min-height:0; width:100%}
 .poster-sec .scene-bottom{margin-top:0}
-.poster-explain{color:var(--soft); font-size:16.5px; line-height:1.55; max-width:480px; margin:0 auto}
+.poster-explain{color:var(--soft); font-size:clamp(14.5px, calc(var(--ah)*.006 + 11px), 16.5px); line-height:1.55; max-width:480px; margin:0 auto}
 .poster-note{color:var(--muted); font-size:13.5px; margin:0}
 .poster-sec .ch-sub{margin-left:auto; margin-right:auto}
 .poster-sec .scene-bottom{width:100%; max-width:440px}
 .over-btn{background:none; border:1px solid var(--line); color:var(--muted); border-radius:12px;
   padding:13px; font-size:15px; font-weight:700; cursor:pointer; width:100%}
 .over-btn:active{transform:scale(.98)}
-.foot{margin-top:40px; color:var(--muted); font-size:15px; line-height:1.65; text-align:center; max-width:640px}
+.foot{margin-top:clamp(10px, calc(var(--ah)*.03), 40px); color:var(--muted); font-size:15px; line-height:1.65; text-align:center; max-width:640px}
 .foot-brand{color:var(--text); font-weight:700; margin-top:12px}
 
 /* ---------- deep-dive sheet ---------- */
@@ -371,8 +414,8 @@ main{flex:1; min-height:0; overflow:hidden; width:100%; max-width:1120px; margin
   .hs-label{font-size:12.5px}
   .hero{padding-bottom:calc(48px + env(safe-area-inset-bottom))}
   .hero-first{padding-top:6px}
-  .fd-kicker{font-size:11.5px; margin-bottom:3px}
-  .hero .firstday{font-size:13px; line-height:1.34}
+  .fd-kicker{font-size:15.5px; margin-bottom:3px}
+  .hero .firstday{font-size:15.7px; line-height:1.34}
   .hero .fd-count{font-size:15.5px; margin-bottom:4px; line-height:1.27}
   .hero .gen-line{font-size:16px; margin-top:5px; line-height:1.27}
   .scroll-cue{bottom:8px; font-size:11.5px; line-height:1.3; gap:0}
@@ -426,8 +469,8 @@ main{flex:1; min-height:0; overflow:hidden; width:100%; max-width:1120px; margin
   .hs-label{font-size:12px; margin-top:3px}
   .hero{padding-bottom:calc(48px + env(safe-area-inset-bottom))}
   .hero-first{padding-top:8px}
-  .fd-kicker{font-size:11px; margin-bottom:3px}
-  .hero .firstday{font-size:12.6px; line-height:1.36}
+  .fd-kicker{font-size:15px; margin-bottom:3px}
+  .hero .firstday{font-size:15.3px; line-height:1.36}
   .hero .fd-count{font-size:15px; margin-bottom:6px; line-height:1.3}
   .hero .gen-line{font-size:15.5px; margin-top:6px; line-height:1.28}
   .scroll-cue{bottom:10px; font-size:11px; line-height:1.25; gap:0}
@@ -479,9 +522,12 @@ main{flex:1; min-height:0; overflow:hidden; width:100%; max-width:1120px; margin
   .hstat{padding:0 8px}
   .hs-num{font-size:18px}
   .hs-label{font-size:11.5px; margin-top:3px}
-  .hero-first{margin-top:auto; padding-top:7px}
-  .fd-kicker{font-size:10.5px; margin-bottom:3px}
-  .hero .firstday{font-size:12.2px; line-height:1.26}
+  .hero-first{padding-top:7px}
+  .fd-kicker{font-size:14.5px; margin-bottom:3px}
+  .hero .firstday{font-size:14.9px; line-height:1.26}
+  /* shortest windows only: chapter zero ellipsises cleanly at a line
+     boundary instead of clipping mid-line (taller windows show it all) */
+  .hero .firstday{display:-webkit-box; -webkit-line-clamp:5; -webkit-box-orient:vertical; overflow:hidden}
   .hero .fd-count{font-size:14px; margin-bottom:4px; line-height:1.28}
   .hero .gen-line{font-size:14px; margin-top:5px; line-height:1.28}
   .scroll-cue{bottom:8px; font-size:10.5px; line-height:1.25; gap:0}
@@ -494,19 +540,15 @@ main{flex:1; min-height:0; overflow:hidden; width:100%; max-width:1120px; margin
   .poster-sec .cta{padding:13px}
   .over-btn{padding:11px; font-size:14px}
   .poster-note{font-size:12.5px}
-  /* entry: fixed one screen, compressed */
-  .entry{padding-top:10px; gap:6px}
-  .entry-icon{width:44px; height:44px}
-  .entry-head h1{font-size:20px; margin:6px 0 4px}
+  /* entry: text trims only — every height/padding is fluid (driven by
+     --ah), so the one-screen fit holds at ALL heights, not just at tier
+     boundaries, and at any font scale */
   .entry-sub{font-size:14.5px}
-  .dob-readout{margin-top:8px; font-size:16px}
+  .dob-readout{font-size:16px}
   .dob-readout b{font-size:18px}
-  .entry-controls{gap:9px}
-  .name-field input{padding:12px; font-size:18px}
-  .field > span{margin-bottom:5px; font-size:13.5px}
-  .sel-btn{min-height:52px; padding:7px 4px 8px}
+  .name-field input{font-size:18px}
   .sel-btn .sel-val{font-size:17px}
-  .cta{padding:13px; font-size:17px}
+  .cta{font-size:17px}
   .privacy{font-size:12px}
   .dp-btn{padding:9px 2px; font-size:15.5px}
   .dp-grid.cols7 .dp-btn{padding:8px 0; font-size:14.5px}
@@ -515,9 +557,8 @@ main{flex:1; min-height:0; overflow:hidden; width:100%; max-width:1120px; margin
      field (it returns the moment the panel closes) so the CTA and the
      privacy line stay on-screen with the picker up */
   .entry.panel-open .entry-head h1{display:none}
-  .entry.panel-open .entry-icon{width:32px; height:32px}
   .entry.panel-open .name-field{display:none}
-  .entry.panel-open .dob-picker{max-height:38svh}
+  .entry.panel-open .dob-picker{max-height:calc(var(--ah)*.34)}
 }
 @media(max-height:580px){
   .scene h3{font-size:22px}
@@ -538,19 +579,26 @@ main{flex:1; min-height:0; overflow:hidden; width:100%; max-width:1120px; margin
   .hero-trio > div{padding:0 4px}
   .hs-num{font-size:16.5px}
   .hs-label{font-size:11px; letter-spacing:1px; margin-top:2px}
-  .hero-first{margin-top:auto; padding-top:5px}
-  .hero .firstday{font-size:11.9px; line-height:1.22}
+  .hero-first{padding-top:5px}
+  .hero .firstday{font-size:14.6px; line-height:1.22; -webkit-line-clamp:4}
   .hero .fd-count{font-size:13.5px; margin-bottom:4px; line-height:1.22}
   .hero .gen-line{font-size:14px; margin-top:3px; line-height:1.22}
-  .fd-kicker{font-size:10.5px; margin-bottom:3px}
+  .fd-kicker{font-size:14.5px; margin-bottom:3px}
   .scroll-cue{bottom:6px; font-size:10px; line-height:1.2; gap:0}
   .scroll-cue span{font-size:11px; line-height:1}
   .foot{font-size:12.3px; margin-top:9px}
-  .entry-icon{width:38px; height:38px}
-  .entry-head h1{font-size:18.5px}
   .entry-sub{display:none}
-  .dob-readout{margin-top:5px; font-size:15px}
-  .sel-btn{min-height:47px}
-  .cta{padding:12px}
+  .dob-readout{font-size:15px}
   .entry.panel-open .entry-icon{display:none}
+  /* end-stop for the shortest windows (<=580px tall at full font scale):
+     a few px of air traded so the whole entry — CTA and privacy line
+     included — stays on screen; taller windows never see these */
+  .entry{padding-top:4px}
+  .entry .entry-icon{width:40px; height:40px}
+  .entry .entry-head h1{margin-top:4px; margin-bottom:2px; line-height:1.18}
+  .entry .dob-readout{margin-top:2px}
+  .entry .entry-controls{gap:4px}
+  .entry .name-field input{padding-top:9px; padding-bottom:9px}
+  .entry .sel-btn{padding-top:5px; padding-bottom:6px}
+  .entry .privacy{font-size:11.5px}
 }
