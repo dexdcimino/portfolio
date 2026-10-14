@@ -3448,7 +3448,7 @@ html.fv-maxed .fv-item:popover-open{pointer-events:auto}
    reaches inside a generated <!-- img --> block.
    ========================================================================== */
 :root{
-  --portrait-ink:url("assets/about/dex-portrait-lineart.svg");
+  --portrait-ink:url("https://dexcimino-media.b-cdn.net/assets/about/dex-portrait-lineart.svg");
   --ink-fade:.34s ease;
   /* Third state: the same drawing, off the accent entirely. Aliased to the nav
      icons' own token rather than a matched hex, so the portrait and the rail
