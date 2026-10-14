@@ -56,12 +56,12 @@
   <section id="storyView" class="hidden">
     <nav id="dotNav" class="dotnav" aria-label="Chapters">
       <button type="button" data-target="sceneHero" data-label="You"><i></i></button>
+      <button type="button" data-target="sceneFirst" data-label="Day One"><i></i></button>
       <button type="button" data-target="sceneYears" data-label="Your Years"><i></i></button>
       <button type="button" data-target="sceneBody" data-label="Body"><i></i></button>
       <button type="button" data-target="scenePlanet" data-label="Planet"><i></i></button>
       <button type="button" data-target="sceneWild" data-label="Earthlings"><i></i></button>
       <button type="button" data-target="sceneSpace" data-label="Space"><i></i></button>
-      <button type="button" data-target="sceneFirst" data-label="Day One"><i></i></button>
       <button type="button" data-target="scenePoster" data-label="Poster"><i></i></button>
     </nav>
 
@@ -78,6 +78,13 @@
         <div class="hstat"><span class="hs-num" id="galacticMiles">–</span><span class="hs-label">miles through the galaxy</span></div>
       </div>
       <div class="scroll-cue" aria-hidden="true">Swipe up — chapter one<span>↓</span></div>
+    </section>
+
+    <!-- CHAPTER ZERO: DAY ONE -->
+    <section class="scene" id="sceneFirst">
+      <p class="ch-kicker rv">Chapter zero · where it all began</p>
+      <h3 class="rv"><span class="ch-icon">🌅</span> Your First Day</h3>
+      <div class="firstday rv" id="firstDay"></div>
     </section>
 
     <!-- CHAPTER ONE: YOUR YEARS (the time machine) — all controls in the bottom stack -->
@@ -130,7 +137,7 @@
       <div id="wildLost" class="carousel hidden"></div>
       <div class="scene-bottom rv">
         <div class="subtabs" data-scene="sceneWild">
-          <button type="button" class="stab active" data-list="found">🌟 Found in your life</button>
+          <button type="button" class="stab active" data-list="found">🌟 Discovered in your life</button>
           <button type="button" class="stab" data-list="lost">🕯️ Lost in your life</button>
         </div>
       </div>
@@ -144,24 +151,19 @@
       <div class="pagedots" id="spaceDots"></div>
     </section>
 
-    <!-- DAY ONE -->
-    <section class="scene" id="sceneFirst">
-      <p class="ch-kicker rv">Where it all began</p>
-      <h3 class="rv"><span class="ch-icon">🌅</span> Your First Day</h3>
-      <div class="firstday rv" id="firstDay"></div>
-    </section>
-
     <!-- POSTER -->
     <section class="scene poster-sec" id="scenePoster">
       <p class="ch-kicker rv">Final chapter</p>
       <h3 class="rv"><span class="ch-icon">🖼️</span> Take It With You</h3>
-      <p class="ch-sub rv">Your whole story on one poster.</p>
+      <p class="ch-sub rv">Your whole story — every day, every heartbeat — on one poster.</p>
+      <p class="poster-explain rv">Tap the button below and the poster saves to your phone as a picture. Open it any time, even without this app. It's yours to keep.</p>
       <footer class="foot rv">
         <p>Sources: UN · World Bank · NASA · NOAA · ITU · USGS · IUCN · Wikipedia.</p>
         <p class="foot-brand">✦ YouVerse — a Dex Cimino creation · dexcimino.com</p>
       </footer>
       <div class="scene-bottom rv">
         <button id="posterBtn" class="cta" type="button">Download my poster</button>
+        <p class="poster-note">Saves one picture to your phone — view it any time.</p>
         <button id="startOverBtn" class="over-btn" type="button">↺ Start over with a new birthday</button>
       </div>
       <canvas id="posterCanvas" width="1080" height="1350" class="hidden"></canvas>
