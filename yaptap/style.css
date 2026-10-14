@@ -82,20 +82,27 @@ button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
 .note{display:flex;flex-direction:column;border:1px solid var(--line);background:var(--panel);border-radius:18px;margin-bottom:10px;overflow:hidden}
 .note.expanded,.note.selected{border:3px solid var(--acc)}
 .note-head{
+  position:relative;min-height:52px;
   display:flex;align-items:center;gap:2px;flex:none;
   padding:4px;
 }
 .note-del,.note-copy,.note-rename{
+  position:relative;z-index:2;
   width:40px;height:44px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex:none;
 }
+/* the pencil leaves the centre alone (v1.7.1): the meta is absolutely
+   centred on the full card width, so rename+copy anchor right via
+   margin-left:auto instead of consuming centre space */
+.note-rename{margin-left:auto}
 .note-del{color:#ff8a93}
 .note-copy{color:var(--acc)}
 .note-rename{color:var(--muted)}
 .note-del .ic,.note-copy .ic,.note-rename .ic{width:20px;height:20px}
-.note-meta{flex:1;text-align:center;font-size:14px;font-weight:700;padding:10px 2px;border-radius:10px;overflow-wrap:anywhere}
+.note-meta{position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);z-index:1;text-align:center;font-size:14px;font-weight:700;padding:10px 92px;border-radius:10px;overflow-wrap:anywhere}
 .note-name-input{
-  flex:1;min-width:0;background:transparent;border:none;outline:none;color:var(--text);
-  font:inherit;font-size:14px;font-weight:700;text-align:center;padding:10px 2px;
+  position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);z-index:1;
+  background:transparent;border:none;outline:none;color:var(--text);
+  font:inherit;font-size:14px;font-weight:700;text-align:center;padding:10px 92px;
 }
 .note-name-input::placeholder{color:var(--faded);font-weight:600}
 .note-body{padding:13px 15px 8px;font-size:15.5px;line-height:1.6;white-space:pre-wrap;overflow-wrap:anywhere;max-height:46dvh;overflow-y:auto;outline:none;-webkit-user-select:text;user-select:text;cursor:text;touch-action:pan-y}
@@ -132,21 +139,21 @@ button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
    bubble toggle right. The status line and the account-state line are
    gone — the bar says almost nothing now. ---------- */
 .controls{margin-top:12px;flex:none}
-.controls-row{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.controls-row{display:grid;grid-template-columns:1fr 1fr 1fr;align-items:center;gap:10px}
 .ctl-btn{
   flex:1;display:flex;align-items:center;justify-content:center;gap:8px;
   padding:14px;border-radius:999px;background:var(--panel2);border:1px solid var(--line);
   font-size:15px;font-weight:700;min-height:52px;
 }
-.ctl-btn.small{flex:none;padding:0 20px;min-height:48px}
+.ctl-btn.small{padding:14px;min-height:52px}
 .ctl-btn .ic{color:var(--acc)}
 .ctl-btn.accent{background:var(--acc);color:#0c1305;border-color:var(--acc)}
 .ctl-btn.accent .ic{color:#0c1305}
-#acctBtn{max-width:150px}
+#acctBtn{width:100%}
 #acctBtnLabel{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .ctl-btn.ghost{background:transparent;border-color:var(--line);color:var(--muted);font-size:13px;min-height:40px;padding:0 14px}
 .brand-spacer{flex:1}
-.record-wrap{position:relative;width:88px;height:76px;flex:none}
+.record-wrap{position:relative;width:88px;height:76px;justify-self:center}
 .record-pill{
   position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
   width:84px;height:52px;border-radius:999px;background:#131a13;
@@ -155,13 +162,14 @@ button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
 }
 .record-pill.live{border-color:#ff8291}
 .record-pill.paused{border-color:#ffb347}
-.record-face{width:34px;height:34px;border-radius:50%;display:block;pointer-events:none}
+.record-face{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:3;width:34px;height:34px;border-radius:50%;display:block;pointer-events:none}
 .record-wave{position:absolute;left:50%;top:50%;width:88px;height:88px;transform:translate(-50%,-50%);pointer-events:none;display:none}
 .record-wave.on{display:block}
 
 /* ---------- floating bubble ---------- */
 .bubble{position:fixed;z-index:80;width:68px;height:68px;touch-action:none;user-select:none;-webkit-user-select:none}
 .bubble-main{
+  position:relative;z-index:4;
   width:68px;height:68px;border-radius:50%;padding:0;overflow:hidden;
   display:flex;align-items:center;justify-content:center;
   background:#131a13;border:2px solid var(--acc);
@@ -169,6 +177,12 @@ button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
 }
 .bubble-main.live{border-color:#ff8291}
 .bubble-main.paused{border-color:var(--amber)}
+/* while recording the face sits ABOVE the wave canvas and the button
+   itself goes clear (v1.7.1): the wave's own fill + rim show through
+   around a face shrunk into the glow pool, instead of the canvas
+   painting its black fill over a full-size face */
+.bubble-main.live,.bubble-main.paused{background:transparent;border-color:rgba(0,0,0,0)}
+.bubble-main.live .bubble-face,.bubble-main.paused .bubble-face{width:42px;height:42px}
 .bubble-face{width:100%;height:100%;object-fit:cover;display:block;border-radius:50%}
 /* the recording wave rides on this canvas, centered on the bubble;
    88px box for a 68px bubble, and the wave's own math keeps its ink
