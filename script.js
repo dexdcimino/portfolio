@@ -1716,7 +1716,7 @@ function refreshPdfLink(id) {
   const active = id || resumeTabs.find(t => t.getAttribute('aria-selected') === 'true')?.id;
   const doc = DOCS[active];
   if (!doc || !pdfLink) return;
-  pdfLink.dataset.file = `assets/about/${doc.file}`;
+  pdfLink.dataset.file = `https://dexcimino-media.b-cdn.net/assets/about/${doc.file}`;
   pdfLink.dataset.name = doc.file;
   pdfLink.dataset.tip = doc.tip;
   pdfLink.setAttribute('aria-label', doc.label);
@@ -12470,7 +12470,7 @@ const LOOP_MODES = ['off', 'all', 'one'];
    That is not luck — it is that the photo branches in apply() are all written
    as `state !== 'photo'` rather than as a photo case, so the state going
    missing from the cycle leaves them inert instead of leaving them wrong.
-   Anything added here should keep that shape. `assets/about/profile.jpg`
+   Anything added here should keep that shape. `https://dexcimino-media.b-cdn.net/assets/about/profile.jpg`
    stays, all three <img> elements stay in the markup, lazy and at opacity 0
    under the drawing; restoring the photo is 'photo' back at the front of
    PORTRAIT_CYCLE and the gray label pointing at it again.
