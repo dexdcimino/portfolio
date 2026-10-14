@@ -63,6 +63,9 @@ button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
   padding:12px 14px;color:var(--acc);font-size:14px;line-height:1.5;overflow-wrap:anywhere;
   max-height:22dvh;overflow-y:auto;white-space:pre-wrap;
 }
+/* the banner's label is chrome, not transcription (v1.7.3): muted,
+   so it can never be mistaken for part of the note */
+.draft-label{color:var(--muted)}
 
 /* ---------- notes: the home list, bare cards on the background ---------- */
 /* The column is bottom-anchored like the phone's stackFromBottom list:
@@ -161,15 +164,21 @@ button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
 .ctl-btn.ghost{background:transparent;border-color:var(--line);color:var(--muted);font-size:13px;min-height:40px;padding:0 14px}
 .brand-spacer{flex:1}
 .record-wrap{position:relative;width:88px;height:76px;justify-self:center}
+/* the record control is a CIRCLE now (v1.7.3) — the bubble's twin:
+   same 68px disc, same face. It used to be an 84x52 pill whose static
+   shape and rim sat BEHIND the recording blob, with a 34px mic lost
+   in the middle (Dex, 2026-10-14). Live, the button itself goes
+   clear and the wave's red blob IS the control's surface — nothing
+   static behind it in any state. */
 .record-pill{
   position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
-  width:84px;height:52px;border-radius:999px;background:#131a13;
+  width:68px;height:68px;border-radius:50%;background:#131a13;
   border:2px solid var(--acc);display:flex;align-items:center;justify-content:center;
   cursor:pointer;padding:0;
 }
-.record-pill.live{border-color:#ff8291}
+.record-pill.live{background:transparent;border-color:rgba(0,0,0,0)}
 .record-pill.paused{border-color:#ffb347}
-.record-face{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:3;width:34px;height:34px;border-radius:50%;display:block;pointer-events:none}
+.record-face{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:3;width:64px;height:64px;border-radius:50%;display:block;pointer-events:none}
 .record-wave{position:absolute;left:50%;top:50%;width:88px;height:88px;transform:translate(-50%,-50%);pointer-events:none;display:none}
 .record-wave.on{display:block}
 
