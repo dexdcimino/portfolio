@@ -178,7 +178,9 @@ function renderStory(){
     `Born <b>${birth.toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})}</b> · ` +
     `you are <b>${ageNow()} years old</b> — that's ${ageNow()} full laps around the Sun, and counting.`;
 
-  /* Body — three swipeable pages */
+  /* Body — four swipeable pages (rows redistributed 4/4/4/3 in batch #3:
+     five rows a page left too little height per row at short viewports
+     and the row text clipped inside its card) */
   const walkMiles = s.days * 5000 * 0.000473;
   const walkLaps = walkMiles / 24901;
   fillPages('bodyPages', 'bodyDots', [
@@ -187,26 +189,28 @@ function renderStory(){
       srow('est', s.breaths, 'compact', '', 'breaths', 'Roughly 16 a minute, sleeping and waking, since your very first one.'),
       srow('est', s.days*2000, 'compact', '', 'gallons of blood pumped', `Enough to fill about ${Math.max(1, Math.round(s.days*2000/660000))} Olympic swimming pools.`),
       srow('est', s.days*16*60*17, 'compact', '', 'blinks', 'About 17 a minute while you\'re awake.'),
-      srow('est', s.days*3.3e11, 'compact', '', 'cells replaced', 'Almost none of the cells you were born with are still you. You are a Ship of Theseus.'),
     ],
     [
+      srow('est', s.days*3.3e11, 'compact', '', 'cells replaced', 'Almost none of the cells you were born with are still you. You are a Ship of Theseus.'),
       srow('est', walkMiles, 'compact', '', 'miles walked', walkLaps >= 1 ? `That is ${walkLaps.toFixed(1)} laps around the entire Earth.` : `That is ${Math.round(walkLaps*100)}% of the way around the entire Earth.`),
       srow('est', s.days*3, 'compact', '', 'meals eaten', 'Give or take a few thousand snacks.'),
       srow('est', s.days*16000, 'compact', '', 'words spoken', `About ${commas(Math.round(s.days*16000/80000))} novels\' worth, said out loud.`),
-      srow('est', s.days*15, 'compact', '', 'laughs', 'Roughly 15 a day — the good stuff adds up.'),
-      srow('est', s.days*4, 'compact', '', 'dreams dreamed', 'Several a night. You forgot almost every single one.'),
     ],
     [
+      srow('est', s.days*15, 'compact', '', 'laughs', 'Roughly 15 a day — the good stuff adds up.'),
+      srow('est', s.days*4, 'compact', '', 'dreams dreamed', 'Several a night. You forgot almost every single one.'),
       srow('est', s.days*8, 'compact', '', 'hours asleep', 'About a third of your life, gone to recharging.'),
       srow('est', s.days*2, 'compact', '', 'hours dreaming', 'Around 2 hours a night inside worlds your brain built for free.'),
+    ],
+    [
       srow('est', s.years*1.378, 'compact', '', 'feet of fingernails', 'All ten fingers, end to end, at about 3.5 mm a month each.'),
       srow('est', s.years*0.5, 'compact', '', 'feet of hair growth', 'If you had never cut it — about 6 inches a year, every year.'),
       srow('est', s.years*1.4, 'compact', '', 'pounds of skin shed', 'You leave a trail of yourself everywhere you go.'),
     ],
   ]);
 
-  /* Planet — three swipeable pages (rows rebalanced 2026-10-14: page one
-     carried 7 rows, more than one screen can hold at short viewports) */
+  /* Planet — four swipeable pages (4/4/3/2 — batch #3: the old third page
+     carried 5 rows and its last card clipped at short viewports) */
   const MILESTONES = [[6,'1999'],[7,'2011'],[8,'2022']];
   const crossed = MILESTONES.filter(([, y]) => by < Number(y) && Number(y) <= new Date().getFullYear());
   fillPages('planetPages', 'planetDots', [
@@ -240,6 +244,8 @@ function renderStory(){
         'Around 100,000 takeoffs and landings every single day.'),
       srow('est', s.years*80e6, 'compact', '', 'cars built',
         'Roughly 80 million new cars roll out every year.'),
+    ],
+    [
       srow('calc', null, null, crossed.length ? String(crossed.length) : '0',
         'population milestones',
         crossed.length
@@ -504,15 +510,22 @@ function setExplorer(year, scroll){
   exYear = Math.min(hi, Math.max(lo, year));
   const slider = $('yearSlider');
   slider.min = lo; slider.max = hi; slider.value = exYear;
-  const age = exYear - birth.getFullYear();
   const nowY = new Date().getFullYear();
-  $('yearBig').textContent = age === 0 ? 'Born' : `Age ${age}`;
-  $('yearAge').textContent = age === 0 ? `${exYear} · where your story starts`
-    : exYear === nowY && ageNow() < age ? `${exYear} · you turn ${age} this year`
+  /* Headline age = COMPLETED years, on every surface. For a past year the
+     age he TURNED that year is completed by Dec 31, so it stands; but for
+     the CURRENT year the turning age claims a birthday that hasn't
+     happened yet (DOB Dec 1 1991 read "Age 35" in Oct 2026 — Dex is 34).
+     So the current year shows ageNow(), and the sub-line says when the
+     next birthday lands instead. */
+  const turning = exYear - birth.getFullYear();
+  const age = exYear === nowY ? ageNow() : turning;
+  $('yearBig').textContent = turning === 0 ? 'Born' : `Age ${age}`;
+  $('yearAge').textContent = turning === 0 ? `${exYear} · where your story starts`
+    : exYear === nowY && ageNow() < turning ? `${exYear} · you turn ${turning} this year`
     : exYear === nowY ? `${exYear} · you, right now`
-    : `${exYear} · you turned ${age} this year`;
-  const yc = document.querySelector('.year-center');
-  if (yc){ yc.classList.remove('warp'); void yc.offsetWidth; yc.classList.add('warp'); }
+    : `${exYear} · you turned ${turning} this year`;
+  const yb = $('yearBig');
+  if (yb){ yb.classList.remove('warp'); void yb.offsetWidth; yb.classList.add('warp'); }
   $('prevYear').disabled = exYear <= lo;
   $('nextYear').disabled = exYear >= hi;
   document.querySelectorAll('.chip').forEach(c =>
