@@ -13455,3 +13455,29 @@ document.addEventListener('click', event => {
 
 window.addEventListener('load', applyDeepLink);
 window.addEventListener('hashchange', applyDeepLink);
+
+/* ---------- install escape (2026-10-14) ----------
+   dexcimino.com is itself an installed app ("dexdc", scope "/") on Dex's
+   phone. AI Lab install taps made inside that app's window open ?install=1
+   in the SAME window, where Chrome can never offer an install — the
+   recurring "installs don't work" bug (fixed four times at the wrong layer).
+   When the site is running as the installed app, hand install links to
+   Chrome via an intent URL instead: the sub-app page opens in a real
+   browser tab, where the install prompt fires and the app's sheet shows
+   its Install button. In a normal browser tab nothing changes. */
+(function(){
+  var inApp = window.matchMedia('(display-mode: standalone)').matches ||
+              window.matchMedia('(display-mode: fullscreen)').matches ||
+              window.navigator.standalone === true;
+  if (!inApp) return;
+  document.addEventListener('click', function(e){
+    var a = e.target.closest ? e.target.closest('a[href*="?install=1"]') : null;
+    if (!a) return;
+    var url = new URL(a.getAttribute('href'), location.origin);
+    if (url.origin !== location.origin) return;
+    e.preventDefault();
+    e.stopPropagation();
+    location.href = 'intent://' + url.host + url.pathname + url.search +
+      '#Intent;scheme=https;package=com.android.chrome;action=android.intent.action.VIEW;end';
+  }, true);
+})();
