@@ -33,14 +33,23 @@ let interimText = '';
    only decides whether the next segment extends it or starts a new one. */
 let openNoteId = null;
 let expandedId = null;
+let namingId = null;          // the note whose name field is open (v1.6)
 
 let state = 'idle';           // idle | live | paused
 let wantRecord = false;
 let rec = null;
 let restartTimer = null;
-let startedAt = 0, elapsedBase = 0, tickTimer = null;
 let wakeLock = null;
 let pendingDeleteId = null;
+let pendingBulk = false;    // the delete confirm is for the whole selection
+
+/* multi-select (v1.6): long-press a card to enter, taps toggle, a
+   long-press drag selects the run it crosses */
+let selMode = false;
+const selectedIds = new Set();
+let dragSel = null;           // { anchorIdx, base:Set } while a drag runs
+let swallowUntil = 0;         // clicks landing before this time belong to a long-press/drag
+const swallowed = () => { if (Date.now() < swallowUntil){ swallowUntil = 0; return true; } return false; };
 
 /* ---------------- text cleanup: light grammar polish on final results ---------------- */
 function polish(s){
@@ -110,7 +119,7 @@ function closeDraftNote(){
 
 /* ---------------- speech engine ---------------- */
 const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-if (!SR) $('srWarn').classList.remove('hidden');
+if (!SR) setTimeout(() => toast("This browser can't do live transcription — open YapTap in Chrome on Android"), 600);
 
 // Append a recognized chunk without duplicating words the recognizer
 // replays. Chrome restarts its speech session every few seconds and
@@ -212,12 +221,9 @@ function setState(next){
   if (next === 'live'){
     state = 'live';
     wantRecord = true;
-    startedAt = Date.now();
     startRec();
     grabWakeLock();
-    clearInterval(tickTimer); tickTimer = setInterval(tick, 500); tick();
   } else if (next === 'paused'){
-    elapsedBase += Date.now() - startedAt;
     state = 'paused';
     wantRecord = false;
     clearTimeout(restartTimer);
@@ -225,17 +231,13 @@ function setState(next){
     interimText = '';
     commitDraftNote();
     dropWakeLock();
-    tick();
   } else {
     state = 'idle';
     wantRecord = false;
-    elapsedBase = 0;
     clearTimeout(restartTimer);
-    clearInterval(tickTimer);
     try { rec && rec.stop(); } catch (e) {}
     interimText = '';
     dropWakeLock();
-    tick();
   }
   render();
   if (state === 'live') startWave(); else stopWave();
@@ -255,19 +257,21 @@ document.addEventListener('visibilitychange', () => {
 });
 
 /* ---------------- rendering ---------------- */
-function fmtTime(ms){
-  const s = Math.floor(ms / 1000);
-  return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
-}
+/* The phone app's screen, mirrored: the caption carries the live words,
+   the draft panel exists only while an uncommitted draft does, and the
+   bottom stack's status line reads like the phone's — what's on, what
+   the mic is doing. There is no stage/draft box and no timer: the phone
+   app has neither. */
 function render(){
-  const has = finalText.trim().length > 0 || interimText.trim().length > 0;
-  $('draftEmpty').classList.toggle('hidden', has);
-  $('draftText').classList.toggle('hidden', !finalText.trim());
-  $('draftText').textContent = finalText;
-  $('draftInterim').textContent = interimText ? (finalText && !/\s$/.test(finalText) ? ' ' : '') + interimText : '';
-  $('wordCount').textContent = wordCount(finalText + ' ' + interimText) + ' words';
-  const d = $('draft');
-  d.scrollTop = d.scrollHeight;
+  // the draft banner: the phone shows its draft whenever one exists;
+  // while recording, the caption is the words' home instead
+  const banner = $('draftBanner');
+  const showDraft = state !== 'live' && finalText.trim().length > 0;
+  banner.classList.toggle('hidden', !showDraft);
+  if (showDraft){
+    const tail = finalText.trim().split(/\s+/).slice(-40).join(' ');
+    banner.textContent = 'Current note (not saved yet):\n' + tail;
+  }
 
   // live caption: the tail of what's being said, one smooth line
   const tail = (finalText + ' ' + interimText).trim().split(/\s+/).slice(-14).join(' ');
@@ -280,21 +284,19 @@ function render(){
   cap.classList.toggle('paused', state === 'paused');
   cap.classList.toggle('idle', state === 'idle');
 
-  $('statusDot').className = 'status-dot' + (state === 'live' ? ' live' : state === 'paused' ? ' paused' : '');
-  $('statusText').textContent = state === 'live' ? 'Transcribing…' : state === 'paused' ? 'Paused — tap the bubble to keep going' : 'Ready';
+  // the status line, in the phone app's own format
+  const parts = [];
+  parts.push(SR ? 'Mic ✓' : 'Mic ✗ — needs Chrome on Android');
+  parts.push(bubbleVisible ? 'Bubble on' : 'Bubble off');
+  if (state === 'live') parts.push('Transcribing…');
+  else if (state === 'paused') parts.push('Paused');
+  $('statusLine').textContent = parts.join('   ');
+
   const bm = $('bubbleMain');
   bm.classList.toggle('live', state === 'live');
   bm.classList.toggle('paused', state === 'paused');
-  bm.querySelector('.ic-mic').classList.toggle('hidden', state === 'live');
-  bm.querySelector('.ic-pause').classList.toggle('hidden', state !== 'live');
   $('bubbleBtnLabel').textContent = bubbleVisible ? 'Hide bubble' : 'Show bubble';
   setSyncHint();
-}
-function tick(){
-  const ms = elapsedBase + (state === 'live' ? Date.now() - startedAt : 0);
-  $('timer').textContent = fmtTime(ms);
-  $('bubbleTimer').textContent = fmtTime(ms);
-  $('bubbleTimer').classList.toggle('hidden', state === 'idle');
 }
 
 async function copyText(text, msg){
@@ -312,72 +314,347 @@ async function copyText(text, msg){
    the bottom by the thumb, chat-style, and the scroll stays anchored to
    the bottom unless the reader has deliberately scrolled away. */
 let stickBottom = true;
+let suppressStickOnce = false;
 $('listScroll').addEventListener('scroll', () => {
   const el = $('listScroll');
   stickBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 48;
 });
+
+/* A note's display meta (v1.6, the phone app's NoteStore.displayMeta):
+   its name when it has one — the name REPLACES the stats — else
+   "2h ago · 128 words". The date+time footer never changes. */
+function displayMeta(n){
+  return (n.title && n.title.trim()) ? n.title.trim()
+    : ago(n.ts) + ' · ' + wordCount(n.text) + ' words';
+}
+function whenText(n){
+  return new Date(n.ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) + ' · ' +
+    new Date(n.ts).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+}
+/* The bulk copy format, byte-for-byte the phone app's: per note a header
+   line (name-or-meta, plus the date), then the full text; blocks
+   separated by one blank line, in list order. */
+function bulkCopyText(inListOrder){
+  return inListOrder.map(n => displayMeta(n) + ' · ' + whenText(n) + '\n' + n.text).join('\n\n');
+}
+const displayOrder = () => [...notes].sort((a, b) => (a.ts - b.ts) || String(a.id).localeCompare(String(b.id)));
+
+/* ---------------- in-place editing (v1.6) ----------------
+   The expanded body is a contenteditable: double-tap selects words,
+   the keyboard edits. The edit flushes to the store (text + fresh
+   `updated`, so sync carries it) on collapse, on switching notes, on
+   delete, on entering selection, and before any list rebuild the user
+   asked for. Rebuilds that arrive on their own (the minute tick, a sync
+   landing) wait while an editor has focus — nothing typed is ever lost
+   to a repaint. */
+function editActive(){
+  const a = document.activeElement;
+  return !!(a && (a.classList.contains('note-edit') || a.classList.contains('note-name-input')));
+}
+function flushEdit(){
+  const ed = $('listItems').querySelector('.note-edit');
+  if (!ed) return;
+  const n = notes.find(x => x.id === ed.dataset.id);
+  const txt = (ed.innerText || '').replace(/\n+$/, '');
+  if (n && txt !== n.text){
+    n.text = txt;
+    n.updated = Date.now();
+    saveNotes();
+    queueSync();
+  }
+  ed.blur();
+}
+function finishNameEdit(){
+  if (!namingId) return;
+  const input = $('listItems').querySelector('.note-name-input');
+  const n = notes.find(x => x.id === namingId);
+  namingId = null;
+  if (input) input.blur();
+  if (input && n){
+    const t = input.value.trim();
+    if (t !== (n.title || '')){
+      if (t) n.title = t; else delete n.title;
+      n.updated = Date.now();
+      saveNotes();
+      queueSync();
+    }
+  }
+  renderList();
+}
+
 function renderList(){
-  $('listMeta').textContent = notes.length ? notes.length + (notes.length === 1 ? ' note' : ' notes') : '';
+  if (editActive()) return;   // a repaint must never eat an in-progress edit
   $('listEmpty').classList.toggle('hidden', notes.length > 0);
   const wrap = $('listItems');
   wrap.innerHTML = '';
-  const display = [...notes].sort((a, b) => (a.ts - b.ts) || String(a.id).localeCompare(String(b.id)));
-  display.forEach(n => {
+  const display = displayOrder();
+  display.forEach((n, idx) => {
     const el = document.createElement('div');
-    el.className = 'note' + (n.id === expandedId ? ' expanded' : '');
+    el.className = 'note' + (n.id === expandedId ? ' expanded' : '') + (selMode && selectedIds.has(n.id) ? ' selected' : '');
+    el.dataset.id = n.id;
+    el.dataset.idx = idx;
+    const naming = n.id === namingId;
     el.innerHTML =
+      '<div class="note-body hidden"></div>' +
       '<div class="note-head">' +
         '<button class="note-del" aria-label="Delete this transcription"><svg viewBox="0 0 24 24" class="ic"><path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6M10 11v6M14 11v6"/></svg></button>' +
-        '<button class="note-meta"></button>' +
+        (naming
+          ? '<input class="note-name-input" type="text" placeholder="Name this note" autocomplete="off">'
+          : '<button class="note-meta"></button>') +
+        '<button class="note-rename" aria-label="Name this note"><svg viewBox="0 0 24 24" class="ic"><path d="M17 3a2.8 2.8 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg></button>' +
         '<button class="note-copy" aria-label="Copy this transcription"><svg viewBox="0 0 24 24" class="ic"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>' +
       '</div>' +
-      '<div class="note-body hidden"></div>' +
       '<div class="note-when"></div>';
-    const meta = el.querySelector('.note-meta');
-    meta.textContent = ago(n.ts) + ' · ' + wordCount(n.text) + ' words';
-    const when = el.querySelector('.note-when');
-    when.textContent =
-      new Date(n.ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) + ' · ' +
-      new Date(n.ts).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
     const body = el.querySelector('.note-body');
+    body.dataset.id = n.id;
     body.textContent = n.text;
     body.classList.toggle('hidden', n.id !== expandedId);
-    meta.addEventListener('click', () => {
-      expandedId = expandedId === n.id ? null : n.id;
+    if (n.id === expandedId){
+      body.setAttribute('contenteditable', 'true');
+      body.classList.add('note-edit');
+      body.setAttribute('spellcheck', 'false');
+    }
+    el.querySelector('.note-when').textContent = whenText(n);
+    if (naming){
+      const input = el.querySelector('.note-name-input');
+      input.value = n.title || '';
+      input.addEventListener('keydown', e => {
+        if (e.key === 'Enter'){ e.preventDefault(); finishNameEdit(); }
+        if (e.key === 'Escape'){ namingId = null; renderList(); }
+      });
+      input.addEventListener('blur', () => { if (namingId === n.id) finishNameEdit(); });
+    } else {
+      el.querySelector('.note-meta').textContent = displayMeta(n);
+      el.querySelector('.note-meta').addEventListener('click', ev => {
+        if (swallowed()) return;
+        if (selMode){ toggleSelected(n.id); return; }
+        toggleExpand(n, el);
+      });
+    }
+    el.querySelector('.note-rename').addEventListener('click', () => {
+      if (swallowed()) return;
+      if (selMode){ toggleSelected(n.id); return; }
+      if (namingId === n.id){ finishNameEdit(); return; }
+      flushEdit();
+      namingId = n.id;
       renderList();
+      const input = wrap.querySelector('.note-name-input');
+      if (input){ input.focus(); input.setSelectionRange(input.value.length, input.value.length); }
     });
-    el.querySelector('.note-copy').addEventListener('click', () => copyText(n.text));
+    el.querySelector('.note-copy').addEventListener('click', () => {
+      if (swallowed()) return;
+      if (selMode){ toggleSelected(n.id); return; }
+      copyText(n.text);
+    });
     el.querySelector('.note-del').addEventListener('click', () => {
+      if (swallowed()) return;
+      if (selMode){ toggleSelected(n.id); return; }
       pendingDeleteId = n.id;
+      pendingBulk = false;
+      $('delText').textContent = 'Delete this transcription?';
       $('delModal').classList.remove('hidden');
     });
     wrap.appendChild(el);
   });
-  if (stickBottom){
+  if (stickBottom && !suppressStickOnce){
     const el = $('listScroll');
     requestAnimationFrame(() => { el.scrollTop = el.scrollHeight; });
   }
+  suppressStickOnce = false;
+  renderSelBar();
 }
 
-$('delCancel').addEventListener('click', () => { pendingDeleteId = null; $('delModal').classList.add('hidden'); });
-$('delModal').addEventListener('click', e => { if (e.target === $('delModal')){ pendingDeleteId = null; $('delModal').classList.add('hidden'); } });
-$('delGo').addEventListener('click', () => {
-  const id = pendingDeleteId;
-  pendingDeleteId = null;
-  notes = notes.filter(n => n.id !== id);
-  tombstones = tombstones.filter(d => d.id !== id);
-  tombstones.push({ id, ts: Date.now() });
-  if (expandedId === id) expandedId = null;
-  if (openNoteId === id){ openNoteId = null; finalText = ''; interimText = ''; saveDraft(); }
+/* Expand/collapse with the header pinned: the head's screen Y is read
+   before the toggle; after the rebuild the scroll is adjusted by the
+   delta, so the header stays exactly where the finger tapped it and the
+   body unfolds above. If the card's top would leave the viewport, the
+   card is clamped fully inside instead — never off-screen. */
+function toggleExpand(n, el){
+  const head = el.querySelector('.note-head');
+  const beforeY = head.getBoundingClientRect().top;
+  flushEdit();
+  finishNameEditSilent();
+  expandedId = expandedId === n.id ? null : n.id;
+  renderList();
+  requestAnimationFrame(() => {
+    const el2 = $('listItems').querySelector('.note[data-id="' + n.id + '"]');
+    if (!el2) return;
+    const head2 = el2.querySelector('.note-head');
+    const listEl = $('listScroll');
+    const delta = head2.getBoundingClientRect().top - beforeY;
+    if (delta) listEl.scrollTop += delta;
+    const cRect = listEl.getBoundingClientRect();
+    const cardRect = el2.getBoundingClientRect();
+    if (cardRect.top < cRect.top) listEl.scrollTop -= (cRect.top - cardRect.top);
+    if (cardRect.bottom > cRect.bottom && cardRect.height <= cRect.height) listEl.scrollTop += (cardRect.bottom - cRect.bottom);
+  });
+}
+function finishNameEditSilent(){
+  if (!namingId) return;
+  const input = $('listItems').querySelector('.note-name-input');
+  const n = notes.find(x => x.id === namingId);
+  namingId = null;
+  if (input) input.blur();
+  if (input && n){
+    const t = input.value.trim();
+    if (t !== (n.title || '')){
+      if (t) n.title = t; else delete n.title;
+      n.updated = Date.now();
+      saveNotes();
+      queueSync();
+    }
+  }
+}
+
+function deleteNotesById(ids){
+  const kill = new Set(ids);
+  const now = Date.now();
+  notes = notes.filter(n => !kill.has(n.id));
+  tombstones = tombstones.filter(d => !kill.has(d.id));
+  ids.forEach(id => tombstones.push({ id, ts: now }));
+  ids.forEach(id => {
+    if (expandedId === id) expandedId = null;
+    if (namingId === id) namingId = null;
+    if (openNoteId === id){ openNoteId = null; finalText = ''; interimText = ''; saveDraft(); }
+  });
   saveNotes(); saveTombstones();
+}
+$('delCancel').addEventListener('click', () => { pendingDeleteId = null; pendingBulk = false; $('delModal').classList.add('hidden'); });
+$('delModal').addEventListener('click', e => { if (e.target === $('delModal')){ pendingDeleteId = null; pendingBulk = false; $('delModal').classList.add('hidden'); } });
+$('delGo').addEventListener('click', () => {
+  flushEdit();
+  if (pendingBulk){
+    deleteNotesById([...selectedIds]);
+    exitSelection();
+  } else if (pendingDeleteId){
+    deleteNotesById([pendingDeleteId]);
+  }
+  pendingDeleteId = null;
+  pendingBulk = false;
   $('delModal').classList.add('hidden');
   renderList(); render();
   queueSync();
   toast('Deleted');
 });
 
-// refresh "x ago" labels while the app sits open
+// refresh "x ago" labels while the app sits open (waits out an edit)
 setInterval(() => { renderList(); }, 60000);
+
+/* ---------------- multi-select (v1.6) ----------------
+   Long-press a card (380ms, still) enters selection mode and selects
+   it; keep the press moving and every card it crosses joins the run
+   from the anchor — retract and the run shrinks back to what was
+   selected when the press began. In selection mode, plain taps toggle
+   any card, anywhere in the list (scroll freely). Exit with the bar's
+   ✕, Esc, or by deselecting the last card. The click that ends the
+   entering press is swallowed so it can't undo the selection. */
+function renderSelBar(){
+  const bar = $('selBar');
+  bar.classList.toggle('hidden', !selMode);
+  if (bar) $('selCount').textContent = selectedIds.size + (selectedIds.size === 1 ? ' note selected' : ' notes selected');
+}
+function enterSelection(id, idx){
+  flushEdit();
+  finishNameEditSilent();
+  expandedId = null;
+  selMode = true;
+  selectedIds.clear();
+  selectedIds.add(id);
+  dragSel = { anchorIdx: idx, base: new Set(selectedIds) };
+  $('listScroll').style.overflowY = 'hidden';
+  document.querySelectorAll('.note').forEach(el => {
+    el.classList.toggle('selected', selectedIds.has(el.dataset.id));
+  });
+  renderSelBar();
+  if (navigator.vibrate) navigator.vibrate(12);
+}
+function exitSelection(){
+  selMode = false;
+  selectedIds.clear();
+  dragSel = null;
+  document.querySelectorAll('.note').forEach(el => el.classList.remove('selected'));
+  renderSelBar();
+}
+function toggleSelected(id){
+  if (selectedIds.has(id)) selectedIds.delete(id);
+  else selectedIds.add(id);
+  if (!selectedIds.size){ exitSelection(); return; }
+  const el = $('listItems').querySelector('.note[data-id="' + id + '"]');
+  if (el) el.classList.toggle('selected', selectedIds.has(id));
+  renderSelBar();
+}
+function applyDragRange(idx){
+  if (!dragSel) return;
+  const order = displayOrder();
+  const lo = Math.min(dragSel.anchorIdx, idx), hi = Math.max(dragSel.anchorIdx, idx);
+  const next = new Set(dragSel.base);
+  for (let i = lo; i <= hi; i++) if (order[i]) next.add(order[i].id);
+  selectedIds.clear();
+  next.forEach(id => selectedIds.add(id));
+  document.querySelectorAll('.note').forEach(el => {
+    el.classList.toggle('selected', selectedIds.has(el.dataset.id));
+  });
+  renderSelBar();
+}
+$('selClose').addEventListener('click', exitSelection);
+$('selCopy').addEventListener('click', () => {
+  const sel = displayOrder().filter(n => selectedIds.has(n.id));
+  if (!sel.length) return;
+  copyText(bulkCopyText(sel), sel.length === 1 ? 'Copied' : 'Copied ' + sel.length + ' notes');
+});
+$('selTrash').addEventListener('click', () => {
+  if (!selectedIds.size) return;
+  pendingBulk = true;
+  pendingDeleteId = null;
+  $('delText').textContent = selectedIds.size === 1 ? 'Delete this transcription?'
+    : 'Delete ' + selectedIds.size + ' transcriptions?';
+  $('delModal').classList.remove('hidden');
+});
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && selMode) exitSelection(); });
+
+/* press tracking on the cards (delegated: the list re-renders often) */
+let pressCand = null;
+$('listItems').addEventListener('pointerdown', e => {
+  const card = e.target.closest('.note');
+  if (!card) return;
+  pressCand = { id: card.dataset.id, idx: +card.dataset.idx, x: e.clientX, y: e.clientY, fired: false };
+  const cand = pressCand;
+  cand.timer = setTimeout(() => {
+    cand.fired = true;
+    swallowUntil = Date.now() + 450;
+    if (!selMode) enterSelection(cand.id, cand.idx);
+    else {
+      dragSel = { anchorIdx: cand.idx, base: new Set(selectedIds) };
+      $('listScroll').style.overflowY = 'hidden';
+    }
+  }, selMode ? 250 : 380);
+});
+document.addEventListener('pointermove', e => {
+  if (!pressCand) return;
+  if (dragSel){
+    const el = document.elementFromPoint(e.clientX, e.clientY);
+    const card = el && el.closest ? el.closest('.note') : null;
+    if (card) applyDragRange(+card.dataset.idx);
+    return;
+  }
+  if (Math.abs(e.clientX - pressCand.x) + Math.abs(e.clientY - pressCand.y) > 9){
+    clearTimeout(pressCand.timer);
+    pressCand = null;
+  }
+});
+function endPress(){
+  if (!pressCand) return;
+  clearTimeout(pressCand.timer);
+  const wasDrag = !!dragSel;
+  pressCand = null;
+  if (wasDrag){
+    dragSel = null;
+    $('listScroll').style.overflowY = '';
+    swallowUntil = Date.now() + 450;
+  }
+}
+document.addEventListener('pointerup', endPress);
+document.addEventListener('pointercancel', endPress);
 
 /* ---------------- bubble: show/hide, drag, snap, options ----------------
    The bubble is the microphone. Shown, it records; while it records it
@@ -498,17 +775,21 @@ $('optClose').addEventListener('click', () => {
 });
 
 /* ---------------- the recording wave ----------------
-   A sine wave wrapped around the bubble: r(θ) = R + A·[(1−m)·sin(4θ+φ) +
-   m·sin(7θ−0.8φ)] — two integer harmonics so the loop always closes. The
-   same envelope math as the Android app's WaveRingView: the amplitude
-   breathes (full wave → almost flat → wave again, ~7.3s), the blend m
-   drifts the apparent frequency (~11.7s), the wave slowly rotates
-   (~26s), the radius gently pulsates (±2.2%, ~3.1s) and the stroke
-   varies (2.5–3.2px, ~4.7s). Recording red #FF4757 with a #FF8291 echo.
+   A sine wave wrapped around the bubble over a breathing pool of light:
+   r(θ) = R + A·[(1−m)·sin(5θ+φ) + m·sin(9θ−0.8φ)] — two integer
+   harmonics so the loop always closes. The same motion design as the
+   Android app's WaveRingView v2: the amplitude breathes (2.6s, never
+   fully asleep), the blend m drifts the apparent frequency (3.9s), the
+   wave rotates (7s), the radius pulsates (±3.5%, 1.7s), the stroke
+   varies (1.9s), a second ring at 0.65 amplitude runs its phase
+   BACKWARD so the two weave, and a soft red glow at the centre —
+   swelling on the same breath as the amplitude — lights the bubble's
+   face from behind. Recording red #FF4757 with a #FF8291 echo.
    NOTHING CLIPS: R is solved from the canvas — R = (avail − Amax −
-   strokeMax/2) / (1 + pulseMax) with avail = half the canvas minus 3px —
-   so at maximum extent the ink ends at 41px of the 44px half-canvas.
-   The frame's worst case is published on dataset.maxr for checks. */
+   strokeMax/2) / (1 + pulseMax), avail = half the canvas minus 3px —
+   and the glow is a fill whose radius (R + 0.55·A) stays inside the
+   wave's own extent budget. The frame's worst case, the glow level and
+   the periods are published on dataset for checks. */
 const wave = { raf: 0, startMs: 0 };
 function startWave(){
   const cv = $('bubbleWave');
@@ -516,6 +797,7 @@ function startWave(){
   const dpr = Math.min(2, window.devicePixelRatio || 1);
   if (cv.width !== Math.round(88 * dpr)){ cv.width = Math.round(88 * dpr); cv.height = Math.round(88 * dpr); }
   cv.classList.remove('hidden');
+  cv.dataset.periods = '2.6,3.9,7.0,1.7';
   wave.startMs = performance.now();
   cancelAnimationFrame(wave.raf);
   const ctx = cv.getContext('2d');
@@ -523,19 +805,30 @@ function startWave(){
     const t = (performance.now() - wave.startMs) / 1000;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, 88, 88);
-    const avail = 41, strokeMax = 3.2, aMax = 5.6, pulseMax = 0.022;
+    const avail = 41, strokeMax = 3.4, aMax = 5.6, pulseMax = 0.035;
     const R0 = (avail - aMax - strokeMax / 2) / (1 + pulseMax);
-    const breath = Math.pow(0.5 + 0.5 * Math.sin(2 * Math.PI * t / 7.3 - Math.PI / 2), 1.4);
-    const A = aMax * (0.05 + 0.95 * breath);
-    const mix = 0.5 + 0.5 * Math.sin(2 * Math.PI * t / 11.7 + 1.1);
-    const phi = 2 * Math.PI * t / 26.0;
-    const R = R0 * (1 + pulseMax * Math.sin(2 * Math.PI * t / 3.1));
-    const stroke = 2.5 + 0.7 * (0.5 + 0.5 * Math.sin(2 * Math.PI * t / 4.7 + 0.6));
-    const ring = (amp, shift, width, color) => {
+    const breathEnv = 0.5 + 0.5 * Math.sin(2 * Math.PI * t / 2.6 - Math.PI / 2);
+    const breath = Math.pow(breathEnv, 1.2);
+    const A = aMax * (0.12 + 0.88 * breath);
+    const mix = 0.5 + 0.5 * Math.sin(2 * Math.PI * t / 3.9 + 1.1);
+    const phi = 2 * Math.PI * t / 7.0;
+    const R = R0 * (1 + pulseMax * Math.sin(2 * Math.PI * t / 1.7));
+    const stroke = 2.2 + 1.2 * (0.5 + 0.5 * Math.sin(2 * Math.PI * t / 1.9 + 0.6));
+    // the glow: a pool of red light under the rings, breathing with them
+    const glow = 0.10 + 0.28 * Math.pow(breathEnv, 1.6);
+    const gr = R + A * 0.55;
+    const grad = ctx.createRadialGradient(44, 44, 0, 44, 44, gr);
+    grad.addColorStop(0, 'rgba(255,71,87,' + glow.toFixed(3) + ')');
+    grad.addColorStop(1, 'rgba(255,71,87,0)');
+    ctx.beginPath();
+    ctx.arc(44, 44, gr, 0, 2 * Math.PI);
+    ctx.fillStyle = grad;
+    ctx.fill();
+    const ring = (amp, phiUse, shift, width, color) => {
       ctx.beginPath();
-      for (let i = 0; i <= 160; i++){
-        const th = 2 * Math.PI * i / 160;
-        const r = R + amp * ((1 - mix) * Math.sin(4 * th + phi + shift) + mix * Math.sin(7 * th - 0.8 * phi + shift));
+      for (let i = 0; i <= 180; i++){
+        const th = 2 * Math.PI * i / 180;
+        const r = R + amp * ((1 - mix) * Math.sin(5 * th + phiUse + shift) + mix * Math.sin(9 * th - 0.8 * phiUse + shift));
         const x = 44 + r * Math.cos(th), y = 44 + r * Math.sin(th);
         if (i) ctx.lineTo(x, y); else ctx.moveTo(x, y);
       }
@@ -543,10 +836,12 @@ function startWave(){
       ctx.strokeStyle = color; ctx.lineWidth = width; ctx.lineCap = 'round';
       ctx.stroke();
     };
-    ring(A, 0, stroke, '#ff4757');
-    ring(A * 0.8, 0.5, Math.max(1, stroke * 0.38), '#ff8291');
+    ring(A * 0.65, -0.9 * phi, 0.5, Math.max(1, stroke * 0.38), '#ff8291');
+    ring(A, phi, 0, stroke, '#ff4757');
     cv.dataset.maxr = (R + A + stroke / 2).toFixed(2);
     cv.dataset.avail = avail;
+    cv.dataset.glow = glow.toFixed(3);
+    cv.dataset.t = t.toFixed(2);
     wave.raf = requestAnimationFrame(draw);
   };
   draw();
@@ -646,17 +941,20 @@ async function syncNow(){
 }
 
 function setSyncHint(msg){
-  const text = msg || (siteUser
-    ? (syncBusy ? 'Syncing…' : 'Synced to your account')
-    : 'On this phone only — sign in to sync');
-  const el = $('saveHint');
-  if (el) el.textContent = text;
+  // The account row's state line is the sync state's home now (the phone
+  // app's row reads the same way: who's in, or "On this phone only").
+  const stateEl = $('acctStateText');
+  if (stateEl){
+    stateEl.textContent = siteUser
+      ? (msg || (syncBusy ? 'Syncing…' : (siteUser.email || 'Signed in')))
+      : 'On this phone only';
+  }
   const el2 = $('acctSyncState');
-  if (el2 && siteUser) el2.textContent = text === 'Synced to your account' ? 'Your notes sync to this account.' : text;
+  if (el2 && siteUser) el2.textContent = syncBusy ? 'Syncing…' : 'Your notes sync to this account.';
 }
 
 function renderAccount(){
-  $('acctBtnLabel').textContent = siteUser ? (siteUser.displayName || (siteUser.email || '').split('@')[0] || 'Account') : 'Sign in';
+  $('acctBtnLabel').textContent = siteUser ? 'Account' : 'Sign in';
   $('acctOut').classList.toggle('hidden', !!siteUser);
   $('acctIn').classList.toggle('hidden', !siteUser);
   if (siteUser){
@@ -672,7 +970,24 @@ $('acctBtn').addEventListener('click', () => {
   renderAccount();
 });
 $('acctClose').addEventListener('click', () => $('acctSheet').classList.add('hidden'));
+$('acctNotNow').addEventListener('click', () => $('acctSheet').classList.add('hidden'));
+$('acctDone').addEventListener('click', () => $('acctSheet').classList.add('hidden'));
 $('acctSheet').addEventListener('click', e => { if (e.target === $('acctSheet')) $('acctSheet').classList.add('hidden'); });
+
+/* Email is the fourth way in: a quiet button swaps the provider column
+   for the form, in the same column — the site's own layout. */
+$('acctEmailWay').addEventListener('click', () => {
+  $('acctProviders').classList.add('hidden');
+  $('acctForm').classList.remove('hidden');
+  $('acctMsg').textContent = '';
+  $('acctEmail').focus();
+});
+$('acctBack').addEventListener('click', () => {
+  $('acctForm').classList.add('hidden');
+  $('acctProviders').classList.remove('hidden');
+  $('acctMsg').textContent = '';
+});
+$('acctForm').addEventListener('submit', e => { e.preventDefault(); emailGo(false); });
 
 async function providerSignIn(provider){
   const msg = $('acctMsg');
@@ -705,7 +1020,6 @@ async function emailGo(create){
     msg.textContent = m ? m.errorText(e) : 'Sign-in opens on dexcimino.com — this copy can\u2019t reach it.';
   }
 }
-$('acctSignIn').addEventListener('click', () => emailGo(false));
 $('acctCreate').addEventListener('click', () => emailGo(true));
 $('acctReset').addEventListener('click', async () => {
   const msg = $('acctMsg');
@@ -801,6 +1115,9 @@ function showInstallSheet(){
   t.onclick = e => { if (e.target === t) close(); };
   document.body.appendChild(t);
 }
+/* The install control in the main row opens the compact sheet — the
+   sheet itself is never permanent page text (Dex, 2026-10-14). */
+$('installBtn').addEventListener('click', showInstallSheet);
 if (!YT_EMBED && new URLSearchParams(location.search).has('install')){
   window.history.replaceState(null, '', location.pathname + location.hash);
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', showInstallSheet);
@@ -819,5 +1136,4 @@ if (wordCount(finalText) > 0){
 }
 renderList();
 render();
-tick();
 bootAccount();
