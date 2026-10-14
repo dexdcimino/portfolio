@@ -435,6 +435,7 @@ function showInstallSheet(){
       '<img class="ish-icon" src="icon-512.png" alt="">' +
       '<h3 class="ish-title">Install ' + name + '</h3>' +
       '<p class="ish-sub">It goes on your home screen and opens like any other app.</p>' +
+      '<a class="ish-applink" href="/yaptap/android.html">Get the Android app \u2014 the one with the floating bubble \u2192</a>' +
       '<div class="ish-steps" data-steps></div>' +
       '<div class="ish-spacer"></div>' +
       '<button class="ish-go" data-go type="button">Got it</button>' +
