@@ -83,7 +83,7 @@ button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
 .note.expanded,.note.selected{border:3px solid var(--acc)}
 .note-head{
   display:flex;align-items:center;gap:2px;flex:none;
-  background:var(--panel2);padding:4px;
+  padding:4px;
 }
 .note-del,.note-copy,.note-rename{
   width:40px;height:44px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex:none;
@@ -98,31 +98,41 @@ button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
   font:inherit;font-size:14px;font-weight:700;text-align:center;padding:10px 2px;
 }
 .note-name-input::placeholder{color:var(--faded);font-weight:600}
-.note-body{padding:13px 15px 8px;font-size:15.5px;line-height:1.6;white-space:pre-wrap;overflow-wrap:anywhere;max-height:46dvh;overflow-y:auto;outline:none;-webkit-user-select:text;user-select:text;cursor:text}
+.note-body{padding:13px 15px 8px;font-size:15.5px;line-height:1.6;white-space:pre-wrap;overflow-wrap:anywhere;max-height:46dvh;overflow-y:auto;outline:none;-webkit-user-select:text;user-select:text;cursor:text;touch-action:pan-y}
 .note-body[contenteditable="true"]:focus{background:rgba(184,255,46,.04)}
 /* the quiet line: date + time, smaller and faded, pinned to the bottom
    of the card */
 .note-when{margin-top:auto;padding:2px 15px 10px;font-size:10.5px;color:var(--faded);font-weight:600;text-align:center}
 
-/* ---------- selection bar: the thumb-zone bulk actions ---------- */
-.sel-bar{
-  flex:none;display:flex;align-items:center;gap:8px;margin-top:12px;
-  background:var(--panel2);border:1px solid var(--line);border-radius:20px;padding:6px;
-}
-.sel-x{width:44px;height:44px;border-radius:50%;font-size:15px;flex:none}
-.sel-count{flex:1;text-align:center;font-size:14px;font-weight:700}
-.sel-btn{
-  padding:0 18px;min-height:48px;border-radius:999px;background:var(--panel);
-  border:1px solid var(--line);font-size:15px;font-weight:700;
-}
+/* ---------- selection window: Inko's floating popup (v1.7) ----------
+   An overlay, never in flow: position:fixed, 208px wide, blurred panel,
+   20px radius, deep shadow. It opens halfway up the screen beside the
+   held card (never over it — app.js selSpot), moves by its head, and
+   goes pointer-transparent while a sweep runs so it can't block the
+   finger's hit-testing. Two actions only: Copy and Delete. */
+#selPop{position:fixed;z-index:90;width:208px;display:none;padding:6px 10px 10px;box-sizing:border-box;
+  background:var(--panel);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);
+  border:1px solid var(--line);border-radius:20px;box-shadow:0 10px 30px rgba(0,0,0,.45)}
+#selPop.open{display:block}
+#selPop.sweeping{pointer-events:none}
+#selPopHead{position:relative;display:flex;align-items:center;gap:6px;height:38px;cursor:grab;touch-action:none;-webkit-user-select:none;user-select:none}
+#selPopHead::before{content:'';position:absolute;left:50%;top:5px;width:28px;height:4px;margin-left:-14px;border-radius:2px;background:var(--line)}
+#selPopTitle{flex:1;min-width:0;font-size:15px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-left:4px}
+#selPopX{width:32px;height:32px;border-radius:50%;border:none;background:rgba(255,255,255,.08);color:var(--text);
+  display:flex;align-items:center;justify-content:center;cursor:pointer;flex:none}
+#selPopX svg{width:15px;height:15px}
+#selPopGrid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:4px}
+.sel-btn{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;height:64px;border-radius:14px;
+  border:1px solid var(--line);background:rgba(255,255,255,.05);color:var(--text);font-size:12px;font-weight:600;cursor:pointer}
+.sel-btn svg{width:22px;height:22px}
 .sel-btn.danger{color:#ff8a93}
+.sel-btn:disabled{opacity:.3;cursor:default}
 
-/* ---------- bottom stack: status, account row, main row ---------- */
+/* ---------- bottom bar (v1.7): sign-in left, record pill centre,
+   bubble toggle right. The status line and the account-state line are
+   gone — the bar says almost nothing now. ---------- */
 .controls{margin-top:12px;flex:none}
-.status-line{margin:0 0 8px;text-align:center;color:var(--muted);font-size:13px;font-weight:600;min-height:1em}
-.acct-row{display:flex;align-items:center;gap:10px;margin-bottom:10px}
-.acct-state{flex:1;color:var(--muted);font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.controls-row{display:flex;gap:10px}
+.controls-row{display:flex;align-items:center;justify-content:space-between;gap:10px}
 .ctl-btn{
   flex:1;display:flex;align-items:center;justify-content:center;gap:8px;
   padding:14px;border-radius:999px;background:var(--panel2);border:1px solid var(--line);
@@ -132,6 +142,22 @@ button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
 .ctl-btn .ic{color:var(--acc)}
 .ctl-btn.accent{background:var(--acc);color:#0c1305;border-color:var(--acc)}
 .ctl-btn.accent .ic{color:#0c1305}
+#acctBtn{max-width:150px}
+#acctBtnLabel{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ctl-btn.ghost{background:transparent;border-color:var(--line);color:var(--muted);font-size:13px;min-height:40px;padding:0 14px}
+.brand-spacer{flex:1}
+.record-wrap{position:relative;width:88px;height:76px;flex:none}
+.record-pill{
+  position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+  width:84px;height:52px;border-radius:999px;background:#131a13;
+  border:2px solid var(--acc);display:flex;align-items:center;justify-content:center;
+  cursor:pointer;padding:0;
+}
+.record-pill.live{border-color:#ff8291}
+.record-pill.paused{border-color:#ffb347}
+.record-face{width:34px;height:34px;border-radius:50%;display:block;pointer-events:none}
+.record-wave{position:absolute;left:50%;top:50%;width:88px;height:88px;transform:translate(-50%,-50%);pointer-events:none;display:none}
+.record-wave.on{display:block}
 
 /* ---------- floating bubble ---------- */
 .bubble{position:fixed;z-index:80;width:68px;height:68px;touch-action:none;user-select:none;-webkit-user-select:none}
@@ -170,13 +196,16 @@ button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
 }
 .opt-btn .ic{width:19px;height:19px;color:var(--acc)}
 
-/* ---------- delete confirm (lower center) ---------- */
-.del-modal{position:fixed;inset:0;z-index:100;background:rgba(3,5,3,.66);display:flex;align-items:flex-end;justify-content:center;padding:0 18px calc(env(safe-area-inset-bottom,0px) + 26px)}
-.del-card{background:var(--panel2);border:1px solid var(--line);border-radius:18px;padding:20px;width:100%;max-width:380px;text-align:center;animation:pop .16s ease-out}
-.del-card p{margin:0 0 16px;font-size:16.5px;font-weight:700}
+/* ---------- delete confirm: Inko's modal (v1.7) ----------
+   Fixed scrim, flex-centred; the card sits a fifth of the screen below
+   centre (nearer the thumb), panel + blur, 18px radius. */
+.del-modal{position:fixed;inset:0;z-index:100;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;padding:24px}
+.del-card{transform:translateY(min(20vh, calc(50vh - 50% - 24px)));background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:22px;width:100%;max-width:320px;backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)}
+#delTitle{font-size:17px;font-weight:700;margin-bottom:8px}
+#delText{font-size:14px;color:var(--muted);margin-bottom:18px}
 .del-row{display:flex;gap:10px}
-.del-cancel{flex:1;padding:14px;border-radius:999px;border:1px solid var(--line);font-weight:700;font-size:15.5px}
-.del-go{flex:1;padding:14px;border-radius:999px;background:var(--danger);color:#fff;font-weight:800;font-size:15.5px}
+.del-btn{flex:1;padding:12px;border-radius:12px;border:1px solid var(--line);background:transparent;color:var(--text);font-size:15px;font-weight:600;cursor:pointer}
+.del-btn.danger{background:var(--danger);border-color:var(--danger);color:#fff}
 
 /* ---------- account sheet: the SITE sign-in card -----------------------
    The same presentation the main site's sign-in and DexNote's card use
