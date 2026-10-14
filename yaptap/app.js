@@ -284,13 +284,13 @@ function render(){
   cap.classList.toggle('paused', state === 'paused');
   cap.classList.toggle('idle', state === 'idle');
 
-  // the status line, in the phone app's own format
-  const parts = [];
-  parts.push(SR ? 'Mic ✓' : 'Mic ✗ — needs Chrome on Android');
-  parts.push(bubbleVisible ? 'Bubble on' : 'Bubble off');
-  if (state === 'live') parts.push('Transcribing…');
-  else if (state === 'paused') parts.push('Paused');
-  $('statusLine').textContent = parts.join('   ');
+  // the in-app record pill (v1.7) wears the recording state as its rim:
+  // red live, amber paused — the same words the bubble's ring speaks
+  const pill = $('recordPill');
+  if (pill){
+    pill.classList.toggle('live', state === 'live');
+    pill.classList.toggle('paused', state === 'paused');
+  }
 
   const bm = $('bubbleMain');
   bm.classList.toggle('live', state === 'live');
@@ -451,8 +451,7 @@ function renderList(){
       if (selMode){ toggleSelected(n.id); return; }
       pendingDeleteId = n.id;
       pendingBulk = false;
-      $('delText').textContent = 'Delete this transcription?';
-      $('delModal').classList.remove('hidden');
+      openDelConfirm();
     });
     wrap.appendChild(el);
   });
@@ -461,7 +460,7 @@ function renderList(){
     requestAnimationFrame(() => { el.scrollTop = el.scrollHeight; });
   }
   suppressStickOnce = false;
-  renderSelBar();
+  renderSelPop();
 }
 
 /* Expand/collapse with the header pinned: the head's screen Y is read
@@ -519,6 +518,16 @@ function deleteNotesById(ids){
   });
   saveNotes(); saveTombstones();
 }
+/* The delete confirmation (v1.7): Inko's modal, copied — a centred
+   rounded card on a dim scrim, title + line + Cancel/Delete. The copy
+   adapts to notes and carries the count. No system dialog anywhere in
+   this path. Callers set pendingBulk / pendingDeleteId first. */
+function openDelConfirm(){
+  const n = pendingBulk ? selectedIds.size : 1;
+  $('delTitle').textContent = n === 1 ? 'Delete note?' : 'Delete ' + n + ' notes?';
+  $('delText').textContent = n === 1 ? 'It will be permanently deleted.' : 'They will be permanently deleted.';
+  $('delModal').classList.remove('hidden');
+}
 $('delCancel').addEventListener('click', () => { pendingDeleteId = null; pendingBulk = false; $('delModal').classList.add('hidden'); });
 $('delModal').addEventListener('click', e => { if (e.target === $('delModal')){ pendingDeleteId = null; pendingBulk = false; $('delModal').classList.add('hidden'); } });
 $('delGo').addEventListener('click', () => {
@@ -540,18 +549,58 @@ $('delGo').addEventListener('click', () => {
 // refresh "x ago" labels while the app sits open (waits out an edit)
 setInterval(() => { renderList(); }, 60000);
 
-/* ---------------- multi-select (v1.6) ----------------
-   Long-press a card (380ms, still) enters selection mode and selects
-   it; keep the press moving and every card it crosses joins the run
-   from the anchor — retract and the run shrinks back to what was
-   selected when the press began. In selection mode, plain taps toggle
-   any card, anywhere in the list (scroll freely). Exit with the bar's
-   ✕, Esc, or by deselecting the last card. The click that ends the
-   entering press is swallowed so it can't undo the selection. */
-function renderSelBar(){
-  const bar = $('selBar');
-  bar.classList.toggle('hidden', !selMode);
-  if (bar) $('selCount').textContent = selectedIds.size + (selectedIds.size === 1 ? ' note selected' : ' notes selected');
+/* ---------------- multi-select — the Inko pattern (v1.7) ----------------
+   Ported from Inko's gallery selection (inko/app.js), feel included:
+   a 450ms still hold enters selection mode and selects the card; the
+   SAME still-down finger then sweeps — every card between the anchor
+   and the finger joins the run, and retracting shrinks the run back to
+   the snapshot taken when the sweep began (cards outside the range
+   always show the snapshot state). The list does NOT lock during a
+   sweep; instead it edge-scrolls under a finger held near its top or
+   bottom (ramped, Inko's numbers), and the range re-evaluates at the
+   clamped point. In selection mode, plain taps toggle any card
+   anywhere while the list scrolls freely; holding another card again
+   selects it and starts a fresh sweep from it. A hold is cancelled by
+   moving >10px or by the list scrolling. The click that ends a
+   hold/sweep is swallowed so it can't undo what the press just did. */
+/* The floating window itself (Inko's #g-sel, ported whole): it opens
+   halfway up the screen, beside the held card and never over it, is
+   titled after the note or the count, and moves by its head. It is an
+   overlay — the notes underneath never shift when it appears. */
+let selPopPos = null;
+function placeSelPop(left, top){
+  const p = $('selPop'), w = p.offsetWidth, h = p.offsetHeight;
+  left = Math.max(6, Math.min(innerWidth - w - 6, left));
+  top = Math.max(6, Math.min(innerHeight - h - 6, top));
+  p.style.left = left + 'px'; p.style.top = top + 'px';
+  selPopPos = { left, top };
+}
+// Halfway up the screen by default; if that covers the held card, the
+// nearest place that does not: above it, below it, then beside it.
+function selSpot(c){
+  const p = $('selPop'), w = p.offsetWidth, h = p.offsetHeight, m = 8;
+  const fit = (left, top) => ({ left: Math.max(6, Math.min(innerWidth - w - 6, left)), top: Math.max(6, Math.min(innerHeight - h - 6, top)) });
+  const home = fit(12, innerHeight / 2 - h / 2);
+  if (!c) return home;
+  const clear = s => s.left + w <= c.left - 2 || s.left >= c.right + 2 || s.top + h <= c.top - 2 || s.top >= c.bottom + 2;
+  const tries = [home, fit(home.left, c.top - h - m), fit(home.left, c.bottom + m),
+    fit(c.right + m, home.top), fit(c.left - w - m, home.top), fit(innerWidth - w - 12, home.top)];
+  let best = null, bd = Infinity;
+  for (const s of tries){
+    if (!clear(s)) continue;
+    const d = Math.hypot(s.left - home.left, s.top - home.top);
+    if (d < bd){ bd = d; best = s; }
+  }
+  return best || home;
+}
+function renderSelPop(){
+  const pop = $('selPop');
+  pop.classList.toggle('open', selMode);
+  if (!selMode) return;
+  const n = selectedIds.size;
+  const one = n === 1 ? displayOrder().find(x => selectedIds.has(x.id)) : null;
+  $('selPopTitle').textContent = n === 0 ? 'Select notes' : one ? ((one.title || '').trim() || 'Untitled note') : n + ' selected';
+  $('selPopCopy').disabled = $('selPopTrash').disabled = n === 0;
 }
 function enterSelection(id, idx){
   flushEdit();
@@ -560,12 +609,14 @@ function enterSelection(id, idx){
   selMode = true;
   selectedIds.clear();
   selectedIds.add(id);
-  dragSel = { anchorIdx: idx, base: new Set(selectedIds) };
-  $('listScroll').style.overflowY = 'hidden';
+  dragSel = { anchorIdx: idx, base: new Set(selectedIds), on: true, x: 0, y: 0, raf: 0, lastTs: 0, dwell: 0, acc: 0 };
   document.querySelectorAll('.note').forEach(el => {
     el.classList.toggle('selected', selectedIds.has(el.dataset.id));
   });
-  renderSelBar();
+  renderSelPop();
+  const card = $('listItems').querySelector('.note[data-id="' + id + '"]');
+  const at = selSpot(card ? card.getBoundingClientRect() : null);
+  placeSelPop(at.left, at.top);
   if (navigator.vibrate) navigator.vibrate(12);
 }
 function exitSelection(){
@@ -573,7 +624,8 @@ function exitSelection(){
   selectedIds.clear();
   dragSel = null;
   document.querySelectorAll('.note').forEach(el => el.classList.remove('selected'));
-  renderSelBar();
+  $('selPop').classList.remove('sweeping');
+  renderSelPop();
 }
 function toggleSelected(id){
   if (selectedIds.has(id)) selectedIds.delete(id);
@@ -581,7 +633,7 @@ function toggleSelected(id){
   if (!selectedIds.size){ exitSelection(); return; }
   const el = $('listItems').querySelector('.note[data-id="' + id + '"]');
   if (el) el.classList.toggle('selected', selectedIds.has(id));
-  renderSelBar();
+  renderSelPop();
 }
 function applyDragRange(idx){
   if (!dragSel) return;
@@ -594,50 +646,125 @@ function applyDragRange(idx){
   document.querySelectorAll('.note').forEach(el => {
     el.classList.toggle('selected', selectedIds.has(el.dataset.id));
   });
-  renderSelBar();
+  renderSelPop();
 }
-$('selClose').addEventListener('click', exitSelection);
-$('selCopy').addEventListener('click', () => {
+$('selPopX').addEventListener('click', exitSelection);
+$('selPopCopy').addEventListener('click', () => {
   const sel = displayOrder().filter(n => selectedIds.has(n.id));
   if (!sel.length) return;
   copyText(bulkCopyText(sel), sel.length === 1 ? 'Copied' : 'Copied ' + sel.length + ' notes');
 });
-$('selTrash').addEventListener('click', () => {
+$('selPopTrash').addEventListener('click', () => {
   if (!selectedIds.size) return;
   pendingBulk = true;
   pendingDeleteId = null;
-  $('delText').textContent = selectedIds.size === 1 ? 'Delete this transcription?'
-    : 'Delete ' + selectedIds.size + ' transcriptions?';
-  $('delModal').classList.remove('hidden');
+  openDelConfirm();
 });
+// The window moves by its head (Inko's drag, verbatim shape).
+(() => {
+  let drag = null;
+  const head = $('selPopHead');
+  head.addEventListener('pointerdown', e => {
+    if (e.target.closest('button')) return;
+    if (!selPopPos) return;
+    drag = { id: e.pointerId, dx: e.clientX - selPopPos.left, dy: e.clientY - selPopPos.top };
+    head.setPointerCapture(e.pointerId);
+    e.preventDefault();
+  });
+  head.addEventListener('pointermove', e => { if (drag && e.pointerId === drag.id) placeSelPop(e.clientX - drag.dx, e.clientY - drag.dy); });
+  const end = () => { drag = null; };
+  head.addEventListener('pointerup', end);
+  head.addEventListener('pointercancel', end);
+})();
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && selMode) exitSelection(); });
 
-/* press tracking on the cards (delegated: the list re-renders often) */
+/* Press tracking on the cards (delegated: the list re-renders often).
+   HOLD_MS is Inko's single constant, both for entering selection and
+   for holding again inside it. A press that starts inside the expanded
+   note's BODY or its name field is never tracked: the editing surface
+   owns its gestures — taps place the cursor, drags select or scroll
+   the text (v1.7 scroll priority), and a press there must not arm a
+   selection hold behind the editor's back. */
+const HOLD_MS = 450;
 let pressCand = null;
+function sweepTo(x, y){
+  if (!dragSel) return;
+  dragSel.x = x; dragSel.y = y;
+  const list = $('listScroll');
+  const r = list.getBoundingClientRect();
+  const cx = Math.max(r.left, Math.min(r.right - 1, x));
+  const cy = Math.max(r.top, Math.min(r.bottom - 1, y));
+  const el = document.elementFromPoint(cx, cy);
+  const card = el && el.closest ? el.closest('.note') : null;
+  if (card) applyDragRange(+card.dataset.idx);
+}
+function edgeStep(ts){
+  if (!dragSel) return;
+  const list = $('listScroll');
+  const r = list.getBoundingClientRect();
+  const EDGE = 72;
+  let dir = 0, depth = 0;
+  if (dragSel.y < r.top + EDGE){ dir = -1; depth = r.top + EDGE - dragSel.y; }
+  else if (dragSel.y > r.bottom - EDGE){ dir = 1; depth = dragSel.y - (r.bottom - EDGE); }
+  if (!dir){ dragSel.dwell = 0; dragSel.acc = 0; dragSel.lastTs = ts; dragSel.raf = requestAnimationFrame(edgeStep); return; }
+  if (!dragSel.lastTs) dragSel.lastTs = ts;
+  const dt = Math.min(50, ts - dragSel.lastTs);
+  dragSel.lastTs = ts;
+  dragSel.dwell += dt;
+  // Inko's edgeSpeed: 90px/s at the zone's edge ramping to 900px/s
+  // deep, the ramp itself dwelling in over 1.5s of holding the edge.
+  const d01 = Math.max(0, Math.min(1, depth / EDGE));
+  const ramp = Math.min(1, dragSel.dwell / 1500);
+  const speed = 90 + (900 - 90) * Math.min(1, d01 * (0.35 + 0.65 * ramp));
+  dragSel.acc += dir * speed * dt / 1000;
+  const step = Math.trunc(dragSel.acc);
+  if (step){
+    dragSel.acc -= step;
+    list.scrollTop += step;
+    sweepTo(dragSel.x, dragSel.y);
+  }
+  dragSel.raf = requestAnimationFrame(edgeStep);
+}
+function startEdge(){
+  if (!dragSel || dragSel.raf) return;
+  dragSel.lastTs = 0; dragSel.dwell = 0; dragSel.acc = 0;
+  dragSel.raf = requestAnimationFrame(edgeStep);
+}
+function stopEdge(){
+  if (dragSel && dragSel.raf) cancelAnimationFrame(dragSel.raf);
+  if (dragSel) dragSel.raf = 0;
+}
 $('listItems').addEventListener('pointerdown', e => {
+  if (e.target.closest('.note-body') || e.target.closest('.note-name-input')) return;
   const card = e.target.closest('.note');
   if (!card) return;
   pressCand = { id: card.dataset.id, idx: +card.dataset.idx, x: e.clientX, y: e.clientY, fired: false };
   const cand = pressCand;
   cand.timer = setTimeout(() => {
     cand.fired = true;
-    swallowUntil = Date.now() + 450;
+    dragSel = null; // a fresh hold supersedes any sweep remnant
     if (!selMode) enterSelection(cand.id, cand.idx);
     else {
-      dragSel = { anchorIdx: cand.idx, base: new Set(selectedIds) };
-      $('listScroll').style.overflowY = 'hidden';
+      // Inko: holding a card while selecting selects it and starts a
+      // FRESH decided sweep from it (snapshot taken after the add).
+      if (!selectedIds.has(cand.id)) toggleSelected(cand.id);
+      dragSel = { anchorIdx: cand.idx, base: new Set(selectedIds), on: true, x: cand.x, y: cand.y, raf: 0, lastTs: 0, dwell: 0, acc: 0 };
+      applyDragRange(cand.idx);
+      if (navigator.vibrate) navigator.vibrate(12);
     }
-  }, selMode ? 250 : 380);
+    if (dragSel){ dragSel.x = cand.x; dragSel.y = cand.y; $('selPop').classList.add('sweeping'); startEdge(); }
+  }, HOLD_MS);
 });
 document.addEventListener('pointermove', e => {
-  if (!pressCand) return;
   if (dragSel){
-    const el = document.elementFromPoint(e.clientX, e.clientY);
-    const card = el && el.closest ? el.closest('.note') : null;
-    if (card) applyDragRange(+card.dataset.idx);
+    // an active sweep owns the gesture: the page must not scroll
+    // under it (the list edge-scrolls instead, above)
+    if (e.cancelable) e.preventDefault();
+    sweepTo(e.clientX, e.clientY);
     return;
   }
-  if (Math.abs(e.clientX - pressCand.x) + Math.abs(e.clientY - pressCand.y) > 9){
+  if (!pressCand) return;
+  if (Math.hypot(e.clientX - pressCand.x, e.clientY - pressCand.y) > 10){
     clearTimeout(pressCand.timer);
     pressCand = null;
   }
@@ -645,16 +772,23 @@ document.addEventListener('pointermove', e => {
 function endPress(){
   if (!pressCand) return;
   clearTimeout(pressCand.timer);
-  const wasDrag = !!dragSel;
+  const wasFired = pressCand.fired;
   pressCand = null;
-  if (wasDrag){
-    dragSel = null;
-    $('listScroll').style.overflowY = '';
-    swallowUntil = Date.now() + 450;
-  }
+  if (dragSel) stopEdge();
+  dragSel = null;
+  $('selPop').classList.remove('sweeping');
+  if (wasFired) swallowUntil = Date.now() + 450; // eat the click this press ends with
 }
 document.addEventListener('pointerup', endPress);
 document.addEventListener('pointercancel', endPress);
+// if the list itself starts scrolling, a pending hold was just a
+// scroll (Inko cancels the hold on grid scroll)
+$('listScroll').addEventListener('scroll', () => {
+  if (pressCand && !pressCand.fired){ clearTimeout(pressCand.timer); pressCand = null; }
+}, { passive: true });
+// no browser long-press menu over the cards (Android Chrome shows one
+// otherwise, fighting the hold)
+$('listItems').addEventListener('contextmenu', e => { if (e.target.closest('.note')) e.preventDefault(); });
 
 /* ---------------- bubble: show/hide, drag, snap, options ----------------
    The bubble is the microphone. Shown, it records; while it records it
@@ -705,6 +839,12 @@ $('bubbleBtn').addEventListener('click', () => {
   placeBubble();
   render();
 });
+
+/* The in-app record pill (v1.7): recording without the bubble. It
+   calls the bubble tap's own toggle — same recognizer, same caption,
+   same autosave into the open note; the pill just wears the state
+   (rim colour + the wave, which startWave now draws here too). */
+$('recordPill').addEventListener('click', () => { toggleRecord(); });
 
 let drag = null;
 $('bubbleMain').addEventListener('pointerdown', e => {
@@ -791,57 +931,82 @@ $('optClose').addEventListener('click', () => {
    wave's own extent budget. The frame's worst case, the glow level and
    the periods are published on dataset for checks. */
 const wave = { raf: 0, startMs: 0 };
+/* One frame of the wave on an 88px canvas, centred at 44,44. Since
+   v1.7 the black behind the wave is a FILLED PATH built from the same
+   r(θ) as the red ring: the fill IS the wave's silhouette (bulge =
+   filled, trough = empty), the glow pools over the fill, the echo ring
+   weaves as before, and the main ring is stroked on the filled path's
+   own edge — no static disc can clip through the moving rim. */
+function drawWaveFrame(ctx, t){
+  ctx.clearRect(0, 0, 88, 88);
+  const avail = 41, strokeMax = 3.4, aMax = 5.6, pulseMax = 0.035;
+  const R0 = (avail - aMax - strokeMax / 2) / (1 + pulseMax);
+  const breathEnv = 0.5 + 0.5 * Math.sin(2 * Math.PI * t / 2.6 - Math.PI / 2);
+  const breath = Math.pow(breathEnv, 1.2);
+  const A = aMax * (0.12 + 0.88 * breath);
+  const mix = 0.5 + 0.5 * Math.sin(2 * Math.PI * t / 3.9 + 1.1);
+  const phi = 2 * Math.PI * t / 7.0;
+  const R = R0 * (1 + pulseMax * Math.sin(2 * Math.PI * t / 1.7));
+  const stroke = 2.2 + 1.2 * (0.5 + 0.5 * Math.sin(2 * Math.PI * t / 1.9 + 0.6));
+  const pathOf = (amp, phiUse, shift) => {
+    const p = new Path2D();
+    for (let i = 0; i <= 180; i++){
+      const th = 2 * Math.PI * i / 180;
+      const r = R + amp * ((1 - mix) * Math.sin(5 * th + phiUse + shift) + mix * Math.sin(9 * th - 0.8 * phiUse + shift));
+      const x = 44 + r * Math.cos(th), y = 44 + r * Math.sin(th);
+      if (i) p.lineTo(x, y); else p.moveTo(x, y);
+    }
+    p.closePath();
+    return p;
+  };
+  const main = pathOf(A, phi, 0);
+  ctx.fillStyle = '#080808';
+  ctx.fill(main);
+  // the glow: a pool of red light over the fill, breathing with the wave
+  const glow = 0.10 + 0.28 * Math.pow(breathEnv, 1.6);
+  const gr = R + A * 0.55;
+  const grad = ctx.createRadialGradient(44, 44, 0, 44, 44, gr);
+  grad.addColorStop(0, 'rgba(255,71,87,' + glow.toFixed(3) + ')');
+  grad.addColorStop(1, 'rgba(255,71,87,0)');
+  ctx.beginPath();
+  ctx.arc(44, 44, gr, 0, 2 * Math.PI);
+  ctx.fillStyle = grad;
+  ctx.fill();
+  ctx.lineCap = 'round';
+  ctx.strokeStyle = '#ff8291'; ctx.lineWidth = Math.max(1, stroke * 0.38);
+  ctx.stroke(pathOf(A * 0.65, -0.9 * phi, 0.5));
+  ctx.strokeStyle = '#ff4757'; ctx.lineWidth = stroke;
+  ctx.stroke(main);
+  return { R, A, mix, phi, stroke, glow };
+}
 function startWave(){
-  const cv = $('bubbleWave');
-  if (!cv) return;
-  const dpr = Math.min(2, window.devicePixelRatio || 1);
-  if (cv.width !== Math.round(88 * dpr)){ cv.width = Math.round(88 * dpr); cv.height = Math.round(88 * dpr); }
-  cv.classList.remove('hidden');
-  cv.dataset.periods = '2.6,3.9,7.0,1.7';
+  // The wave plays on BOTH faces now (v1.7): the floating bubble and
+  // the in-app record pill — one loop, one geometry, both canvases.
+  const targets = [];
+  [['bubbleWave', 'hidden'], ['recordWave', 'on']].forEach(([id, cls]) => {
+    const cv = $(id);
+    if (!cv) return;
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    if (cv.width !== Math.round(88 * dpr)){ cv.width = Math.round(88 * dpr); cv.height = Math.round(88 * dpr); }
+    if (cls === 'hidden') cv.classList.remove('hidden'); else cv.classList.add('on');
+    cv.dataset.periods = '2.6,3.9,7.0,1.7';
+    targets.push({ cv, ctx: cv.getContext('2d'), dpr });
+  });
+  if (!targets.length) return;
   wave.startMs = performance.now();
   cancelAnimationFrame(wave.raf);
-  const ctx = cv.getContext('2d');
   const draw = () => {
     const t = (performance.now() - wave.startMs) / 1000;
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.clearRect(0, 0, 88, 88);
-    const avail = 41, strokeMax = 3.4, aMax = 5.6, pulseMax = 0.035;
-    const R0 = (avail - aMax - strokeMax / 2) / (1 + pulseMax);
-    const breathEnv = 0.5 + 0.5 * Math.sin(2 * Math.PI * t / 2.6 - Math.PI / 2);
-    const breath = Math.pow(breathEnv, 1.2);
-    const A = aMax * (0.12 + 0.88 * breath);
-    const mix = 0.5 + 0.5 * Math.sin(2 * Math.PI * t / 3.9 + 1.1);
-    const phi = 2 * Math.PI * t / 7.0;
-    const R = R0 * (1 + pulseMax * Math.sin(2 * Math.PI * t / 1.7));
-    const stroke = 2.2 + 1.2 * (0.5 + 0.5 * Math.sin(2 * Math.PI * t / 1.9 + 0.6));
-    // the glow: a pool of red light under the rings, breathing with them
-    const glow = 0.10 + 0.28 * Math.pow(breathEnv, 1.6);
-    const gr = R + A * 0.55;
-    const grad = ctx.createRadialGradient(44, 44, 0, 44, 44, gr);
-    grad.addColorStop(0, 'rgba(255,71,87,' + glow.toFixed(3) + ')');
-    grad.addColorStop(1, 'rgba(255,71,87,0)');
-    ctx.beginPath();
-    ctx.arc(44, 44, gr, 0, 2 * Math.PI);
-    ctx.fillStyle = grad;
-    ctx.fill();
-    const ring = (amp, phiUse, shift, width, color) => {
-      ctx.beginPath();
-      for (let i = 0; i <= 180; i++){
-        const th = 2 * Math.PI * i / 180;
-        const r = R + amp * ((1 - mix) * Math.sin(5 * th + phiUse + shift) + mix * Math.sin(9 * th - 0.8 * phiUse + shift));
-        const x = 44 + r * Math.cos(th), y = 44 + r * Math.sin(th);
-        if (i) ctx.lineTo(x, y); else ctx.moveTo(x, y);
-      }
-      ctx.closePath();
-      ctx.strokeStyle = color; ctx.lineWidth = width; ctx.lineCap = 'round';
-      ctx.stroke();
-    };
-    ring(A * 0.65, -0.9 * phi, 0.5, Math.max(1, stroke * 0.38), '#ff8291');
-    ring(A, phi, 0, stroke, '#ff4757');
-    cv.dataset.maxr = (R + A + stroke / 2).toFixed(2);
-    cv.dataset.avail = avail;
-    cv.dataset.glow = glow.toFixed(3);
-    cv.dataset.t = t.toFixed(2);
+    let f = null;
+    targets.forEach(({ cv, ctx, dpr }) => {
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      f = drawWaveFrame(ctx, t);
+      cv.dataset.maxr = (f.R + f.A + f.stroke / 2).toFixed(2);
+      cv.dataset.avail = 41;
+      cv.dataset.glow = f.glow.toFixed(3);
+      cv.dataset.t = t.toFixed(2);
+      cv.dataset.wave = JSON.stringify({ R: f.R, A: f.A, mix: f.mix, phi: f.phi, stroke: f.stroke });
+    });
     wave.raf = requestAnimationFrame(draw);
   };
   draw();
@@ -849,8 +1014,10 @@ function startWave(){
 function stopWave(){
   cancelAnimationFrame(wave.raf);
   wave.raf = 0;
-  const cv = $('bubbleWave');
-  if (cv) cv.classList.add('hidden');
+  const bw = $('bubbleWave');
+  if (bw) bw.classList.add('hidden');
+  const rw = $('recordWave');
+  if (rw) rw.classList.remove('on');
 }
 
 /* ---------------- the site account: ONE account for the domain ----------------
@@ -941,20 +1108,16 @@ async function syncNow(){
 }
 
 function setSyncHint(msg){
-  // The account row's state line is the sync state's home now (the phone
-  // app's row reads the same way: who's in, or "On this phone only").
-  const stateEl = $('acctStateText');
-  if (stateEl){
-    stateEl.textContent = siteUser
-      ? (msg || (syncBusy ? 'Syncing…' : (siteUser.email || 'Signed in')))
-      : 'On this phone only';
-  }
+  // The old account-state line is gone (v1.7) — the sync state lives in
+  // the account sheet only. The bar's button carries the identity.
   const el2 = $('acctSyncState');
-  if (el2 && siteUser) el2.textContent = syncBusy ? 'Syncing…' : 'Your notes sync to this account.';
+  if (el2 && siteUser) el2.textContent = syncBusy ? 'Syncing…' : (msg || 'Your notes sync to this account.');
 }
 
 function renderAccount(){
-  $('acctBtnLabel').textContent = siteUser ? 'Account' : 'Sign in';
+  // The bar's button IS the account state (v1.7): just "Sign in" signed
+  // out; the account's email when signed in.
+  $('acctBtnLabel').textContent = siteUser ? (siteUser.email || 'Account') : 'Sign in';
   $('acctOut').classList.toggle('hidden', !!siteUser);
   $('acctIn').classList.toggle('hidden', !siteUser);
   if (siteUser){
