@@ -700,41 +700,69 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDive();
 
 updateSelectors();
 
-/* ---------- installing (the Inko / DexNote / MindSplit arrangement) ----------
-   The AI Lab card's download button opens /youverse/?install=1, and that is
-   the one place installing is offered: the browser's own prompt where it has
-   one (Chrome, Edge, Android), and the Add to Home Screen steps where it
-   does not (Safari, iPhone). The service worker is network-first, so an
-   installed app always picks up the newest build on its next launch. */
+/* ---------- installing (the MindSplit arrangement, ported 2026-10-14) ----------
+   The AI Lab card's download button opens /youverse/?install=1. The sheet is
+   MindSplit's: a bottom sheet half a screen tall with ONE primary button.
+   It exists because dexcimino.com itself is an installed app ("dexdc",
+   scope "/") on Dex's phone: a download tap inside that app's window opens
+   this page INSIDE the site app, where no install prompt can fire and there
+   is no browser menu — the old Inko-style sheet just showed menu steps that
+   do not exist there, so installs silently went nowhere. MindSplit's sheet
+   detects that window (display-mode: standalone) and says so, and it WAITS
+   for the prompt: if beforeinstallprompt arrives while the sheet is open,
+   the steps vanish and the button becomes Install. */
 const YV_EMBED = new URLSearchParams(location.search).has('embed');
 if ('serviceWorker' in navigator && !YV_EMBED){
   navigator.serviceWorker.register('/youverse/sw.js', { scope: '/youverse/', updateViaCache: 'none' }).catch(() => {});
 }
-let deferredPrompt = null;
-window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); deferredPrompt = e; });
-window.addEventListener('appinstalled', () => { deferredPrompt = null; });
-const YV_STANDALONE = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+let __ip = null;
+window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); __ip = e; window.dispatchEvent(new Event('app:installable')); });
+window.addEventListener('appinstalled', () => { __ip = null; });
 function showInstallSheet(){
+  if (document.getElementById('install-sheet')) return;
+  const name = 'YouVerse';
   const ios = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const standalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
   const t = document.createElement('div');
   t.id = 'install-sheet';
-  t.style.cssText = 'position:fixed;inset:0;background:rgba(2,6,12,.82);z-index:10000;display:flex;align-items:center;justify-content:center;padding:20px;';
-  const steps = deferredPrompt ? '<p style="margin:0 0 16px;font-size:15px;line-height:1.55;color:#c9d6ee;">YouVerse goes on your home screen and opens fullscreen, like any other app — and it always picks up the latest version.</p>'
-    : ios ? '<ol style="margin:0 0 16px;padding-left:20px;font-size:15px;line-height:1.6;color:#c9d6ee;"><li>Tap the <b>Share</b> button in Safari</li><li>Tap <b>Add to Home Screen</b></li></ol>'
-    : '<ol style="margin:0 0 16px;padding-left:20px;font-size:15px;line-height:1.6;color:#c9d6ee;"><li>Open the browser <b>menu</b> (⋮)</li><li>Tap <b>Install app</b> or <b>Add to Home screen</b></li></ol>';
-  t.innerHTML = '<div style="background:#0e1626;border:1px solid #1d2c47;border-radius:18px;padding:26px;max-width:350px;width:100%;color:#eef4ff;">' +
-    '<img src="icon-512.png" alt="" style="width:60px;height:60px;border-radius:50%;display:block;margin-bottom:14px;">' +
-    '<h3 style="margin:0 0 10px;font-size:20px;">Install YouVerse</h3>' + steps +
-    '<button data-go style="width:100%;background:linear-gradient(90deg,#35e0c8,#2bb7d8);border:none;border-radius:12px;padding:14px;font-weight:800;cursor:pointer;color:#04241f;font-size:16px;">' + (deferredPrompt ? 'Install' : 'Got it') + '</button></div>';
-  t.querySelector('[data-go]').onclick = async () => {
-    if (deferredPrompt){ deferredPrompt.prompt(); try { await deferredPrompt.userChoice; } catch (e) {} deferredPrompt = null; }
+  t.style.cssText = 'position:fixed;inset:0;background:rgba(2,6,10,.62);z-index:10000;display:flex;align-items:flex-end;justify-content:center;';
+  t.innerHTML =
+    '<style>@keyframes ishUp{from{transform:translateY(60px);opacity:.4}to{transform:translateY(0);opacity:1}}</style>' +
+    '<div style="width:100%;max-width:560px;height:52%;min-height:360px;background:#0e1626;color:#eef4ff;border-radius:30px 30px 0 0;padding:12px 22px calc(env(safe-area-inset-bottom,0px) + 20px);display:flex;flex-direction:column;animation:ishUp 340ms cubic-bezier(.22,1,.36,1);">' +
+      '<div style="width:40px;height:6px;border-radius:99px;background:#1d2c47;margin:2px auto 16px;"></div>' +
+      '<img src="icon-512.png" alt="" style="width:58px;height:58px;border-radius:50%;display:block;margin-bottom:12px;">' +
+      '<h3 style="margin:0 0 6px;font-size:21px;">Install ' + name + '</h3>' +
+      '<p style="margin:0 0 16px;font-size:14.5px;line-height:1.5;color:#c9d6ee;">It goes on your home screen and opens like any other app.</p>' +
+      '<div data-steps style="display:flex;flex-direction:column;gap:9px;overflow-y:auto;"></div>' +
+      '<div style="flex:1;"></div>' +
+      '<button data-go style="width:100%;background:linear-gradient(90deg,#35e0c8,#2bb7d8);border:none;border-radius:14px;padding:16px;font-weight:800;cursor:pointer;color:#04241f;font-size:16.5px;">Got it</button>' +
+    '</div>';
+  const stepsBox = t.querySelector('[data-steps]');
+  const goBtn = t.querySelector('[data-go]');
+  function render(){
+    const steps = standalone
+      ? ['Open dexcimino.com in your browser instead of the site\u2019s app', 'Remove the dexcimino.com app first, then install ' + name, 'Add the site\u2019s app back afterwards']
+      : __ip ? null
+      : ios ? ['Tap the Share button in Safari', 'Tap Add to Home Screen']
+      : ['Open the browser menu (\u22ee)', 'Tap Install app or Add to Home screen'];
+    stepsBox.innerHTML = steps ? steps.map((s, i) =>
+      '<div style="display:flex;align-items:center;gap:12px;background:rgba(255,255,255,.05);border-radius:14px;padding:11px 13px;">' +
+      '<span style="width:27px;height:27px;flex:none;border-radius:50%;background:linear-gradient(90deg,#35e0c8,#2bb7d8);color:#04241f;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13.5px;">' + (i + 1) + '</span>' +
+      '<span style="font-size:14.5px;line-height:1.45;">' + s + '</span></div>').join('') : '';
+    goBtn.textContent = (__ip && !standalone) ? 'Install' : 'Got it';
+  }
+  render();
+  window.addEventListener('app:installable', render);
+  goBtn.onclick = async () => {
+    window.removeEventListener('app:installable', render);
+    if (__ip && !standalone){ __ip.prompt(); try { await __ip.userChoice; } catch (e) {} __ip = null; }
     t.remove();
   };
-  t.onclick = e => { if (e.target === t) t.remove(); };
+  t.onclick = e => { if (e.target === t){ window.removeEventListener('app:installable', render); t.remove(); } };
   document.body.appendChild(t);
 }
-if (!YV_EMBED && !YV_STANDALONE && new URLSearchParams(location.search).has('install')){
+if (!YV_EMBED && new URLSearchParams(location.search).has('install')){
   window.history.replaceState(null, '', location.pathname + location.hash);
-  // Chrome fires beforeinstallprompt shortly after load; give it a moment.
-  setTimeout(showInstallSheet, 1200);
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', showInstallSheet);
+  else showInstallSheet();
 }
