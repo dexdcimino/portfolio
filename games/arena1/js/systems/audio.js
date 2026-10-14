@@ -113,7 +113,7 @@ const SAMPLES = {
 };
 function initSamples() {
   if (samples) return;
-  samples = createSamplePlayer({ ctx, destination: fxBus, basePath: 'assets/audio/' });
+  samples = createSamplePlayer({ ctx, destination: fxBus, basePath: 'https://dexcimino-media.b-cdn.net/games/arena1/assets/audio/' });
   for (const [name, [file, opts]] of Object.entries(SAMPLES)) {
     const p = samples.load(name, file, opts);
     // Music has to start when its buffer lands, not when the context opens —
