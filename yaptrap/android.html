@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>YapTrap for Android — the real overlay bubble</title>
+<meta name="theme-color" content="#070907">
+<link rel="icon" href="icon-512.png" type="image/png">
+<style>
+  *{box-sizing:border-box;scrollbar-width:none}
+  *::-webkit-scrollbar{display:none}
+  body{margin:0;background:#070907;color:#f2f7ec;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+       min-height:100dvh;display:flex;flex-direction:column;padding:28px 20px calc(env(safe-area-inset-bottom,0px) + 20px)}
+  .icon{width:84px;height:84px;border-radius:50%}
+  h1{font-size:26px;margin:16px 0 4px;letter-spacing:-.01em}
+  .sub{color:#9db08f;font-size:15px;margin:0 0 22px}
+  ol{padding-left:22px;line-height:1.65;font-size:15.5px;color:#dfe8d2;margin:0}
+  ol b{color:#b8ff2e}
+  .note{color:#9db08f;font-size:13.5px;line-height:1.55;margin-top:20px}
+  .spacer{flex:1}
+  .dl{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;padding:18px;border-radius:16px;
+      background:#b8ff2e;color:#0c1305;font-weight:800;font-size:17.5px;text-decoration:none}
+  .meta{text-align:center;color:#9db08f;font-size:12.5px;margin-top:10px}
+</style>
+</head>
+<body>
+  <img class="icon" src="icon-512.png" alt="">
+  <h1>YapTrap for Android</h1>
+  <p class="sub">The real one: a bubble that floats over <b>every</b> app — no split-screen needed.</p>
+  <ol>
+    <li>Tap <b>Download the app</b> below.</li>
+    <li>Open the file. If Android asks, allow <b>Install unknown apps</b> for your browser, then <b>Install</b>.</li>
+    <li>Open YapTrap → tap <b>Permissions</b> → allow the mic, and turn on <b>Display over other apps</b>.</li>
+    <li>Tap <b>Show bubble</b>. Drag it anywhere — it snaps to the edge. Tap it to record or pause; the ••• nub opens Notes / Copy / Save / Close.</li>
+  </ol>
+  <p class="note">While it records, Android shows a permanent YapTrap notification — that's the system rule for background mics, and its Stop button (or Close in the bubble menu) kills everything and saves your note. Updates work the same way: download the new file, install over the top, your notes stay.</p>
+  <div class="spacer"></div>
+  <a class="dl" href="yaptrap.apk" download>Download the app</a>
+  <p class="meta">YapTrap 1.0 · 63 KB · Android 10+ · free, no account, notes stay on your phone</p>
+</body>
+</html>
