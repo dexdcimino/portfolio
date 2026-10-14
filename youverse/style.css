@@ -47,23 +47,31 @@ html{scrollbar-width:none; -ms-overflow-style:none}
 main{flex:1; min-height:0; overflow:hidden; width:100%; max-width:1120px; margin:0 auto; padding:0 16px}
 
 /* ---------- entry: one screen, no scroll; display up top, controls in the bottom half ---------- */
-.entry{height:100%; display:flex; flex-direction:column; justify-content:center;
-  max-width:520px; margin:0 auto; gap:clamp(4px, calc(var(--ah)*.008), 20px);
-  padding:clamp(6px, calc(var(--ah)*.014), 16px) 4px calc(10px + env(safe-area-inset-bottom));
+/* batch #5 (Dex): batch #4's centered group read as ONE solid block in
+   the middle with void above and below. The space is now SPLIT: a small
+   gap at the top, the header block, a real breathing gap, the form in
+   the bottom portion, a small gap below. margin-top:auto on the form
+   sends ALL the slack to the middle gap — at zero-slack heights the
+   layout packs exactly like batch #4's verified fit. */
+.entry{height:100%; display:flex; flex-direction:column; justify-content:flex-start;
+  max-width:520px; margin:0 auto; gap:clamp(10px, calc(var(--ah)*.026), 26px);
+  padding:clamp(8px, calc(var(--ah)*.032), 34px) 4px calc(12px + env(safe-area-inset-bottom));
   overflow:hidden; touch-action:none}
 .entry-head{text-align:center; flex:none}
 .entry-icon{width:clamp(46px, calc(var(--ah)*.088), 92px); height:clamp(46px, calc(var(--ah)*.088), 92px);
   border-radius:50%; background:#0c1526; border:1.5px solid var(--line)}
-  /* the artwork itself (icon-circle.png) is the full composed circle —
-     it fills this box edge to edge, nothing masked, nothing cropped;
-     the ring is a plain border INSIDE the box (padding/shadow rings
-     either collapse at small sizes or leak scrollable overflow) */
+  /* the artwork (icon-circle.png) carries its OWN margin: batch #5
+     padded the asset so the composed circle spans ~90% of its canvas
+     with transparent air on all four sides — the raw art fills 99% of
+     the frame, so ANY full-bleed circular display sliced the rim art
+     at the tips (Dex, three times). With the padding in the asset,
+     entry + hero + install sheet all show the whole circle. */
 .entry-head h1{font-size:clamp(16px, min(5.2vw, calc(var(--ah)*.034)), 27px); line-height:1.25; margin:calc(var(--ah)*.008) 0 calc(var(--ah)*.005)}
 .entry-head h1 em{color:var(--accent); font-style:normal}
 .entry-sub{color:var(--muted); font-size:16px; line-height:1.5; margin:0}
 .dob-readout{margin:calc(var(--ah)*.009) 0 0; font-size:19px; color:var(--muted)}
 .dob-readout b{color:var(--accent); font-size:21px}
-.entry-controls{display:flex; flex-direction:column; gap:clamp(5px, calc(var(--ah)*.009), 12px); flex:none}
+.entry-controls{display:flex; flex-direction:column; gap:clamp(5px, calc(var(--ah)*.009), 12px); flex:none; margin-top:auto}
 .field{display:block; text-align:left}
 .field > span{display:block; font-size:clamp(12px, 3.8vw, 14.5px); color:var(--muted); margin-bottom:clamp(4px, calc(var(--ah)*.008), 7px); font-weight:600}
 .field small{opacity:.75}
@@ -76,6 +84,14 @@ main{flex:1; min-height:0; overflow:hidden; width:100%; max-width:1120px; margin
   background:linear-gradient(90deg,var(--accent),#2bb7d8); color:#04241f;
   font-size:18px; font-weight:800}
 .cta:active{transform:scale(.98)}
+.cta[disabled]{opacity:.7; cursor:default}
+/* the entry CTA: label perfectly centered (the arrow is OUT of the text
+   flow, pinned right) — a fat rounded play-triangle, not a text glyph */
+.cta-main{position:relative}
+.cta-main .cta-label{display:block; text-align:center}
+.cta-arrow{position:absolute; right:16px; top:50%; transform:translateY(-50%);
+  width:21px; height:21px; color:#04241f; display:flex; pointer-events:none}
+.cta-arrow svg{width:100%; height:100%; display:block}
 .privacy{color:var(--muted); font-size:13px; margin:0; text-align:center}
 
 /* birthday selectors: Month / Day / Year — tap any, in any order */
@@ -336,13 +352,26 @@ main{flex:1; min-height:0; overflow:hidden; width:100%; max-width:1120px; margin
 .foot{margin-top:clamp(10px, calc(var(--ah)*.03), 40px); color:var(--muted); font-size:15px; line-height:1.65; text-align:center; max-width:640px}
 .foot-brand{color:var(--text); font-weight:700; margin-top:12px}
 
-/* ---------- deep-dive sheet ---------- */
-.sheet{position:fixed; inset:0; z-index:50; display:flex; align-items:flex-end; justify-content:center}
-.sheet-backdrop{position:absolute; inset:0; background:rgba(2,6,12,.7); backdrop-filter:blur(3px)}
-.sheet-card{position:relative; width:100%; max-width:560px; max-height:84vh; overflow-y:auto;
+/* ---------- deep-dive sheet ----------
+   Batch #5: ONE smooth slide-up. The card has a FIXED height and its
+   content is laid out BEFORE the sheet becomes visible, then a single
+   translateY transition carries it up — the old version appeared as a
+   collapsed chunk at the bottom and lurched taller as content loaded.
+   Open/close is class-driven (.open); the sheet never uses display:none,
+   which would kill the transition. */
+.sheet{position:fixed; inset:0; z-index:50; display:flex; align-items:flex-end; justify-content:center;
+  visibility:hidden; pointer-events:none; transition:visibility 0s linear .5s}
+.sheet.open{visibility:visible; pointer-events:auto; transition:none}
+.sheet-backdrop{position:absolute; inset:0; background:rgba(2,6,12,.7); backdrop-filter:blur(3px);
+  opacity:0; transition:opacity .4s ease}
+.sheet.open .sheet-backdrop{opacity:1}
+.sheet-card{position:relative; width:100%; max-width:560px; height:calc(var(--ah)*.84); overflow-y:auto;
   background:linear-gradient(180deg,var(--panel2),var(--panel)); border:1px solid var(--line);
-  border-radius:22px 22px 0 0; padding:26px 22px 30px}
-@media(min-width:640px){.sheet{align-items:center; padding:20px}.sheet-card{border-radius:22px}}
+  border-radius:22px 22px 0 0; padding:26px 22px 30px;
+  transform:translateY(104%); transition:transform .48s cubic-bezier(.22,.9,.26,1)}
+.sheet.open .sheet-card{transform:translateY(0)}
+@media(min-width:640px){.sheet{align-items:center; padding:20px}.sheet-card{border-radius:22px; height:auto; max-height:calc(var(--ah)*.84)}}
+@media(prefers-reduced-motion:reduce){.sheet-card{transition-duration:.01s}.sheet-backdrop{transition-duration:.01s}}
 .sheet-x{position:absolute; top:12px; right:12px; width:38px; height:38px; border-radius:50%;
   border:1px solid var(--line); background:#0a1120; color:var(--text); font-size:16px; cursor:pointer}
 .dive-kicker{color:var(--accent); font-weight:800; font-size:12.5px; letter-spacing:1.6px; text-transform:uppercase}
@@ -592,8 +621,10 @@ main{flex:1; min-height:0; overflow:hidden; width:100%; max-width:1120px; margin
   .entry.panel-open .entry-icon{display:none}
   /* end-stop for the shortest windows (<=580px tall at full font scale):
      a few px of air traded so the whole entry — CTA and privacy line
-     included — stays on screen; taller windows never see these */
-  .entry{padding-top:4px}
+     included — stays on screen; taller windows never see these.
+     Batch #5: the top gap survives even here (10px, was 4px) — the
+     split-the-difference spacing holds at every height. */
+  .entry{padding-top:10px}
   .entry .entry-icon{width:40px; height:40px}
   .entry .entry-head h1{margin-top:4px; margin-bottom:2px; line-height:1.18}
   .entry .dob-readout{margin-top:2px}
