@@ -2673,6 +2673,46 @@ html.fv-maxed .fv-item:popover-open{pointer-events:auto}
   padding:3px 10px;border-radius:8px;background:rgba(0,0,0,.58);
   color:#e9ebec;font-size:14px;font-weight:700;font-variant-numeric:tabular-nums;
 }
+/* While a video shot is the one showing, the count rides above the player's
+   bar instead of over its right-hand end. */
+.app-art.is-video .app-art-count{bottom:64px}
+
+/* A gallery shot that is a VIDEO (Mobius 3D, first in its set): the featured
+   slot's player rebuilt inside the app-info frame — poster under the video,
+   the disc until it is live, the same bar pinned to the bottom edge, so the
+   controls sit in the frame's bottom band like every other player's. The
+   letterbox is the viewer's own background (#0a1821), as the featured
+   slot's is. In the enlarge view the same box is sized off the frame's --ar
+   instead of filling the frame. */
+.gal-vid{position:absolute;inset:0;background:#0a1821}
+.gal-vid picture,.gal-vid-video{position:absolute;inset:0;width:100%;height:100%;display:block}
+.gal-vid picture img{width:100%;height:100%;object-fit:contain;object-position:50% 0;display:block}
+.gal-vid-video{object-fit:contain;object-position:50% 0;opacity:0;transition:opacity .4s ease;filter:saturate(1.1)}
+.gal-vid.is-live .gal-vid-video{opacity:1}
+.gal-vid-play{
+  position:absolute;inset:0;width:100%;height:100%;padding:0;cursor:pointer;
+  border:0;background:none;display:grid;place-items:center;z-index:2;
+}
+.gal-vid.is-live .gal-vid-play{opacity:0}
+.gal-vid.is-live .gal-vid-play:hover,.gal-vid.is-live .gal-vid-play:focus-visible{opacity:1}
+.gal-vid-play:focus-visible{outline:2px solid var(--accent);outline-offset:-6px;border-radius:14px}
+.gal-vid-play:hover .fv-disc{background:rgba(6,9,12,.9);transform:scale(1.05)}
+.gal-vid-bar{
+  position:absolute;left:0;right:0;bottom:0;z-index:2;
+  display:flex;align-items:center;gap:12px;padding:20px 14px 12px;
+}
+.gal-vid-bar::before{
+  content:"";position:absolute;inset:0;z-index:-1;pointer-events:none;
+  background:linear-gradient(180deg,transparent,rgba(4,6,9,.6) 40%,rgba(4,6,9,.88));
+}
+.gal-vid-bar .cl-scrub{flex:1 1 auto;min-width:60px}
+.gal-vid-bar .cl-time{margin:0;flex:none}
+.gal-vid-bar .cl-btn[hidden]{display:none}
+.gal-vid:fullscreen{background:#000}
+.app-shot-stage .gal-vid{
+  position:relative;width:min(var(--max-w),76vh * var(--ar,1.3333));aspect-ratio:var(--ar,1.3333);
+  border-radius:14px;border:var(--stroke) solid rgba(255,255,255,.14);overflow:hidden;
+}
 
 /* The enlarge view — the wallpaper lightbox's little sibling: image large,
    x/x centred underneath between the two arrows; arrows grey out (disabled)
