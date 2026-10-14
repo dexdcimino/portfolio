@@ -10767,15 +10767,164 @@ let openReader = () => {};
   const artPrev = document.getElementById('appArtPrev');
   const artNext = document.getElementById('appArtNext');
   const artCount = document.getElementById('appArtCount');
-  const shots = new Map();               // key -> [{span, source}]
+  /* A gallery VIDEO player: the featured slot's control set — play/pause,
+     scrub, time, volume, full screen — rebuilt on the generic clip classes
+     for a shot that is a video instead of a still. The poster picture sits
+     under the video until it is live; the source attaches on first play, so
+     a visitor who never opens the shot never downloads a byte of it. It
+     registers with MediaBus like every other player on the page: one sound
+     at a time, and the bus's hidden-tab rule and no-sound-without-a-control
+     guard both reach it. isLive() answers "are this player's controls the
+     ones on screen right now", which is what the guard asks. */
+  const makeGalPlayer = ({ src, audio, name, label, poster, isLive }) => {
+    const mmss = t => Number.isFinite(t) && t >= 0
+      ? Math.floor(t / 60) + ':' + String(Math.floor(t % 60)).padStart(2, '0') : '0:00';
+    const icon = (btn, name) => btn?.querySelector('.icon')?.setAttribute('data-icon', name);
+    const root = document.createElement('div');
+    root.className = 'gal-vid';
+    if (poster) root.appendChild(poster);
+    const video = document.createElement('video');
+    video.className = 'gal-vid-video';
+    video.playsInline = true;
+    video.loop = true;
+    video.preload = 'none';
+    video.setAttribute('aria-label', label);
+    root.appendChild(video);
+    const playBtn = document.createElement('button');
+    playBtn.type = 'button';
+    playBtn.className = 'gal-vid-play';
+    playBtn.setAttribute('aria-label', `Play ${name}`);
+    playBtn.innerHTML = '<span class="fv-disc"><span class="icon" data-icon="play" aria-hidden="true"></span></span>';
+    root.appendChild(playBtn);
+    const bar = document.createElement('div');
+    bar.className = 'gal-vid-bar';
+    bar.innerHTML =
+      '<button class="cl-btn cl-play gal-vid-toggle" type="button" aria-label="Play"><span class="icon" data-icon="play" aria-hidden="true"></span></button>' +
+      '<input class="cl-scrub gal-vid-scrub" type="range" min="0" max="1000" value="0" step="1" aria-label="Seek">' +
+      '<span class="cl-time gal-vid-time">0:00 / 0:00</span>' +
+      '<button class="cl-btn gal-vid-full" type="button" aria-label="Full screen"><span class="icon" data-icon="fullscreen" aria-hidden="true"></span></button>' +
+      '<div class="fv-vol">' +
+        '<button class="cl-btn gal-vid-mute" type="button" aria-label="Mute" hidden><span class="icon" data-icon="volume-slash" aria-hidden="true"></span></button>' +
+        '<div class="fv-vol-pop"><input class="fv-volume gal-vid-volume" type="range" min="0" max="100" value="50" step="1" aria-label="Volume"></div>' +
+      '</div>';
+    root.appendChild(bar);
+    const toggle = bar.querySelector('.gal-vid-toggle');
+    const scrub = bar.querySelector('.gal-vid-scrub');
+    const time = bar.querySelector('.gal-vid-time');
+    const mute = bar.querySelector('.gal-vid-mute');
+    const full = bar.querySelector('.gal-vid-full');
+    const level = bar.querySelector('.gal-vid-volume');
+    let scrubbing = false, touched = false;
+    const fillLevel = () => {
+      const v = video.muted ? 0 : Math.round(video.volume * 100);
+      level.value = v;
+      level.style.setProperty('--fill', v + '%');
+    };
+    const paint = () => {
+      const playing = !video.paused && !video.ended;
+      root.classList.toggle('is-playing', playing);
+      root.classList.toggle('is-muted', video.muted);
+      icon(toggle, playing ? 'pause' : 'play');
+      toggle.setAttribute('aria-label', playing ? 'Pause' : 'Play');
+      playBtn.setAttribute('aria-label', playing ? `Pause ${name}` : `Play ${name}`);
+      icon(mute, video.muted ? 'volume-slash' : 'volume');
+      mute.setAttribute('aria-label', video.muted ? 'Unmute' : 'Mute');
+    };
+    const start = () => {
+      if (!video.src) { video.src = src; video.preload = 'auto'; }
+      video.play().catch(() => {});   // a refused play leaves the poster and the disc up
+    };
+    const flip = () => {
+      touched = true;
+      if (video.paused || video.ended) start(); else video.pause();
+    };
+    const flipFull = () => {
+      if (document.fullscreenElement) document.exitFullscreen?.();
+      else if (root.requestFullscreen) root.requestFullscreen().catch(() => {});
+      else video.webkitEnterFullscreen?.();
+    };
+    video.addEventListener('playing', () => { root.classList.add('is-live'); paint(); });
+    video.addEventListener('pause', paint);
+    video.addEventListener('loadedmetadata', () => { if (audio) mute.hidden = false; });
+    video.addEventListener('timeupdate', () => {
+      if (scrubbing || !video.duration) return;
+      const pct = video.currentTime / video.duration * 100;
+      scrub.value = Math.round(pct * 10);
+      scrub.style.setProperty('--fill', pct + '%');
+      time.textContent = `${mmss(video.currentTime)} / ${mmss(video.duration)}`;
+    });
+    scrub.addEventListener('input', () => {
+      touched = true; scrubbing = true;
+      scrub.style.setProperty('--fill', scrub.value / 10 + '%');
+      if (video.duration) video.currentTime = scrub.value / 1000 * video.duration;
+    });
+    scrub.addEventListener('change', () => { scrubbing = false; });
+    toggle.addEventListener('click', flip);
+    /* The picture click waits out a double click, exactly as the featured
+       slot's does: the second click is a double click for full screen, and
+       the first half of it must not pause the video on its way there. */
+    let flipLater = 0;
+    playBtn.addEventListener('click', e => {
+      clearTimeout(flipLater);
+      if (e.detail === 0) flip();
+      else if (e.detail === 1) flipLater = setTimeout(flip, 250);
+    });
+    playBtn.addEventListener('dblclick', () => { clearTimeout(flipLater); flipFull(); });
+    mute.addEventListener('click', () => {
+      touched = true;
+      video.muted = !video.muted;
+      if (!video.muted && video.volume === 0) video.volume = .5;
+      paint(); fillLevel();
+    });
+    /* Dragging the volume to the bottom is the same as muting, and any
+       level above that is sound on — the featured slot's rule. */
+    level.addEventListener('input', () => {
+      touched = true;
+      const v = Number(level.value) / 100;
+      if (v > 0) video.volume = v;
+      video.muted = v === 0;
+      level.style.setProperty('--fill', level.value + '%');
+      paint();
+    });
+    full.addEventListener('click', flipFull);
+    // Driven off the event rather than the click, so the icon is still right
+    // when someone leaves full screen with Escape (the clips player's rule).
+    const onFsChange = () => {
+      const on = document.fullscreenElement === root;
+      icon(full, on ? 'fullscreen-exit' : 'fullscreen');
+      full.setAttribute('aria-label', on ? 'Exit full screen' : 'Full screen');
+    };
+    document.addEventListener('fullscreenchange', onFsChange);
+    video.volume = .5;   // the first unmute comes in at half (Dex)
+    fillLevel();
+    paint();
+    const me = MediaBus.add({
+      el: video,
+      onScreen: isLive,
+      control: isLive,
+      touched: () => touched,
+      toggle: flip,
+      pause: () => video.pause(),
+    });
+    video.addEventListener('play', () => MediaBus.solo(me));
+    return {
+      root, video,
+      pause: () => video.pause(),
+      destroy: () => { video.pause(); document.removeEventListener('fullscreenchange', onFsChange); },
+    };
+  };
+
+  const shots = new Map();               // key -> [{span, source, player?, video?}]
   if (artView) {
     const SIZES = '(max-width:1100px) min(92vw, 660px), min(660px, 42vw)';
     for (const card of cards) {
       const key = card.dataset.gallery;
       if (!key || shots.has(key)) continue;
-      const pics = [...document.querySelectorAll(`#galleryModal .gal-item[data-game="${key}"] picture`)];
-      if (!pics.length) continue;
-      shots.set(key, pics.map((source) => {
+      const figs = [...document.querySelectorAll(`#galleryModal .gal-item[data-game="${key}"]`)];
+      const set = [];
+      for (const fig of figs) {
+        const source = fig.querySelector('picture');
+        if (!source) continue;
         const clone = source.cloneNode(true);
         for (const s of clone.querySelectorAll('source')) s.sizes = SIZES;
         const img = clone.querySelector('img');
@@ -10783,10 +10932,38 @@ let openReader = () => {};
         const span = document.createElement('span');
         span.className = 'app-art-shot';
         span.hidden = true;
-        span.appendChild(clone);
+        const vid = fig.querySelector('video.gal-video');
+        if (vid) {
+          /* A video shot: the cloned picture becomes the player's poster and
+             the span hosts the player itself. The original picture still
+             rides along as `source` — the filmstrip and the tray read it,
+             and the enlarge view builds a player of its own from `video`. */
+          const video = {
+            src: vid.dataset.src,
+            audio: vid.hasAttribute('data-audio'),
+            name: card.querySelector('strong')?.textContent || fig.dataset.title || 'Video',
+            label: vid.getAttribute('aria-label') || fig.dataset.title || '',
+            vw: +vid.getAttribute('width') || 0,
+            vh: +vid.getAttribute('height') || 0,
+          };
+          const player = makeGalPlayer({
+            ...video,
+            poster: clone,
+            isLive: () => {
+              if (panel.hidden || span.hidden) return false;
+              const r = span.getBoundingClientRect();
+              return r.width > 0 && r.bottom > 0 && r.top < window.innerHeight;
+            },
+          });
+          span.appendChild(player.root);
+          set.push({ span, source, player, video });
+        } else {
+          span.appendChild(clone);
+          set.push({ span, source });
+        }
         artView.appendChild(span);
-        return { span, source };
-      }));
+      }
+      if (set.length) shots.set(key, set);
     }
   }
 
@@ -10803,12 +10980,20 @@ let openReader = () => {};
     if (!set.length) return;
     idx = ((idx % set.length) + set.length) % set.length;
     set[idx].span.hidden = false;
+    /* A shot that is a video pauses the moment it stops being the one
+       showing — arrowing away, or the panel moving to another app, never
+       leaves it playing behind a still. */
+    for (const list of shots.values()) for (const s of list) if (s.player && s.span.hidden) s.player.pause();
     const single = set.length < 2;
     artPrev.hidden = single;
     artNext.hidden = single;
     artCount.textContent = `${idx + 1}/${set.length}`;
-    artView.setAttribute('aria-label', `Enlarge screenshot ${idx + 1} of ${set.length}` +
-      (current ? ` for ${current.querySelector('strong')?.textContent}` : ''));
+    art.classList.toggle('is-video', !!set[idx].player);
+    artView.setAttribute('aria-label', set[idx].player
+      ? `Video ${idx + 1} of ${set.length}` +
+        (current ? ` for ${current.querySelector('strong')?.textContent}` : '') + ' — it has its own play controls'
+      : `Enlarge screenshot ${idx + 1} of ${set.length}` +
+        (current ? ` for ${current.querySelector('strong')?.textContent}` : ''));
   };
   artPrev?.addEventListener('click', () => { idx -= 1; paintShots(); });
   artNext?.addEventListener('click', () => { idx += 1; paintShots(); });
@@ -10885,24 +11070,39 @@ let openReader = () => {};
     const lbFrame = document.getElementById('appShotFrame');
     const lbRails = [document.getElementById('appShotRailPrev'), document.getElementById('appShotRailNext')];
     let lbIdx = 0;
+    let lbPlayer = null;
     const lbPaint = () => {
       const set = setFor();
       if (!set.length) return;
       lbIdx = ((lbIdx % set.length) + set.length) % set.length;
-      const clone = set[lbIdx].source.cloneNode(true);
-      for (const s of clone.querySelectorAll('source')) s.sizes = '92vw';
-      const img = clone.querySelector('img');
-      if (img) {
-        img.sizes = '92vw';
-        img.loading = 'eager';
-        if (img.decode) img.decode().catch(() => {});
-        /* The frame is sized from the baked width/height BEFORE a byte of
-           the big rung arrives, so the rails and the X are where they will
-           stay from the first frame rather than jumping when it loads. */
-        const w = +img.getAttribute('width'), h = +img.getAttribute('height');
-        if (w && h) lbFrame.style.setProperty('--ar', (w / h).toFixed(4));
+      lbPlayer?.destroy();
+      lbPlayer = null;
+      const entry = set[lbIdx];
+      if (entry.player) {
+        /* A video shot enlarges as a player of its own, built fresh for the
+           stage and torn down on the way out. The frame's --ar comes from
+           the video's baked width/height, the same trick as a still's, so
+           the rails and the X are where they will stay. */
+        if (entry.video.vw && entry.video.vh)
+          lbFrame.style.setProperty('--ar', (entry.video.vw / entry.video.vh).toFixed(4));
+        lbPlayer = makeGalPlayer({ ...entry.video, poster: null, isLive: () => lb.open });
+        lbStage.replaceChildren(lbPlayer.root);
+      } else {
+        const clone = entry.source.cloneNode(true);
+        for (const s of clone.querySelectorAll('source')) s.sizes = '92vw';
+        const img = clone.querySelector('img');
+        if (img) {
+          img.sizes = '92vw';
+          img.loading = 'eager';
+          if (img.decode) img.decode().catch(() => {});
+          /* The frame is sized from the baked width/height BEFORE a byte of
+             the big rung arrives, so the rails and the X are where they will
+             stay from the first frame rather than jumping when it loads. */
+          const w = +img.getAttribute('width'), h = +img.getAttribute('height');
+          if (w && h) lbFrame.style.setProperty('--ar', (w / h).toFixed(4));
+        }
+        lbStage.replaceChildren(clone);
       }
-      lbStage.replaceChildren(clone);
       lbCount.textContent = `${lbIdx + 1}/${set.length}`;
       const single = set.length < 2;
       lbPrev.disabled = single;
@@ -10914,6 +11114,10 @@ let openReader = () => {};
     };
     artView.addEventListener('click', () => {
       if (!setFor().length) return;
+      /* A video shot owns its clicks: its surface and bar are the controls,
+         and full screen is its enlarge. Opening the stills' view over it
+         would bury a playing video under a poster of itself. */
+      if (setFor()[idx]?.player) return;
       lbIdx = idx;
       lbPaint();
       openModal(lb, lb.querySelector('.app-shot-shell'), null, artView);
@@ -10927,14 +11131,14 @@ let openReader = () => {};
        <dialog> itself, and the stage and shell cover most of the screen, so
        a click in the dark round the picture closed it only sometimes. */
     lb.addEventListener('click', (event) => {
-      if (!event.target.closest('img, button')) closeModal(lb);
+      if (!event.target.closest('img, button, input, .gal-vid')) closeModal(lb);
     });
     lb.addEventListener('keydown', (event) => {
       if (event.key === 'ArrowLeft') { event.preventDefault(); lbIdx -= 1; lbPaint(); }
       if (event.key === 'ArrowRight') { event.preventDefault(); lbIdx += 1; lbPaint(); }
     });
     document.getElementById('appShotClose')?.addEventListener('click', () => closeModal(lb));
-    bindModal(lb, () => lbStage.replaceChildren());
+    bindModal(lb, () => { lbPlayer?.destroy(); lbPlayer = null; lbStage.replaceChildren(); });
   }
 
   /* Same trap initGameArt documents: the clones' images are lazy and hidden,
@@ -10997,6 +11201,8 @@ let openReader = () => {};
      own contents (lead, shot, description) need no sync — they hide with it. */
   const syncVisible = () => {
     apps.hidden = panel.hidden;
+    // Leaving the Apps tab silences a gallery video left playing in it.
+    if (panel.hidden) for (const list of shots.values()) for (const s of list) s.player?.pause();
     if (!panel.hidden) reserve();
   };
   new MutationObserver(syncVisible).observe(panel, { attributes: true, attributeFilter: ['hidden'] });
