@@ -288,3 +288,20 @@ html.journey main{scroll-snap-type:y mandatory}
   .hero-avatar, .scroll-cue span{animation:none}
   html{scroll-behavior:auto}
 }
+
+/* ---------- install sheet (MindSplit-style; styles MUST live here —
+   the CSP strips inline styles) ---------- */
+.ish-scrim{position:fixed;inset:0;background:rgba(2,6,10,.62);z-index:10000;display:flex;align-items:flex-end;justify-content:center}
+.ish-sheet{position:relative;width:100%;max-width:560px;height:52%;min-height:360px;background:#0e1626;color:#eef4ff;border-radius:30px 30px 0 0;padding:12px 22px calc(env(safe-area-inset-bottom,0px) + 20px);display:flex;flex-direction:column;animation:ishUp 340ms cubic-bezier(.22,1,.36,1)}
+@keyframes ishUp{from{transform:translateY(60px);opacity:.4}to{transform:translateY(0);opacity:1}}
+.ish-handle{width:40px;height:6px;border-radius:99px;background:#1d2c47;margin:2px auto 16px}
+.ish-x{position:absolute;top:14px;right:16px;width:36px;height:36px;border-radius:50%;border:1px solid #1d2c47;background:transparent;color:#eef4ff;font-size:15px;cursor:pointer}
+.ish-icon{width:58px;height:58px;border-radius:50%;display:block;margin-bottom:12px}
+.ish-title{margin:0 0 6px;font-size:21px}
+.ish-sub{margin:0 0 16px;font-size:14.5px;line-height:1.5;color:#c9d6ee}
+.ish-steps{display:flex;flex-direction:column;gap:9px;overflow-y:auto}
+.ish-step{display:flex;align-items:center;gap:12px;background:rgba(255,255,255,.05);border-radius:14px;padding:11px 13px}
+.ish-num{width:27px;height:27px;flex:none;border-radius:50%;background:linear-gradient(90deg,#35e0c8,#2bb7d8);color:#04241f;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13.5px}
+.ish-steptext{font-size:14.5px;line-height:1.45}
+.ish-spacer{flex:1}
+.ish-go{width:100%;background:linear-gradient(90deg,#35e0c8,#2bb7d8);border:none;border-radius:14px;padding:16px;font-weight:800;cursor:pointer;color:#04241f;font-size:16.5px}
