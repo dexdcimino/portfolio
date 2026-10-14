@@ -295,6 +295,21 @@ function render(){
   const bm = $('bubbleMain');
   bm.classList.toggle('live', state === 'live');
   bm.classList.toggle('paused', state === 'paused');
+
+  /* Recording faces (v1.7.2): while live, both faces are the WHITE
+     MIC over the wave's red blob; otherwise the pill wears the LIME
+     MIC and the bubble its full logo. Only the art swaps — a face
+     never changes size between states (the v1.7.1 shrink is gone). */
+  const rf = $('recordFace');
+  if (rf){
+    const want = state === 'live' ? 'mic-white.svg' : 'mic-lime.svg';
+    if (!rf.src.endsWith(want)) rf.src = want;
+  }
+  const bf = bm.querySelector('.bubble-face');
+  if (bf){
+    const want = state === 'live' ? 'mic-white.svg' : 'icon-512.png';
+    if (!bf.src.endsWith(want)) bf.src = want;
+  }
   $('bubbleBtnLabel').textContent = bubbleVisible ? 'Hide bubble' : 'Show bubble';
   setSyncHint();
 }
@@ -445,12 +460,32 @@ function renderList(){
     });
     el.querySelector('.note-copy').addEventListener('click', () => {
       if (swallowed()) return;
-      if (selMode){ toggleSelected(n.id); return; }
+      if (selMode){
+        /* In-card buttons act on the SELECTION (v1.7.2): on a
+           selected card, copy is the popup's Copy — the whole
+           selection as one bulk string. On an unselected card the
+           button stays a plain tap: toggle. */
+        if (selectedIds.has(n.id)){
+          const sel = displayOrder().filter(x => selectedIds.has(x.id));
+          copyText(bulkCopyText(sel), sel.length === 1 ? 'Copied' : 'Copied ' + sel.length + ' notes');
+        } else toggleSelected(n.id);
+        return;
+      }
       copyText(n.text);
     });
     el.querySelector('.note-del').addEventListener('click', () => {
       if (swallowed()) return;
-      if (selMode){ toggleSelected(n.id); return; }
+      if (selMode){
+        /* Same rule for trash (v1.7.2): on a selected card it is the
+           popup's Delete — the same count-aware confirm modal,
+           deleting exactly the selection. */
+        if (selectedIds.has(n.id)){
+          pendingBulk = true;
+          pendingDeleteId = null;
+          openDelConfirm();
+        } else toggleSelected(n.id);
+        return;
+      }
       pendingDeleteId = n.id;
       pendingBulk = false;
       openDelConfirm();
@@ -462,7 +497,22 @@ function renderList(){
     requestAnimationFrame(() => { el.scrollTop = el.scrollHeight; });
   }
   suppressStickOnce = false;
+  syncListLock();
   renderSelPop();
+}
+
+/* Expanded-note scroll lock (v1.7.2): while a note is expanded the
+   LIST does not scroll at all — the .locked class drops the
+   container's overflow to hidden, so no touch drag, wheel, or
+   edge-chain from the body can move the list under the open card and
+   push its header (the collapse tap) off screen. Only the note's own
+   text scrolls, with its native momentum. Programmatic scrollTop
+   still works under overflow:hidden, so the two permitted movements
+   survive: the expand/collapse header pin in toggleExpand() and the
+   keyboard clearance shift in ensureEditedVisible(). Collapsing (or
+   entering selection, which clears expandedId) releases the lock. */
+function syncListLock(){
+  $('listScroll').classList.toggle('locked', !!expandedId);
 }
 
 /* Expand/collapse with the header pinned: the head's screen Y is read
@@ -950,12 +1000,15 @@ $('optClose').addEventListener('click', () => {
    wave's own extent budget. The frame's worst case, the glow level and
    the periods are published on dataset for checks. */
 const wave = { raf: 0, startMs: 0 };
-/* One frame of the wave on an 88px canvas, centred at 44,44. Since
-   v1.7 the black behind the wave is a FILLED PATH built from the same
-   r(θ) as the red ring: the fill IS the wave's silhouette (bulge =
-   filled, trough = empty), the glow pools over the fill, the echo ring
-   weaves as before, and the main ring is stroked on the filled path's
-   own edge — no static disc can clip through the moving rim. */
+/* One frame of the wave on an 88px canvas, centred at 44,44. The
+   wave's body is a FILLED PATH built from the same r(θ) as its ring:
+   the fill IS the wave's silhouette (bulge = filled, trough = empty),
+   the glow pools over the fill, the echo ring weaves as before, and
+   the main ring is stroked on the filled path's own edge — no static
+   disc can clip through the moving rim. The fill was black in
+   v1.7–v1.7.1; since v1.7.2 it is the recording red (a hair deeper
+   than the ring, so rim and echo still read): the wave is a morphing
+   red blob, and the white mic face rides on top of it, full size. */
 function drawWaveFrame(ctx, t){
   ctx.clearRect(0, 0, 88, 88);
   const avail = 41, strokeMax = 3.4, aMax = 5.6, pulseMax = 0.035;
@@ -979,7 +1032,7 @@ function drawWaveFrame(ctx, t){
     return p;
   };
   const main = pathOf(A, phi, 0);
-  ctx.fillStyle = '#080808';
+  ctx.fillStyle = '#ee3b4b';
   ctx.fill(main);
   // the glow: a pool of red light over the fill, breathing with the wave
   const glow = 0.10 + 0.28 * Math.pow(breathEnv, 1.6);
