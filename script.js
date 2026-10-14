@@ -5,6 +5,25 @@
    sync and no wrong-color flash between themes.
    ========================================================================== */
 
+/* ---------- Bunny Stream rendition picking ----------------------------- */
+
+/* Bunny serves every upload at several renditions (play_720p.mp4,
+   play_480p.mp4, play_360p.mp4, play_240p.mp4). The 720p file peaks around
+   1.4 Mbps; on a slower connection a progressive <video> starves and stalls
+   every few seconds (proven on a throttled phone profile, 2026-10-14: four
+   stalls in twenty seconds at 1 Mbps). Hand each visitor the rendition
+   their connection can actually sustain; fast connections keep 720p. */
+function bunnySrc(url) {
+  if (!url || url.indexOf('play_720p.mp4') === -1) return url;
+  const c = navigator.connection || {};
+  let r = '720p';
+  if (c.saveData || c.effectiveType === 'slow-2g' || c.effectiveType === '2g') r = '360p';
+  else if (c.downlink && c.downlink < 1.5) r = '360p';
+  else if (c.effectiveType === '3g' || (c.downlink && c.downlink < 3)) r = '480p';
+  else if (!c.effectiveType && !c.downlink && window.matchMedia && matchMedia('(pointer: coarse)').matches) r = '480p';
+  return url.replace('play_720p.mp4', 'play_' + r + '.mp4');
+}
+
 /* ---------- Dex signed in is admin, everywhere -------------------------- */
 
 /* DEX SIGNED IN IS ADMIN (Dex, 2026-10-08): "being signed in on my account
@@ -2479,7 +2498,7 @@ if (workModal) {
      data-audio says the upload has a soundtrack; only then is there a mute
      button, and the first unmute is the visitor's own press. */
   function initFeaturedVideo(item) {
-    const src = item.dataset.src;
+    const src = bunnySrc(item.dataset.src);
     const video = item.querySelector('.fv-video');
     const toggle = item.querySelector('.fv-toggle');
     const scrub = item.querySelector('.fv-scrub');
@@ -6736,7 +6755,7 @@ const MediaBus = (() => {
     toggle.disabled = !ok;
     scrub.disabled = !ok;
     if (ok) {
-      video.src = item.dataset.src;
+      video.src = bunnySrc(item.dataset.src);
       if (autoplay) play();
     }
     paintButtons();
@@ -10939,7 +10958,7 @@ let openReader = () => {};
              rides along as `source` — the filmstrip and the tray read it,
              and the enlarge view builds a player of its own from `video`. */
           const video = {
-            src: vid.dataset.src,
+            src: bunnySrc(vid.dataset.src),
             audio: vid.hasAttribute('data-audio'),
             name: card.querySelector('strong')?.textContent || fig.dataset.title || 'Video',
             label: vid.getAttribute('aria-label') || fig.dataset.title || '',
