@@ -413,6 +413,7 @@ function renderList(){
       body.setAttribute('contenteditable', 'true');
       body.classList.add('note-edit');
       body.setAttribute('spellcheck', 'false');
+      body.addEventListener('focus', () => setTimeout(ensureEditedVisible, 350));
     }
     el.querySelector('.note-when').textContent = whenText(n);
     if (naming){
@@ -423,6 +424,7 @@ function renderList(){
         if (e.key === 'Escape'){ namingId = null; renderList(); }
       });
       input.addEventListener('blur', () => { if (namingId === n.id) finishNameEdit(); });
+      input.addEventListener('focus', () => setTimeout(ensureEditedVisible, 350));
     } else {
       el.querySelector('.note-meta').textContent = displayMeta(n);
       el.querySelector('.note-meta').addEventListener('click', ev => {
@@ -468,6 +470,23 @@ function renderList(){
    delta, so the header stays exactly where the finger tapped it and the
    body unfolds above. If the card's top would leave the viewport, the
    card is clamped fully inside instead — never off-screen. */
+/* Keyboard clearance (v1.7.1): when the software keyboard opens, the
+   visible viewport shrinks — the card being edited must stay inside
+   what's left of the list. On focus, and on every visualViewport
+   resize while an editor is focused, nudge the list so the card's top
+   (and, when it fits, its whole body) clears the shrunken region. */
+function ensureEditedVisible(){
+  const a = document.activeElement;
+  if (!a || !(a.classList.contains('note-edit') || a.classList.contains('note-name-input'))) return;
+  const card = a.closest('.note');
+  if (!card) return;
+  const listEl = $('listScroll');
+  const c = listEl.getBoundingClientRect(), r = card.getBoundingClientRect();
+  if (r.top < c.top) listEl.scrollTop += r.top - c.top;
+  else if (r.bottom > c.bottom) listEl.scrollTop += Math.min(r.bottom - c.bottom, Math.max(0, r.top - c.top));
+}
+if (window.visualViewport) visualViewport.addEventListener('resize', () => requestAnimationFrame(ensureEditedVisible));
+
 function toggleExpand(n, el){
   const head = el.querySelector('.note-head');
   const beforeY = head.getBoundingClientRect().top;
