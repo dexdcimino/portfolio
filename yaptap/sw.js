@@ -2,11 +2,12 @@
    YouVerse use: network-first, so an installed app always picks up the
    newest build on its next launch and the cache is only an offline
    fallback. Icons never change under one name, so those are cache-first. */
-const CACHE = 'yaptap-shell-v171';
+const CACHE = 'yaptap-shell-v172';
 const SHELL = ['/yaptap/', '/yaptap/index.html', '/yaptap/app.js',
   '/yaptap/style.css', '/yaptap/manifest.webmanifest'];
 const ICONS = ['/yaptap/icon-192.png', '/yaptap/icon-512.png',
-  '/yaptap/icon-maskable-512.png', '/yaptap/apple-touch-icon.png'];
+  '/yaptap/icon-maskable-512.png', '/yaptap/apple-touch-icon.png',
+  '/yaptap/mic-white.svg', '/yaptap/mic-lime.svg'];
 
 self.addEventListener('install', event => {
   event.waitUntil(
