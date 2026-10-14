@@ -107,7 +107,7 @@
       "headers": [
         {
           "key": "Content-Security-Policy",
-          "value": "default-src 'self'; script-src 'self' 'unsafe-inline' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' blob: wss://*.photonengine.io:* wss://*.exitgames.com:*; frame-ancestors 'self'; base-uri 'none'; object-src 'none'"
+          "value": "default-src 'self'; script-src 'self' 'unsafe-inline' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://dexcimino-media.b-cdn.net; media-src 'self' https://dexcimino-media.b-cdn.net; font-src 'self'; connect-src 'self' blob: https://dexcimino-media.b-cdn.net wss://*.photonengine.io:* wss://*.exitgames.com:*; frame-ancestors 'self'; base-uri 'none'; object-src 'none'"
         },
         {
           "key": "X-Frame-Options",
