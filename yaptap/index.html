@@ -28,6 +28,8 @@
     <img class="brand-icon" src="icon-512.png" alt="">
     <div class="brand-name">YapTap</div>
     <div class="brand-sub">talk · it types</div>
+    <span class="brand-spacer"></span>
+    <button id="installBtn" class="ctl-btn small ghost" type="button">Install app</button>
   </header>
 
   <!-- THE DRAFT, the phone app's "Current note (not saved yet)" panel:
@@ -42,31 +44,36 @@
        top, newest at the bottom by the thumb; the list grows upward. -->
   <div id="listScroll" class="list-scroll">
     <div id="listItems"></div>
-    <p id="listEmpty" class="list-empty">Nothing trapped yet.<br>Tap Show bubble, then tap the bubble and talk.</p>
+    <p id="listEmpty" class="list-empty">No notes yet</p>
   </div>
 
-  <!-- SELECTION BAR: in the thumb zone while notes are multi-selected —
-       close, the count, and the two bulk actions. -->
-  <div id="selBar" class="sel-bar hidden">
-    <button id="selClose" class="sel-x" type="button" aria-label="Exit selection">✕</button>
-    <span id="selCount" class="sel-count"></span>
-    <button id="selCopy" class="sel-btn" type="button">Copy</button>
-    <button id="selTrash" class="sel-btn danger" type="button">Trash</button>
-  </div>
-
-  <!-- every control lives in the bottom thumb zone, the phone app's
-       stack: the status line, the account row, then the main row -->
-  <section class="controls">
-    <p id="statusLine" class="status-line">Ready</p>
-    <div class="acct-row">
-      <span id="acctStateText" class="acct-state">On this device only</span>
-      <button id="acctBtn" class="ctl-btn small" type="button"><span id="acctBtnLabel">Sign in</span></button>
+  <!-- SELECTION WINDOW (v1.7, Inko's floating popup): an OVERLAY —
+       it floats over the list, so appearing never moves a single note.
+       Opens halfway up the screen, placed beside the held card and
+       never over it; drags by its head; two actions only, Copy and
+       Delete. Rendered visible by app.js (class .open). -->
+  <div id="selPop" role="dialog" aria-label="Selected notes">
+    <div id="selPopHead"><span id="selPopTitle"></span><button id="selPopX" type="button" aria-label="Done selecting"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="7" y1="7" x2="17" y2="17"/><line x1="17" y1="7" x2="7" y2="17"/></svg></button></div>
+    <div id="selPopGrid">
+      <button id="selPopCopy" class="sel-btn" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8.5" y="8.5" width="12" height="12" rx="2.5"/><path d="M15.5 5.5V5A1.5 1.5 0 0 0 14 3.5H5A1.5 1.5 0 0 0 3.5 5v9A1.5 1.5 0 0 0 5 15.5h.5"/></svg><span>Copy</span></button>
+      <button id="selPopTrash" class="sel-btn danger" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16"/><path d="M9.5 7V4.5h5V7"/><path d="M6 7l1 13h10l1-13"/></svg><span>Delete</span></button>
     </div>
+  </div>
+
+  <!-- every control lives in the bottom thumb zone (v1.7): ONE row —
+       Sign in far left (the account email when signed in), the in-app
+       record pill centre (the logo, wearing the wave while it records),
+       the bubble toggle right. The checkmark status line and the wordy
+       account-state line are gone; Install moved up beside the brand. -->
+  <section class="controls">
     <div class="controls-row">
-      <button id="installBtn" class="ctl-btn" type="button">
-        <svg viewBox="0 0 24 24" class="ic"><path d="M12 3v12m0 0 4.5-4.5M12 15 7.5 10.5M4 19h16"/></svg>
-        <span>Install app</span>
-      </button>
+      <button id="acctBtn" class="ctl-btn small" type="button"><span id="acctBtnLabel">Sign in</span></button>
+      <div class="record-wrap" id="recordWrap">
+        <button id="recordPill" class="record-pill" type="button" aria-label="Record a note in the app">
+          <img class="record-face" src="icon-512.png" alt="">
+        </button>
+        <canvas id="recordWave" class="record-wave" width="176" height="176"></canvas>
+      </div>
       <button id="bubbleBtn" class="ctl-btn accent" type="button">
         <svg viewBox="0 0 24 24" class="ic"><path d="M12 15a3 3 0 0 0 3-3V6a3 3 0 1 0-6 0v6a3 3 0 0 0 3 3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v3"/></svg>
         <span id="bubbleBtnLabel">Hide bubble</span>
@@ -105,13 +112,15 @@
   <button id="bubbleNub" class="bubble-nub" type="button" aria-label="Options">•••</button>
 </div>
 
-<!-- DELETE CONFIRM -->
+<!-- DELETE CONFIRM (v1.7): Inko's modal — a centred rounded card on a
+     dim scrim, title, a line, Cancel / Delete. -->
 <div id="delModal" class="del-modal hidden" role="alertdialog" aria-modal="true">
   <div class="del-card">
-    <p id="delText">Delete this transcription?</p>
+    <div id="delTitle">Delete note?</div>
+    <div id="delText">It will be permanently deleted.</div>
     <div class="del-row">
-      <button id="delCancel" class="del-cancel" type="button">Cancel</button>
-      <button id="delGo" class="del-go" type="button">Delete</button>
+      <button id="delCancel" class="del-btn" type="button">Cancel</button>
+      <button id="delGo" class="del-btn danger" type="button">Delete</button>
     </div>
   </div>
 </div>
