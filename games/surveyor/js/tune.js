@@ -393,7 +393,7 @@ export const TERRAIN = {
   // The three packed maps, baked by tools/bake_terrain_maps.py. RG hold the
   // normal's XY, B holds the albedo's luminance; the colour is thrown away
   // because six authored palettes already decide colour.
-  path: 'assets/textures/',
+  path: 'https://dexcimino-media.b-cdn.net/games/surveyor/assets/textures/',
   layers: ['flat', 'steep', 'high'],
 
   /* TWO knobs, not one, and the split is the finding of this transplant.
@@ -1447,14 +1447,14 @@ export const ARRIVE = {
  * Declared above PLANETS on purpose: the profiles read it, and a const read out
  * of the temporal dead zone throws at module load.
  */
-export const NEUTRAL_LUT = 'assets/luts/identity.3dl';
+export const NEUTRAL_LUT = 'https://dexcimino-media.b-cdn.net/games/surveyor/assets/luts/identity.3dl';
 
 /* ...and since the grade pass, each world names its own instead. One file per
    world, baked by tools/bake_lut.py from one parameterised grade and six
    parameter sets — one function, so the cyan protection cannot drift between
    them. NEUTRAL_LUT stays: it is what post.js A/Bs against to prove the
    plumbing is not doing something of its own. */
-const LUT = (name) => `assets/luts/${name}.3dl`;
+const LUT = (name) => `https://dexcimino-media.b-cdn.net/games/surveyor/assets/luts/${name}.3dl`;
 
 export const PLANETS = {
   home: {
@@ -3269,8 +3269,8 @@ export const POST = {
      through post.setGrade() from its own profile's `lut`, on arrival. */
   colorGrading: {
     enabled: true,
-    url: 'assets/luts/identity.3dl',
-    identityUrl: 'assets/luts/identity.3dl',
+    url: 'https://dexcimino-media.b-cdn.net/games/surveyor/assets/luts/identity.3dl',
+    identityUrl: 'https://dexcimino-media.b-cdn.net/games/surveyor/assets/luts/identity.3dl',
     level: 1.0,
   },
 
