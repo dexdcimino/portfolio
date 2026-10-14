@@ -177,7 +177,7 @@ button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
 @keyframes ishUp{from{transform:translateY(60px);opacity:.4}to{transform:translateY(0);opacity:1}}
 .ish-handle{width:40px;height:6px;border-radius:99px;background:#263326;margin:2px auto 16px}
 .ish-x{position:absolute;top:14px;right:16px;width:36px;height:36px;border-radius:50%;border:1px solid #263326;background:transparent;color:#f2f7ec;font-size:15px;cursor:pointer}
-.ish-icon{width:58px;height:58px;border-radius:22%;display:block;margin-bottom:12px}
+.ish-icon{width:58px;height:58px;border-radius:50%;display:block;margin-bottom:12px}
 .ish-title{margin:0 0 6px;font-size:21px}
 .ish-sub{margin:0 0 16px;font-size:14.5px;line-height:1.5;color:#c9d6bd}
 .ish-steps{display:flex;flex-direction:column;gap:9px;overflow-y:auto}
