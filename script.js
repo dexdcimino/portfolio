@@ -10020,7 +10020,7 @@ const MediaBus = (() => {
         : '';
       dur.textContent = has ? secs(t.d) : 'no file';
       if (has) {
-        get.href = `assets/sfx/${t.file}`;
+        get.href = `https://dexcimino-media.b-cdn.net/assets/sfx/${t.file}`;
         const ext = t.file.slice(t.file.lastIndexOf('.'));
         get.download = `${cat.name} - ${item.name} - ${t.name}${ext}`.replace(/[\/:*?"<>|]/g, '-');
         get.removeAttribute('aria-disabled');
@@ -10191,7 +10191,7 @@ const MediaBus = (() => {
   function start(el, item, at) {
     const track = item.tracks[Number(el._pick.value) || 0];
     if (!track || !track.file) return;
-    const src = `assets/sfx/${track.file}`;
+    const src = `https://dexcimino-media.b-cdn.net/assets/sfx/${track.file}`;
     const from = Math.min(0.999, Math.max(0, at || 0));
     if (audio.getAttribute('src') !== src) { audio.src = src; audio.load(); }
     audio.currentTime = from && audio.duration > 0 ? from * audio.duration : 0;
