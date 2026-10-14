@@ -303,5 +303,6 @@ html.journey main{scroll-snap-type:y mandatory}
 .ish-step{display:flex;align-items:center;gap:12px;background:rgba(255,255,255,.05);border-radius:14px;padding:11px 13px}
 .ish-num{width:27px;height:27px;flex:none;border-radius:50%;background:linear-gradient(90deg,#35e0c8,#2bb7d8);color:#04241f;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13.5px}
 .ish-steptext{font-size:14.5px;line-height:1.45}
+.ish-sheet.ish-tall{height:74%}
 .ish-spacer{flex:1}
 .ish-go{width:100%;background:linear-gradient(90deg,#35e0c8,#2bb7d8);border:none;border-radius:14px;padding:16px;font-weight:800;cursor:pointer;color:#04241f;font-size:16.5px}
