@@ -607,7 +607,7 @@ function setExplorer(year, scroll){
      so this warms the pool's front — the cache does the rest) */
   [-1, 1].forEach(dy => {
     const d2 = YV_EVENTS[String(exYear + dy)];
-    if (d2) (d2[exTab] || []).slice(0, 10).forEach(e => wikiImage(e.t));
+    if (d2) (d2[exTab] || []).slice(0, 10).forEach(e => { if (!e.i) wikiImage(e.t); });
   });
   /* (no scrollIntoView: the transform pager positions chapters itself) */
 }
@@ -642,7 +642,7 @@ function renderEvents(){
      that just started) gets a friendly line, never a sad empty rail;
      a sparse year gets the same spirit as a tail note (batch #5). */
   list.innerHTML = items.length ? items.map((e,i) =>
-    `<div class="ev-card" data-i="${i}" role="button" tabindex="0"><div class="card-media"><img data-wiki="${e.t.replace(/"/g,'&quot;')}" data-fb="${exTab}" alt=""></div><div class="card-body"><div class="et">${e.t}</div><div class="ed">${e.d}</div><div class="go">The full story ›</div></div></div>`).join('')
+    `<div class="ev-card" data-i="${i}" role="button" tabindex="0"><div class="card-media"><img data-wiki="${e.t.replace(/"/g,'&quot;')}"${e.i ? ` data-pi="${e.i}"` : ""} data-fb="${exTab}" alt=""></div><div class="card-body"><div class="et">${e.t}</div><div class="ed">${e.d}</div><div class="go">The full story ›</div></div></div>`).join('')
     + (items.length < 5 ? '<div class="empty">This year is still being written — check back as it unfolds.</div>' : '')
     : '<div class="empty">A fresh new year — hopefully a good one. Nothing historical yet; this page is still being written.</div>';
   hydrateImages(list);
@@ -656,17 +656,109 @@ function renderEvents(){
 
 /* ---------- wikipedia thumbnails for cards (same source as the deep-dive) ---------- */
 const wikiImgCache = new Map();
-/* Card images, resolved through a chain so a card is never left blank:
-   hand-picked overrides → the best of several Wikipedia matches (first page
-   that actually has a photo) → the pageimages API → a Wikimedia Commons
-   photo search → a category fallback photo (Blue Marble / Capitol / fox /
-   thylacine, all verified live). */
-const FALLBACK_IMG = {
-  world: 'https://thumb.wikimedia.org/wikipedia/commons/thumb/9/97/The_Earth_seen_from_Apollo_17.jpg/960px-The_Earth_seen_from_Apollo_17.jpg',
-  us: 'https://thumb.wikimedia.org/wikipedia/commons/thumb/5/5a/US_Capitol_dome_Jan_2006.jpg/960px-US_Capitol_dome_Jan_2006.jpg',
-  found: 'https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c4/Red_Fox_drinking_from_a_lake_in_Gennevilliers%2C_France.jpg/960px-Red_Fox_drinking_from_a_lake_in_Gennevilliers%2C_France.jpg',
-  lost: 'https://thumb.wikimedia.org/wikipedia/commons/thumb/0/07/Thylacinus_cynocephalus_at_Hobart_Zoo_1928.jpg/960px-Thylacinus_cynocephalus_at_Hobart_Zoo_1928.jpg',
+/* Card images (batch #6 rework). Order: a PRECOMPUTED subject photo
+   baked into data.js as YV_IMGS (resolved offline with a deep
+   Wikipedia/Wikidata/Commons search per card) → the live lookup chain
+   below (backstop for anything unprecomputed) → a TOPICAL pool photo
+   (generic scene matching the card's subject matter, never repeated
+   inside one rail) → no image at all (the media box collapses; a
+   text-only card beats a wrong photo). The old single shared fallback
+   per rail (Blue Marble for every world card) is GONE: it existed
+   because the live chain bursts ~20 multi-call lookups per render,
+   Wikipedia throttles the burst, and every failure landed on it. */
+/* Precomputed photos attach to their cards at boot ("@" in data.js
+   expands to the shared Wikimedia upload prefix). */
+const YV_WIKI_PREFIX = 'https://upload.wikimedia.org/wikipedia/commons/';
+if (typeof YV_IMGS !== 'undefined'){
+  const un = v => v && v[0] === '@' ? YV_WIKI_PREFIX + v.slice(1) : v;
+  for (const y of Object.keys(YV_EVENTS)) for (const side of ['world', 'us'])
+    (YV_EVENTS[y][side] || []).forEach((e, i) => { const u = YV_IMGS[y + '|' + side + '|' + i]; if (u) e.i = un(u); });
+  for (const kind of ['found', 'lost'])
+    (YV_WILD[kind] || []).forEach(w => { const u = YV_IMGS[kind + '|' + w.n]; if (u) w.i = un(u); });
+}
+/* Topical pool — generic, license-clean Commons scenes (no specific
+   person or event, so a pool photo can set a mood but never mislead).
+   Three per topic; poolPick walks them so a rail never repeats one. */
+const YV_POOL = {
+  "space": ["https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d6/STS120LaunchHiRes-edit1.jpg/960px-STS120LaunchHiRes-edit1.jpg",
+    "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/37/STS-135_final_flyaround_of_ISS_1.jpg/960px-STS-135_final_flyaround_of_ISS_1.jpg",
+    "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/41/Space_Shuttle_Columbia_launching.jpg/960px-Space_Shuttle_Columbia_launching.jpg"],
+  "disaster": ["https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c2/Port_and_lighthouse_overnight_storm_with_lightning_in_Port-la-Nouvelle.jpg/960px-Port_and_lighthouse_overnight_storm_with_lightning_in_Port-la-Nouvelle.jpg",
+    "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/00/Lava_flowing_from_the_Murara_volcano.jpg/960px-Lava_flowing_from_the_Murara_volcano.jpg",
+    "https://thumb.wikimedia.org/wikipedia/commons/thumb/8/83/Lightning_in_Dallas_2015.jpg/960px-Lightning_in_Dallas_2015.jpg"],
+  "war": ["https://thumb.wikimedia.org/wikipedia/commons/thumb/1/18/Penge_War_Memorial_%28Knitted_Poppies_-_01%29.jpg/960px-Penge_War_Memorial_%28Knitted_Poppies_-_01%29.jpg",
+    "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/9a/US_Navy_050420-N-0000X-002_An_aerial_bow_view_of_the_conventionally-powered_aircraft_carrier_USS_America_%28CV_66%29.jpg/960px-US_Navy_050420-N-0000X-002_An_aerial_bow_view_of_the_conventionally-powered_aircraft_carrier_USS_America_%28CV_66%29.jpg",
+    "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/fd/Peterstow_war_memorial_and_poppies_-_geograph.org.uk_-_2482240.jpg/960px-Peterstow_war_memorial_and_poppies_-_geograph.org.uk_-_2482240.jpg"],
+  "sport": ["https://thumb.wikimedia.org/wikipedia/commons/thumb/6/6b/Floodlights_at_the_Olympic_Stadium_%287738548688%29.jpg/960px-Floodlights_at_the_Olympic_Stadium_%287738548688%29.jpg",
+    "https://thumb.wikimedia.org/wikipedia/commons/thumb/8/82/Olympic_Stadium_%287724386874%29.jpg/960px-Olympic_Stadium_%287724386874%29.jpg",
+    "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/9e/Looking_across_the_Shrouds_of_the_Somme_at_floodlights_next_to_the_London_Stadium_-_geograph.org.uk_-_5979220.jpg/960px-Looking_across_the_Shrouds_of_the_Somme_at_floodlights_next_to_the_London_Stadium_-_geograph.org.uk_-_5979220.jpg"],
+  "music": ["https://thumb.wikimedia.org/wikipedia/commons/thumb/8/85/Beach-Please-2022-crowd-stage-lights-night-performance.jpg/960px-Beach-Please-2022-crowd-stage-lights-night-performance.jpg",
+    "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d9/Live_rock_concert_featuring_musicians_playing_electric_guitars_on_stage_at_night_with_vibrant_lights_and_an_enthusiastic_crowd_present.jpg/960px-Live_rock_concert_featuring_musicians_playing_electric_guitars_on_stage_at_night_with_vibrant_lights_and_an_enthusiastic_crowd_present.jpg",
+    "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/1a/A_large_crowd_enjoys_a_music_concert_illuminated_by_colorful_lights_and_a_stunning_stage_display.jpg/960px-A_large_crowd_enjoys_a_music_concert_illuminated_by_colorful_lights_and_a_stunning_stage_display.jpg"],
+  "film": ["https://thumb.wikimedia.org/wikipedia/commons/thumb/6/67/Luxury_Movie_Theater_Seats.jpg/960px-Luxury_Movie_Theater_Seats.jpg",
+    "https://thumb.wikimedia.org/wikipedia/commons/thumb/6/6e/Filming_of_Chicago_Fire_by_the_Chicago_River.jpg/960px-Filming_of_Chicago_Fire_by_the_Chicago_River.jpg",
+    "https://thumb.wikimedia.org/wikipedia/commons/thumb/6/6c/QTQ9_Sony_studio_camera_with_Canon_lense_20110815.jpg/960px-QTQ9_Sony_studio_camera_with_Canon_lense_20110815.jpg"],
+  "tech": ["https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c4/Macro_circuit_board.JPG/960px-Macro_circuit_board.JPG",
+    "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/13/Circuit_Board_%28260854457%29.jpeg/960px-Circuit_Board_%28260854457%29.jpeg",
+    "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/43/Green_circuit_board_II_%282389301870%29.jpg/960px-Green_circuit_board_II_%282389301870%29.jpg"],
+  "science": ["https://thumb.wikimedia.org/wikipedia/commons/thumb/9/90/Custer_Astronomical_Observatory_-_Southold_New_York_USA_-_Dome_and_Radio_Telescope.jpg/960px-Custer_Astronomical_Observatory_-_Southold_New_York_USA_-_Dome_and_Radio_Telescope.jpg",
+    "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c5/Maiasaura_in_Smithsonian_Dinosaur_Hall.jpg/960px-Maiasaura_in_Smithsonian_Dinosaur_Hall.jpg",
+    "https://thumb.wikimedia.org/wikipedia/commons/thumb/8/8d/Laboratory_equipment_of_modern_chemistry_classroom.jpg/960px-Laboratory_equipment_of_modern_chemistry_classroom.jpg"],
+  "ocean": ["https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f6/Waves_of_Luputhana_11.jpg/960px-Waves_of_Luputhana_11.jpg",
+    "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/9c/Elkhorn_Coral_with_a_Yellowtail_Damselfish_in_the_Caribbean_Sea_in_Cura%C3%A7ao.jpg/960px-Elkhorn_Coral_with_a_Yellowtail_Damselfish_in_the_Caribbean_Sea_in_Cura%C3%A7ao.jpg",
+    "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/dc/Wave_Crashing_Over_Rocks_-_Iceland.jpg/960px-Wave_Crashing_Over_Rocks_-_Iceland.jpg"],
+  "nature": ["https://thumb.wikimedia.org/wikipedia/commons/thumb/5/5a/Mountains_in_snow%2C_Mountain_lake%2C_Chola_Valley%2C_Nepal%2C_Himalayas.jpg/960px-Mountains_in_snow%2C_Mountain_lake%2C_Chola_Valley%2C_Nepal%2C_Himalayas.jpg",
+    "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/9a/Dappled_sunlight%2C_Chingford_Mount_Road%2C_Waltham_Forest%2C_England.jpg/960px-Dappled_sunlight%2C_Chingford_Mount_Road%2C_Waltham_Forest%2C_England.jpg",
+    "https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b4/Kokkozka_Valley%2C_Belbek_Valley%2C_Crimean_Mountains%2C_Crimea.jpg/960px-Kokkozka_Valley%2C_Belbek_Valley%2C_Crimean_Mountains%2C_Crimea.jpg"],
+  "politics": ["https://thumb.wikimedia.org/wikipedia/commons/thumb/6/63/Parlament_Wien_abends.jpg/960px-Parlament_Wien_abends.jpg",
+    "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/24/Australian_House_of_Representatives_-_Parliament_of_Australia.jpg/960px-Australian_House_of_Representatives_-_Parliament_of_Australia.jpg",
+    "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/45/British_Columbia_Parliament_Building_in_Victoria%2C_British_Columbia%2C_Canada_07.jpg/960px-British_Columbia_Parliament_Building_in_Victoria%2C_British_Columbia%2C_Canada_07.jpg"],
+  "money": ["https://thumb.wikimedia.org/wikipedia/commons/thumb/9/94/Standard_Stock_and_Mining_Exchange_trading_floor%2C_Toronto.png/960px-Standard_Stock_and_Mining_Exchange_trading_floor%2C_Toronto.png",
+    "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/9d/Frankfurt_Stock_Exchange_%28Ank_Kumar%29_03.jpg/960px-Frankfurt_Stock_Exchange_%28Ank_Kumar%29_03.jpg",
+    "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/52/Aerial_photograph_of_the_Port_of_Miami_Container_Port.jpg/960px-Aerial_photograph_of_the_Port_of_Miami_Container_Port.jpg"],
+  "city": ["https://thumb.wikimedia.org/wikipedia/commons/thumb/5/5c/Sydney_skyline_at_dusk_-_Dec_2008.jpg/960px-Sydney_skyline_at_dusk_-_Dec_2008.jpg",
+    "https://thumb.wikimedia.org/wikipedia/commons/thumb/8/8b/Price_Building_illuminated_at_night_in_Quebec_City.jpg/960px-Price_Building_illuminated_at_night_in_Quebec_City.jpg",
+    "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/72/Ch%C3%A2teau_Frontenac_city_at_night.jpg/960px-Ch%C3%A2teau_Frontenac_city_at_night.jpg"],
+  "misc": ["https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d2/Hot_air_balloon_and_moon.jpg/960px-Hot_air_balloon_and_moon.jpg",
+    "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/50/Grand_Reading_Room.jpg/960px-Grand_Reading_Room.jpg",
+    "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/23/Multicolored_aurora_borealis_pillar_over_Brastad.jpg/960px-Multicolored_aurora_borealis_pillar_over_Brastad.jpg"],
 };
+/* ordered: first match wins; tested against title + description text */
+const YV_TOPIC_RULES = [
+  ['space', /\b(nasa|space|orbit|moon|mars|rocket|astronaut|satellite|planet|comet|asteroid|eclipse|telescope|apollo|shuttle|lunar|solar wind|galaxy|venus|jupiter|saturn|spacecraft|cosmos)\b/],
+  ['disaster', /\b(earthquake|hurricane|flood|wildfire|volcano|eruption|tornado|tsunami|drought|landslide|avalanche|storm|disaster|explosion|crash|collapse|sinking|sank)\b/],
+  ['war', /\b(war|battle|army|soldier|invasion|troops|military|bomb|siege|rebel|missile|tank|navy|naval|air force|guerrilla|offensive|ceasefire)\b/],
+  ['sport', /\b(olympics|olympic|world cup|championship|super bowl|world series|nba|nfl|fifa|tournament|gold medal|grand prix|boxing|wrestler|wrestling|tennis|wimbledon|golf|marathon|hockey|baseball|football|soccer|basketball|skating|cyclist|race|racing)\b/],
+  ['music', /\b(album|song|singer|band|concert|musician|rapper|rock star|grammy|tour|records|chart|billboard|orchestra|symphony|opera)\b/],
+  ['film', /\b(film|movie|actor|actress|director|oscar|cinema|hollywood|box office|cartoon|disney|anime|television|tv show|sitcom|broadcast|netflix|series finale)\b/],
+  ['tech', /\b(computer|internet|software|microsoft|google|phone|robot|artificial intelligence|video game|console|semiconductor|iphone|android|silicon|website|dot-com|e-mail|email)\b/],
+  ['science', /\b(vaccine|virus|disease|cancer|dna|gene|genome|climate|fossil|dinosaur|evolution|particle|physics|chemistry|nobel|transplant|surgery|pandemic|epidemic|clone|embryo|scientists|researchers)\b/],
+  ['ocean', /\b(ocean|sea|ship|sail|sailing|whale|coral|island|submarine|coast|beach|fishery|harbour|harbor|port)\b/],
+  ['nature', /\b(forest|desert|mountain|river|lake|glacier|species|animal|bird|elephant|bear|wolf|tiger|lion|panda|penguin|shark|national park|conservation|endangered|waterfall|valley)\b/],
+  ['politics', /\b(election|president|parliament|congress|senate|vote|voters|minister|government|coup|treaty|summit|chancellor|queen|king|royal|pope|vatican|protest|referendum|independence|constitution|court|prime minister)\b/],
+  ['money', /\b(economy|economic|stock|market crash|bank|inflation|recession|oil|gold|trade|tariff|unemployment|merger|factory|billion|debt|bankruptcy)\b/],
+  ['city', /\b(city|subway|skyscraper|bridge|museum|university|festival|parade|strike|riot|census|population|prison|trial|murder|crime)\b/],
+];
+function topicFor(img){
+  const card = img.closest('.ev-card, .sp-card');
+  const text = ((card ? card.textContent : '') + ' ' + (img.dataset.wiki || '')).toLowerCase();
+  for (const [topic, re] of YV_TOPIC_RULES) if (re.test(text)) return topic;
+  return (img.dataset.fb === 'found' || img.dataset.fb === 'lost') ? 'nature' : 'misc';
+}
+function railScope(img){
+  return img.closest('#eventList, #wildFound, #wildLost') || img.closest('section') || document.body;
+}
+function poolPick(img, used){
+  const topic = topicFor(img);
+  const cands = (YV_POOL[topic] || []).concat(topic === 'misc' ? [] : YV_POOL.misc);
+  const seedStr = img.dataset.wiki || '';
+  let h = 0; for (let i = 0; i < seedStr.length; i++) h = (Math.imul(h, 31) + seedStr.charCodeAt(i)) >>> 0;
+  for (let k = 0; k < cands.length; k++){
+    const u = cands[(h + k) % cands.length];
+    if (!used.has(u)){ used.add(u); return u; }
+  }
+  return null;
+}
 const YV_IMG_OVERRIDES = {
   /* 'Vampire hedgehog' is Hylomys macarong (Dalat gymnure, described
      2023). Verified Oct 2026: NO freely licensed photo of the species
@@ -737,7 +829,7 @@ const thumbObserver = makeThumbObserver('1600px');
 const wildObserver = makeThumbObserver('1200px');
 function warmAhead(items){
   (items || []).forEach((e, i) => {
-    const p = wikiImage(e.t);
+    const p = e.i ? Promise.resolve(e.i) : wikiImage(e.t);
     if (i < 6) p.then(u => { if (u){ const im = new Image(); im.src = u; } });
   });
 }
@@ -796,19 +888,33 @@ function paintMediaBg(img){
 async function loadThumb(img){
   if (img.dataset.started) return;
   img.dataset.started = '1';
-  let src = await wikiImage(img.dataset.wiki);
-  if (!src) src = FALLBACK_IMG[img.dataset.fb] || null;
-  if (src){
-    img.onerror = () => { const fb = FALLBACK_IMG[img.dataset.fb]; if (fb && img.src !== fb) img.src = fb; };
-    img.addEventListener('load', () => { img.classList.add('ld'); paintMediaBg(img); });
-    img.src = src;
-    if (img.complete && img.naturalWidth){ img.classList.add('ld'); paintMediaBg(img); }
-    const card = img.closest('.ev-card, .sp-card');
-    if (card) card.classList.add('has-img');
-  }
+  const scope = railScope(img);
+  const used = scope._usedImgs || (scope._usedImgs = new Set());
+  /* stage 1: the precomputed subject photo; stage 2: the live chain;
+     stage 3: a topical pool photo. A URL already used in this rail is
+     demoted at every stage — no image ever repeats inside one rail. */
+  let src = img.dataset.pi || null;
+  if (src && used.has(src)) src = null;
+  if (!src) src = await wikiImage(img.dataset.wiki);
+  if (src && used.has(src)) src = null;
+  if (!src) src = poolPick(img, used);
+  if (!src){ img.remove(); return; }   /* text-only card beats a wrong photo */
+  used.add(src);
+  img.onerror = () => {
+    if (!img.isConnected) return;
+    const alt = poolPick(img, used);
+    if (alt && img.src !== alt) img.src = alt;
+    else img.remove();
+  };
+  img.addEventListener('load', () => { img.classList.add('ld'); paintMediaBg(img); });
+  img.src = src;
+  if (img.complete && img.naturalWidth){ img.classList.add('ld'); paintMediaBg(img); }
+  const card = img.closest('.ev-card, .sp-card');
+  if (card) card.classList.add('has-img');
 }
 function hydrateImages(scope, obs){
   const o = obs || thumbObserver;
+  scope._usedImgs = new Set();   /* fresh rail render → fresh uniqueness set */
   scope.querySelectorAll('img[data-wiki]').forEach(img => {
     if (o) o.observe(img); else loadThumb(img);
   });
@@ -896,7 +1002,7 @@ function closeDive(){
 /* ---------- fellow earthlings ---------- */
 function spCard(w, kind, i){
   return `<div class="sp-card" data-kind="${kind}" data-i="${i}" role="button" tabindex="0">` +
-    `<div class="card-media"><img data-wiki="${w.n.replace(/"/g,'&quot;')}" data-fb="${kind}" alt=""></div><div class="card-body">` +
+    `<div class="card-media"><img data-wiki="${w.n.replace(/"/g,'&quot;')}"${w.i ? ` data-pi="${w.i}"` : ""} data-fb="${kind}" alt=""></div><div class="card-body">` +
     `<div class="sp-main"><span class="sp-name">${w.n}</span><span class="sp-year">${w.y}</span></div>` +
     `<div class="sp-note">${w.d}</div><div class="go">Photos + full story ›</div></div></div>`;
 }
