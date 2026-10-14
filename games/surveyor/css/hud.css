@@ -781,7 +781,7 @@ body.ready #hud { opacity: 1; }
   position: absolute;
   inset: 0;
   z-index: -1;
-  background: #070c0f url("../assets/ui/start.webp") center / cover no-repeat;
+  background: #070c0f url("https://dexcimino-media.b-cdn.net/games/surveyor/assets/ui/start.webp") center / cover no-repeat;
   transition: opacity 900ms ease;
 }
 
