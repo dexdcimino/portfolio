@@ -414,7 +414,7 @@ function createAudio() {
   };
 
   /* ---- music: Juhani Junkala's 5 Action Chiptunes (CC0 — see
-   * assets/audio/CREDITS.md) ----
+   * https://dexcimino-media.b-cdn.net/assets/audio/CREDITS.md) ----
    * ALL FIVE of the pack now, not just the Title Screen, with a picker under
    * the playfield. They are the same five files the author released together,
    * so the set is coherent by construction rather than assembled.
@@ -427,11 +427,11 @@ function createAudio() {
    * other three, and the cold page still costs nothing. Pause is
    * ctx.suspend(): the whole toy goes quiet and resumes mid-note. */
   const TRACKS = [
-    { file: 'assets/audio/breakout-loop.mp3',   name: 'Title Screen' },
-    { file: 'assets/audio/breakout-level1.mp3', name: 'Level 1' },
-    { file: 'assets/audio/breakout-level2.mp3', name: 'Level 2' },
-    { file: 'assets/audio/breakout-level3.mp3', name: 'Level 3' },
-    { file: 'assets/audio/breakout-ending.mp3', name: 'Ending' },
+    { file: 'https://dexcimino-media.b-cdn.net/assets/audio/breakout-loop.mp3',   name: 'Title Screen' },
+    { file: 'https://dexcimino-media.b-cdn.net/assets/audio/breakout-level1.mp3', name: 'Level 1' },
+    { file: 'https://dexcimino-media.b-cdn.net/assets/audio/breakout-level2.mp3', name: 'Level 2' },
+    { file: 'https://dexcimino-media.b-cdn.net/assets/audio/breakout-level3.mp3', name: 'Level 3' },
+    { file: 'https://dexcimino-media.b-cdn.net/assets/audio/breakout-ending.mp3', name: 'Ending' },
   ];
   const TRACK_KEY = 'about-breakout-track';
   /* file -> PROMISE of a decoded buffer, not the buffer. Caching the result
