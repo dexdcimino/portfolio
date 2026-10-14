@@ -31,14 +31,15 @@ html{scrollbar-width:none; -ms-overflow-style:none}
 .ghost-btn{background:none; border:1px solid var(--line); color:var(--muted); border-radius:999px; padding:8px 15px; font-size:14px; cursor:pointer}
 .ghost-btn:active{transform:scale(.97)}
 
-main{flex:1; min-height:0; overflow-y:auto; overflow-x:hidden; width:100%; max-width:1120px; margin:0 auto; padding:0 16px; touch-action:pan-y}
-/* In the journey the transform pager owns all vertical movement — main
-   itself never scrolls, so no nested scroller can trap a swipe. */
-html.journey main{overflow:hidden}
+/* main NEVER scrolls: the entry is built to fit one fixed screen, and in
+   the journey the transform pager owns all vertical movement — a native
+   main scroller only ever let the entry page drift and trap content. */
+main{flex:1; min-height:0; overflow:hidden; width:100%; max-width:1120px; margin:0 auto; padding:0 16px}
 
 /* ---------- entry: one screen, no scroll; display up top, controls in the bottom half ---------- */
-.entry{height:100%; display:flex; flex-direction:column; max-width:520px; margin:0 auto;
-  padding:18px 4px 16px; overflow:hidden}
+.entry{height:100%; display:flex; flex-direction:column; justify-content:space-between;
+  max-width:520px; margin:0 auto; gap:10px;
+  padding:16px 4px calc(14px + env(safe-area-inset-bottom)); overflow:hidden}
 .entry-head{text-align:center}
 .entry-icon{width:64px; height:64px; border-radius:50%}  /* the logo art is a circle on black — mask circular so no black corners show */
 .entry-head h1{font-size:24px; line-height:1.25; margin:12px 0 8px}
@@ -46,7 +47,7 @@ html.journey main{overflow:hidden}
 .entry-sub{color:var(--muted); font-size:16px; line-height:1.5; margin:0}
 .dob-readout{margin:16px 0 0; font-size:19px; color:var(--muted)}
 .dob-readout b{color:var(--accent); font-size:21px}
-.entry-controls{margin-top:auto; display:flex; flex-direction:column; gap:13px}
+.entry-controls{display:flex; flex-direction:column; gap:12px}
 .field{display:block; text-align:left}
 .field > span{display:block; font-size:14.5px; color:var(--muted); margin-bottom:7px; font-weight:600}
 .field small{opacity:.75}
@@ -72,7 +73,8 @@ html.journey main{overflow:hidden}
 .sel-btn.set .sel-val{color:var(--accent)}
 
 /* picker panel (swaps in place above the CTA — the page never scrolls) */
-.dob-picker{background:#0a1120; border:1px solid var(--line); border-radius:16px; padding:12px; margin-top:10px}
+.dob-picker{background:#0a1120; border:1px solid var(--line); border-radius:16px; padding:12px; margin-top:10px;
+  max-height:42svh; overflow-y:auto}
 .dp-title{font-size:15px; color:var(--muted); margin:2px 0 9px; font-weight:700; text-align:left}
 .dp-grid{display:grid; gap:8px}
 .dp-grid.cols2{grid-template-columns:repeat(2,1fr)}
@@ -112,7 +114,7 @@ html.journey main{overflow:hidden}
    their own native pan-x (see .carousel/.hpages touch-action). ---------- */
 #storyView{position:relative; height:100%; overflow:hidden; touch-action:none}
 .scene{position:absolute; inset:0; height:100%; min-height:0;
-  display:flex; flex-direction:column; padding:20px 2px 12px; overflow:hidden}
+  display:flex; flex-direction:column; padding:20px 2px calc(12px + env(safe-area-inset-bottom)); overflow:hidden}
 #storyView.anim .scene{transition:transform .48s cubic-bezier(.22,.8,.26,1)}
 .scene.far{visibility:hidden}
 .rv{opacity:0; transform:translateY(24px); transition:opacity .65s ease, transform .65s cubic-bezier(.2,.7,.2,1);
@@ -134,26 +136,34 @@ html.journey main{overflow:hidden}
 .dotnav button.active::before{opacity:1; transform:none}
 @media(max-width:520px){.dotnav{right:5px; gap:10px}.dotnav button::before{display:none}}
 
-/* ---------- hero ---------- */
-.hero{text-align:center; align-items:center; justify-content:center}
-.hero-avatar{width:92px; height:92px; border-radius:50%; margin-bottom:20px;
+/* ---------- hero (page one: hero + chapter zero, consolidated) ---------- */
+.hero{text-align:center; align-items:center; justify-content:flex-start; padding-bottom:calc(56px + env(safe-area-inset-bottom))}
+.hero-avatar{width:56px; height:56px; border-radius:50%; margin-bottom:10px;
   box-shadow:0 12px 44px rgba(53,224,200,.22); animation:floaty 5.5s ease-in-out infinite}
 @keyframes floaty{0%,100%{transform:translateY(0) rotate(-1.2deg)}50%{transform:translateY(-9px) rotate(1.2deg)}}
 .hero-kicker{color:var(--accent); font-weight:800; letter-spacing:2.5px; text-transform:uppercase; font-size:13px; margin:0}
-.hero-seconds{font-size:clamp(42px,10.8vw,100px); font-weight:900; font-variant-numeric:tabular-nums; line-height:1.02; margin-top:8px; max-width:100%}
-.hero-seclabel{font-size:16px; font-weight:700; letter-spacing:2.5px; text-transform:uppercase; color:var(--soft); margin:7px 0 0}
-.hero-line{color:var(--muted); font-size:17px; margin:18px auto 0; max-width:540px; line-height:1.55}
+.hero-seconds{font-size:clamp(38px,9.8vw,100px); font-weight:900; font-variant-numeric:tabular-nums; line-height:1.02; margin-top:4px; max-width:100%}
+.hero-seclabel{font-size:14.5px; font-weight:700; letter-spacing:2px; text-transform:uppercase; color:var(--soft); margin:4px 0 0}
+.hero-line{color:var(--muted); font-size:16px; margin:9px auto 0; max-width:540px; line-height:1.45}
 .hero-line b{color:var(--text)}
-.hero-trio{display:flex; justify-content:center; align-items:stretch; margin:30px auto 0; max-width:840px; width:100%}
-.hstat{flex:1; padding:4px 12px; display:flex; flex-direction:column}
+.hero-trio{display:flex; justify-content:center; align-items:stretch; margin:12px auto 0; max-width:840px; width:100%}
+.hstat{flex:1; padding:4px 8px; display:flex; flex-direction:column}
 .hstat + .hstat{border-left:1px solid var(--line)}
 .hs-num{display:block; font-size:clamp(23px,5.4vw,38px); font-weight:850; font-variant-numeric:tabular-nums; line-height:1.12}
-.hs-label{display:block; color:var(--soft); font-size:14px; font-weight:700; letter-spacing:1.3px;
-  text-transform:uppercase; margin-top:7px; line-height:1.45}
-.scroll-cue{position:absolute; bottom:16px; left:0; right:0; color:var(--muted); font-size:12.5px; font-weight:700;
-  letter-spacing:2px; text-transform:uppercase; display:flex; flex-direction:column; align-items:center; gap:2px}
-.scroll-cue span{font-size:19px; animation:cueDrop 1.8s ease-in-out infinite}
+.hs-label{display:block; color:var(--soft); font-size:14px; font-weight:700; letter-spacing:1px;
+  text-transform:uppercase; margin-top:6px; line-height:1.4}
+.scroll-cue{position:absolute; bottom:12px; left:0; right:0; color:var(--muted); font-size:11.5px; font-weight:700;
+  letter-spacing:2px; text-transform:uppercase; display:flex; flex-direction:column; align-items:center; gap:0; line-height:1.3}
+.scroll-cue span{font-size:15px; line-height:1.15; animation:cueDrop 1.8s ease-in-out infinite}
 @keyframes cueDrop{0%,100%{transform:translateY(0); opacity:.5}50%{transform:translateY(6px); opacity:1}}
+/* chapter zero, squeezed onto page one under the hero stats */
+.hero-first{width:100%; max-width:660px; margin:auto auto 0; text-align:left;
+  border-top:1px solid var(--line); padding-top:8px}
+.fd-kicker{color:var(--accent); font-weight:800; letter-spacing:2.2px; text-transform:uppercase;
+  font-size:12px; margin:0 0 5px; text-align:center}
+.hero .firstday{font-size:14.8px; line-height:1.42; margin:0 auto}
+.hero .fd-count{font-size:16.5px; margin-bottom:6px; line-height:1.35}
+.hero .gen-line{font-size:17px; margin-top:7px; line-height:1.38}
 
 /* ---------- chapter scaffolding ---------- */
 .ch-kicker{color:var(--accent); font-weight:800; letter-spacing:2.5px; text-transform:uppercase; font-size:12.5px; margin:0 0 7px}
@@ -172,7 +182,7 @@ html.journey main{overflow:hidden}
 .srow{flex:1; min-height:0; overflow:hidden; background:var(--panel); border:1px solid var(--line);
   border-radius:var(--radius); padding:12px 18px; display:flex; align-items:center; gap:18px}
 .srow .s-left{flex:none; width:150px; min-width:0; text-align:center}
-.srow .num{font-size:31px; font-weight:900; font-variant-numeric:tabular-nums; line-height:1.05; white-space:nowrap}
+.srow .num{font-size:31px; font-weight:900; font-variant-numeric:tabular-nums; line-height:1.05; white-space:normal; overflow-wrap:anywhere}
 .srow .lbl{color:var(--accent); font-weight:800; margin-top:5px; font-size:19px; line-height:1.25;
   display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden}
 .srow .sub{color:var(--soft); font-size:16px; line-height:1.5; min-width:0}
@@ -249,17 +259,18 @@ html.journey main{overflow:hidden}
 .chips{display:flex; flex-wrap:nowrap; gap:8px; overflow-x:auto; padding-bottom:2px; touch-action:pan-x}
 .chip{border:1px solid var(--line); background:#0a1120; color:var(--muted); border-radius:999px; padding:9px 15px; font-size:14px; cursor:pointer; flex:none}
 .chip.active{color:#04241f; background:var(--accent); border-color:var(--accent); font-weight:800}
-.year-center{text-align:center; margin:10px 0 6px}
-.year-big{font-size:clamp(54px,14vw,88px); font-weight:900; line-height:1; font-variant-numeric:tabular-nums}
-.year-center.warp .year-big{animation:yearWarp .45s cubic-bezier(.2,.8,.3,1)}
+.year-center{text-align:center; margin:2px 0 2px}
+.year-age{color:var(--accent); font-weight:700; font-size:17.5px}
+/* the very bottom row: the age itself, flanked by its down/up arrows */
+.age-row{display:flex; align-items:center; gap:10px}
+.year-big{flex:1; text-align:center; font-size:clamp(42px,11.5vw,60px); font-weight:900; line-height:1; font-variant-numeric:tabular-nums}
+.year-big.warp{animation:yearWarp .45s cubic-bezier(.2,.8,.3,1)}
 @keyframes yearWarp{0%{transform:scale(1.07); filter:blur(2px); opacity:.55}100%{transform:scale(1); filter:blur(0); opacity:1}}
-.year-age{color:var(--accent); font-weight:700; margin-top:8px; font-size:17.5px}
-.year-controls{display:flex; align-items:center; gap:12px}
-.nav-arrow{width:54px; height:54px; border-radius:50%; border:1px solid var(--line); background:#0a1120;
-  color:var(--text); font-size:31px; line-height:1; cursor:pointer; flex:none}
+.nav-arrow{width:52px; height:52px; border-radius:50%; border:1px solid var(--line); background:#0a1120;
+  color:var(--text); font-size:19px; line-height:1; cursor:pointer; flex:none}
 .nav-arrow:active{transform:scale(.94)}
 .nav-arrow:disabled{opacity:.3}
-#yearSlider{flex:1; accent-color:var(--accent); height:34px}
+#yearSlider{width:100%; accent-color:var(--accent); height:30px; display:block; margin:0}
 
 /* ---------- first day ---------- */
 .firstday{font-size:16.5px; line-height:1.65; color:var(--soft); max-width:660px}
@@ -305,7 +316,6 @@ html.journey main{overflow:hidden}
 @media(max-height:700px){
   .scene{padding-top:16px}
   .scene h3{font-size:28px}
-  .year-big{font-size:52px}
   .hero-avatar{width:72px; height:72px}
 }
 @media(prefers-reduced-motion:reduce){
@@ -338,7 +348,7 @@ html.journey main{overflow:hidden}
    the chapter and never clipped. Verified by measurement at
    390x844 / 390x740 / 360x670. */
 @media(max-height:760px){
-  .scene{padding-top:14px; padding-bottom:10px}
+  .scene{padding-top:14px; padding-bottom:calc(10px + env(safe-area-inset-bottom))}
   .stats{gap:7px}
   .srow{padding:9px 14px; gap:13px}
   .pagedots{padding-top:7px}
@@ -350,9 +360,29 @@ html.journey main{overflow:hidden}
   .firstday{font-size:15.5px; line-height:1.58}
   .ch-sub{margin-bottom:12px}
   .foot{margin-top:24px}
+  /* hero: page one now carries chapter zero too — condense for 1.15 scale */
+  .hero-avatar{width:38px; height:38px; margin-bottom:5px}
+  .hero-kicker{font-size:13px; margin-bottom:4px}
+  .hero-seconds{font-size:34px; margin-top:2px}
+  .hero-seclabel{font-size:14px; margin-top:4px}
+  .hero-line{font-size:15px; line-height:1.31; margin-top:8px}
+  .hero-trio{margin-top:9px}
+  .hs-num{font-size:20px}
+  .hs-label{font-size:12.5px}
+  .hero{padding-bottom:calc(48px + env(safe-area-inset-bottom))}
+  .hero-first{padding-top:6px}
+  .fd-kicker{font-size:11.5px; margin-bottom:3px}
+  .hero .firstday{font-size:13px; line-height:1.34}
+  .hero .fd-count{font-size:15.5px; margin-bottom:4px; line-height:1.27}
+  .hero .gen-line{font-size:16px; margin-top:5px; line-height:1.27}
+  .scroll-cue{bottom:8px; font-size:11.5px; line-height:1.3; gap:0}
+  .scroll-cue span{font-size:15px; line-height:1.15}
+  /* poster: the centered column must not spill top/bottom at 1.15 scale */
+  .poster-explain{font-size:15px; line-height:1.5}
+  .poster-sec .foot{font-size:13px; line-height:1.5; margin-top:16px}
 }
 @media(max-height:690px){
-  .scene{padding-top:10px; padding-bottom:8px}
+  .scene{padding-top:10px; padding-bottom:calc(8px + env(safe-area-inset-bottom))}
   .scene h3{font-size:26px}
   .ch-kicker{margin-bottom:4px; font-size:11.5px}
   .stats{gap:6px}
@@ -370,9 +400,9 @@ html.journey main{overflow:hidden}
   .ev-card .et, .sp-name{font-size:16px}
   .ev-card .ed{-webkit-line-clamp:3; font-size:14px}
   .sp-note{-webkit-line-clamp:4; font-size:14px}
-  .year-big{font-size:46px}
-  .year-center{margin:4px 0 2px}
-  .year-age{font-size:16px; margin-top:5px}
+  .age-row .year-big{font-size:40px}
+  .year-center{margin:2px 0}
+  .year-age{font-size:16px}
   .chip{padding:7px 13px}
   .tab{padding:10px}
   .stab{padding:11px 6px}
@@ -385,4 +415,142 @@ html.journey main{overflow:hidden}
   .gen-line{font-size:18.5px; margin-top:12px}
   .foot{font-size:13.5px; margin-top:16px; line-height:1.5}
   .poster-explain{font-size:15px}
+  /* hero, tighter (641–690px at 1.15 font scale) */
+  .hero-avatar{width:36px; height:36px; margin-bottom:5px}
+  .hero-kicker{font-size:12.5px; margin-bottom:4px}
+  .hero-seconds{font-size:32px; margin-top:2px}
+  .hero-seclabel{font-size:13.5px; margin-top:4px}
+  .hero-line{font-size:14.5px; line-height:1.34; margin-top:8px}
+  .hero-trio{margin-top:9px}
+  .hs-num{font-size:20px}
+  .hs-label{font-size:12px; margin-top:3px}
+  .hero{padding-bottom:calc(48px + env(safe-area-inset-bottom))}
+  .hero-first{padding-top:8px}
+  .fd-kicker{font-size:11px; margin-bottom:3px}
+  .hero .firstday{font-size:12.6px; line-height:1.36}
+  .hero .fd-count{font-size:15px; margin-bottom:6px; line-height:1.3}
+  .hero .gen-line{font-size:15.5px; margin-top:6px; line-height:1.28}
+  .scroll-cue{bottom:10px; font-size:11px; line-height:1.25; gap:0}
+  .scroll-cue span{font-size:14px; line-height:1.1}
+}
+
+/* ---------- batch #3 tiers: SHORT screens (640 / 600 / 560 CSS px) ----------
+   Batch #2 verified at 670px and called it done; Dex's phone (and its
+   font scaling) lives shorter than that. These tiers assume Android
+   font-scale 1.15 on top. A page only counts as fitting when a screenshot
+   at 560px shows every element fully on screen — see the batch #3 audit. */
+@media(max-height:640px){
+  .scene{padding-top:8px; padding-bottom:calc(8px + env(safe-area-inset-bottom))}
+  .scene h3{font-size:24px; margin-bottom:4px}
+  .ch-kicker{font-size:11px; margin-bottom:3px}
+  .stats{gap:5px}
+  .srow{padding:6px 10px; gap:9px; border-radius:14px}
+  .srow .s-left{width:94px}
+  .srow .num{font-size:18.5px}
+  .srow .lbl{font-size:13px; margin-top:2px; line-height:1.18; -webkit-line-clamp:3}
+  .srow .sub{font-size:12.8px; line-height:1.36}
+  .pagedots{padding-top:4px}
+  .pagedots .pdot{padding:5px}
+  .wstat{padding:8px 11px}
+  .wstat .num{font-size:20px}
+  .wstat .lbl{font-size:12.8px; line-height:1.3}
+  .wild-stats{gap:7px; margin-bottom:2px}
+  .has-img .card-media{min-height:78px}
+  .card-body{padding:8px 12px}
+  .ev-card .et, .sp-name{font-size:15px}
+  .ev-card .ed{font-size:13.5px; line-height:1.45; margin-top:4px}
+  .sp-note{font-size:13.5px; line-height:1.45; margin-top:5px; -webkit-line-clamp:3}
+  .ev-card .go, .sp-card .go{margin-top:6px}
+  .stab{padding:9px 5px; font-size:14px}
+  .tab{padding:9px; font-size:14.5px}
+  .chip{padding:6px 12px; font-size:13px}
+  .scene-bottom{gap:6px; padding-top:6px}
+  .age-row .year-big{font-size:36px}
+  .age-row .nav-arrow{width:44px; height:44px; font-size:17px}
+  #yearSlider{height:24px}
+  .year-age{font-size:15px}
+  /* page one (hero + chapter zero) */
+  .hero{padding-bottom:calc(44px + env(safe-area-inset-bottom))}
+  .hero-avatar{width:30px; height:30px; margin-bottom:4px}
+  .hero-seconds{font-size:29px; margin-top:2px}
+  .hero-seclabel{font-size:13px; margin-top:3px}
+  .hero-line{font-size:13.8px; line-height:1.3; margin-top:7px}
+  .hero-trio{margin-top:7px}
+  .hstat{padding:0 8px}
+  .hs-num{font-size:18px}
+  .hs-label{font-size:11.5px; margin-top:3px}
+  .hero-first{margin-top:auto; padding-top:7px}
+  .fd-kicker{font-size:10.5px; margin-bottom:3px}
+  .hero .firstday{font-size:12.2px; line-height:1.26}
+  .hero .fd-count{font-size:14px; margin-bottom:4px; line-height:1.28}
+  .hero .gen-line{font-size:14px; margin-top:5px; line-height:1.28}
+  .scroll-cue{bottom:8px; font-size:10.5px; line-height:1.25; gap:0}
+  .scroll-cue span{font-size:13px; line-height:1.1}
+  /* poster */
+  .poster-sec .ch-sub{margin-bottom:8px; font-size:15px}
+  .poster-explain{font-size:14.5px; line-height:1.45}
+  .foot{margin-top:12px; font-size:12.8px; line-height:1.45}
+  .foot-brand{margin-top:6px}
+  .poster-sec .cta{padding:13px}
+  .over-btn{padding:11px; font-size:14px}
+  .poster-note{font-size:12.5px}
+  /* entry: fixed one screen, compressed */
+  .entry{padding-top:10px; gap:6px}
+  .entry-icon{width:44px; height:44px}
+  .entry-head h1{font-size:20px; margin:6px 0 4px}
+  .entry-sub{font-size:14.5px}
+  .dob-readout{margin-top:8px; font-size:16px}
+  .dob-readout b{font-size:18px}
+  .entry-controls{gap:9px}
+  .name-field input{padding:12px; font-size:18px}
+  .field > span{margin-bottom:5px; font-size:13.5px}
+  .sel-btn{min-height:52px; padding:7px 4px 8px}
+  .sel-btn .sel-val{font-size:17px}
+  .cta{padding:13px; font-size:17px}
+  .privacy{font-size:12px}
+  .dp-btn{padding:9px 2px; font-size:15.5px}
+  .dp-grid.cols7 .dp-btn{padding:8px 0; font-size:14.5px}
+  .dob-picker{padding:10px; margin-top:8px}
+  /* panel OPEN on short screens: shrink the head hard and hide the name
+     field (it returns the moment the panel closes) so the CTA and the
+     privacy line stay on-screen with the picker up */
+  .entry.panel-open .entry-head h1{display:none}
+  .entry.panel-open .entry-icon{width:32px; height:32px}
+  .entry.panel-open .name-field{display:none}
+  .entry.panel-open .dob-picker{max-height:38svh}
+}
+@media(max-height:580px){
+  .scene h3{font-size:22px}
+  .srow{padding:5px 9px}
+  .srow .num{font-size:17.5px}
+  .srow .sub{font-size:12.3px; line-height:1.33}
+  .has-img .card-media{min-height:64px}
+  .ev-card .ed{-webkit-line-clamp:2}
+  .sp-note{-webkit-line-clamp:2}
+  .age-row .year-big{font-size:33px}
+  .hero-avatar{width:24px; height:24px; margin-bottom:3px}
+  .hero{padding-bottom:calc(40px + env(safe-area-inset-bottom))}
+  .hero-kicker{display:none}
+  .hero-seconds{font-size:28px; margin-top:2px}
+  .hero-seclabel{margin-top:3px; font-size:12.5px}
+  .hero-line{font-size:13.4px; line-height:1.22; margin-top:6px}
+  .hero-trio{margin-top:5px}
+  .hero-trio > div{padding:0 4px}
+  .hs-num{font-size:16.5px}
+  .hs-label{font-size:11px; letter-spacing:1px; margin-top:2px}
+  .hero-first{margin-top:auto; padding-top:5px}
+  .hero .firstday{font-size:11.9px; line-height:1.22}
+  .hero .fd-count{font-size:13.5px; margin-bottom:4px; line-height:1.22}
+  .hero .gen-line{font-size:14px; margin-top:3px; line-height:1.22}
+  .fd-kicker{font-size:10.5px; margin-bottom:3px}
+  .scroll-cue{bottom:6px; font-size:10px; line-height:1.2; gap:0}
+  .scroll-cue span{font-size:11px; line-height:1}
+  .foot{font-size:12.3px; margin-top:9px}
+  .entry-icon{width:38px; height:38px}
+  .entry-head h1{font-size:18.5px}
+  .entry-sub{display:none}
+  .dob-readout{margin-top:5px; font-size:15px}
+  .sel-btn{min-height:47px}
+  .cta{padding:12px}
+  .entry.panel-open .entry-icon{display:none}
 }
