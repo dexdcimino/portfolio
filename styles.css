@@ -7691,6 +7691,10 @@ body:has(.sidebar:is(:hover,:has(:focus-visible))) > .music-remote.at-bl{
 .dash-close:hover{color:var(--accent);border-color:var(--accent)}
 .dash-close svg{width:20px;height:20px}
 .dash-iframe{flex:1;border:0;width:100%;min-height:0;background:#0d0e15}
+.dash-head{flex-wrap:wrap;column-gap:12px}
+.dash-title-group{min-width:0;flex-wrap:wrap}
+.dash-title-group>*{min-width:0}
+.dash-chrome{flex-shrink:0}
 
 /* ============ NORMALIZED OVERLAY CHROME (2026-10-05) ============
    Every overlay keeps its X and a lock button INSIDE the panel,
