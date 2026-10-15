@@ -7,6 +7,8 @@ Every factual claim filed TRUE / DIRECTION / NEVER. Drafts get checked against t
 - Earlier paid design: graphic/product design (Quality Lapel Pins, BittyPets, Black & Red Inc., FASTSIGNS). When a form forces ONE design-years number: **5 years**. Paid product/UI design strictly ≈ 0.
 - 3D stack: **Maya, ZBrush, Substance 3D Painter** + Roblox Studio, Unreal, Unity. Figma: Proficient. Vector/UI design: **Adobe Illustrator** — he draws icons, logos & UI elements as separate-part vectors and hands them to AI agents to implement/animate to his spec (his account, GPT interview Q1, 2026-10-15).
 - How he judges work (never portray him as a metrics/checklist evaluator): there is no fixed rule — he has the thing built, tests it himself, explores versions, and iterates "until it feels right / feels done." Done-ness is per-piece and felt.
+- More tools TRUE (Q2, 2026-10-15): **3D Coat**; full Adobe Suite at pro level — **Illustrator, Photoshop, Adobe Animate**; Hype (advertising software, Black & Red era). Audio is his acknowledged GAP: taste yes, workflow no — never claim audio/SFX production skill.
+- Shipped micro-credit: **"Under Crude" on Steam** (tiny 2D game with David Strackhan) + Total Smashout — real but minuscule; describe honestly as tiny indie experiments, never inflate.
 - Education arc: started in math/engineering, switched mid-degree to art (2D/3D modeling, concepting, logo design, animation). Associate's degree, Red Rocks Community College, 2013. ~15 years pursuing the arts since the switch.
 - He builds software by **directing AI agents** — he makes the decisions, designs the experience, ships real products (DexNote, YapTap, YouVerse, Inko, MindSplit, Möbius; all live at dexcimino.com). Go-to language: JavaScript.
 - AI video, the honest scope: the AI Lab clips (primarily Gemini-generated) + the Möbius 3D video (generated with an AI model from a recording of software he built). It is a small corner of his work (<5% of his site).
@@ -24,5 +26,7 @@ Every factual claim filed TRUE / DIRECTION / NEVER. Drafts get checked against t
 - NEVER claim paid software-engineering years (0) or paid Unreal years beyond <1.
 - NEVER claim a VR/AR headset, a VRChat username, or having run an online community.
 - NEVER state a DIRECTION item as a current credential ("I build X for a living" where X is the aspiration).
+- NEVER claim a bachelor's degree or Colorado School of Mines attendance — he was set to transfer and never did; AA (Red Rocks, 2013) is the completed degree.
+- NEVER use his personal history (ages ~23–26 chapter — legal trouble, drinking) in ANY outward material; raw-archive only.
 - NEVER invent audience, revenue, clients, or outcomes. Money honesty: his career has been mostly low-coin with a few great opportunities — do not dress it up.
 - NEVER use the permission-asking subject formula "Can I help build what you're building?" (Dex, 2026-10-15: reads corny). See voice profile for his register.
