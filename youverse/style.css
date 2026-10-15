@@ -59,7 +59,7 @@ main{flex:1; min-height:0; overflow:hidden; width:100%; max-width:1120px; margin
   overflow:hidden; touch-action:none}
 .entry-head{text-align:center; flex:none}
 .entry-icon{width:clamp(46px, calc(var(--ah)*.088), 92px); height:clamp(46px, calc(var(--ah)*.088), 92px);
-  border-radius:50%; background:#0c1526; border:1.5px solid var(--line)}
+  border-radius:50%; background:transparent; border:none}
   /* the artwork (icon-circle.png) carries its OWN margin: batch #5
      padded the asset so the composed circle spans ~90% of its canvas
      with transparent air on all four sides — the raw art fills 99% of
