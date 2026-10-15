@@ -15,6 +15,12 @@ Every factual claim filed TRUE / DIRECTION / NEVER. Drafts get checked against t
 - Logistics: Denver, CO base (digital nomad; ZIP 80403 when a form needs one). Born US citizen, no sponsorship. Available any hours/time zones. Relocation yes: SF, NYC, Seattle.
 - Contact: dexdcimino@gmail.com · 720-742-4108 · linkedin.com/in/dex-cimino-7055453b6 · github.com/dexdcimino · Discord dex_ddc · YouTube @dex_ddc (~150 subs — effectively no audience; never imply reach).
 
+## MONEY — his stance (GPT interview Q2, 2026-10-15; his words govern quotes)
+- He hates thinking about money; success = enough to live independently + health coverage + food on the table doing work he loves. More money = more freedom to create + helping people who've been in his situation.
+- **Floor: try not to go below ~$30/hr.** **No ceiling** — rates he has applied at ($70–$100/hr) are NOT a cap; higher is always welcome.
+- **Fit discount is real:** lower pay is fine for a fit vision / chill team / product he believes in. A douchebag team + pointless product would take "way, way, way more money" — treat as a practical no.
+- Deliverables he stands behind (scope-dependent estimates, never blanket promises): functional app (mobile/web) ~3 days; game prototype aim 3 days, average ≤ a week, deeper 1–2 weeks.
+
 ## DIRECTION (where he's heading — NEVER state as current fact)
 - Creative technologist / AI developer / design engineer as his professional center (his paid title history is 3D art; the building-with-AI is real, shipped, and the direction — frame it as what he does and is moving into, not as a long paid tenure).
 - Building things with more impact than games alone; finding a team/home for years.
