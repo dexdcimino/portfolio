@@ -22,4 +22,11 @@ Full study: `~/workspace/your_files/dex-voice-profile.md` (Bash's workspace). Th
 - Profanity: in raw speech it's emphasis/punctuation (frustration + enthusiasm both). In written-as-Dex work copy: essentially none — the REGISTER DIAL is real (raw / working / polished); match the situation, not the dump.
 - Sentiment rule for outreach closes: he wants a team/home to build with for years & to embrace this unknown, exciting, nerve-wracking AI future — woven in per-company, in fresh words, NEVER a stamped template paragraph.
 
+## From the GPT interview (2026-10-15) — additions with provenance
+- **No universal opener — explicit rule (his correction of GPT):** "I don't want to use the same fucking opener for every single email." Openers are per-recipient, always. He has tried boring-traditional and fun off-the-wall; he believes response is mostly right-person/right-time; opener craft is delegated to his agents in his voice.
+- **Follow-ups:** his stance now — one short nudge is right (he historically let things die, fearing nagging; he's converted, crediting the argument that follow-ups are often the difference). Matches the one-follow-up-max rule.
+- **Never-words method (Q15):** he cannot list words he'd never say from memory, and resents being asked abstractly. The method going forward: agents derive candidates from transcripts + his edits, and test CONCRETE lines with him. The pitch-word bans above stand on his own hand-edits of the Tempesta reply (edit-observed), not on interview inference — absence from a transcript alone never creates a ban.
+- **Qualifiers carry meaning:** his "kind of / I guess / maybe / hopefully" often encode real uncertainty (dates, tenures, whether he'd enter a field). Polishing may remove hesitation noise but must never upgrade "might" to "will" or "interested" to "expert."
+- **Self-corrections travel:** when he corrects himself mid-answer (rates ceiling, impact mission, optimism degree), the correction is the belief — the earlier wording stays in the raw record only.
+
 ## If it doesn't sound like him, it fails — even if it's clean.
