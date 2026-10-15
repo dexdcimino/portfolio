@@ -5,7 +5,8 @@ Every factual claim filed TRUE / DIRECTION / NEVER. Drafts get checked against t
 ## TRUE (say it plainly, with evidence on dexcimino.com)
 - Paid roles are 3D / game art: Embody Games (3D Artist, 2025–present), Super League (3D Artist, 2024–2025; Roblox tie-ins incl. Despicable Me 4, The Wild Robot, Sonic 3, Dog Man, Transformers One), Knights of Edengale (3D Generalist, 2023–2024), Pyxelchain (3D Art Lead, 2021–2023, led a team of 8).
 - Earlier paid design: graphic/product design (Quality Lapel Pins, BittyPets, Black & Red Inc., FASTSIGNS). When a form forces ONE design-years number: **5 years**. Paid product/UI design strictly ≈ 0.
-- 3D stack: **Maya, ZBrush, Substance 3D Painter** + Roblox Studio, Unreal, Unity. Figma: Proficient.
+- 3D stack: **Maya, ZBrush, Substance 3D Painter** + Roblox Studio, Unreal, Unity. Figma: Proficient. Vector/UI design: **Adobe Illustrator** — he draws icons, logos & UI elements as separate-part vectors and hands them to AI agents to implement/animate to his spec (his account, GPT interview Q1, 2026-10-15).
+- How he judges work (never portray him as a metrics/checklist evaluator): there is no fixed rule — he has the thing built, tests it himself, explores versions, and iterates "until it feels right / feels done." Done-ness is per-piece and felt.
 - Education arc: started in math/engineering, switched mid-degree to art (2D/3D modeling, concepting, logo design, animation). Associate's degree, Red Rocks Community College, 2013. ~15 years pursuing the arts since the switch.
 - He builds software by **directing AI agents** — he makes the decisions, designs the experience, ships real products (DexNote, YapTap, YouVerse, Inko, MindSplit, Möbius; all live at dexcimino.com). Go-to language: JavaScript.
 - AI video, the honest scope: the AI Lab clips (primarily Gemini-generated) + the Möbius 3D video (generated with an AI model from a recording of software he built). It is a small corner of his work (<5% of his site).
