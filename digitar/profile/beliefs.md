@@ -9,6 +9,11 @@
 - Looking for a TEAM/HOME for years — a place to belong, grow, and build the AI future with people who embrace it. "I just enjoy building stuff, especially with cool people."
 - Wants work with more impact than games alone offer, while keeping the games belief above.
 - Providing is a core value — a huge chunk of his sense of worth comes from providing; the long low-coin stretch is painful to him precisely because of this.
+- **Labels (his own choice, Q2):** "creative technologist" — he picked it himself. Fixed single labels drive him up a wall; he has cycled logo designer → concept artist → 2D animator → game dev → engineer → 3D modeler → 3D animator, keeping every skill. He dislikes "artist" as a label (applies to anything, too subjective). Breadth over specialization is his identity — and his self-named Achilles heel.
+- **Craft standard:** he specifies feel/function exhaustively (his game's measuring tape: billboarded roll-only rotation, meters/feet/yards options, corner radius by camera distance) and iterates 5–10 steps deeper than most before his knowing "fuck it, that's good enough, move on" (the last 10–20% costs 2–3× — he stops on purpose, not from carelessness).
+- **Collaboration non-negotiables:** no authoritarian douchebags; nobody — him or colleagues — gets taken advantage of for their time.
+- **Games gave him personally:** real relationships kept for years, wild experiences, creative freedom, worlds that don't exist.
+- **Email openers:** a genuine struggle for him; he holds no formula and explicitly delegates opener craft to his agents in his voice ("I'm curious to see what you guys can come up with, using my kind of voice").
 
 ## AI
 - Sincere AI optimist & very early adopter. "A creative that loves fucking building shit with AI."
@@ -17,3 +22,4 @@
 
 ## Money (honest frame, never for outreach copy)
 - Money stress is the dominant pain of this period. He hates that it gates everything. Never put desperation or hardship in outreach — this entry is for understanding him, not for copy.
+- His definition of success (Q2): enough to live independently + health coverage + food on the table, doing work he loves — "then I'm fully successful." Beyond that, money = freedom to create, and a stated aspiration: if he makes decent coin, help other people who've been in his situation. Survival money first, then freedom; value his work as much as possible without killing the income. Numbers live in the claims ledger's MONEY section.
