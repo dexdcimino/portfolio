@@ -58,7 +58,7 @@ main{flex:1; min-height:0; overflow:hidden; width:100%; max-width:1120px; margin
   padding:clamp(8px, calc(var(--ah)*.032), 34px) 4px calc(12px + env(safe-area-inset-bottom));
   overflow:hidden; touch-action:none}
 .entry-head{text-align:center; flex:none}
-.entry-icon{width:clamp(46px, calc(var(--ah)*.088), 92px); height:clamp(46px, calc(var(--ah)*.088), 92px);
+.entry-icon{width:clamp(56px, calc(var(--ah)*.118), 124px); height:clamp(56px, calc(var(--ah)*.118), 124px);
   border-radius:50%; background:transparent; border:none}
   /* the artwork (icon-circle.png) carries its OWN margin: batch #5
      padded the asset so the composed circle spans ~90% of its canvas
@@ -167,7 +167,7 @@ main{flex:1; min-height:0; overflow:hidden; width:100%; max-width:1120px; margin
 
 /* ---------- hero (page one: hero + chapter zero, consolidated) ---------- */
 .hero{text-align:center; align-items:center; justify-content:space-evenly; padding-bottom:calc(56px + env(safe-area-inset-bottom))}
-.hero-avatar{width:56px; height:56px; border-radius:50%; margin-bottom:10px;
+.hero-avatar{width:64px; height:64px; border-radius:50%; margin-bottom:10px;
   box-shadow:0 12px 44px rgba(53,224,200,.22); animation:floaty 5.5s ease-in-out infinite}
 @keyframes floaty{0%,100%{transform:translateY(0) rotate(-1.2deg)}50%{transform:translateY(-9px) rotate(1.2deg)}}
 .hero-kicker{color:var(--accent); font-weight:800; letter-spacing:2.5px; text-transform:uppercase; font-size:13px; margin:0}
