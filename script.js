@@ -2397,6 +2397,29 @@ async function openWork(catId, index, trigger, set = null) {
   }, trigger);
 }
 
+/* Pretty work links: vercel.json rewrites /roblox, /minecraft and the other
+   category slugs (plus redirects from /work/<slug>) to this page, and the
+   path is the one door in — the overlay's tabs are deliberately not
+   hash-routed (see DEEP LINKS), and a rewrite's destination query never
+   reaches location.search, while the path the visitor actually asked for
+   is right there. On arrival, open the overlay on the named tab. A path
+   that names no category is ignored, like every other link scheme here. */
+const WORK_PATH_CATS = {
+  '/character': 'character', '/props': 'props', '/concept': 'concept',
+  '/environment': 'environment', '/minecraft': 'minecraft',
+  '/roblox': 'roblox', '/design': 'design', '/archive': 'archive',
+};
+if (workModal) {
+  const workLinkCat = WORK_PATH_CATS[location.pathname.replace(/\/$/, '')];
+  if (workLinkCat) {
+    window.addEventListener('load', async () => {
+      try { await loadWork(); } catch { return; }   // no manifest, no overlay
+      if (workCategories().some(cat => cat.id === workLinkCat))
+        openWork(workLinkCat, 0, null);
+    }, { once: true });
+  }
+}
+
 if (workModal) {
   bindModal(workModal);
   document.getElementById('workClose')?.addEventListener('click', () => closeModal(workModal));
