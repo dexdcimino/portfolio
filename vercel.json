@@ -35,12 +35,69 @@
       "source": "/yaptrap/:path*",
       "destination": "/yaptap/:path*",
       "permanent": false
+    },
+    {
+      "source": "/work/:cat(character|props|concept|environment|minecraft|roblox|design|archive)",
+      "destination": "/:cat",
+      "permanent": false
+    },
+    {
+      "source": "/work/characters",
+      "destination": "/character",
+      "permanent": false
+    },
+    {
+      "source": "/work/concepts",
+      "destination": "/concept",
+      "permanent": false
+    },
+    {
+      "source": "/work/environments",
+      "destination": "/environment",
+      "permanent": false
+    },
+    {
+      "source": "/work/early-work",
+      "destination": "/archive",
+      "permanent": false
     }
   ],
   "rewrites": [
     {
       "source": "/arena1/:room([A-Za-z0-9_-]+)",
       "destination": "/arena1/index.html"
+    },
+    {
+      "source": "/roblox",
+      "destination": "/"
+    },
+    {
+      "source": "/minecraft",
+      "destination": "/"
+    },
+    {
+      "source": "/character",
+      "destination": "/"
+    },
+    {
+      "source": "/props",
+      "destination": "/"
+    },
+    {
+      "source": "/concept",
+      "destination": "/"
+    },
+    {
+      "source": "/environment",
+      "destination": "/"
+    },
+    {
+      "source": "/design",
+      "destination": "/"
+    },
+    {
+      "source": "/archive",
+      "destination": "/"
     },
     {
       "source": "/__/auth/:path*",
