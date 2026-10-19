@@ -4201,19 +4201,23 @@ body.modal-open{overflow:hidden}
 .cv-list{list-style:none;margin:0;padding:0;display:grid;gap:7px}
 .cv-list li{padding:0}
 
-/* Projects — name and description on ONE line. The entry text runs a shade
-   under the paragraph copy above it, which is what keeps DexNote and NodeBlast
-   to one line each and breaks Roblox/Rovio after "art, games," exactly as the
-   original does. Paragraph copy, project entries and job descriptions are three
-   deliberate steps down, not drift: each one is pinned by a line break. */
-.cv-projects li{display:flex;gap:8px;align-items:baseline}
+/* Projects — fixed name column (Dex, Oct 19 2026): every description starts
+   at the same x with a wide gap after the site link, so the rows read as two
+   clean columns instead of ragged one-liners. Inline links inside a
+   description are accent-coloured and italic so they read as clickable. */
+.cv-projects li{display:flex;gap:26px;align-items:baseline}
 .cv-projects li>span{font-size:13.1px}
 .cv-projects .cv-project{
-  flex:none;color:var(--cv-accent);font-weight:800;font-size:12.8px;letter-spacing:.04em;
+  flex:0 0 178px;color:var(--cv-accent);font-weight:800;font-size:12.8px;letter-spacing:.04em;
   transition:color var(--accent-ease);
 }
 .cv-projects .cv-project a{color:inherit;text-decoration:none;border-bottom:1px solid transparent}
 .cv-projects .cv-project a:hover,.cv-projects .cv-project a:focus-visible{border-bottom-color:var(--cv-accent)}
+.cv-projects li>span a{color:var(--cv-accent);font-style:italic;text-decoration:none;border-bottom:1px solid var(--cv-accent)}
+@media (max-width:600px){
+  .cv-projects li{flex-direction:column;gap:2px}
+  .cv-projects .cv-project{flex:none}
+}
 
 /* Jobs — company/role/date on one wrapping flex row, description forced onto
    its own row by a 100% basis. Keeps <strong>/<em> as direct children of the
