@@ -1716,7 +1716,7 @@ const DOCS = {
   'tab-cover':  { file: 'Dex_Cimino_Cover.pdf',  label: 'Download Dex Cimino cover letter as PDF',
                   tip: 'Download Cover' },
 };
-const PDF_VERSION = '20261019'; // bump on every PDF re-upload — see SYNC RULE above
+const PDF_VERSION = '20261019b'; // bump on every PDF re-upload — see SYNC RULE above
 const zoomLevelEl = document.getElementById('zoomLevel');
 const zoomInBtn = document.getElementById('zoomIn');
 const zoomOutBtn = document.getElementById('zoomOut');
