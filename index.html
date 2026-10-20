@@ -5254,8 +5254,9 @@
        SYNC RULE (Dex, 2026-10-19): this overlay and the downloadable PDFs
        (BunnyCDN assets/about/Dex_Cimino_Resume.pdf + Dex_Cimino_Cover.pdf)
        are ONE document in two forms and must never drift. Editing text here
-       without regenerating + re-uploading both PDFs and bumping PDF_VERSION
-       in script.js ships a stale download. Full procedure in CLAUDE.md. -->
+       without regenerating both PDFs, uploading them under a new versioned
+       filename and updating doc.path in script.js ships a stale download.
+       Full procedure in CLAUDE.md. -->
   <dialog class="resume-modal" id="resumeModal" role="dialog" aria-modal="true"
           aria-labelledby="resume-dialog-title">
     <div class="resume-shell">
@@ -6161,6 +6162,6 @@
   </dialog>
 
   <script src="lib/music-embeds.js"></script>
-  <script src="script.js?v=235"></script>
+  <script src="script.js?v=236"></script>
 </body>
 </html>
