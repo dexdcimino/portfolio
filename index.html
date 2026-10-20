@@ -1,6 +1,13 @@
 <!doctype html>
 <html data-accent="lime" lang="en">
 <head>
+<!-- Pretty paths are the door in (see vercel.json rewrites): this page is
+     served at /, at one-segment gallery slugs (/minecraft) and at
+     two-segment set tabs (/proto-isles/environment). Every relative
+     reference below (styles.css, script.js, assets/work/work.json) is
+     written against the root, so the base is pinned to / — without it a
+     two-segment path resolves them under /proto-isles/ and 404s. -->
+<base href="/">
 <!-- Custom cursor on first paint: sets the default lime cursor variables and
      the dex-cursor class immediately, so a hard refresh never flashes the OS
      cursor. The main script updates these with the user's actual accent. -->
