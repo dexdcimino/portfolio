@@ -1708,15 +1708,18 @@ const pdfLink = document.querySelector('.resume-pdf');
    BunnyCDN (assets/about/), printed from the resume overlay in index.html —
    the download button does not print the page live. Any edit to the overlay
    text REQUIRES, in the same change: regenerate both PDFs from the overlay,
-   re-upload both to the CDN, and bump PDF_VERSION. The CDN caches the bare
-   URL for 30 days; the ?v= query is what makes a new file reach visitors. */
+   upload them under a NEW versioned filename (doc.path), and update doc.path
+   here. The version lives in the FILENAME, never a ?v= query: this pull
+   zone's edge cache ignores query strings — a ?v= URL was caught serving
+   three different generations from three edge nodes on 2026-10-19. A new
+   filename is a guaranteed miss that reaches every visitor. doc.file stays
+   the clean name the visitor's download is saved as. */
 const DOCS = {
-  'tab-resume': { file: 'Dex_Cimino_Resume.pdf', label: 'Download Dex Cimino resume as PDF',
-                  tip: 'Download Resume' },
-  'tab-cover':  { file: 'Dex_Cimino_Cover.pdf',  label: 'Download Dex Cimino cover letter as PDF',
-                  tip: 'Download Cover' },
+  'tab-resume': { file: 'Dex_Cimino_Resume.pdf', path: 'Dex_Cimino_Resume_20261019c.pdf',
+                  label: 'Download Dex Cimino resume as PDF', tip: 'Download Resume' },
+  'tab-cover':  { file: 'Dex_Cimino_Cover.pdf',  path: 'Dex_Cimino_Cover_20261019c.pdf',
+                  label: 'Download Dex Cimino cover letter as PDF', tip: 'Download Cover' },
 };
-const PDF_VERSION = '20261019c'; // bump on every PDF re-upload — see SYNC RULE above
 const zoomLevelEl = document.getElementById('zoomLevel');
 const zoomInBtn = document.getElementById('zoomIn');
 const zoomOutBtn = document.getElementById('zoomOut');
@@ -1810,7 +1813,7 @@ function refreshPdfLink(id) {
   const active = id || resumeTabs.find(t => t.getAttribute('aria-selected') === 'true')?.id;
   const doc = DOCS[active];
   if (!doc || !pdfLink) return;
-  pdfLink.dataset.file = `https://dexcimino-media.b-cdn.net/assets/about/${doc.file}?v=${PDF_VERSION}`;
+  pdfLink.dataset.file = `https://dexcimino-media.b-cdn.net/assets/about/${doc.path}`;
   pdfLink.dataset.name = doc.file;
   pdfLink.dataset.tip = doc.tip;
   pdfLink.setAttribute('aria-label', doc.label);
