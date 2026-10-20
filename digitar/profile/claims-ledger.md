@@ -3,7 +3,7 @@
 Every factual claim filed TRUE / DIRECTION / NEVER. Drafts get checked against this before loading or sending. When in doubt: omit, don't invent.
 
 ## TRUE (say it plainly, with evidence on dexcimino.com)
-- Paid roles are 3D / game art: Embody Games (3D Artist, 2025–present), Super League (3D Artist, 2024–2025; Roblox tie-ins incl. Despicable Me 4, The Wild Robot, Sonic 3, Dog Man, Transformers One), Knights of Edengale (3D Generalist, 2023–2024), Pyxelchain (3D Art Lead, 2021–2023, led a team of 8).
+- Paid roles are 3D / game art: Embody Games (3D Artist, 2025–present), Super League (3D Artist, 2023–2025 — dates corrected by Dex 2026-10-19; contract 3D across a wide range of Roblox client projects, standouts the film tie-ins incl. Despicable Me 4, The Wild Robot, Sonic 3, Dog Man, Transformers One; contract ran through the studio's acquisition by Infinite Reality), Knights of Edengale (3D Generalist, 2023–2024), Pyxelchain (3D Art Lead, 2021–2023, led a team of 8).
 - Earlier paid design: graphic/product design (Quality Lapel Pins, BittyPets, Black & Red Inc., FASTSIGNS). When a form forces ONE design-years number: **5 years**. Paid product/UI design strictly ≈ 0.
 - 3D stack: **Maya, ZBrush, Substance 3D Painter** + Roblox Studio, Unreal, Unity. Figma: Proficient. Vector/UI design: **Adobe Illustrator** — he draws icons, logos & UI elements as separate-part vectors and hands them to AI agents to implement/animate to his spec (his account, GPT interview Q1, 2026-10-15).
 - How he judges work (never portray him as a metrics/checklist evaluator): there is no fixed rule — he has the thing built, tests it himself, explores versions, and iterates "until it feels right / feels done." Done-ness is per-piece and felt.
