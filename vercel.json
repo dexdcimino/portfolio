@@ -76,6 +76,10 @@
       "destination": "/"
     },
     {
+      "source": "/proto-isles",
+      "destination": "/"
+    },
+    {
       "source": "/character",
       "destination": "/"
     },
