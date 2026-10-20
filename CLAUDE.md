@@ -630,7 +630,7 @@ number that a command could print, that is the mistake (doctrine rule 17).
 The on-page resume/cover overlay (index.html) and the downloadable PDFs are ONE document in two forms and must never drift. The download button does NOT print the page live — it fetches static PDFs from BunnyCDN (storage zone `dexcimino-media`, paths `assets/about/Dex_Cimino_Resume.pdf` and `assets/about/Dex_Cimino_Cover.pdf`, served at dexcimino-media.b-cdn.net). Any edit to the overlay text REQUIRES, in the same change:
 
 1. Regenerate BOTH PDFs by printing the overlay (deep links `/#resume` and `/#resume/cover-letter`; the @media print sheet in styles.css does the layout; one Letter page each).
-2. Re-upload both PDFs to the CDN paths above (overwrite).
-3. Bump `PDF_VERSION` in script.js — the CDN caches the bare URL with a 30-day max-age, so the `?v=` query in `refreshPdfLink` is what makes the new file reach visitors.
+2. Upload both PDFs to `assets/about/` under a NEW versioned filename (e.g. `Dex_Cimino_Resume_20261019c.pdf` — date + letter), and update `doc.path` for both entries in script.js to match. `doc.file` never changes: it is the clean name the download is saved as.
+3. The version MUST live in the filename, never a `?v=` query: this pull zone's edge cache ignores query strings (proven 2026-10-19, when one `?v=` URL served three different generations from three edge nodes, one of them the stale original). A new filename is a guaranteed cache miss at every node.
 
-Verify before calling it done: download the versioned URL the button now uses and text-check the new wording in the PDF. This rule covers the resume AND the cover letter equally.
+Verify before calling it done: download the exact `doc.path` URL the button now uses and text-check the new wording in the PDF. This rule covers the resume AND the cover letter equally.
