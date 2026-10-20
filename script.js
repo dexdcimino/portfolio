@@ -7080,17 +7080,55 @@ const MediaBus = (() => {
   const customListEl = $('musicCustomPlaylists'), addPlaylistBtn = $('musicAddPlaylist');
   const playlistForm = $('musicPlaylistForm'), playlistName = $('musicPlaylistName');
   const playlistCancel = $('musicPlaylistCancel');
-  /* Custom playlists: client-side only (localStorage), a first pass. Each is
-     {id, name, tracks:[videoId,...]}. */
+  /* Shared public playlists. Keep the original device collection as an immutable migration source. */
   let playlistPicker = null, pickedTrack = null, pickerBusy = false, pickerFocus = null, pickerAnchor = null;
-  let customPlaylists = [];
+  const LEGACY_PLAYLISTS = 'dex-music-playlists', LEGACY_BACKUP = 'dex-music-playlists-legacy-backup-v1';
+  const PLAYLIST_CACHE = 'dex-music-playlists-shared-cache-v1', MIGRATED = 'dex-music-playlists-migrated-v1';
+  let customPlaylists = [], legacyPlaylists = [], sharedPlaylistsReady = false, migrationPromise = null, migrationFailedAt = 0;
   try {
-    customPlaylists = JSON.parse(localStorage.getItem('dex-music-playlists') || '[]');
+    const original = localStorage.getItem(LEGACY_PLAYLISTS);
+    const backup = localStorage.getItem(LEGACY_BACKUP);
+    if (original !== null && backup === null) { try { localStorage.setItem(LEGACY_BACKUP, original); } catch {} }
+    legacyPlaylists = JSON.parse(original || backup || '[]');
+    if (!Array.isArray(legacyPlaylists)) legacyPlaylists = [];
+  } catch { /* Original bytes are retained for recovery. */ }
+  try {
+    customPlaylists = JSON.parse(localStorage.getItem(PLAYLIST_CACHE) || '[]');
     if (!Array.isArray(customPlaylists)) customPlaylists = [];
   } catch { customPlaylists = []; }
-  const savePlaylists = () => {
-    try { localStorage.setItem('dex-music-playlists', JSON.stringify(customPlaylists)); } catch {}
-  };
+  function adoptPlaylists(data) {
+    if (!Array.isArray(data.playlists) || data.playlistsVersion !== 1) return;
+    sharedPlaylistsReady = true;
+    customPlaylists = data.playlists;
+    try { localStorage.setItem(PLAYLIST_CACHE, JSON.stringify(customPlaylists)); } catch {}
+    if (view.startsWith('pl:') && !customPlaylists.some(p => 'pl:' + p.id === view)) {
+      view = 'all'; viewAll.setAttribute('aria-pressed', 'true'); viewRepeat.setAttribute('aria-pressed', 'false');
+    }
+  }
+  async function migrateLegacyPlaylists() {
+    if (!admin || !sharedPlaylistsReady || !legacyPlaylists.length || Date.now() - migrationFailedAt < 15000) return;
+    const signature = JSON.stringify(legacyPlaylists);
+    try { if (localStorage.getItem(MIGRATED) === signature) return; } catch {}
+    if (migrationPromise) return migrationPromise;
+    migrationPromise = (async () => {
+      const result = await edit('playlist-import', { playlists: legacyPlaylists }, { quiet: true });
+      if (result && !result.error) {
+        try { localStorage.setItem(MIGRATED, signature); } catch {}
+        toast('This device’s playlists are now shared. Its original copy is kept as a backup.');
+      } else {
+        migrationFailedAt = Date.now();
+        toast('Playlist sync could not finish. Your original playlists are safely kept on this device; reopen Music to retry.');
+      }
+    })().finally(() => { migrationPromise = null; });
+    return migrationPromise;
+  }
+  window.addEventListener('storage', event => {
+    if (event.key !== LEGACY_PLAYLISTS) return;
+    try {
+      const value = JSON.parse(event.newValue || '[]');
+      if (Array.isArray(value)) { legacyPlaylists = value; migrateLegacyPlaylists(); }
+    } catch { /* Preserve invalid original bytes for recovery. */ }
+  });
   const bar = $('musicBar'), frame = $('musicVideo'), screen = $('musicScreen');
   const directVideo = $('musicDirectVideo');
   let directActive = false, mediaRequest = 0, mediaAbort = null;
@@ -7125,7 +7163,7 @@ const MediaBus = (() => {
      baked manifest only when there is no API to ask -- a static host, or a
      harness serving the repo as files. See lib/music-store.js. */
   const API = '/api/music/playlist';
-  const SYNC_MS = 20000;
+  const SYNC_MS = 2000;
   const titleEl = $('musicTitle'), addBtn = $('musicAdd'), backupsBtn = $('musicBackups');
   const addPanel = $('musicAddPanel'), backupsPanel = $('musicBackupsPanel'), toastEl = $('musicToast');
   const addUrl = $('musicAddUrl'), addFound = $('musicAddFound'), addThumb = $('musicAddThumb');
@@ -8174,8 +8212,17 @@ const MediaBus = (() => {
         } else {
           const pl = customPlaylists.find(p => p.id === entry.id);
           if (!pl) return;
+          pickerBusy = true;
+          const previous = [...pl.tracks];
           pl.tracks = on ? [...new Set([...pl.tracks, v])] : pl.tracks.filter(id => id !== v);
-          savePlaylists();
+          render(); paintPlaylistPicker(); status.textContent = 'Saving…';
+          const result = await edit('playlist-member', { id: entry.id, v, on }, { quiet: true });
+          if (!result || result.error) {
+            const current = customPlaylists.find(p => p.id === entry.id);
+            if (current) current.tracks = previous;
+            status.textContent = result?.error || 'Could not save the playlist change.';
+          }
+          pickerBusy = false;
         }
         renderCustomPlaylists(); render(); paintPlaylistPicker();
       });
@@ -8290,12 +8337,13 @@ const MediaBus = (() => {
     dialog.innerHTML = `
       <p class="music-confirm-title">Delete playlist?</p>
       <p class="music-confirm-text">Are you sure you want to delete
-        <strong>"${pl.name.replace(/"/g, '&quot;')}"</strong>
+        <strong></strong>
         ${songCount === 1 ? 'with 1 song' : `with ${songCount} songs`}?</p>
       <div class="music-confirm-btns">
         <button type="button" class="music-confirm-cancel">Cancel</button>
         <button type="button" class="music-confirm-ok">Delete</button>
       </div>`;
+    dialog.querySelector('strong').textContent = '“' + pl.name + '”';
     overlay.append(dialog);
     document.body.append(overlay);
     overlay.showModal();
@@ -8303,9 +8351,10 @@ const MediaBus = (() => {
     dialog.querySelector('.music-confirm-cancel').addEventListener('click', close);
     overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
     overlay.addEventListener('close', () => overlay.remove());
-    dialog.querySelector('.music-confirm-ok').addEventListener('click', () => {
-      customPlaylists = customPlaylists.filter(p => p.id !== pl.id);
-      savePlaylists();
+    dialog.querySelector('.music-confirm-ok').addEventListener('click', async () => {
+      const button = dialog.querySelector('.music-confirm-ok'); button.disabled = true;
+      const result = await edit('playlist-delete', { id: pl.id }, { quiet: true });
+      if (!result || result.error) { button.disabled = false; toast(result?.error || 'Could not delete the playlist.'); return; }
       if (view === 'pl:' + pl.id) setView('all');
       else renderCustomPlaylists();
       close();
@@ -8354,13 +8403,17 @@ const MediaBus = (() => {
     playlistForm.hidden ? openPlaylistForm() : closePlaylistForm();
   });
   playlistCancel?.addEventListener('click', closePlaylistForm);
-  playlistForm?.addEventListener('submit', (e) => {
+  playlistForm?.addEventListener('submit', async (e) => {
     e.preventDefault();
     const name = playlistName.value.trim();
     if (!name) return;
-    const id = 'c' + Date.now().toString(36);
-    customPlaylists.push({ id, name, tracks: [] });
-    savePlaylists();
+    const button = playlistForm.querySelector('[type="submit"]');
+    if (button.disabled) return;
+    button.disabled = true;
+    const id = crypto.randomUUID();
+    const result = await edit('playlist-create', { id, name }, { quiet: true });
+    button.disabled = false;
+    if (!result || result.error) { toast(result?.error || 'Could not create the playlist.'); return; }
     closePlaylistForm();
     renderCustomPlaylists();
     setView('pl:' + id);
@@ -8876,24 +8929,31 @@ const MediaBus = (() => {
   function adoptList(data) {
     const list = data.tracks.filter(t => t && t.v && t.t && t.u);
     if (!list.length) return;
+    if (Number(data.rev) < rev) return;
     tracks = list;
     rev = Number(data.rev) || 0;
+    adoptPlaylists(data);
     seedTicks();
     render();
   }
 
   function startSync() { clearInterval(syncTimer); if (live) syncTimer = setInterval(syncNow, SYNC_MS); }
   function stopSync() { clearInterval(syncTimer); syncTimer = 0; }
+  let syncFetching = false;
   async function syncNow() {
+    if (syncFetching) return;
     if (!live || document.hidden || !modal.open) return;
     // Not under a pending delete: a re-render would throw away the armed pill.
-    if (arming || pickerBusy) return;
+    if (arming || pickerBusy || document.activeElement?.matches('.music-rename-input')) return;
+    syncFetching = true;
     try {
       const response = await fetch(API, { cache: 'no-store' });
       if (!response.ok) return;
       const data = await response.json();
-      if (data && Array.isArray(data.tracks) && data.tracks.length && Number(data.rev) !== rev) adoptList(data);
+      if (data && Array.isArray(data.tracks) && data.tracks.length && (Number(data.rev) > rev || (!sharedPlaylistsReady && data.playlistsVersion === 1))) adoptList(data);
+      await migrateLegacyPlaylists();
     } catch { /* the next poll will ask again */ }
+    finally { syncFetching = false; }
   }
 
   const capital = (text) => String(text || '').replace(/^./, (c) => c.toUpperCase());
@@ -8940,6 +9000,7 @@ const MediaBus = (() => {
       setAdmin(true);
       if (window.setModeTag) window.setModeTag('musicModeTag', true);
       if (loaded) render();
+      await migrateLegacyPlaylists();
       return true;
     }
     toast(response.status === 503
@@ -9029,7 +9090,7 @@ const MediaBus = (() => {
     btn.disabled = true;
     row.classList.add('is-leaving');
     // Remember for undo BEFORE the delete.
-    if (gone) lastDeleted = { v: gone.v, t: gone.t, a: gone.a, u: gone.u };
+    if (gone) lastDeleted = { ...gone, playlistIds: customPlaylists.filter(p => p.tracks.includes(gone.v)).map(p => p.id) };
     const done = await edit('remove', { v: row.dataset.v });
     if (!done || done.error) {
       row.classList.remove('is-leaving', 'is-arming');
@@ -9037,6 +9098,7 @@ const MediaBus = (() => {
       btn.disabled = false;
       return;
     }
+    if (done.undo) lastDeleted = done.undo;
     if (gone) toast(`Removed “${gone.t}”. Press Ctrl+Z to undo.`);
   }
 
@@ -9050,9 +9112,9 @@ const MediaBus = (() => {
     if (tag === 'input' || tag === 'textarea' || e.target.isContentEditable) return;
     if (!lastDeleted) return;
     e.preventDefault();
-    const { v, t, a } = lastDeleted;
+    const { v, t, a, r, playlistIds } = lastDeleted;
     lastDeleted = null;
-    edit('add', { url: v, t, a }, { quiet: true }).then((data) => {
+    edit('add', { url: v, t, a, repeat: !!r, playlistIds: playlistIds || [] }, { quiet: true }).then((data) => {
       if (data && !data.error) toast(`Restored “${t}”.`);
       else if (data?.error) toast(`Could not restore: ${data.error}.`);
     });
@@ -9115,7 +9177,9 @@ const MediaBus = (() => {
     delete addNote.dataset.tone;
     const v = addPanel.dataset.v;
     const t = addTitle.value.trim(), a = addArtist.value.trim();
-    const data = await edit('add', { url: v, t, a }, { quiet: true });
+    // Freeze the selected destination before the request, even if the rail changes while saving.
+    const destination = view;
+    const data = await edit('add', { url: v, t, a, repeat: destination === 'repeat', ...(destination.startsWith('pl:') ? { playlistId: destination.slice(3) } : {}) }, { quiet: true });
     if (!data) return;
     if (data.error) { addNote.textContent = `${capital(data.error)}.`; addNote.dataset.tone = 'bad'; syncSave(); return; }
     closeAdd();
@@ -9228,8 +9292,10 @@ const MediaBus = (() => {
          CLAUDE.md has four scars from. */
       if (!list.length) throw new Error('the manifest is empty');
       tracks = list.filter(t => t && t.v && t.t && t.u);
+      adoptPlaylists(data);
       if (!tracks.length) throw new Error('no usable rows in the manifest');
       loaded = true;
+      await migrateLegacyPlaylists();
       seedTicks();
       // Read before the first render, or the rows are built with no flags
       // on them and a track marked last week comes back looking fine.

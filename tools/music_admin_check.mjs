@@ -1,6 +1,7 @@
 /* Drive the TUNES door: the live playlist, its backups, and editing it.
  *
  *   node tools/music_admin_check.mjs      # starts its own server, needs nothing
+ *   node tools/music_admin_check.mjs --in-process # real handlers + browser interception, no local HTTP
  *
  * THREE LAYERS, each of which can be wrong on its own.
  *
@@ -35,14 +36,15 @@
 import { spawn } from 'node:child_process';
 import { createServer } from 'node:http';
 import { generateKeyPairSync, sign } from 'node:crypto';
-import { existsSync, mkdtempSync, rmSync, readdirSync, writeFileSync, mkdirSync } from 'node:fs';
+import { existsSync, mkdtempSync, rmSync, readdirSync, writeFileSync, mkdirSync, readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { join, resolve, extname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import puppeteer from 'puppeteer-core';
 
 const ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
+const IN_PROCESS = process.argv.includes('--in-process');
 const require = createRequire(import.meta.url);
 const PORT = 8100 + ((process.pid + Date.now()) % 300);
 const BASE = `http://127.0.0.1:${PORT}`;
@@ -151,11 +153,26 @@ const DEX = idToken('dexdcimino@gmail.com');
 const SOMEONE = idToken('someone@gmail.com');
 
 const serverDir = scratch('api');
-const server = spawn(process.execPath,
+const serverEnv = { ...process.env, MUSIC_LOOKUP_OFFLINE: '1', TUNES_PASSWORD: 'tunes',
+  SITE_AUTH_PROJECT: PROJECT, SITE_AUTH_CERTS_URL: `http://127.0.0.1:${certs.address().port}/certs` };
+const networkFetch = globalThis.fetch;
+if (IN_PROCESS) {
+  Object.assign(process.env, serverEnv, { NOTES_DEV_DIR: serverDir, AUTH_SECRET: 'dev-auth-secret' });
+  globalThis.fetch = async (url, options) => String(url) === serverEnv.SITE_AUTH_CERTS_URL
+    ? new Response(JSON.stringify({ k1: gkey.publicKey.export({ type: 'spki', format: 'pem' }) }), { headers: { 'cache-control': 'public, max-age=600' } })
+    : networkFetch(url, options);
+}
+const playlistHandler = IN_PROCESS ? require(join(ROOT, 'api/music/playlist.js')) : null;
+async function localApi(body, handler = playlistHandler, headers = {}) {
+  let status = 200, data;
+  const response = { setHeader() {}, status(code) { status = code; return this; }, json(value) { data = value; return this; } };
+  await handler({ method: body ? 'POST' : 'GET', body, query: {}, headers }, response);
+  return { status, data };
+}
+const server = IN_PROCESS ? { killed: false, kill() { this.killed = true; } } : spawn(process.execPath,
   [join(ROOT, 'tools/notes_dev_server.mjs'), '--port', String(PORT), '--dir', serverDir],
-  { stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, MUSIC_LOOKUP_OFFLINE: '1', TUNES_PASSWORD: 'tunes',
-    SITE_AUTH_PROJECT: PROJECT, SITE_AUTH_CERTS_URL: `http://127.0.0.1:${certs.address().port}/certs` } });
-server.stderr.on('data', (d) => { if (/EADDRINUSE|Error/.test(String(d))) console.error('dev server: ' + String(d).trim()); });
+  { stdio: ['ignore', 'pipe', 'pipe'], env: serverEnv });
+server.stderr?.on('data', (d) => { if (/EADDRINUSE|Error/.test(String(d))) console.error('dev server: ' + String(d).trim()); });
 const stop = () => {
   if (!server.killed) server.kill();
   for (const d of scratches) { try { rmSync(d, { recursive: true, force: true }); } catch { /* temp */ } }
@@ -163,6 +180,7 @@ const stop = () => {
 process.on('exit', stop);
 
 const api = async (body) => {
+  if (IN_PROCESS) return localApi(body);
   const res = body
     ? await fetch(`${BASE}/api/music/playlist`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })
     : await fetch(`${BASE}/api/music/playlist`);
@@ -197,8 +215,9 @@ let TOKEN = null;
   note(r.status === 200 && r.data.already === true, 'a link already in the list was not called out');
   r = await api({ action: 'add', token: TOKEN, url: 'HarnessTst1', t: '', a: 'A' });
   note(r.status === 400, `an add with no title came back ${r.status}`);
-  r = await api({ action: 'add', token: TOKEN, url: 'https://youtu.be/HarnessTst1', t: 'Harness Song', a: 'Harness Band' });
+  r = await api({ action: 'add', token: TOKEN, url: 'https://youtu.be/HarnessTst1', t: 'Harness Song', a: 'Harness Band', repeat: true });
   note(r.status === 200 && r.data.count === SEEDN + 1 && !r.data.seeded, `the add came back ${r.status} with ${r.data && r.data.count}`);
+  note(r.data.tracks.find(t => t.v === 'HarnessTst1')?.r === true, 'adding from Repeat must save library and repeat membership atomically');
   r = await api({ action: 'add', token: TOKEN, url: 'HarnessTst1', t: 'Again', a: 'Again' });
   note(r.status === 409, `the same video twice came back ${r.status}`);
   r = await api({ action: 'repeat', token: TOKEN, v: 'HarnessTst1', on: true });
@@ -231,35 +250,17 @@ let TOKEN = null;
 
 /* ---- 3. two browsers --------------------------------------------------------- */
 
-const browser = await puppeteer.launch({ executablePath: CHROME, headless: 'new', args: ['--no-sandbox', '--mute-audio'], defaultViewport: { width: 1400, height: 950 } });
-// A two-second, locally generated video exercises the browser's real ended event.
-const fixturePage = await browser.newPage();
-let fixtureVideo = Buffer.from(await fixturePage.evaluate(async () => {
-  const canvas = document.createElement('canvas'); canvas.width = 160; canvas.height = 90;
-  const ctx = canvas.getContext('2d'), stream = canvas.captureStream(20);
-  const recorder = new MediaRecorder(stream, { mimeType: 'video/webm;codecs=vp8' });
-  const chunks = []; recorder.ondataavailable = e => chunks.push(e.data);
-  const finished = new Promise(resolve => { recorder.onstop = resolve; });
-  recorder.start();
-  const draw = setInterval(() => { ctx.fillStyle = '#3775bc'; ctx.fillRect(0, 0, 160, 90); ctx.fillStyle = '#fff'; ctx.fillRect(40, 30, 80, 30); }, 50);
-  await new Promise(resolve => setTimeout(resolve, 2000)); recorder.stop(); await finished;
-  clearInterval(draw); stream.getTracks().forEach(t => t.stop());
-  return Array.from(new Uint8Array(await new Blob(chunks).arrayBuffer()));
-}));
-// MediaRecorder leaves WebM duration unknown; add an EBML Duration to the Info element.
-const infoOffset = fixtureVideo.lastIndexOf(Buffer.from([0x15, 0x49, 0xa9, 0x66]));
-let infoWidth = 1, infoMarker = 0x80;
-while (!(fixtureVideo[infoOffset + 4] & infoMarker) && infoWidth < 8) { infoWidth++; infoMarker >>= 1; }
-let infoSize = fixtureVideo[infoOffset + 4] & (infoMarker - 1);
-for (let i = 1; i < infoWidth; i++) infoSize = infoSize * 256 + fixtureVideo[infoOffset + 4 + i];
-if (infoOffset < 0 || infoSize > 10000) throw new Error('unexpected generated WebM Info');
-const durationTag = Buffer.alloc(11); durationTag.set([0x44, 0x89, 0x88]); durationTag.writeDoubleBE(2000, 3);
-let newInfoSize = infoSize + durationTag.length;
-for (let i = infoWidth - 1; i >= 0; i--) { fixtureVideo[infoOffset + 4 + i] = newInfoSize & 255; newInfoSize = Math.floor(newInfoSize / 256); }
-fixtureVideo[infoOffset + 4] |= infoMarker;
-fixtureVideo = Buffer.concat([fixtureVideo.subarray(0, infoOffset + 4 + infoWidth + infoSize), durationTag, fixtureVideo.subarray(infoOffset + 4 + infoWidth + infoSize)]);
-await fixturePage.close();
-let mediaLookups = 0, refuseMedia = false;
+const browser = await puppeteer.launch({ executablePath: CHROME, headless: 'new', pipe: IN_PROCESS, args: ['--no-sandbox', '--mute-audio'], defaultViewport: { width: 1400, height: 950 } });
+// Finite silent PCM media exercises the real HTMLMediaElement ended event without
+// relying on canvas capture/GPU availability in a headless sandbox.
+const fixtureVideo = Buffer.alloc(44 + 16000 * 2 * 2);
+fixtureVideo.write('RIFF', 0); fixtureVideo.writeUInt32LE(fixtureVideo.length - 8, 4);
+fixtureVideo.write('WAVEfmt ', 8); fixtureVideo.writeUInt32LE(16, 16);
+fixtureVideo.writeUInt16LE(1, 20); fixtureVideo.writeUInt16LE(1, 22);
+fixtureVideo.writeUInt32LE(16000, 24); fixtureVideo.writeUInt32LE(32000, 28);
+fixtureVideo.writeUInt16LE(2, 32); fixtureVideo.writeUInt16LE(16, 34);
+fixtureVideo.write('data', 36); fixtureVideo.writeUInt32LE(fixtureVideo.length - 44, 40);
+let mediaLookups = 0, refuseMedia = false, refuseAdd = false;
 
 
 /* Signed in: the site-auth mirror flag set, and site-auth.js answered by a
@@ -268,20 +269,40 @@ const FAKE_SITE_AUTH = (token) => `export const LOCAL_FLAG = 'site:signedIn';
 export async function idToken() { return ${JSON.stringify(token)}; }
 export async function currentUser() { return { uid: 'u' }; }
 export function onUser(fn) { setTimeout(() => fn({ uid: 'u' }), 0); return () => {}; }`;
-async function door(event, code, name, signedIn = null) {
+const localCSP = JSON.parse(readFileSync(join(ROOT, 'vercel.json'), 'utf8')).headers
+  .find(h => h.source === '/(.*)').headers.find(h => h.key === 'Content-Security-Policy').value.replace(/;\s*upgrade-insecure-requests/, '');
+async function localRequest(req) {
+  const url = new URL(req.url());
+  if (url.origin !== BASE) return req.abort();
+  if (['/api/music/playlist', '/api/auth/unlock', '/api/auth/verify'].includes(url.pathname)) {
+    const handler = url.pathname === '/api/music/playlist' ? playlistHandler : require(join(ROOT, url.pathname + '.js'));
+    const response = await localApi(req.method() === 'POST' ? JSON.parse(req.postData() || '{}') : undefined, handler, req.headers());
+    return req.respond({ status: response.status, contentType: 'application/json', body: JSON.stringify(response.data) });
+  }
+  if (url.pathname.startsWith('/api/')) return req.respond({ status: 404, contentType: 'application/json', body: '{}' });
+  const file = resolve(ROOT, '.' + decodeURIComponent(url.pathname === '/' ? '/index.html' : url.pathname));
+  if (!file.startsWith(ROOT + '/') && !file.startsWith(ROOT + '\\')) return req.abort();
+  const types = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.svg': 'image/svg+xml', '.png': 'image/png', '.avif': 'image/avif', '.webp': 'image/webp', '.jpg': 'image/jpeg', '.woff2': 'font/woff2' };
+  try { return req.respond({ status: 200, contentType: types[extname(file)] || 'application/octet-stream', headers: { 'Content-Security-Policy': localCSP }, body: readFileSync(file) }); }
+  catch { return req.respond({ status: 404, body: '404' }); }
+}
+async function door(event, code, name, signedIn = null, legacyPlaylists = null) {
   const context = await browser.createBrowserContext();
   const page = await context.newPage();
+  if (legacyPlaylists) await page.evaluateOnNewDocument(playlists => { localStorage.setItem('dex-music-playlists', JSON.stringify(playlists)); }, legacyPlaylists);
   if (signedIn) await page.evaluateOnNewDocument(() => { try { localStorage.setItem('site:signedIn', '1'); } catch { /* */ } });
   await (await page.createCDPSession()).send('Browser.setDownloadBehavior', { behavior: 'deny' }).catch(() => {});
   /* The embed is not what this checks, and it autoplays. Refused at the wire,
      the way music_check does it, so no test waits on YouTube. */
   await page.setRequestInterception(true);
   page.on('request', req => {
-    if (req.url().includes('/api/music/media?')) { mediaLookups++; return req.respond({ status: refuseMedia ? 422 : 200, contentType: 'application/json', body: JSON.stringify(refuseMedia ? { error: 'unavailable' } : { url: 'https://test.cdninstagram.com/fixture.webm' }) }); }
-    if (req.url() === 'https://test.cdninstagram.com/fixture.webm') return req.respond({ status: 200, contentType: 'video/webm', body: fixtureVideo });
+    if (refuseAdd && req.url().endsWith('/api/music/playlist') && req.method() === 'POST' && JSON.parse(req.postData() || '{}').action === 'add') return req.respond({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: 'test save refused' }) });
+    if (req.url().includes('/api/music/media?')) { mediaLookups++; return req.respond({ status: refuseMedia ? 422 : 200, contentType: 'application/json', body: JSON.stringify(refuseMedia ? { error: 'unavailable' } : { url: 'https://test.cdninstagram.com/fixture.wav' }) }); }
+    if (req.url() === 'https://test.cdninstagram.com/fixture.wav') return req.respond({ status: 200, contentType: 'audio/wav', body: fixtureVideo });
     if (/^https:\/\/(www.instagram.com|player.vimeo.com|w.soundcloud.com|open.spotify.com|www.tiktok.com|bandcamp.com)\//.test(req.url())) return req.respond({ status: 200, contentType: 'text/html', body: '<button id="native-play">Provider play</button>' });
     if (/youtube|ytimg|googlevideo/.test(req.url())) return req.abort();
     if (signedIn && req.url().endsWith('/account/site-auth.js')) return req.respond({ status: 200, contentType: 'text/javascript', body: FAKE_SITE_AUTH(signedIn) });
+    if (IN_PROCESS) return localRequest(req);
     return req.continue();
   });
   page.on('pageerror', (e) => fail.push(`pageerror (${name}): ${e.message}`));
@@ -429,8 +450,9 @@ try {
   await editor.page.click('#musicAddPlaylist');
   await editor.page.type('#musicPlaylistName', 'Stillness');
   await editor.page.click('.music-playlist-ok');
+  await editor.page.waitForFunction(() => document.getElementById('musicPlaylistForm').hidden);
   await editor.page.click('#musicViewAll');
-  const customId = await editor.page.evaluate(() => JSON.parse(localStorage.getItem('dex-music-playlists')).find(p => p.name === 'Stillness').id);
+  const customId = await editor.page.evaluate(() => JSON.parse(localStorage.getItem('dex-music-playlists-shared-cache-v1')).find(p => p.name === 'Stillness').id);
 
   /* A TICK in TUNES is a tick on every screen. */
   const target = await editor.page.evaluate(() => [...document.querySelectorAll('#musicRows .music-row')]
@@ -443,7 +465,8 @@ try {
   await editor.page.click('.music-picker-entry:has(input[data-playlist="repeat"]) span');
   await editor.page.waitForFunction(() => !document.querySelector('.music-picker-entry input[data-playlist="repeat"]').disabled);
   await editor.page.click(`.music-picker-entry:has(input[data-playlist="${customId}"]) span`);
-  note(await editor.page.evaluate(v => JSON.parse(localStorage.getItem('dex-music-playlists')).find(p => p.name === 'Stillness').tracks.includes(v), target), 'the song was not saved to Stillness immediately');
+  await editor.page.waitForFunction(id => !document.querySelector(`.music-picker-entry input[data-playlist="${id}"]`).disabled, {}, customId);
+  note(await editor.page.evaluate(v => JSON.parse(localStorage.getItem('dex-music-playlists-shared-cache-v1')).find(p => p.name === 'Stillness').tracks.includes(v), target), 'the song was not saved to Stillness immediately');
   await editor.page.click('.music-picker-okay');
   note(await editor.page.evaluate(() => !document.getElementById('musicPlaylistPicker')), 'Okay did not close the picker');
   await sleep(700);
@@ -462,8 +485,10 @@ try {
   at = await centre(editor.page, `.music-row[data-v="${target}"] .music-playlist-add`);
   await editor.page.mouse.click(at.x, at.y);
   await editor.page.click(`.music-picker-entry:has(input[data-playlist="${customId}"]) span`);
+  await editor.page.waitForFunction(id => !document.querySelector(`.music-picker-entry input[data-playlist="${id}"]`).disabled, {}, customId);
   note(!(await has(editor.page, target)) && await editor.page.evaluate(() => document.getElementById('musicPlaylistPicker').open), 'removing membership failed to update the list or closed the picker');
   await editor.page.click(`.music-picker-entry:has(input[data-playlist="${customId}"]) span`);
+  await editor.page.waitForFunction(id => !document.querySelector(`.music-picker-entry input[data-playlist="${id}"]`).disabled, {}, customId);
   note(await has(editor.page, target), 'checking Stillness again did not return the song');
   await editor.page.keyboard.press('Escape');
   note(await editor.page.evaluate(() => !document.getElementById('musicPlaylistPicker') && document.getElementById('musicModal').open), 'Escape closed the music overlay instead of just the picker');
@@ -533,6 +558,7 @@ try {
   note(nameBounds.w >= 180 && nameBounds.right <= 390, `mobile playlist name input is usable: ${JSON.stringify(nameBounds)}`);
   await editor.page.type('#musicPlaylistName', 'Phone playlist');
   await editor.page.click('.music-playlist-ok');
+  await editor.page.waitForFunction(() => document.getElementById('musicPlaylistForm').hidden);
   note(await editor.page.evaluate(() => [...document.querySelectorAll('#musicCustomPlaylists .music-rail-label')].some(e => e.textContent === 'PHONE PLAYLIST' && e.getBoundingClientRect().width > 0)), 'new phone playlist should have a visible name in the expanded rail');
   await editor.page.click('.music-rail-toggle');
   note(await editor.page.$eval('.music-rail', e => !e.classList.contains('is-expanded')), 'phone rail collapse control failed');
@@ -566,7 +592,7 @@ try {
   await editor.page.evaluate(() => document.dispatchEvent(new CustomEvent('music:open', { detail: {} })));
   await editor.page.waitForFunction(() => document.getElementById('musicModal').open, { timeout: 5000 });
   await sleep(900);
-  note(await editor.page.evaluate(v => JSON.parse(localStorage.getItem('dex-music-playlists')).find(p => p.name === 'Stillness').tracks.includes(v), target), 'Stillness membership did not persist across reopening');
+  note(await editor.page.evaluate(v => JSON.parse(localStorage.getItem('dex-music-playlists-shared-cache-v1')).find(p => p.name === 'Stillness').tracks.includes(v), target), 'Stillness membership did not persist across reopening');
   const e1 = await state(editor.page);
   note(e1.admin && e1.del === e1.rows, `reopened as Dex: admin ${e1.admin}, ${e1.del} minus for ${e1.rows} rows`);
   // Add an Instagram Reel through the actual editor, preserving its URL through storage and polling.
@@ -650,6 +676,91 @@ try {
   await editor.page.click('#musicRows .music-play'); await sleep(200);
   note(await editor.page.evaluate(() => !document.getElementById('musicModal').classList.contains('has-native-embed') && document.getElementById('musicVideo').src.includes('youtube-nocookie.com/embed/')), 'YouTube did not recover after the provider player');
   await editor.page.click('#musicToggle');
+
+  // Adding while a playlist is selected must also populate that playlist, including embeds.
+  const choosePlaylist = async name => editor.page.$$eval('#musicCustomPlaylists button:not(.music-rail-del)', (buttons, label) => buttons.find(b => b.querySelector('.music-rail-label')?.textContent === label.toUpperCase()).click(), name);
+  const addSong = async (url, title) => {
+    await editor.page.click('#musicAdd');
+    await editor.page.type('#musicAddUrl', url);
+    await editor.page.waitForFunction(() => !document.getElementById('musicAddFound').hidden);
+    await editor.page.type('#musicAddTitle', title);
+    await editor.page.type('#musicAddArtist', 'Destination test');
+    await editor.page.click('#musicAddSave');
+    if (!refuseAdd) await editor.page.waitForFunction(() => document.getElementById('musicAddPanel').hidden);
+  };
+  const memberOf = (name, v) => editor.page.evaluate((name, v) => JSON.parse(localStorage.getItem('dex-music-playlists-shared-cache-v1')).find(p => p.name === name)?.tracks.includes(v), name, v);
+  await editor.page.click('#musicAddPlaylist');
+  await editor.page.type('#musicPlaylistName', 'Fresh Adds');
+  await editor.page.click('.music-playlist-ok');
+  await editor.page.waitForFunction(() => document.getElementById('musicPlaylistForm').hidden);
+  await addSong('FreshSong01', 'Fresh playlist song');
+  note(await has(editor.page, 'FreshSong01') && await memberOf('Fresh Adds', 'FreshSong01'), 'adding to a brand-new empty playlist must show the song there and save membership');
+  await pull(viewer.page);
+  await viewer.page.waitForFunction(() => !!document.querySelector('.music-row[data-v="FreshSong01"]'));
+  note(await has(viewer.page, 'FreshSong01'), 'adding to a custom playlist must also add to the public All library');
+  await choosePlaylist('Stillness');
+  const vimeo = 'https://vimeo.com/123456789';
+  await addSong(vimeo, 'Existing playlist embed');
+  note(await has(editor.page, vimeo) && await memberOf('Stillness', vimeo), 'adding an embed to an existing custom playlist must keep that playlist selected and populate it');
+  await editor.page.click('#musicViewRepeat');
+  await addSong('RepeatAdd01', 'Repeat destination song');
+  note(await has(editor.page, 'RepeatAdd01') && (await api()).data.tracks.find(t => t.v === 'RepeatAdd01')?.r === true, 'adding from Repeat must immediately show the track there with shared membership saved');
+  await editor.page.click('#musicViewAll');
+  await addSong('AllOnlyAdd1', 'All-only destination song');
+  note(await has(editor.page, 'AllOnlyAdd1') && !(await api()).data.tracks.find(t => t.v === 'AllOnlyAdd1')?.r && await editor.page.evaluate(() => JSON.parse(localStorage.getItem('dex-music-playlists-shared-cache-v1')).every(p => !p.tracks.includes('AllOnlyAdd1'))), 'adding from All must not add to Repeat or any custom playlist');
+  await choosePlaylist('Fresh Adds');
+  refuseAdd = true;
+  await addSong('RefusedAdd1', 'Refused playlist save');
+  await editor.page.waitForFunction(() => document.getElementById('musicAddNote').dataset.tone === 'bad');
+  note(!(await memberOf('Fresh Adds', 'RefusedAdd1')) && !(await api()).data.tracks.some(t => t.v === 'RefusedAdd1'), 'a failed add must not leave a phantom custom playlist membership');
+  refuseAdd = false;
+  await editor.page.click('#musicAddCancel');
+  await editor.page.evaluate(() => window.dexMusic.stopAll());
+  await sleep(350);
+  await editor.page.evaluate(() => document.dispatchEvent(new CustomEvent('music:open')));
+  await editor.page.waitForFunction(() => document.getElementById('musicModal').open);
+  await choosePlaylist('Fresh Adds');
+  note(await has(editor.page, 'FreshSong01'), 'newly added custom playlist membership must survive reopening Music');
+
+  // Real isolated device stores: migrate both originals, share publicly and propagate deletion.
+  const legacyDesktop = [{ id: 'legacy-desktop', name: 'Stillness', tracks: [SEED.tracks[0].v] }];
+  const legacyPhone = [{ id: 'legacy-phone', name: 'Shorts', tracks: [SEED.tracks[1].v, SEED.tracks[2].v] }];
+  const desktop = await door('music:open', '', 'legacy desktop owner', DEX, legacyDesktop);
+  const phoneDevice = await door('music:open', '', 'legacy phone owner', DEX, legacyPhone);
+  await phoneDevice.page.setViewport({ width: 390, height: 844 });
+  await phoneDevice.page.waitForFunction(() => !!localStorage.getItem('dex-music-playlists-migrated-v1'));
+  await desktop.page.waitForFunction(() => [...document.querySelectorAll('#musicCustomPlaylists .music-rail-label')].some(e => e.textContent === 'SHORTS'), { timeout: 8000 });
+  await viewer.page.waitForFunction(() => [...document.querySelectorAll('#musicCustomPlaylists .music-rail-label')].some(e => e.textContent === 'SHORTS'), { timeout: 8000 });
+  note(await phoneDevice.page.evaluate(() => ['STILLNESS', 'SHORTS'].every(name => [...document.querySelectorAll('#musicCustomPlaylists .music-rail-label')].some(e => e.textContent === name))), 'phone must see both its Shorts and the desktop Stillness playlist');
+  note(await desktop.page.evaluate(() => ['STILLNESS', 'SHORTS'].every(name => [...document.querySelectorAll('#musicCustomPlaylists .music-rail-label')].some(e => e.textContent === name))), 'desktop must receive the phone playlist through automatic polling');
+  note(await viewer.page.$eval('#musicAddPlaylist', b => b.hidden) && await viewer.page.evaluate(() => [...document.querySelectorAll('#musicCustomPlaylists .music-rail-label')].some(e => e.textContent === 'SHORTS')), 'signed-out visitors see curator playlists without gaining editing rights');
+  for (const [device, original] of [[desktop, legacyDesktop], [phoneDevice, legacyPhone]]) {
+    note(await device.page.evaluate(original => localStorage.getItem('dex-music-playlists') === JSON.stringify(original) && localStorage.getItem('dex-music-playlists-legacy-backup-v1') === JSON.stringify(original), original), 'migration must retain both original device storage and its backup byte for byte');
+  }
+  const shared = (await api()).data;
+  note(shared.playlists.find(p => p.name === 'Shorts').tracks.join() === legacyPhone[0].tracks.join() && shared.playlists.find(p => p.name === 'Stillness').tracks.includes(legacyDesktop[0].tracks[0]), 'both imported collections must retain their original song memberships');
+  const shortsId = shared.playlists.find(p => p.name === 'Shorts').id;
+  await phoneDevice.page.click('.music-rail-toggle');
+  await phoneDevice.page.$$eval('#musicCustomPlaylists .music-rail-label', labels => labels.find(e => e.textContent === 'SHORTS').closest('button').click());
+  await phoneDevice.page.click('.music-rail-toggle');
+  await phoneDevice.page.click(`.music-row[data-v="${legacyPhone[0].tracks[0]}"] .music-playlist-add`);
+  await phoneDevice.page.click(`.music-picker-entry:has(input[data-playlist="${shortsId}"]) span`);
+  await phoneDevice.page.waitForFunction(id => !document.querySelector(`.music-picker-entry input[data-playlist="${id}"]`).disabled, {}, shortsId);
+  await phoneDevice.page.click('.music-picker-okay');
+  await desktop.page.waitForFunction(v => !JSON.parse(localStorage.getItem('dex-music-playlists-shared-cache-v1')).find(p => p.name === 'Shorts').tracks.includes(v), { timeout: 8000 }, legacyPhone[0].tracks[0]);
+  note(true, 'a song removed from the phone reaches the desktop automatically');
+  await phoneDevice.page.click('.music-rail-toggle');
+  await phoneDevice.page.click('[aria-label="Delete playlist Shorts"]');
+  await phoneDevice.page.click('.music-confirm-ok');
+  await desktop.page.waitForFunction(() => ![...document.querySelectorAll('#musicCustomPlaylists .music-rail-label')].some(e => e.textContent === 'SHORTS'), { timeout: 8000 });
+  await viewer.page.waitForFunction(() => ![...document.querySelectorAll('#musicCustomPlaylists .music-rail-label')].some(e => e.textContent === 'SHORTS'), { timeout: 8000 });
+  note(true, 'deleting on mobile removes the playlist from desktop and signed-out visitors');
+  const late = await door('music:open', '', 'late legacy owner', DEX, [{ ...legacyPhone[0], id: 'late-phone' }]);
+  await late.page.waitForFunction(() => !!localStorage.getItem('dex-music-playlists-migrated-v1'));
+  note(!(await api()).data.playlists.some(p => p.name === 'Shorts'), 'a newly opened old device must not resurrect a deleted public playlist');
+  const otherLegacy = await door('music:open', '', 'non-owner legacy', SOMEONE, [{ id: 'outsider', name: 'Private old visitor list', tracks: [SEED.tracks[0].v] }]);
+  note(!(await api()).data.playlists.some(p => p.name === 'Private old visitor list'), 'another signed-in account cannot import its local collection into the public catalog');
+  for (const device of [desktop, phoneDevice, late, otherLegacy]) await device.context.close();
 
   /* SIGNING OUT ENDS EDITING THERE AND THEN, with the list still up. */
   await editor.page.evaluate(() => { localStorage.removeItem('site:signedIn'); window.dispatchEvent(new CustomEvent('site:user')); });

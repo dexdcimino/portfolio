@@ -5710,3 +5710,17 @@ Mobile playlist creation expands the existing sidebar rather than squeezing a
 form into its icon rail. The speaker opens a volume popover, and player gain
 matches the displayed percentage. Song membership uses a two-item list icon
 while retaining the existing immediate checkbox picker and storage behavior.
+
+## 2026-10-19 — One shared public music playlist catalog
+
+Custom playlists are curator-owned public data in the existing private Vercel
+Blob music document, alongside All and Repeat. Browser-local storage is retained
+only as an original migration source and a separate shared cache. Owner-only
+imports union collections, archive the original device data and use receipts
+and tombstones to prevent stale imports from restoring deletions. Every edit
+uses a conditional write and retries against the latest state. Visible overlays
+refresh within one two-second poll; hidden pages check again on return.
+
+This avoids requiring Firebase schema/rule changes or another sync service.
+Separate personal playlists keyed by verified UID are deferred. Migration steps,
+backup locations and deployment limitations are in `docs/MUSIC_PLAYLIST_SYNC.md`.

@@ -3472,14 +3472,36 @@ Instagram's shortcode is one `/p/` identity across Reel links and embed code.
 
 Each music row has an accent-outline two-item list icon (`.music-playlist-add`) opening
 `#musicPlaylistPicker`, a compact anchored child dialog in the top layer.
-Whole checkbox labels toggle membership immediately: Repeat uses the existing
-shared server edit, and custom playlists use their existing localStorage
-records. ALL is checked and fixed because it is the complete library; removing
+Whole checkbox labels toggle membership through owner-authenticated server
+edits for both Repeat and custom playlists. ALL is checked and fixed because it is the complete library; removing
 a library entry remains the separate delete control. The picker retains its
 selected track while a membership change removes that row from the active
 playlist. Okay, Escape or an outside click closes only the picker, with focus
 returned to its row where it still exists. The mobile full-screen dialog rule
 has an explicit exception for this picker. Sign-out and closing Music remove it.
+
+Custom playlists now live in the shared private Blob music document alongside
+tracks and Repeat. Public GET responses include `playlists` and
+`playlistsVersion:1`; only the verified owner can create/delete/import or patch
+memberships. Every save re-reads the latest document and uses an ETag conditional
+write, retrying conflicts instead of overwriting another device. First creation
+is create-only. The local test backend serializes mutations and rejects stale
+writes. All edits, including old track operations and restores, use this path.
+
+Owner-only migration unions each device's original local collection with the
+shared catalog. Original `dex-music-playlists` bytes are retained, with an
+immutable local backup and private `music/legacy/<sha256>.json` archives before
+acknowledgement. Import fingerprints, deleted-name tombstones and removed-track
+markers prevent retries and late devices from resurrecting deleted data. Shared
+cache uses a separate key; other signed-in users cannot publish their local
+collections. See `docs/MUSIC_PLAYLIST_SYNC.md` for recovery/deployment steps.
+
+Add Song captures the selected view at submission and saves All plus the selected
+custom playlist (or Repeat) atomically. Undo restores the removed song's actual
+server-side memberships. The public catalog refreshes every two seconds while
+Music is visible and immediately on reopening/tab return. Unchanged documents
+are not re-rendered; pending edits and rename inputs are protected. Backups now
+include playlists; legacy track-only restores preserve existing collections.
 
 YouTube retains its existing transport, time, volume, auto-advance and docking.
 Every provider uses the same 170px desktop / 96px mobile, 16:9 screen; no
@@ -3511,7 +3533,7 @@ Escape or an outside tap closes it without muting. Desktop speaker still toggles
 mute. Player volume now follows the displayed percentage linearly (previously
 40% became 6.4% gain); new browsers default to 80%, stored choices remain intact.
 
-Validation: `node tools/music_embed_check.mjs`, `node tools/music_media_check.mjs`, `node tools/music_admin_check.mjs`
+Validation: `node tools/music_playlist_sync_check.mjs`, `node tools/music_embed_check.mjs`, `node tools/music_media_check.mjs`, `node tools/music_admin_check.mjs`
 and `node tools/music_check.mjs --playlist-core`. The full legacy music checker
 still references the removed `musicStop` control and needs migration to the
 current pill. The core mode checks the existing YouTube playlist, permissions,

@@ -1,6 +1,6 @@
 /* The live playlist.
  *
- *   GET  /api/music/playlist                         ->  { rev, savedAt, tracks }
+ *   GET  /api/music/playlist                         ->  { rev, savedAt, tracks, playlists }
  *   POST /api/music/playlist  { action, ... }        ->  the same, after the edit
  *
  * READING IS PUBLIC. The list was always public -- it shipped in the page as
@@ -16,9 +16,13 @@
  * ACTIONS
  *   unlock   {idToken} | {jwt}       -> { token }
  *   lookup   {token, url}            -> { v, t, a }   a guess for the add form
- *   add      {token, url, t, a}
+ *   add      {token, url, t, a, repeat?, playlistId?, playlistIds?}
  *   remove   {token, v}
  *   repeat   {token, v, on}          the REPEAT playlist, now shared
+ *   playlist-create {token, id, name}
+ *   playlist-delete {token, id}
+ *   playlist-member {token, id, v, on}
+ *   playlist-import {token, playlists}   additive, replay-safe device migration
  *   backups  {token}                 -> { backups:[{name, kind, label, count}] }
  *   restore  {token, name}
  *
@@ -30,6 +34,7 @@
 
 const store = require('../../lib/music-store.js');
 const owner = require('../../lib/owner-auth.js');
+const playlists = require('../../lib/music-playlists.js');
 
 module.exports = async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
@@ -106,62 +111,39 @@ module.exports = async function handler(req, res) {
       return res.status(200).json({ backups: await store.listBackups() });
     }
 
-    const doc = await store.read();
-
-    if (action === 'add') {
-      const track = store.cleanTrack({ v: body.url, t: body.t, a: body.a });
-      if (!track) return res.status(400).json({ error: 'a link, a title and an artist are all needed' });
-      if (doc.tracks.some((t) => t.v === track.v)) {
-        return res.status(409).json({ error: 'that video is already in the playlist', v: track.v });
+    if (['add', 'remove', 'repeat', 'rename', 'playlist-create', 'playlist-delete', 'playlist-member', 'playlist-import'].includes(action)) {
+      if (action === 'playlist-import') {
+        // Validate first, then preserve the complete original device collection before acknowledging it.
+        playlists.apply(await store.read(), body, store.cleanTrack);
+        await store.archiveLegacy(body.playlists);
       }
-      return res.status(200).json(view(await store.write(doc, [...doc.tracks, track])));
-    }
-
-    if (action === 'remove') {
-      const next = doc.tracks.filter((t) => t.v !== body.v);
-      if (next.length === doc.tracks.length) return res.status(404).json({ error: 'that track is not in the playlist' });
-      return res.status(200).json(view(await store.write(doc, next)));
-    }
-
-    if (action === 'repeat') {
-      let hit = false;
-      const next = doc.tracks.map((t) => {
-        if (t.v !== body.v) return t;
-        hit = true;
-        const copy = { ...t };
-        if (body.on) copy.r = true; else delete copy.r;
-        return copy;
+      let undo = null;
+      const doc = await store.mutate(before => {
+        if (action === 'remove') {
+          const track = before.tracks.find(t => t.v === body.v);
+          if (track) undo = { ...track, playlistIds: before.playlists.filter(p => p.tracks.includes(body.v)).map(p => p.id) };
+        }
+        return playlists.apply(before, body, store.cleanTrack);
       });
-      if (!hit) return res.status(404).json({ error: 'that track is not in the playlist' });
-      return res.status(200).json(view(await store.write(doc, next)));
+      return res.status(200).json({ ...view(doc), ...(undo ? { undo } : {}) });
     }
-
-    if (action === 'rename') {
-      const newTitle = String(body.t || '').trim().slice(0, 200);
-      if (!newTitle) return res.status(400).json({ error: 'title is required' });
-      let hit = false;
-      const next = doc.tracks.map((t) => {
-        if (t.v !== body.v) return t;
-        hit = true;
-        return { ...t, t: newTitle };
-      });
-      if (!hit) return res.status(404).json({ error: 'that track is not in the playlist' });
-      return res.status(200).json(view(await store.write(doc, next)));
-    }
-
     if (action === 'restore') {
-      const tracks = await store.readBackup(body.name);
-      if (!tracks || !tracks.length) return res.status(404).json({ error: 'no such backup' });
-      return res.status(200).json(view(await store.write(doc, tracks)));
+      const backup = await store.readBackupDocument(body.name);
+      if (!backup?.tracks.length) return res.status(404).json({ error: 'no such backup' });
+      return res.status(200).json(view(await store.mutate(before => ({ ...before, ...backup,
+        playlistMigrations: [...new Set([...(before.playlistMigrations || []), ...(backup.playlistMigrations || [])])],
+        deletedPlaylistNames: [...new Set([...(before.deletedPlaylistNames || []), ...(backup.deletedPlaylistNames || [])])],
+      }))));
     }
 
     return res.status(400).json({ error: 'no such action' });
   } catch (err) {
+    if (err.status && [400, 404, 409].includes(err.status)) return res.status(err.status).json({ error: err.message });
     console.error('music/playlist: failed', err);
     return res.status(502).json({ error: 'the playlist could not be reached' });
   }
 };
 
 function view(doc) {
-  return { rev: doc.rev, savedAt: doc.savedAt, seeded: !!doc.seeded, count: doc.tracks.length, tracks: doc.tracks };
+  return { rev: doc.rev, savedAt: doc.savedAt, seeded: !!doc.seeded, count: doc.tracks.length, tracks: doc.tracks, playlists: playlists.publicPlaylists(doc), playlistsVersion: 1 };
 }
