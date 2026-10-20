@@ -1716,7 +1716,7 @@ const DOCS = {
   'tab-cover':  { file: 'Dex_Cimino_Cover.pdf',  label: 'Download Dex Cimino cover letter as PDF',
                   tip: 'Download Cover' },
 };
-const PDF_VERSION = '20261019b'; // bump on every PDF re-upload — see SYNC RULE above
+const PDF_VERSION = '20261019c'; // bump on every PDF re-upload — see SYNC RULE above
 const zoomLevelEl = document.getElementById('zoomLevel');
 const zoomInBtn = document.getElementById('zoomIn');
 const zoomOutBtn = document.getElementById('zoomOut');
@@ -2423,6 +2423,24 @@ if (workModal) {
       try { await loadWork(); } catch { return; }   // no manifest, no overlay
       if (workCategories().some(cat => cat.id === workLinkCat))
         openWork(workLinkCat, 0, null);
+    }, { once: true });
+  }
+}
+
+/* Pretty set links: same door as the category slugs above, for a game's own
+   gallery (a [data-work-set]). /proto-isles rewrites to this page in
+   vercel.json and opens the overlay on the Proto Isles set — the resume
+   links here (Dex, 2026-10-19), because the set gallery had no URL at all
+   before this: it only opened from the featured card's GALLERY button. */
+const WORK_PATH_SETS = {
+  '/proto-isles': 'proto-isles',
+};
+if (workModal) {
+  const workLinkSet = WORK_PATH_SETS[location.pathname.replace(/\/$/, '')];
+  if (workLinkSet) {
+    window.addEventListener('load', async () => {
+      try { await loadWork(); } catch { return; }   // no manifest, no overlay
+      if (readWorkSet(workLinkSet)) openWork(null, 0, null, workLinkSet);
     }, { once: true });
   }
 }
