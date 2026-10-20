@@ -80,6 +80,10 @@
       "destination": "/"
     },
     {
+      "source": "/proto-isles/:cat([A-Za-z0-9_-]+)",
+      "destination": "/"
+    },
+    {
       "source": "/character",
       "destination": "/"
     },
