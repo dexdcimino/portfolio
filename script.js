@@ -2152,6 +2152,7 @@ function selectWorkCategory(index, itemIndex = 0) {
   buildWorkStrip(cats[workCat].items);
   paintWorkJumps();
   showWorkItem(itemIndex);
+  syncWorkUrl();
 }
 
 /* ---------- category buttons over the arrows ----------------------------- */
@@ -2369,6 +2370,7 @@ function showWorkItem(index) {
   [...(workTrack?.children || [])].forEach((thumb, i) => thumb.setAttribute('aria-current', String(i === workIdx)));
   showWorkPage();
   preloadWorkNeighbours(items, workIdx);
+  syncWorkUrl();
 }
 
 // A hovered thumbnail in the big picture; the selection and the count stay.
@@ -2425,7 +2427,7 @@ if (workModal) {
     window.addEventListener('load', async () => {
       try { await loadWork(); } catch { return; }   // no manifest, no overlay
       if (workCategories().some(cat => cat.id === workLinkCat))
-        openWork(workLinkCat, 0, null);
+        openWork(workLinkCat, workItemParam(), null);
     }, { once: true });
   }
 }
@@ -2443,9 +2445,76 @@ if (workModal) {
   if (workLinkSet) {
     window.addEventListener('load', async () => {
       try { await loadWork(); } catch { return; }   // no manifest, no overlay
-      if (readWorkSet(workLinkSet)) openWork(null, 0, null, workLinkSet);
+      if (readWorkSet(workLinkSet)) openWork(null, workItemParam(), null, workLinkSet);
     }, { once: true });
   }
+}
+
+/* A set tab gets its own pretty link too (Dex, 2026-10-20):
+   /proto-isles/environment, /proto-isles/characters and the rest of the
+   set's tabs — the resume and outreach link the set, and a builder judging
+   Dex for world work should land on the ENVIRONMENT tab, not the set's
+   front door. vercel.json rewrites /proto-isles/:cat to this page; the
+   second segment names the tab, matched against the set's own tabs, so a
+   slug that names no tab is ignored like every other link scheme here. */
+if (workModal) {
+  const setPathMatch = location.pathname.replace(/\/$/, '')
+    .match(/^\/proto-isles\/([a-z0-9_-]+)$/i);
+  if (setPathMatch) {
+    const setTab = setPathMatch[1].toLowerCase();
+    window.addEventListener('load', async () => {
+      try { await loadWork(); } catch { return; }   // no manifest, no overlay
+      const set = readWorkSet('proto-isles');
+      if (set && set.categories.some(cat => cat.id === setTab))
+        openWork(setTab, workItemParam(), null, 'proto-isles');
+    }, { once: true });
+  }
+}
+
+/* The piece a pretty link names, when it names one: ?item=2 is the third
+   shot of the tab. Arrival links may or may not carry it through the
+   rewrite; in-session navigation writes it and reads it back on refresh
+   where it survives. */
+function workItemParam() {
+  const n = Number(new URLSearchParams(location.search).get('item'));
+  return Number.isInteger(n) && n > 0 ? n : 0;
+}
+
+const WORK_CAT_PATHS = Object.fromEntries(
+  Object.entries(WORK_PATH_CATS).map(([path, id]) => [id, path]));
+
+/* The address bar follows the open gallery (Dex, 2026-10-20): clicking a
+   tab or walking the pieces used to leave the URL wherever the page
+   happened to be, so the bar never named what was on screen and a copied
+   link landed somewhere else. replaceState, never pushState — the scroll
+   spy's doctrine: pushState would make the back button walk every tab and
+   piece instead of leaving the gallery. The paths written here are the
+   same pretty paths the rewrites serve, so what the bar shows is a link
+   that works when shared. */
+function syncWorkUrl() {
+  if (!workModal?.open) return;
+  const cat = galleryCats()[workCat];
+  if (!cat) return;
+  const path = workSet ? `/proto-isles/${cat.id}` : WORK_CAT_PATHS[cat.id];
+  if (!path) return;   // a tab with no pretty path keeps the URL it has
+  const target = workIdx > 0 ? `${path}?item=${workIdx}` : path;
+  if (location.pathname + location.search === target) return;
+  try { history.replaceState(history.state, '', target); } catch { /* file:// */ }
+}
+
+if (workModal) {
+  workModal.addEventListener('close', () => {
+    // A hand-off is not an ending (see bindModal's close): another overlay
+    // already on screen owns the URL now, so leave it alone.
+    if ([...document.querySelectorAll('dialog[open]')].length) return;
+    // The gallery is gone from the screen; a pretty path left in the bar
+    // would name a gallery that is not open. Hand the root path back.
+    const path = location.pathname.replace(/\/$/, '');
+    if (WORK_PATH_CATS[path] || WORK_PATH_SETS[path]
+      || /^\/proto-isles\/[a-z0-9_-]+$/i.test(path)) {
+      try { history.replaceState(history.state, '', '/'); } catch { /* file:// */ }
+    }
+  });
 }
 
 if (workModal) {
