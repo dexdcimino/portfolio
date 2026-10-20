@@ -7084,7 +7084,7 @@ const MediaBus = (() => {
   let playlistPicker = null, pickedTrack = null, pickerBusy = false, pickerFocus = null, pickerAnchor = null;
   const LEGACY_PLAYLISTS = 'dex-music-playlists', LEGACY_BACKUP = 'dex-music-playlists-legacy-backup-v1';
   const PLAYLIST_CACHE = 'dex-music-playlists-shared-cache-v1', MIGRATED = 'dex-music-playlists-migrated-v1';
-  let customPlaylists = [], legacyPlaylists = [], sharedPlaylistsReady = false, migrationPromise = null, migrationFailedAt = 0;
+  let customPlaylists = [], sharedPlaylists = [], legacyPlaylists = [], sharedPlaylistsReady = false, migrationPromise = null, migrationFailedAt = 0;
   try {
     const original = localStorage.getItem(LEGACY_PLAYLISTS);
     const backup = localStorage.getItem(LEGACY_BACKUP);
@@ -7093,14 +7093,35 @@ const MediaBus = (() => {
     if (!Array.isArray(legacyPlaylists)) legacyPlaylists = [];
   } catch { /* Original bytes are retained for recovery. */ }
   try {
-    customPlaylists = JSON.parse(localStorage.getItem(PLAYLIST_CACHE) || '[]');
-    if (!Array.isArray(customPlaylists)) customPlaylists = [];
-  } catch { customPlaylists = []; }
+    sharedPlaylists = JSON.parse(localStorage.getItem(PLAYLIST_CACHE) || '[]');
+    if (!Array.isArray(sharedPlaylists)) sharedPlaylists = [];
+  } catch { sharedPlaylists = []; }
+  function refreshPlaylists() {
+    customPlaylists = sharedPlaylists.map(p => ({ ...p, tracks: [...p.tracks] }));
+    if (!admin) return;
+    try { if (localStorage.getItem(MIGRATED) === JSON.stringify(legacyPlaylists)) return; } catch {}
+    // Keep the owner's originals playable until the server acknowledges import.
+    // These entries are read-only; they must never masquerade as saved cloud edits.
+    for (const original of legacyPlaylists) {
+      if (!original || typeof original.id !== 'string' || typeof original.name !== 'string' || !Array.isArray(original.tracks)) continue;
+      const existing = customPlaylists.find(p => p.name.trim().toLowerCase() === original.name.trim().toLowerCase());
+      if (existing) {
+        if (original.tracks.some(v => !existing.tracks.includes(v))) {
+          existing.tracks = [...new Set([...existing.tracks, ...original.tracks])]; existing.pendingSync = true;
+        }
+      } else {
+        const id = customPlaylists.some(p => p.id === original.id) ? 'pending-' + original.id : original.id;
+        customPlaylists.push({ ...original, id, tracks: [...original.tracks], pendingSync: true });
+      }
+    }
+  }
+  customPlaylists = sharedPlaylists;
   function adoptPlaylists(data) {
     if (!Array.isArray(data.playlists) || data.playlistsVersion !== 1) return;
     sharedPlaylistsReady = true;
-    customPlaylists = data.playlists;
-    try { localStorage.setItem(PLAYLIST_CACHE, JSON.stringify(customPlaylists)); } catch {}
+    sharedPlaylists = data.playlists;
+    try { localStorage.setItem(PLAYLIST_CACHE, JSON.stringify(sharedPlaylists)); } catch {}
+    refreshPlaylists();
     if (view.startsWith('pl:') && !customPlaylists.some(p => 'pl:' + p.id === view)) {
       view = 'all'; viewAll.setAttribute('aria-pressed', 'true'); viewRepeat.setAttribute('aria-pressed', 'false');
     }
@@ -7114,10 +7135,12 @@ const MediaBus = (() => {
       const result = await edit('playlist-import', { playlists: legacyPlaylists }, { quiet: true });
       if (result && !result.error) {
         try { localStorage.setItem(MIGRATED, signature); } catch {}
+        refreshPlaylists(); render();
         toast('This device’s playlists are now shared. Its original copy is kept as a backup.');
       } else {
         migrationFailedAt = Date.now();
-        toast('Playlist sync could not finish. Your original playlists are safely kept on this device; reopen Music to retry.');
+        refreshPlaylists(); render();
+        toast('Playlist sync is pending. Your saved playlists remain available on this device; Music will retry automatically.');
       }
     })().finally(() => { migrationPromise = null; });
     return migrationPromise;
@@ -7126,7 +7149,7 @@ const MediaBus = (() => {
     if (event.key !== LEGACY_PLAYLISTS) return;
     try {
       const value = JSON.parse(event.newValue || '[]');
-      if (Array.isArray(value)) { legacyPlaylists = value; migrateLegacyPlaylists(); }
+      if (Array.isArray(value)) { legacyPlaylists = value; refreshPlaylists(); render(); migrateLegacyPlaylists(); }
     } catch { /* Preserve invalid original bytes for recovery. */ }
   });
   const bar = $('musicBar'), frame = $('musicVideo'), screen = $('musicScreen');
@@ -8183,7 +8206,7 @@ const MediaBus = (() => {
     list.replaceChildren();
     const entries = [{ id: 'all', name: 'ALL', on: true, fixed: true },
       { id: 'repeat', name: 'REPEAT', on: ticked.has(pickedTrack.v) },
-      ...customPlaylists.map(p => ({ id: p.id, name: p.name, on: p.tracks.includes(pickedTrack.v) }))];
+      ...customPlaylists.map(p => ({ id: p.id, name: p.name + (p.pendingSync ? ' (sync pending)' : ''), on: p.tracks.includes(pickedTrack.v), fixed: !!p.pendingSync }))];
     for (const entry of entries) {
       const label = document.createElement('label');
       label.className = 'music-picker-entry';
@@ -8292,6 +8315,7 @@ const MediaBus = (() => {
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.setAttribute('aria-pressed', String(view === 'pl:' + pl.id));
+      if (pl.pendingSync) btn.title = 'Saved on this device; sync pending';
       const label = document.createElement('span');
       label.className = 'music-rail-label';
       label.textContent = pl.name.toUpperCase();
@@ -8306,7 +8330,7 @@ const MediaBus = (() => {
       btn.addEventListener('click', () => setView('pl:' + pl.id));
       wrap.append(btn);
       // Delete X (editor only, custom playlists only — ALL/REPEAT are permanent)
-      if (admin) {
+      if (admin && !pl.pendingSync) {
         const del = document.createElement('button');
         del.type = 'button';
         del.className = 'music-rail-del';
@@ -8968,6 +8992,7 @@ const MediaBus = (() => {
 
   function setAdmin(on) {
     admin = !!on && !!token;
+    refreshPlaylists();
     if (!admin) token = null;
     modal.classList.toggle('is-admin', admin);
     if (titleEl) titleEl.textContent = 'MUSIC';
@@ -9015,6 +9040,11 @@ const MediaBus = (() => {
      exists. `quiet` is for the add form, which says its own errors in place. */
   async function edit(action, extra = {}, { quiet = false } = {}) {
     if (!admin || !token) return null;
+    if (['add', 'playlist-member', 'playlist-delete'].includes(action) && customPlaylists.some(p => p.pendingSync && p.id === (extra.playlistId || extra.id))) {
+      const error = 'this playlist is still syncing; its saved songs remain available';
+      if (!quiet) toast(capital(error) + '.');
+      return { error };
+    }
     let response;
     try {
       response = await fetch(API, {

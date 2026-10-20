@@ -260,7 +260,7 @@ fixtureVideo.writeUInt16LE(1, 20); fixtureVideo.writeUInt16LE(1, 22);
 fixtureVideo.writeUInt32LE(16000, 24); fixtureVideo.writeUInt32LE(32000, 28);
 fixtureVideo.writeUInt16LE(2, 32); fixtureVideo.writeUInt16LE(16, 34);
 fixtureVideo.write('data', 36); fixtureVideo.writeUInt32LE(fixtureVideo.length - 44, 40);
-let mediaLookups = 0, refuseMedia = false, refuseAdd = false;
+let mediaLookups = 0, refuseMedia = false, refuseAdd = false, refuseImport = false;
 
 
 /* Signed in: the site-auth mirror flag set, and site-auth.js answered by a
@@ -296,6 +296,7 @@ async function door(event, code, name, signedIn = null, legacyPlaylists = null) 
      the way music_check does it, so no test waits on YouTube. */
   await page.setRequestInterception(true);
   page.on('request', req => {
+    if (refuseImport && req.url().endsWith('/api/music/playlist') && req.method() === 'POST' && JSON.parse(req.postData() || '{}').action === 'playlist-import') return req.respond({ status: 409, contentType: 'application/json', body: JSON.stringify({ error: 'music changed while saving' }) });
     if (refuseAdd && req.url().endsWith('/api/music/playlist') && req.method() === 'POST' && JSON.parse(req.postData() || '{}').action === 'add') return req.respond({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: 'test save refused' }) });
     if (req.url().includes('/api/music/media?')) { mediaLookups++; return req.respond({ status: refuseMedia ? 422 : 200, contentType: 'application/json', body: JSON.stringify(refuseMedia ? { error: 'unavailable' } : { url: 'https://test.cdninstagram.com/fixture.wav' }) }); }
     if (req.url() === 'https://test.cdninstagram.com/fixture.wav') return req.respond({ status: 200, contentType: 'audio/wav', body: fixtureVideo });
@@ -725,6 +726,20 @@ try {
   // Real isolated device stores: migrate both originals, share publicly and propagate deletion.
   const legacyDesktop = [{ id: 'legacy-desktop', name: 'Stillness', tracks: [SEED.tracks[0].v] }];
   const legacyPhone = [{ id: 'legacy-phone', name: 'Shorts', tracks: [SEED.tracks[1].v, SEED.tracks[2].v] }];
+  refuseImport = true;
+  const offlineOriginal = [{ id: 'offline-short', name: 'Retained Shorts', tracks: [SEED.tracks[1].v] }, { id: 'offline-empty', name: 'Retained Test', tracks: [] }];
+  const failedMigration = await door('music:open', '', 'failed migration owner', DEX, offlineOriginal);
+  note(await failedMigration.page.evaluate(() => ['RETAINED SHORTS', 'RETAINED TEST'].every(name => [...document.querySelectorAll('#musicCustomPlaylists .music-rail-label')].some(e => e.textContent === name))), 'failed migration must keep populated and empty original playlists visible');
+  await failedMigration.page.$$eval('#musicCustomPlaylists .music-rail-label', labels => labels.find(e => e.textContent === 'RETAINED SHORTS').closest('button').click());
+  note(await has(failedMigration.page, offlineOriginal[0].tracks[0]), 'original songs remain accessible when migration is refused');
+  note(await failedMigration.page.evaluate(original => !localStorage.getItem('dex-music-playlists-migrated-v1') && localStorage.getItem('dex-music-playlists') === JSON.stringify(original) && !JSON.parse(localStorage.getItem('dex-music-playlists-shared-cache-v1')).some(p => p.name === 'Retained Shorts'), offlineOriginal), 'failed import preserves originals without falsely marking them shared');
+  note(await failedMigration.page.$('[aria-label="Delete playlist Retained Shorts"]') === null, 'pending local playlist must not offer a destructive cloud delete');
+  await failedMigration.context.close();
+  refuseImport = false;
+  const retryMigration = await door('music:open', '', 'retry migration owner', DEX, offlineOriginal);
+  await retryMigration.page.waitForFunction(() => !!localStorage.getItem('dex-music-playlists-migrated-v1'));
+  note((await api()).data.playlists.some(p => p.name === 'Retained Shorts' && p.tracks.includes(offlineOriginal[0].tracks[0])), 'reopening after a refused migration must recover the same original songs into shared storage');
+  await retryMigration.context.close();
   const desktop = await door('music:open', '', 'legacy desktop owner', DEX, legacyDesktop);
   const phoneDevice = await door('music:open', '', 'legacy phone owner', DEX, legacyPhone);
   await phoneDevice.page.setViewport({ width: 390, height: 844 });

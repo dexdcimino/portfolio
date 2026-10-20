@@ -79,16 +79,30 @@ try {
 
   // Model separate serverless workers: the shared store changes between GET and PUT.
   const blobModule = require.resolve('@vercel/blob'), oldModule = require.cache[blobModule];
-  const blobs = new Map(), writes = []; let version = 1, inject = true, missingTag = false;
+  const blobs = new Map(), writes = []; let version = 1, inject = true, missingTag = false, changeDuringRead = false;
   blobs.set(store.CURRENT, { body: JSON.stringify(await store.read()), etag: 'v1' });
-  const { BlobPreconditionFailedError } = require('@vercel/blob');
+  const { BlobPreconditionFailedError, BlobNotFoundError } = require('@vercel/blob');
   class BlobAlreadyExistsError extends Error { constructor() { super(); this.name = 'BlobAlreadyExistsError'; } }
   require.cache[blobModule] = { exports: {
     BlobPreconditionFailedError,
+    BlobNotFoundError,
+    async head(key) {
+      const found = blobs.get(key);
+      if (!found) throw new BlobNotFoundError();
+      return { etag: missingTag ? '' : found.etag };
+    },
     async get(key, options) {
       assert.equal(options.useCache, false);
       const found = blobs.get(key); if (!found) return null;
-      return { stream: new ReadableStream({ start(controller) { controller.enqueue(Buffer.from(found.body)); controller.close(); } }), blob: { etag: missingTag ? '' : found.etag } };
+      const body = found.body;
+      if (key === store.CURRENT && changeDuringRead) {
+        changeDuringRead = false;
+        const other = JSON.parse(body); other.rev++;
+        other.playlists.push({ id: 'mid-read', name: 'Changed during read', tracks: [], removed: [] });
+        blobs.set(key, { body: JSON.stringify(other), etag: 'v' + ++version });
+      }
+      // Deliberately different delivery ETag: it must never be used for a write.
+      return { stream: new ReadableStream({ start(controller) { controller.enqueue(Buffer.from(body)); controller.close(); } }), blob: { etag: 'W/"delivery-etag"' } };
     },
     async put(key, body, options) {
       if (key === store.CURRENT && inject) {
@@ -113,6 +127,10 @@ try {
     await Promise.all([a, b, c, d].map(v => mutate({ action: 'playlist-member', id: 'our-device', v, on: true })));
     check(new Set((await store.read()).playlists.find(p => p.id === 'our-device').tracks), new Set([a, b, c, d]), 'independent Blob writers merge concurrent patches through conditional retries');
     check(writes.filter(w => w.key === store.CURRENT).every(w => !!w.options.ifMatch), true, 'every existing Blob write has an ETag precondition');
+    check(writes.filter(w => w.key === store.CURRENT).every(w => w.options.ifMatch !== 'W/"delivery-etag"'), true, 'conditional writes use authoritative storage metadata, never the delivery HTTP ETag');
+    changeDuringRead = true;
+    await mutate({ action: 'playlist-create', id: 'after-read', name: 'After read' });
+    check((await store.read()).playlists.some(p => p.id === 'mid-read'), true, 'a change between metadata reads retries without overwriting the intervening edit');
     await store.archiveLegacy(shorts);
     await store.archiveLegacy(shorts);
     check([...blobs.keys()].filter(key => key.startsWith('music/legacy/')).length, 1, 'immutable cloud originals are safely reusable with real SDK existing-path behavior');

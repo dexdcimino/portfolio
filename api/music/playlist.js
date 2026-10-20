@@ -48,7 +48,7 @@ module.exports = async function handler(req, res) {
 
   try {
     if (req.method === 'GET') {
-      return res.status(200).json(view(await store.read()));
+      return res.status(200).json(view(await store.read(false)));
     }
     if (req.method !== 'POST') {
       res.setHeader('Allow', 'GET, POST');
@@ -81,7 +81,7 @@ module.exports = async function handler(req, res) {
       const source = store.parseEmbed(body.url);
       if (!source) return res.status(400).json({ error: 'use a YouTube, Instagram post/Reel, Vimeo, SoundCloud, Spotify or TikTok link, or a Bandcamp player embed' });
       const v = source.v;
-      const doc = await store.read();
+      const doc = await store.read(false);
       const already = doc.tracks.some((t) => t.v === v);
       let guess = { t: '', a: '' };
       /* MUSIC_LOOKUP_OFFLINE: the harness's seam. It drives the add form end to
@@ -114,7 +114,7 @@ module.exports = async function handler(req, res) {
     if (['add', 'remove', 'repeat', 'rename', 'playlist-create', 'playlist-delete', 'playlist-member', 'playlist-import'].includes(action)) {
       if (action === 'playlist-import') {
         // Validate first, then preserve the complete original device collection before acknowledging it.
-        playlists.apply(await store.read(), body, store.cleanTrack);
+        playlists.apply(await store.read(false), body, store.cleanTrack);
         await store.archiveLegacy(body.playlists);
       }
       let undo = null;

@@ -3487,6 +3487,8 @@ memberships. Every save re-reads the latest document and uses an ETag conditiona
 write, retrying conflicts instead of overwriting another device. First creation
 is create-only. The local test backend serializes mutations and rejects stale
 writes. All edits, including old track operations and restores, use this path.
+Save tokens come from storage API metadata read before and after the content;
+changes between those reads trigger a retry. Public reads do not request metadata.
 
 Owner-only migration unions each device's original local collection with the
 shared catalog. Original `dex-music-playlists` bytes are retained, with an
@@ -3495,6 +3497,8 @@ acknowledgement. Import fingerprints, deleted-name tombstones and removed-track
 markers prevent retries and late devices from resurrecting deleted data. Shared
 cache uses a separate key; other signed-in users cannot publish their local
 collections. See `docs/MUSIC_PLAYLIST_SYNC.md` for recovery/deployment steps.
+Unacknowledged owner originals remain visible and playable as read-only pending
+entries until import succeeds, instead of disappearing behind an empty shared list.
 
 Add Song captures the selected view at submission and saves All plus the selected
 custom playlist (or Repeat) atomically. Undo restores the removed song's actual

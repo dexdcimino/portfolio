@@ -74,6 +74,19 @@ device's work. This uses the installed SDK's `BlobPreconditionFailedError` class
 (its `.name` is `Error`, so name-string comparisons are insufficient).
 See [Vercel's conditional-write documentation](https://vercel.com/docs/vercel-blob/using-blob-sdk).
 
+## Recovery from refused cloud saves
+
+The first shared-playlist deployment returned repeated 409 conflicts in production.
+Conditional writes now take their ETag from the storage API's `head()` metadata,
+not the delivery endpoint's HTTP ETag. Metadata reads before and after reading
+the content ensure an intervening edit causes a fresh read and retry. Public
+polls only read content, so the additional metadata calls occur on saves.
+
+Until import succeeds, the signed-in owner can still see and play their original
+device playlists. Pending entries are read-only and labelled via their tooltip;
+they are never written to the shared cache or treated as successful cloud saves.
+Signed-out visitors and other accounts do not receive these local originals.
+
 ## Later: individual account playlists
 
 Keep the curator's public catalog and add a separate user-owned collection,

@@ -5724,3 +5724,13 @@ refresh within one two-second poll; hidden pages check again on return.
 This avoids requiring Firebase schema/rule changes or another sync service.
 Separate personal playlists keyed by verified UID are deferred. Migration steps,
 backup locations and deployment limitations are in `docs/MUSIC_PLAYLIST_SYNC.md`.
+
+## 2026-10-19 — Music save tokens come from storage metadata
+
+Repeated production 409s showed that the shared-playlist rollout did not verify
+real cloud writes. Use storage API metadata for conditional-write tokens rather
+than a content delivery HTTP ETag. Bracket content reads with metadata reads and
+retry if the stored version changes; keep public polling to a single content read.
+An unacknowledged device collection remains visible and playable to its owner,
+with mutation disabled until import succeeds. Tests cover mismatched delivery
+tokens, changes during a read, refused imports and recovery on the next open.
