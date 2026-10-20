@@ -624,3 +624,13 @@ and 332 derivatives against a real 71 and 522 — drift in the one file whose wh
 being current. Every fact in it was either measurable, and is now generated into the pack at
 build time, or an open item, and is now in the backlog. If you find yourself about to type a
 number that a command could print, that is the mistake (doctrine rule 17).
+
+## RESUME + COVER LETTER — PAGE/PDF SYNC RULE (Dex, 2026-10-19)
+
+The on-page resume/cover overlay (index.html) and the downloadable PDFs are ONE document in two forms and must never drift. The download button does NOT print the page live — it fetches static PDFs from BunnyCDN (storage zone `dexcimino-media`, paths `assets/about/Dex_Cimino_Resume.pdf` and `assets/about/Dex_Cimino_Cover.pdf`, served at dexcimino-media.b-cdn.net). Any edit to the overlay text REQUIRES, in the same change:
+
+1. Regenerate BOTH PDFs by printing the overlay (deep links `/#resume` and `/#resume/cover-letter`; the @media print sheet in styles.css does the layout; one Letter page each).
+2. Re-upload both PDFs to the CDN paths above (overwrite).
+3. Bump `PDF_VERSION` in script.js — the CDN caches the bare URL with a 30-day max-age, so the `?v=` query in `refreshPdfLink` is what makes the new file reach visitors.
+
+Verify before calling it done: download the versioned URL the button now uses and text-check the new wording in the PDF. This rule covers the resume AND the cover letter equally.
