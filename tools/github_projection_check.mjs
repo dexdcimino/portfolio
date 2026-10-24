@@ -1,5 +1,6 @@
-/* The GitHub projection: person() must file EVERY provider account in a
- * token, not just Google and Discord.
+/* The GitHub projection: person() files the GitHub account in a token,
+ * not just Google and Discord -- and, since the NS-1 correction, files
+ * NOTHING that is not on its explicit approved list.
  *
  *   node tools/github_projection_check.mjs
  *
@@ -15,11 +16,15 @@
  *      carried them).
  *   2. Google-only and Google+Discord tokens project EXACTLY what they
  *      projected before the fix -- the regression cases.
- *   3. The filing-name rule for the providers nobody has met yet: a domain
- *      id files under its first label (facebook.com -> facebook-<id>), a
- *      custom id under the name after the dot (oidc.<name> -> <name>-<id>).
- *      Ids with no dot (email, phone) are not provider accounts and are
- *      never projected.
+ *   3. The filing list is EXPLICIT and closed: only google.com, oidc.discord
+ *      and github.com file, under google-, discord- and github-. Those
+ *      names are trusted namespaces (a store matches on them to open an
+ *      account), so no name is ever inferred from a provider id's shape:
+ *      oidc.google is not google.com, and another provider's subject must
+ *      never walk into a trusted namespace on the strength of the token's
+ *      signature. Every other provider id -- facebook.com, oidc.customthing,
+ *      ids with no dot (email, phone) -- is omitted from linked entirely.
+ *      The collision cases at the end of this check pin that down.
  *   4. A malformed identities claim -- missing, a string, null, values
  *      that are not arrays of one non-empty string -- projects nothing
  *      for that provider and NEVER throws: person() reads tokens, and a
@@ -86,18 +91,9 @@ try {
   ok(gd.uid === 'u1' && gd.email === 'a@b.c' && gd.verified === true && gd.provider === 'google.com' && gd.name === 'Ann B',
     'and person() still returns uid, email, verified, provider and name as before');
 
-  const fbk = await linkedOf(fb({ 'facebook.com': ['fb-9'] }, 'facebook.com'));
-  ok(same(fbk, ['facebook-fb-9']), `an unmet domain provider files under its first label (${fbk.join(', ')})`);
-
-  const oidc = await linkedOf(fb({ 'oidc.customthing': ['x-1'] }, 'oidc.customthing'));
-  ok(same(oidc, ['customthing-x-1']), `an unmet custom provider files under the name after the dot (${oidc.join(', ')})`);
-
-  const scrambled = await linkedOf(fb({ 'github.com': ['gh-3'], 'facebook.com': ['fb-9'], 'google.com': ['g-1'], 'oidc.discord': ['d-2'] }, 'github.com'));
-  ok(same(scrambled, ['google-g-1', 'discord-d-2', 'github-gh-3', 'facebook-fb-9']),
+  const scrambled = await linkedOf(fb({ 'github.com': ['gh-3'], 'google.com': ['g-1'], 'oidc.discord': ['d-2'] }, 'github.com'));
+  ok(same(scrambled, ['google-g-1', 'discord-d-2', 'github-gh-3']),
     `the order is stable however the token ordered its identities (${scrambled.join(', ')})`);
-
-  const dupe = await linkedOf(fb({ 'google.com': ['7'], 'oidc.google': ['7'] }, 'google.com'));
-  ok(same(dupe, ['google-7']), 'two provider ids that file under one name and number are listed once');
 
   console.log('2. malformed identities: nothing projected, nothing thrown');
   const MALFORMED = [
@@ -117,11 +113,38 @@ try {
     ok(!threw && out !== null && out.length === 0, `projects nothing and does not throw: ${what}`);
   }
   ok(certHits >= 1, `the certificate server was asked (${certHits} time(s), cached after)`);
+
+  console.log('3. namespace collisions: unlisted providers project nothing');
+  // The identities below all sit under provider ids whose SHAPE points at
+  // a trusted namespace. None of them is that provider: oidc.google is
+  // not google.com, saml.github is not github.com, and a first label of
+  // "google" in someone else's domain is not an identity. The value
+  // 424242 is a real GitHub id in this check's world, so if any of these
+  // projected, it would land on an actual account.
+  const COLLISIONS = [
+    [fb({ 'oidc.google': ['g-111'] }, 'oidc.google'), 'an OIDC provider named google'],
+    [fb({ 'oidc.github': ['424242'] }, 'oidc.github'), 'an OIDC provider named github, carrying a real GitHub id'],
+    [fb({ 'saml.github': ['424242'] }, 'saml.github'), 'a SAML provider named github, carrying a real GitHub id'],
+    [fb({ 'oidc.firebase': ['uid-9'] }, 'oidc.firebase'), 'an OIDC provider named firebase, carrying a Firebase-looking uid'],
+    [fb({ 'google.evil.com': ['g-111'] }, 'google.evil.com'), 'a domain whose first label is google'],
+    [fb({ 'oidc.customthing': ['424242'] }, 'oidc.customthing'), 'an unknown provider carrying a real GitHub id'],
+  ];
+  ok(COLLISIONS.length === 6, `${COLLISIONS.length} collision cases`);
+  for (const [claims, what] of COLLISIONS) {
+    const out = await linkedOf(claims);
+    ok(out.length === 0, `projects nothing at all: ${what} (${out.join(', ') || 'empty'})`);
+  }
+
+  const mixed = await linkedOf(fb({ 'github.com': ['424242'], 'oidc.github': ['424242'] }, 'github.com'));
+  ok(same(mixed, ['github-424242']), `a real GitHub identity beside its oidc.github impostor projects exactly the true one (${mixed.join(', ')})`);
+
+  const gImpostor = await linkedOf(fb({ 'google.com': ['g-1'], 'oidc.google': ['g-1'] }, 'google.com'));
+  ok(same(gImpostor, ['google-g-1']), `a real Google identity beside its oidc.google impostor projects exactly the true one (${gImpostor.join(', ')})`);
 } finally {
   certs.close();
 }
 
-const EXPECT = 20;
+const EXPECT = 26;
 ok(passed + failed === EXPECT, `ran ${passed + failed} checks, expected ${EXPECT}`);
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);
