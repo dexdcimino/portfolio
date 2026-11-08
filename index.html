@@ -402,8 +402,8 @@
           <!-- MOBIUS 3D, the first video and so the one on screen at load.
                About a minute of the real viewer being used, recorded by the
                mobius-3d repo's tools/video.mjs on a virtual clock. It streams
-               from bunny.net like the AI Lab's clips (CLAUDE.md: no video on
-               this host); data-src is the play_720p.mp4 URL, and until it is
+               from Cloudflare Stream like the AI Lab's clips (CLAUDE.md: no video on
+               this host); data-src is the Cloudflare Stream HLS URL, and until it is
                set the poster stands in and the play button says so.
                Muted autoplay, because that is the only autoplay a browser
                allows. data-audio marks an upload with a soundtrack and brings
@@ -411,7 +411,7 @@
                The bar runs along the bottom edge, and everything else that
                sits low -- the caption, the eye, the download -- sits ABOVE it,
                so nothing ever covers the scrubber. -->
-          <article class="fv-item fv-has-video is-on" data-video="0" data-src="https://vz-f98421b2-da0.b-cdn.net/6b7c42d7-5f86-4992-abb7-45a7946b55cc/play_720p.mp4" data-audio>
+          <article class="fv-item fv-has-video is-on" data-video="0" data-src="https://customer-0ji8w7ulks5w8s3v.cloudflarestream.com/36f09f15b6648c3fd73fc78be867b5b2/manifest/video.m3u8" data-audio>
             <span class="fv-matte" aria-hidden="true"></span>
             <!-- img src="https://dexcimino-media.b-cdn.net/assets/featured/mobius-3d.png" slot="clip-poster" alt="" picture-class="fv-poster" -->
             <picture class="fv-poster">
@@ -2028,7 +2028,7 @@
         <!-- Clips. Same shape as Wallpapers — one large piece, a centred strip,
              a plate on the art — with a player instead of a download, because
              you cannot hand someone a file you are streaming.
-             Video is NOT self-hosted: sources are bunny.net URLs in data-src on
+             Video is NOT self-hosted: sources are Cloudflare Stream HLS URLs in data-src on
              each figure, and the posters here are the only local assets. The
              pull zone has to be named in the media-src policy in vercel.json — a
              clip from a host that is not listed there is blocked, and the player
@@ -2088,7 +2088,7 @@
             <div class="wp-thumbs" id="clThumbs" role="tablist" aria-label="Clips"></div>
 
             <div class="wp-src" hidden>
-              <figure class="cl-item" data-title="Surveyor" data-origin="I fed GPT a handful of screenshots from the game and it handed back the thumbnail. That thumbnail is what went to Gemini, with one ask: a mini trailer of all three vehicles crossing the same lush world, cutting from one to the next." data-note="0:10 · loop" data-src="https://vz-f98421b2-da0.b-cdn.net/a0d41a95-b770-4fb7-9e1f-3911c0c0b117/play_720p.mp4">
+              <figure class="cl-item" data-title="Surveyor" data-origin="I fed GPT a handful of screenshots from the game and it handed back the thumbnail. That thumbnail is what went to Gemini, with one ask: a mini trailer of all three vehicles crossing the same lush world, cutting from one to the next." data-note="0:10 · loop" data-src="https://customer-0ji8w7ulks5w8s3v.cloudflarestream.com/57560f8f05194b729e42e5251b65de71/manifest/video.m3u8">
                 <!-- img src="https://dexcimino-media.b-cdn.net/assets/ai/clips/surveyor.png" slot="clip-poster" alt="Surveyor — a white survey craft banking over a green river valley, engines trailing cyan light" class="cl-img" -->
                 <picture>
                   <source type="image/avif" srcset="https://dexcimino-media.b-cdn.net/assets/derived/ai/clips/surveyor-1280.avif?v=6bc63c19 1280w,
@@ -2142,7 +2142,7 @@
                   </figure>
                 </div>
               </figure>
-              <figure class="cl-item" data-title="Spinal Tap" data-origin="A creature head I sculpted a while back. I asked for it to become something creeping and awful, dragging a mace made out of a spine with a head still on it. The still came back first, and the clip came out of that." data-note="0:10" data-src="https://vz-f98421b2-da0.b-cdn.net/61368635-02fd-46b1-8781-593589d208c5/play_720p.mp4">
+              <figure class="cl-item" data-title="Spinal Tap" data-origin="A creature head I sculpted a while back. I asked for it to become something creeping and awful, dragging a mace made out of a spine with a head still on it. The still came back first, and the clip came out of that." data-note="0:10" data-src="https://customer-0ji8w7ulks5w8s3v.cloudflarestream.com/01e3bf6489be9843d6af7e6138edf402/manifest/video.m3u8">
                 <!-- img src="https://dexcimino-media.b-cdn.net/assets/ai/clips/spinal-tap.png" slot="clip-poster" alt="Spinal Tap — a horned creature standing in a wet industrial corridor" class="cl-img" -->
                 <picture>
                   <source type="image/avif" srcset="https://dexcimino-media.b-cdn.net/assets/derived/ai/clips/spinal-tap-1280.avif?v=8910f930 1280w,
@@ -2196,7 +2196,7 @@
                   </figure>
                 </div>
               </figure>
-              <figure class="cl-item" data-title="Amphibious" data-clip-label="Google Omni clip" data-origin="GPT made the Amphibious wallpaper first. Everything after that was just asking to see him move — swing the mace, get airborne, bring it down." data-origin-clip data-note="0:10 · loop" data-src="https://vz-f98421b2-da0.b-cdn.net/ebf66a76-8a31-463c-9c10-4eca9ce9a6a9/play_720p.mp4">
+              <figure class="cl-item" data-title="Amphibious" data-clip-label="Google Omni clip" data-origin="GPT made the Amphibious wallpaper first. Everything after that was just asking to see him move — swing the mace, get airborne, bring it down." data-origin-clip data-note="0:10 · loop" data-src="https://customer-0ji8w7ulks5w8s3v.cloudflarestream.com/86f8892b67596789e24d440c3b74483a/manifest/video.m3u8">
                 <!-- img src="https://dexcimino-media.b-cdn.net/assets/ai/clips/amphibious.png" slot="clip-poster" alt="Amphibious — an armoured amphibian braced over glowing turquoise water" class="cl-img" -->
                 <picture>
                   <source type="image/avif" srcset="https://dexcimino-media.b-cdn.net/assets/derived/ai/clips/amphibious-1280.avif?v=27a7d6b0 1280w,
@@ -2237,7 +2237,7 @@
                   </figure>
                 </div>
               </figure>
-              <figure class="cl-item" data-title="Clayweld" data-clip-label="Google Omni clip" data-origin="A character logo I drew for Clayweld. I always wanted to see him step off the plate and put the thing he was standing on through the floor, so that is what I asked for." data-origin-clip data-note="0:10" data-src="https://vz-f98421b2-da0.b-cdn.net/4d235c5d-9915-4853-b58e-1371b0757dd1/play_720p.mp4">
+              <figure class="cl-item" data-title="Clayweld" data-clip-label="Google Omni clip" data-origin="A character logo I drew for Clayweld. I always wanted to see him step off the plate and put the thing he was standing on through the floor, so that is what I asked for." data-origin-clip data-note="0:10" data-src="https://customer-0ji8w7ulks5w8s3v.cloudflarestream.com/204ae1c55096e0da1ff9ba46a60a8fa5/manifest/video.m3u8">
                 <!-- img src="https://dexcimino-media.b-cdn.net/assets/ai/clips/clayweld.png" slot="clip-poster" alt="Clayweld — an orange armoured mascot above the Clayweld wordmark" class="cl-img" -->
                 <picture>
                   <source type="image/avif" srcset="https://dexcimino-media.b-cdn.net/assets/derived/ai/clips/clayweld-1280.avif?v=78f014d3 1280w,
@@ -2278,7 +2278,7 @@
                   </figure>
                 </div>
               </figure>
-              <figure class="cl-item" data-title="King Kong" data-origin="This one started from a plain photo of a ceiling. I asked for King Kong to peel the roof off and take a look at whatever was underneath, and that was the whole prompt." data-note="0:10" data-fit="contain" data-src="https://vz-f98421b2-da0.b-cdn.net/c7e5d49b-6a41-4b39-b944-15fb69157a81/play_720p.mp4">
+              <figure class="cl-item" data-title="King Kong" data-origin="This one started from a plain photo of a ceiling. I asked for King Kong to peel the roof off and take a look at whatever was underneath, and that was the whole prompt." data-note="0:10" data-fit="contain" data-src="https://customer-0ji8w7ulks5w8s3v.cloudflarestream.com/ab3196165fb117b5eaa276e7d8903fed/manifest/video.m3u8">
                 <!-- img src="https://dexcimino-media.b-cdn.net/assets/ai/clips/king-kong.png" slot="clip-poster-portrait" alt="King Kong — a gorilla tearing open a ceiling, seen from the room below" class="cl-img" -->
                 <picture>
                   <source type="image/avif" srcset="https://dexcimino-media.b-cdn.net/assets/derived/ai/clips/king-kong-600.avif?v=89d66cd5 600w,
@@ -4835,14 +4835,14 @@
              tools/screenshots.mjs, so they cannot drift from what the eye
              opens; re-run it when the viewer's look changes. The first figure
              is also the app-info thumbnail. -->
-        <!-- The video leads the gallery: the same Bunny stream the featured
+        <!-- The video leads the gallery: the same Cloudflare Stream feed the featured
              slot plays, carried as a data-src the app-info gallery turns into
              an in-place player (script.js, makeGalPlayer). The picture under
              it is the featured poster — the filmstrip still, the tray thumb
              and the player's poster in one. -->
         <figure class="gal-item" data-game="mobius" data-title="Mobius 3D, in use">
           <!-- img src="https://dexcimino-media.b-cdn.net/assets/featured/mobius-3d.png" slot="game-shot" alt="A frame from the Mobius 3D video: the violet trefoil knot in the viewer, mid-animation" -->
-          <video class="gal-video" data-src="https://vz-f98421b2-da0.b-cdn.net/6b7c42d7-5f86-4992-abb7-45a7946b55cc/play_720p.mp4" data-audio preload="none" playsinline loop width="960" height="720" aria-label="Mobius 3D in use: a violet trefoil knot animating, changing accent colour, orbiting and being reshaped with a blend shape, to a chillstep soundtrack"></video>
+          <video class="gal-video" data-src="https://customer-0ji8w7ulks5w8s3v.cloudflarestream.com/36f09f15b6648c3fd73fc78be867b5b2/manifest/video.m3u8" data-audio preload="none" playsinline loop width="960" height="720" aria-label="Mobius 3D in use: a violet trefoil knot animating, changing accent colour, orbiting and being reshaped with a blend shape, to a chillstep soundtrack"></video>
           <picture>
             <source type="image/avif" srcset="https://dexcimino-media.b-cdn.net/assets/derived/featured/mobius-3d-1280.avif?v=80ddf1c7 1280w,
                                               https://dexcimino-media.b-cdn.net/assets/derived/featured/mobius-3d-900.avif?v=80ddf1c7 900w,

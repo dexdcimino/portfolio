@@ -51,7 +51,10 @@ function loadHls() {
 }
 
 function streamPlaylist(url) {
-  if (!url || !/play_\d+p\.mp4/.test(url)) return null;
+  if (!url) return null;
+  /* Cloudflare Stream URLs are already HLS playlists: pass them through. */
+  if (/\.m3u8($|\?)/.test(url)) return url;
+  if (!/play_\d+p\.mp4/.test(url)) return null;
   return url.replace(/play_\d+p\.mp4/, 'playlist.m3u8');
 }
 
@@ -6757,6 +6760,7 @@ const MediaBus = (() => {
   const scrub = $('clScrub'), vol = $('clVol'), muteBtn = $('clMute');
   const elapsed = $('clElapsed'), duration = $('clDuration');
   let index = 0, loop = false, scrubbing = false, lastVolume = 0.4;
+  let detachClipStream = null;   // teardown for a Stream HLS attach, if any
   // Whether anyone has ever started this player. The space bar will not claim
   // a player nobody has touched — see MediaBus and initSpaceTransport.
   let touched = false;
@@ -6946,6 +6950,7 @@ const MediaBus = (() => {
     const item = items[index];
 
     video.pause();
+    if (detachClipStream) { detachClipStream(); detachClipStream = null; }
     frame.classList.remove('is-live');
     video.removeAttribute('src');
     video.load();
@@ -6976,7 +6981,10 @@ const MediaBus = (() => {
     toggle.disabled = !ok;
     scrub.disabled = !ok;
     if (ok) {
-      video.src = bunnySrc(item.dataset.src);
+      /* Stream clips carry an HLS playlist in data-src, not an MP4, so
+         play() attaches them through attachStream instead of setting
+         src here. Older MP4 sources keep the direct route. */
+      if (!/\.m3u8($|\?)/.test(item.dataset.src)) video.src = bunnySrc(item.dataset.src);
       if (autoplay) play();
     }
     paintButtons();
@@ -6984,6 +6992,12 @@ const MediaBus = (() => {
 
   function play() {
     if (!playable(items[index])) return;
+    const currentSrc = items[index].dataset.src;
+    if (currentSrc && /\.m3u8($|\?)/.test(currentSrc) && !detachClipStream) {
+      touched = true;
+      detachClipStream = attachStream(video, currentSrc, () => { play(); });
+      return;
+    }
     touched = true;
     video.play().then(() => {
       frame.classList.add('is-live');
