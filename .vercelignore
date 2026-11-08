@@ -40,3 +40,10 @@ games/*/dev/
 
 # Former Digitar archive path (moved to private dexdcimino/digitar archive/ on 2026-10-23); kept as a guard.
 digitar/
+
+# MindSplit's Vite source lives beside its shipped build (ai/apps/mindsplit/).
+# The source index.html loads /src/main.jsx, which 404s at the site root, so
+# the bare folder address served a blank white page. The shipped app lives at
+# /mindsplit/ and the vercel.json redirect sends every /ai/apps/mindsplit form
+# there; the source folder itself is never deployed.
+ai/apps/mindsplit/

@@ -7,6 +7,11 @@
   ],
   "redirects": [
     {
+      "source": "/ai/apps/mindsplit/",
+      "destination": "/mindsplit/",
+      "permanent": false
+    },
+    {
       "source": "/ai/apps/mindsplit/:path*",
       "destination": "/mindsplit/",
       "permanent": false
