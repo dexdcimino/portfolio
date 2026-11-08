@@ -1816,7 +1816,7 @@ function refreshPdfLink(id) {
   const active = id || resumeTabs.find(t => t.getAttribute('aria-selected') === 'true')?.id;
   const doc = DOCS[active];
   if (!doc || !pdfLink) return;
-  pdfLink.dataset.file = `https://dexcimino-media.b-cdn.net/assets/about/${doc.path}`;
+  pdfLink.dataset.file = `https://media.clayweld.com/assets/about/${doc.path}`;
   pdfLink.dataset.name = doc.file;
   pdfLink.dataset.tip = doc.tip;
   pdfLink.setAttribute('aria-label', doc.label);
@@ -10250,7 +10250,7 @@ const MediaBus = (() => {
         : '';
       dur.textContent = has ? secs(t.d) : 'no file';
       if (has) {
-        get.href = `https://dexcimino-media.b-cdn.net/assets/sfx/${t.file}`;
+        get.href = `https://media.clayweld.com/assets/sfx/${t.file}`;
         const ext = t.file.slice(t.file.lastIndexOf('.'));
         get.download = `${cat.name} - ${item.name} - ${t.name}${ext}`.replace(/[\/:*?"<>|]/g, '-');
         get.removeAttribute('aria-disabled');
@@ -10421,7 +10421,7 @@ const MediaBus = (() => {
   function start(el, item, at) {
     const track = item.tracks[Number(el._pick.value) || 0];
     if (!track || !track.file) return;
-    const src = `https://dexcimino-media.b-cdn.net/assets/sfx/${track.file}`;
+    const src = `https://media.clayweld.com/assets/sfx/${track.file}`;
     const from = Math.min(0.999, Math.max(0, at || 0));
     if (audio.getAttribute('src') !== src) { audio.src = src; audio.load(); }
     audio.currentTime = from && audio.duration > 0 ? from * audio.duration : 0;
@@ -12817,7 +12817,7 @@ const LOOP_MODES = ['off', 'all', 'one'];
    That is not luck — it is that the photo branches in apply() are all written
    as `state !== 'photo'` rather than as a photo case, so the state going
    missing from the cycle leaves them inert instead of leaving them wrong.
-   Anything added here should keep that shape. `https://dexcimino-media.b-cdn.net/assets/about/profile.jpg`
+   Anything added here should keep that shape. `https://media.clayweld.com/assets/about/profile.jpg`
    stays, all three <img> elements stay in the markup, lazy and at opacity 0
    under the drawing; restoring the photo is 'photo' back at the front of
    PORTRAIT_CYCLE and the gray label pointing at it again.
