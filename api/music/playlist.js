@@ -79,7 +79,7 @@ module.exports = async function handler(req, res) {
 
     if (action === 'lookup') {
       const source = store.parseEmbed(body.url);
-      if (!source) return res.status(400).json({ error: 'use a YouTube, Instagram post/Reel, Vimeo, SoundCloud, Spotify or TikTok link, or a Bandcamp player embed' });
+      if (!source) return res.status(400).json({ error: 'use a YouTube, Instagram post/Reel, Vimeo, SoundCloud, Spotify or TikTok link, a Bandcamp player embed, or a direct audio file on media.clayweld.com' });
       const v = source.v;
       const doc = await store.read(false);
       const already = doc.tracks.some((t) => t.v === v);

@@ -1,0 +1,11 @@
+{
+ "playlists": [
+  {
+   "id": "ai",
+   "name": "AI",
+   "tracks": [
+    "https://media.clayweld.com/assets/music/whistle.mp3"
+   ]
+  }
+ ]
+}

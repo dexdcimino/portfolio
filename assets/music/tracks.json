@@ -1,5 +1,5 @@
 {
- "count": 313,
+ "count": 314,
  "repeat": 56,
  "tracks": [
   {
@@ -1863,6 +1863,14 @@
    "v": "xB99oPXSwIU"
   },
   {
+   "t": "Whistle",
+   "a": "Suno",
+   "u": "https://media.clayweld.com/assets/music/whistle.mp3",
+   "v": "https://media.clayweld.com/assets/music/whistle.mp3",
+   "p": "Audio",
+   "audio": "https://media.clayweld.com/assets/music/whistle.mp3"
+  },
+  {
    "t": "Wishing Well",
    "a": "Juice WRLD",
    "u": "https://www.youtube.com/watch?v=C5i-UnuUKUI",
@@ -1936,5 +1944,15 @@
    "u": "https://www.youtube.com/watch?v=9XaS93WMRQQ",
    "v": "9XaS93WMRQQ"
   }
- ]
+ ],
+ "playlists": [
+  {
+   "id": "ai",
+   "name": "AI",
+   "tracks": [
+    "https://media.clayweld.com/assets/music/whistle.mp3"
+   ]
+  }
+ ],
+ "playlistsVersion": 1
 }

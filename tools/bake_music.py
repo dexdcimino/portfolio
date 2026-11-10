@@ -49,6 +49,17 @@ VIDEO_ID = re.compile(
     re.VERBOSE,
 )
 
+# A direct audio file on the site's own media host (2026-11-10). These have no
+# video id: the URL itself is the track identity, which is exactly how the
+# player's embed parser (lib/music-embeds.js) treats them. An audio file on
+# any other host is refused, like every other non-YouTube link.
+AUDIO_URL = re.compile(
+    r"^https://media\.clayweld\.com/[\w./-]+\.(?:mp3|m4a|ogg|wav)$",
+    re.IGNORECASE,
+)
+
+SEED_PLAYLISTS = ROOT / "assets" / "music" / "seed-playlists.json"
+
 
 def parse(text: str) -> tuple[list[dict], list[str]]:
     """(tracks, problems). The whole decision, so the gate and --cases cannot diverge.
@@ -94,11 +105,13 @@ def parse(text: str) -> tuple[list[dict], list[str]]:
             continue
 
         found = VIDEO_ID.match(url)
-        if not found:
-            problems.append(f"line {n}: not a single-video YouTube link -> {url[:60]}")
+        audio = None if found else AUDIO_URL.match(url)
+        if not found and not audio:
+            problems.append(f"line {n}: not a single-video YouTube link or a "
+                            f"direct audio file on media.clayweld.com -> {url[:60]}")
             continue
 
-        vid = found.group("id")
+        vid = found.group("id") if found else url
         if vid in seen:
             problems.append(f"line {n}: video {vid} is already on line {seen[vid]} "
                             f"({title})")
@@ -109,6 +122,9 @@ def parse(text: str) -> tuple[list[dict], list[str]]:
         # copies and pastes, and rebuilding it from the id would quietly rewrite a
         # youtu.be short link into the long form nobody typed.
         row = {"t": title, "a": artist, "u": url, "v": vid}
+        if audio:
+            row["p"] = "Audio"
+            row["audio"] = url
         # Written only when true, so an unmarked track costs nothing in the
         # manifest and the flag reads as a mark rather than as a field.
         if mark == "R":
@@ -125,16 +141,24 @@ def parse(text: str) -> tuple[list[dict], list[str]]:
     return tracks, problems
 
 
-def render(tracks: list[dict]) -> str:
+def render(tracks: list[dict], playlists: list[dict] | None = None) -> str:
     """The manifest, byte-for-byte. Deterministic, so --check is an exact comparison.
 
     `repeat` is the count of defaults, carried so the page can tell "nothing is
     marked" from "the flags stopped being written" without walking the list.
+
+    `playlists`, when the seed playlists file names any, are the repo curated
+    playlists (assets/music/seed-playlists.json), carried in the same shape the
+    playlist API returns, so a static host serving only this manifest shows
+    them too. The live store merges the same file on read (lib/music-store.js).
     """
-    return json.dumps({"count": len(tracks),
-                       "repeat": sum(1 for t in tracks if t.get("r")),
-                       "tracks": tracks},
-                      ensure_ascii=False, indent=1) + "\n"
+    doc = {"count": len(tracks),
+           "repeat": sum(1 for t in tracks if t.get("r")),
+           "tracks": tracks}
+    if playlists:
+        doc["playlists"] = playlists
+        doc["playlistsVersion"] = 1
+    return json.dumps(doc, ensure_ascii=False, indent=1) + "\n"
 
 
 def build() -> tuple[str | None, list[str], int, int]:
@@ -145,7 +169,29 @@ def build() -> tuple[str | None, list[str], int, int]:
     marked = sum(1 for t in tracks if t.get("r"))
     if problems:
         return None, problems, len(tracks), marked
-    return render(tracks), [], len(tracks), marked
+    playlists: list[dict] = []
+    if SEED_PLAYLISTS.exists():
+        try:
+            raw = json.loads(SEED_PLAYLISTS.read_text(encoding="utf-8"))
+        except Exception as error:
+            return None, [f"{SEED_PLAYLISTS.name} does not parse: {error}"], len(tracks), marked
+        entries = raw.get("playlists") if isinstance(raw, dict) else None
+        if not isinstance(entries, list):
+            return None, [f"{SEED_PLAYLISTS.name} has no playlists list"], len(tracks), marked
+        known = {t["v"] for t in tracks}
+        for entry in entries:
+            if (not isinstance(entry, dict) or not isinstance(entry.get("id"), str)
+                    or not isinstance(entry.get("name"), str)
+                    or not isinstance(entry.get("tracks"), list)
+                    or not all(isinstance(v, str) for v in entry["tracks"])):
+                return None, [f"{SEED_PLAYLISTS.name} has a malformed playlist entry"], len(tracks), marked
+            missing = [v for v in entry["tracks"] if v not in known]
+            if missing:
+                return None, [f"{SEED_PLAYLISTS.name} playlist {entry['name']!r} names "
+                              f"a track that is not in {SOURCE.name}: {missing[0]}"], len(tracks), marked
+            playlists.append({"id": entry["id"], "name": entry["name"],
+                              "tracks": list(entry["tracks"])})
+    return render(tracks, playlists), [], len(tracks), marked
 
 
 def cases() -> int:
@@ -169,6 +215,10 @@ def cases() -> int:
         ("a playlist, not a video",
          "Song|Band|https://www.youtube.com/playlist?list=PL123",             0, True),
         ("the same video twice",          f"{OK}\n{OK}",                      1, True),
+        ("a direct audio file",
+         "Song|Band|https://media.clayweld.com/assets/music/song.mp3",        1, False),
+        ("an mp3 on another host",
+         "Song|Band|https://example.com/song.mp3",                             0, True),
     ]
 
     bad = 0
@@ -192,6 +242,15 @@ def cases() -> int:
         return 1
     if "r" in plain[0]:
         print("bake_music --cases: an unmarked track came back with a repeat flag",
+              file=sys.stderr)
+        return 1
+
+    # Same for the audio shape: a direct file that parsed but lost its marker
+    # would reach the player as a YouTube id and fail there instead of here.
+    audio_rows, _ = parse("Song|Band|https://media.clayweld.com/assets/music/song.mp3")
+    if (len(audio_rows) != 1 or audio_rows[0].get("p") != "Audio"
+            or audio_rows[0].get("audio") != audio_rows[0].get("v")):
+        print("bake_music --cases: a direct audio file parsed without its Audio marker",
               file=sys.stderr)
         return 1
 

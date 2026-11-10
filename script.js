@@ -7856,11 +7856,12 @@ const MediaBus = (() => {
     mediaAbort?.abort(); mediaRequest++;
     directVideo.pause(); directVideo.removeAttribute('src'); directVideo.load();
     directVideo.hidden = true; directActive = false;
-    nativeEmbed = !!source?.e;
+    nativeEmbed = !!source?.e || !!source?.audio;
     modal.classList.toggle('has-native-embed', nativeEmbed);
     const help = $('musicEmbedHelp'), link = $('musicEmbedOriginal');
     help.hidden = !nativeEmbed;
-    if (source?.e) { help.firstChild.textContent = `Use ${source.p}'s player controls. Public posts must allow embedding. `; link.href = source.u; }
+    if (source?.audio) { help.firstChild.textContent = 'Direct audio file. The player controls below drive it. '; link.href = source.u; }
+    else if (source?.e) { help.firstChild.textContent = `Use ${source.p}'s player controls. Public posts must allow embedding. `; link.href = source.u; }
     else link.removeAttribute('href');
     for (const el of [scrubEl, volEl, btnMute, fsScrubEl, fsVolEl, fsBtns.mute]) {
       if (el) el.disabled = nativeEmbed;
@@ -7901,6 +7902,38 @@ const MediaBus = (() => {
       paint();
     }
   }
+  /* Direct audio (Dex, 2026-11-10): a file on the site's own media host, with
+     no embed and no provider page to resolve. It plays in the same direct
+     media element Instagram's resolved video uses, so the transport, the
+     scrubber and the volume all work the same way, and CSP already allows
+     media.clayweld.com in media-src. The element is a <video>; an audio-only
+     file in it plays as sound over its black box, which the screen already
+     shows for a direct video. */
+  async function loadDirectAudio(source) {
+    mediaAbort?.abort();
+    const request = ++mediaRequest;
+    try {
+      const url = new URL(source.audio || source.u);
+      if (url.protocol !== 'https:' || url.hostname !== 'media.clayweld.com' || !/\.(mp3|m4a|ogg|wav)$/i.test(url.pathname) || url.username || url.password || url.port) throw new Error('invalid audio URL');
+      if (request !== mediaRequest || current?.v !== source.v || !armed) return;
+      frame.removeAttribute('src'); frame.hidden = true;
+      directActive = true; directVideo.hidden = false;
+      modal.classList.add('has-direct-video');
+      for (const el of [scrubEl, volEl, btnMute, fsScrubEl, fsVolEl, fsBtns.mute]) if (el) el.disabled = false;
+      $('musicEmbedHelp').firstChild.textContent = 'Audio · ';
+      directVideo.src = url.href;
+      pushVolume();
+      if (playing) await directVideo.play().catch(error => { if (request === mediaRequest && error.name !== 'AbortError') { playing = false; paint(); } });
+      if (request === mediaRequest) paint();
+    } catch (error) {
+      if (request !== mediaRequest) return;
+      directVideo.pause(); directVideo.removeAttribute('src'); directVideo.load(); directVideo.hidden = true;
+      directActive = false; modal.classList.remove('has-direct-video');
+      $('musicEmbedHelp').firstChild.textContent = 'Audio file could not be played. ';
+      playing = false;
+      paint();
+    }
+  }
   const readDirectDuration = () => {
     if (!directActive) return;
     duration = directVideo.duration; paintTime(directVideo.currentTime); pushVolume();
@@ -7912,7 +7945,11 @@ const MediaBus = (() => {
   });
   directVideo.addEventListener('ended', () => {
     if (!directActive || !current) return;
-    if (loop === 'one') { position = 0; paintTime(0); loadPublicVideo(window.MusicEmbeds.parse(current.v)); }
+    if (loop === 'one') {
+      position = 0; paintTime(0);
+      const source = window.MusicEmbeds.parse(current.v);
+      if (source?.audio) loadDirectAudio(source); else loadPublicVideo(source);
+    }
     else step(1);
   });
   directVideo.addEventListener('error', () => {
@@ -7921,6 +7958,11 @@ const MediaBus = (() => {
     modal.classList.remove('has-direct-video');
     const source = window.MusicEmbeds.parse(current.v);
     for (const el of [scrubEl, volEl, btnMute, fsScrubEl, fsVolEl, fsBtns.mute]) if (el) el.disabled = true;
+    if (source?.audio) {
+      $('musicEmbedHelp').firstChild.textContent = 'Audio file could not be played. ';
+      paint();
+      return;
+    }
     frame.hidden = false; frame.src = source.e;
     $('musicEmbedHelp').firstChild.textContent = 'Instagram player · automatic repeat unavailable for this post. ';
     paint();
@@ -7984,6 +8026,7 @@ const MediaBus = (() => {
       frame.removeAttribute('src');
       armed = true; ready = false;
       if (source.p === 'Instagram') loadPublicVideo(source);
+      else if (source.audio) loadDirectAudio(source);
       else frame.src = source.e;
     } else if (!armed || wasNative) {
       frame.src = srcFor(track.v);
@@ -8125,7 +8168,9 @@ const MediaBus = (() => {
     playing = true;
     if (nativeEmbed && !directActive && current) {
       const source = window.MusicEmbeds.parse(current.v);
-      if (source.p === 'Instagram') loadPublicVideo(source); else frame.src = source.e;
+      if (source.p === 'Instagram') loadPublicVideo(source);
+      else if (source.audio) loadDirectAudio(source);
+      else frame.src = source.e;
     } else cmd('playVideo');
     paint(); MediaBus.solo(me);
   }
@@ -9306,7 +9351,7 @@ const MediaBus = (() => {
     addTitle.value = data.t || '';
     addArtist.value = data.a || '';
     addFound.hidden = false;
-    addNote.textContent = data.p !== 'YouTube' ? `${data.p} embed — enter the title and artist. Playback uses its own controls; availability depends on the provider.` : data.t ? 'Check the title and artist, then add it.' : 'No title came back — type one in.';
+    addNote.textContent = data.p === 'Audio' ? 'Direct audio file: enter the title and artist. Playback uses the player controls.' : data.p !== 'YouTube' ? `${data.p} embed — enter the title and artist. Playback uses its own controls; availability depends on the provider.` : data.t ? 'Check the title and artist, then add it.' : 'No title came back — type one in.';
     syncSave();
     (data.t ? addSave : addTitle).focus();
   }

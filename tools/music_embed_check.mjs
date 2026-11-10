@@ -24,6 +24,7 @@ const cases = [
   ['https://www.tiktok.com/@scout2015/video/6718335390845095173', 'TikTok'],
   ['https://www.tiktok.com/player/v1/6718335390845095173', 'TikTok'],
   ['<iframe src="https://bandcamp.com/EmbeddedPlayer/album=3142231699/size=large/"></iframe>', 'Bandcamp'],
+  ['https://media.clayweld.com/assets/music/whistle.mp3', 'Audio'],
 ];
 for (const [url, provider] of cases) {
   const source = parse(url);
@@ -42,6 +43,8 @@ for (const url of [
   'https://youtube.com/playlist?list=abc', 'https://vimeo.com/manage/videos/12345678',
   '<iframe src="https://evil.test/"></iframe>', '<script>alert(1)</script>',
   'https://bandcamp.com/EmbeddedPlayer/anything/', 'https://w.soundcloud.com/player/?url=https://evil.test/',
+  'https://example.com/song.mp3', 'https://media.clayweld.com.evil.test/assets/music/whistle.mp3',
+  'https://media.clayweld.com/assets/music/whistle.exe',
 ]) ok(parse(url) === null);
 const a = store.cleanTrack({ v: cases[2][0], t: 'First', a: 'Artist' });
 const b = store.cleanTrack({ v: cases[3][0], t: 'Duplicate', a: 'Artist' });

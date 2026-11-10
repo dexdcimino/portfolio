@@ -462,7 +462,7 @@ try {
   await editor.page.mouse.click(at.x, at.y);
   await editor.page.waitForSelector('#musicPlaylistPicker[open]');
   const picker = await editor.page.evaluate(() => ({ names: [...document.querySelectorAll('.music-picker-entry span')].map(e => e.textContent), all: document.querySelector('.music-picker-entry input[data-playlist="all"]').disabled }));
-  note(picker.names.join() === 'ALL,REPEAT,Stillness' && picker.all, `all current playlists appear in the picker: ${JSON.stringify(picker)}`);
+  note(picker.names.join() === 'ALL,REPEAT,AI,Stillness' && picker.all, `all current playlists appear in the picker: ${JSON.stringify(picker)}`);
   await editor.page.click('.music-picker-entry:has(input[data-playlist="repeat"]) span');
   await editor.page.waitForFunction(() => !document.querySelector('.music-picker-entry input[data-playlist="repeat"]').disabled);
   await editor.page.click(`.music-picker-entry:has(input[data-playlist="${customId}"]) span`);
@@ -481,7 +481,7 @@ try {
   note(seen.checked && seen.disabled, `MUSIC sees that tick as checked ${seen.checked}, disabled ${seen.disabled}`);
 
   // Removing from a custom playlist updates its visible rows while its picker stays open.
-  await editor.page.click('#musicCustomPlaylists .music-rail-pl > button');
+  await editor.page.evaluate(() => [...document.querySelectorAll('#musicCustomPlaylists .music-rail-pl > button')].find(b => b.textContent.includes('STILLNESS')).click());
   note(await has(editor.page, target), 'the selected song was not present in Stillness');
   at = await centre(editor.page, `.music-row[data-v="${target}"] .music-playlist-add`);
   await editor.page.mouse.click(at.x, at.y);
