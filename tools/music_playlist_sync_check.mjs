@@ -26,7 +26,7 @@ try {
   let doc = (await api()).data;
   const [a, b, c, d] = doc.tracks.slice(0, 4).map(t => t.v);
   check(doc.playlists.map(p => p.name), ['AI'], 'a fresh store carries the repo seeded playlist (Dex, 2026-11-10)');
-  check(doc.playlists[0].tracks, ['https://media.clayweld.com/assets/music/whistle.mp3'], 'the seeded playlist names its seeded track');
+  check(doc.playlists[0].tracks, ['https://media.clayweld.com/assets/music/whistle.mp3', 'https://media.clayweld.com/assets/music/whistle-tune.m4a'], 'the seeded playlist names its seeded tracks');
   check(doc.playlistsVersion, 1, 'clients can detect shared playlist support');
   for (const action of ['playlist-create', 'playlist-member', 'playlist-delete', 'playlist-import']) check((await api({ action })).status, 401, 'visitors cannot edit public playlists');
   const stillness = [{ id: 'desktop-old', name: 'Stillness', tracks: [a, b] }];
