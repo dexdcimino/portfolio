@@ -299,8 +299,8 @@ Whatever It Takes|Imagine Dragons|https://www.youtube.com/watch?v=gOsM-DYAEhY
 Whatever You Like|T.I.|https://www.youtube.com/watch?v=f2nKwt9mC0A
 when the party's over|Billie Eilish|https://www.youtube.com/watch?v=pbMwTqkKSps
 Where Do We Go|LUM!X|https://www.youtube.com/watch?v=xB99oPXSwIU
-Whistle|Dex Chimino|https://media.clayweld.com/assets/music/whistle.mp3
-Whistle Tune|Dex Chimino|https://media.clayweld.com/assets/music/whistle-tune.m4a
+Whistle Suno|Dex Cimino|https://media.clayweld.com/assets/music/whistle.mp3
+Whistle Tune|Dex Cimino|https://media.clayweld.com/assets/music/whistle-tune.m4a
 Wishing Well|Juice WRLD|https://www.youtube.com/watch?v=C5i-UnuUKUI
 With Arms Wide Open|Creed|https://www.youtube.com/watch?v=99j0zLuNhi8
 Without Me|Eminem|https://www.youtube.com/watch?v=fsG39JgqTmo|R
