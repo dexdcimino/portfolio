@@ -1,0 +1,93 @@
+/* Diet tab styles (board/diet.js). */
+
+/* The three health levels, one colour each, used by every dot. */
+.diet-grid { --lvl-clean: var(--green); --lvl-balanced: var(--amber); --lvl-treat: var(--danger); }
+.diet-grid [data-level="clean"] { --lvl: var(--lvl-clean, var(--green)); }
+.diet-grid [data-level="balanced"] { --lvl: var(--lvl-balanced, var(--amber)); }
+.diet-grid [data-level="treat"] { --lvl: var(--lvl-treat, var(--danger)); }
+.diet-filters .chip .dot { background: var(--lvl, var(--muted-2)); }
+
+/* Filter bar: search, level chips, category chips on one wrapping row. */
+.diet-filter-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
+.diet-search { flex: 1 1 220px; max-width: 360px; }
+.diet-count { font-family: var(--mono); font-size: 13px; opacity: .75; }
+.diet-status { margin: 0; font-size: 14px; color: var(--muted); }
+.diet-hint { margin: 0; font-size: 13px; color: var(--muted-2); }
+
+/* Food chips: dense, wrapping, a coloured dot each. */
+.diet-chips { display: flex; flex-wrap: wrap; gap: 5px; }
+.diet-food {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  max-width: 100%;
+  padding: 3px 10px 3px 8px;
+  border: 1px solid var(--stroke);
+  border-radius: 999px;
+  background: var(--panel-2);
+  color: var(--text);
+  font: inherit;
+  font-size: 15px;
+  line-height: 1.3;
+  text-align: left;
+}
+button.diet-food { cursor: pointer; }
+button.diet-food:hover { border-color: var(--lvl, var(--muted-2)); }
+button.diet-food:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.diet-dot-mark {
+  flex: none;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--lvl, var(--muted-2));
+  align-self: center;
+}
+.diet-food-name { overflow-wrap: anywhere; }
+.diet-food-detail { color: var(--muted); font-size: 13px; overflow-wrap: anywhere; }
+.diet-note { margin: 2px 0 0; font-size: 14px; color: var(--muted); line-height: 1.45; }
+
+/* The standalone dot on combos and recipes. */
+.diet-dot {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  padding: 0;
+  margin: 0;
+  border: 2px solid var(--panel);
+  border-radius: 50%;
+  background: var(--lvl, var(--muted-2));
+  box-shadow: 0 0 0 1px var(--lvl, var(--muted-2));
+}
+button.diet-dot { cursor: pointer; }
+button.diet-dot:hover { transform: scale(1.2); }
+button.diet-dot:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.diet-dot-head { margin-right: 2px; }
+
+/* Combos: tight rows, name bold, ingredients muted. */
+.diet-combos { gap: 0; }
+.diet-combo { display: flex; align-items: baseline; gap: 9px; padding: 4px 2px; }
+.diet-combo + .diet-combo { border-top: 1px solid var(--stroke-soft); }
+.diet-combo .diet-dot { position: relative; top: 2px; }
+.diet-combo .row-text { line-height: 1.4; }
+.diet-combo-rest { color: var(--muted); }
+.diet-combo-rest::before { content: " · "; }
+
+/* Recipes: ingredients in two columns, method below. */
+.diet-label { margin: 2px 0 0; font-size: 13px; font-weight: 700; color: var(--muted); font-family: var(--mono); text-transform: uppercase; letter-spacing: .05em; }
+.diet-uses { margin: 0; padding-left: 18px; columns: 2 150px; column-gap: 18px; font-size: 15px; line-height: 1.4; }
+.diet-uses li { break-inside: avoid; padding: 1px 0; }
+.diet-step { margin: 2px 0 0; font-size: 15px; line-height: 1.5; }
+.diet-step strong { color: var(--accent-soft); }
+.diet-macros { margin: 2px 0 0; font-family: var(--mono); font-size: 13px; color: var(--accent-soft); }
+
+/* Daily targets. */
+.diet-target-controls { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 6px; margin-bottom: 6px; }
+.diet-field { display: flex; flex-direction: column; gap: 2px; flex: 0 1 92px; min-width: 76px; }
+.diet-field-label { font-size: 13px; color: var(--muted); font-family: var(--mono); }
+.diet-field .board-input { min-height: 32px; padding: 4px 8px; }
+.diet-target-controls .board-btn { margin-bottom: 1px; }
+.diet-targets .bar.is-done > i { background: var(--green); }
+.diet-reset { align-self: flex-start; }
+.diet-targets .board-card-body { gap: 2px; }
+.diet-targets .stat-row + .bar { margin-bottom: 4px; }
+.diet-targets .stat-row:not(:first-child) { margin-top: 8px; border-top: 1px solid var(--stroke-soft); padding-top: 10px; }

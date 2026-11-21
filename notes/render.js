@@ -1328,7 +1328,10 @@ function wireDrag(node, handle, id, opts = {}) {
         const r = items[i].getBoundingClientRect();
         if (ev.clientY < r.top + r.height / 2) { target = i; break; }
       }
-      if (target < items.length) items[target].before(marker); else list().append(marker);
+      /* Only move the line when the slot changes: re-inserting it on every
+         pointermove restarted its open animation and read as flicker. */
+      if (target < items.length) { if (marker.nextElementSibling !== items[target]) items[target].before(marker); }
+      else if (marker.parentNode !== list() || marker.nextElementSibling) list().append(marker);
       // Auto-scroll near the container's edges.
       const lr = list().getBoundingClientRect();
       if (ev.clientY < lr.top + 30) list().scrollTop -= 8;

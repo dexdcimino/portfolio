@@ -11,33 +11,27 @@
 <meta name="robots" content="noindex">
 <title>Dex Board</title>
 <script src="/accent-boot.js"></script>
+<script src="/board/theme-boot.js"></script>
 <link rel="manifest" href="/board/manifest.webmanifest">
 <link rel="apple-touch-icon" href="/board/apple-touch-icon.png">
 <link rel="icon" type="image/png" sizes="192x192" href="/board/icon-192.png">
 <link rel="icon" type="image/png" sizes="512x512" href="/board/icon-512.png">
 <link rel="stylesheet" href="/board/board.css">
+<link rel="stylesheet" href="/board/music.css">
+<link rel="stylesheet" href="/board/work.css">
+<link rel="stylesheet" href="/board/diet.css">
 </head>
 <body>
-<div id="board-app" class="board-app" hidden>
-  <header class="board-topbar">
-    <div class="board-brand">
-      <img id="board-mascot" class="board-mascot" src="https://media.clayweld.com/assets/mascots/mascot_limegreen.png" alt="Clayweld mascot" width="40" height="40">
-      <div class="board-brand-text">
-        <span class="board-title">Dex Board</span>
+<div id="board-app" class="board-app" data-left="open" data-right="open" hidden>
+  <header class="bd-top">
+    <div class="bd-brand">
+      <button id="bd-profile" type="button" class="bd-profile" aria-label="Your account" aria-expanded="false" aria-controls="bd-menu"></button>
+      <div class="bd-brand-text">
+        <span class="bd-title">Dex Board</span>
         <span id="board-saved" class="board-saved" role="status" aria-live="polite"></span>
       </div>
     </div>
-    <div class="board-topbar-actions">
-      <button id="board-theme-btn" type="button" class="board-btn board-theme-btn" aria-label="Change accent color">
-        <span class="board-theme-dot" aria-hidden="true"></span>
-        <span id="board-theme-name">lime</span>
-      </button>
-      <div id="board-avatar-slot" class="board-avatar-slot" aria-label="Signed in account"></div>
-      <button id="board-signout-btn" type="button" class="board-btn">Sign out</button>
-    </div>
-  </header>
-  <nav class="board-tabbar" aria-label="Board tabs">
-    <div class="board-tabs" role="tablist">
+    <nav class="bd-tabs" role="tablist" aria-label="Board tabs">
       <button type="button" class="board-tab" role="tab" data-tab="overview" aria-selected="true">Overview</button>
       <button type="button" class="board-tab" role="tab" data-tab="schedule" aria-selected="false">Schedule</button>
       <button type="button" class="board-tab" role="tab" data-tab="notes" aria-selected="false">Notes</button>
@@ -45,26 +39,65 @@
       <button type="button" class="board-tab" role="tab" data-tab="exercise" aria-selected="false">Exercise</button>
       <button type="button" class="board-tab" role="tab" data-tab="work" aria-selected="false">Work</button>
       <button type="button" class="board-tab" role="tab" data-tab="music" aria-selected="false">Music</button>
+    </nav>
+    <div class="bd-actions">
+      <button id="bd-left-toggle" type="button" class="bd-icon-btn" aria-label="Outline panel" aria-pressed="true">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/></svg>
+      </button>
+      <button id="bd-right-toggle" type="button" class="bd-icon-btn" aria-label="Today panel" aria-pressed="true">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M15 4v16"/></svg>
+      </button>
+      <div class="bd-theme">
+        <button id="board-theme-btn" type="button" class="bd-theme-btn" aria-haspopup="true" aria-expanded="false" aria-controls="bd-theme-pop" aria-label="Theme">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path class="hex-fill" d="M12 1.6l9 5.2v10.4l-9 5.2-9-5.2V6.8z"/></svg>
+          <span class="bd-theme-label" id="board-theme-name">Theme</span>
+        </button>
+        <div id="bd-theme-pop" class="bd-theme-pop" role="dialog" aria-label="Pick a theme" hidden></div>
+      </div>
+      <div class="bd-view" role="group" aria-label="View mode">
+        <button type="button" class="board-view-btn is-active" data-view-mode="scroll" aria-pressed="true" title="Single page, scroll up and down">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v16M7 9l5-5 5 5M7 15l5 5 5-5"/></svg><span>Scroll</span>
+        </button>
+        <button type="button" class="board-view-btn" data-view-mode="zoom" aria-pressed="false" title="Board, zoom and pan">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.5-4.5M8 11h6M11 8v6"/></svg><span>Zoom</span>
+        </button>
+      </div>
     </div>
-    <div class="board-view-toggle" role="group" aria-label="View mode">
-      <button type="button" class="board-view-btn is-active" data-view-mode="scroll" aria-pressed="true">Scroll</button>
-      <button type="button" class="board-view-btn" data-view-mode="zoom" aria-pressed="false">Zoom</button>
+    <div id="bd-menu" class="bd-menu" hidden>
+      <div class="bd-menu-who"><strong id="bd-menu-name">Dex</strong><span>Signed in, owner only</span></div>
+      <a href="/">Portfolio site</a>
+      <button id="board-signout-btn" type="button" class="board-btn">Sign out</button>
     </div>
-  </nav>
-  <main class="board-main">
-    <section id="panel-overview" class="board-panel" data-panel="overview" role="tabpanel" aria-label="Overview"></section>
-    <section id="panel-schedule" class="board-panel" data-panel="schedule" role="tabpanel" aria-label="Schedule" hidden></section>
-    <section id="panel-notes" class="board-panel" data-panel="notes" role="tabpanel" aria-label="Notes" hidden></section>
-    <section id="panel-diet" class="board-panel" data-panel="diet" role="tabpanel" aria-label="Diet" hidden></section>
-    <section id="panel-exercise" class="board-panel" data-panel="exercise" role="tabpanel" aria-label="Exercise" hidden></section>
-    <section id="panel-work" class="board-panel" data-panel="work" role="tabpanel" aria-label="Work" hidden></section>
-    <section id="panel-music" class="board-panel" data-panel="music" role="tabpanel" aria-label="Music" hidden></section>
-  </main>
+  </header>
+  <div class="bd-body">
+    <aside id="bd-left" class="bd-side bd-left" aria-label="Outline">
+      <h2 class="bd-side-h"><span id="bd-outline-title">Blocks</span><span id="bd-outline-count"></span></h2>
+      <ol id="bd-outline" class="bd-outline"></ol>
+      <p id="bd-outline-hint" class="bd-hint"></p>
+    </aside>
+    <main class="board-main">
+      <section id="panel-overview" class="board-panel" data-panel="overview" role="tabpanel" aria-label="Overview"></section>
+      <section id="panel-schedule" class="board-panel" data-panel="schedule" role="tabpanel" aria-label="Schedule" hidden></section>
+      <section id="panel-notes" class="board-panel" data-panel="notes" role="tabpanel" aria-label="Notes" hidden></section>
+      <section id="panel-diet" class="board-panel" data-panel="diet" role="tabpanel" aria-label="Diet" hidden></section>
+      <section id="panel-exercise" class="board-panel" data-panel="exercise" role="tabpanel" aria-label="Exercise" hidden></section>
+      <section id="panel-work" class="board-panel" data-panel="work" role="tabpanel" aria-label="Work" hidden></section>
+      <section id="panel-music" class="board-panel" data-panel="music" role="tabpanel" aria-label="Music" hidden></section>
+      <div id="bd-hud" class="bd-hud" hidden>
+        <button type="button" data-zoom="out" aria-label="Zoom out">&minus;</button>
+        <button type="button" data-zoom="reset" class="hud-pct" aria-label="Zoom to 100 percent">100%</button>
+        <button type="button" data-zoom="in" aria-label="Zoom in">+</button>
+        <button type="button" data-zoom="fit" aria-label="Fit the whole board">Fit</button>
+      </div>
+      <p id="bd-hud-hint" class="bd-hud-hint" hidden>Scroll to zoom. Drag empty space to move. Double click to zoom in.</p>
+    </main>
+    <aside id="bd-right" class="bd-side bd-right" aria-label="Today"></aside>
+  </div>
 </div>
 
 <div id="board-wall" class="board-wall">
   <div class="board-wall-card">
-    <img class="board-wall-mascot" src="https://media.clayweld.com/assets/mascots/mascot_limegreen.png" alt="Clayweld mascot" width="72" height="72">
+    <div class="board-wall-mark" id="board-wall-mark" aria-hidden="true"></div>
     <h1 class="board-wall-title">Dex Board</h1>
     <p id="board-wall-msg" class="board-wall-msg">Sign in to open your board.</p>
     <button id="board-signin-btn" type="button" class="board-btn board-btn-primary board-wall-signin">Sign in with Google</button>

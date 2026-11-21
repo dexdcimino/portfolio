@@ -5,58 +5,119 @@
  * backend from board/notes-backend.js, reads the parsed document through
  * getDocument(), and finds the diet section by title search. It never
  * ships food content of its own: if no section matches, it shows an
- * honest empty state, and the mockup sample numbers never appear here.
+ * honest empty state. The notes document is only ever READ here.
  *
  * Search order: the terms diet, food, recipe, meal, and nutrition, in
  * that order. For each term, session titles are checked first in
  * document order, then category titles across every session in document
- * order. Matching is case insensitive and looks for the term inside the
- * title. A matching session contributes all of its live categories. A
- * matching category is used on its own. Archived categories are not
- * searched, because the backend document keeps them outside cats.
+ * order. Matching is case insensitive. A matching session contributes all
+ * of its live categories; a matching category is used on its own.
  *
- * Inside a category body, each h3 heading starts a new block. Content
- * before the first heading becomes a General foods block for a single
- * matched category, and a block titled with the category title when a
- * whole session matched. Blocks whose heading mentions recipe are
- * grouped into one Recipes card. Every other block becomes its own
- * card under its heading, with blocks that share a heading merged into
- * one card. Lists stay lists and tables stay tables, because the body
- * nodes are cloned into the cards as they are.
+ * Inside a category body each h3 starts a block. Content before the first
+ * h3 is the category's intro line and sits under the first block's title.
+ * Each block becomes one card, of one of four kinds, decided by its shape:
+ *   recipe  a block with bold-labelled paragraphs (Uses, Make it, Swap) or
+ *           any block in a category whose title says recipe
+ *   combos  a list whose items are bold-named or long (assemble-and-eat)
+ *   foods   a list of short items, drawn as chips
+ *   note    paragraphs only (Leavening rules)
+ * Every food, combo and recipe is rendered from text only (textContent),
+ * never by cloning the notes HTML into the page.
  *
- * The content is read only here. Editing happens in the Notes tab,
- * where the content canonically lives, and the tab says so in one
- * small line under the source title.
+ * Healthiness: the notes carry no health data, so every food, combo and
+ * recipe gets a DEFAULT level from HEALTH_WORDS below (generic food words,
+ * longest match wins, unknown = balanced). Clicking a food chip, or the dot
+ * on a combo or recipe, cycles clean -> balanced -> treat. Overrides live
+ * in the board-diet store doc as health: { "<lowercased text>": level };
+ * cycling back to the default deletes the override. The filter bar narrows
+ * by level, by category and by a text search; a card left with nothing
+ * visible is hidden.
  *
- * Filters: one chip per card group, derived from the block headings
- * themselves, plus an All chip. There are no health scores and no per
- * food ratings, because no such data exists in the notes. Board owned
- * per food tags live in the board-diet Firestore doc as
- * { tags: { "<food text>": "<group name>" } }. Clicking a food cycles
- * its tag through the card groups. A tag changes which filter shows
- * the food, and clearing the tag returns the food to its own block.
- * Tags are the only thing this tab writes, and they go through
- * ctx.store, never into the notes document.
+ * Daily targets: calories, protein and water, each a target and today's
+ * number, saved as targets: {...} and today: { date, ... } in the same doc.
+ * Today's numbers reset when the date changes.
+ *
+ * The board-diet doc predates this version and holds { tags: {...} } from
+ * the old per-food group tags. That field is read and written back
+ * untouched, so nothing in it is lost.
  *
  * Shell interface: board/board.js dynamically imports this module and
  * calls mount(container, ctx), awaiting the promise it returns, and
  * calls unmount() on sign out. ctx provides
  * { user, uid, store, dnd, boardApi }. This tab uses ctx.user for the
- * unlock exchange and ctx.store for the tag doc.
+ * unlock exchange and ctx.store for the board-diet doc.
  */
 
 import { createNotesBackend } from './notes-backend.js';
 
 const SEARCH_TERMS = ['diet', 'food', 'recipe', 'meal', 'nutrition'];
+const LEVELS = ['clean', 'balanced', 'treat'];
+const LEVEL_LABEL = { clean: 'Clean', balanced: 'Balanced', treat: 'Treat' };
+
+/* Generic food words only. A phrase takes the level of the LONGEST word
+   in it, so "chocolate protein powder" is clean and "dark chocolate" is
+   balanced while "chocolate" alone is a treat. */
+const HEALTH_WORDS = {
+  clean: [
+    'egg', 'egg white', 'egg whites', 'greek yogurt', 'kefir', 'berries', 'berry', 'broccoli',
+    'shrimp', 'fish', 'tuna', 'salmon', 'smoked salmon', 'chicken', 'turkey', 'tofu', 'buffalo',
+    'lamb', 'oatmeal', 'oats', 'steel-cut oats', 'cucumber', 'tomato', 'tomatoes', 'avocado',
+    'veg', 'vegetables', 'eggplant', 'seaweed', 'bean sprouts', 'garlic', 'ginger', 'onion',
+    'cilantro', 'basil', 'lime', 'lemon', 'jalapeño', 'jalapeno', 'salsa', 'apple', 'apples',
+    'pear', 'apricot', 'pineapple', 'mango', 'banana', 'bananas', 'seltzer', 'tea', 'water',
+    'kombucha', 'whey', 'protein powder', 'protein powders', 'whey protein', 'egg white powder',
+    'chia', 'chia seeds', 'hemp', 'hemp hearts', 'multivitamin', 'fish oil', 'vitamin',
+    'magnesium', 'electrolyte', 'nuun', 'lmnt', 'cottage cheese', 'almonds', 'pistachios',
+    'olive oil', 'avocado oil', 'vinegar', 'rice vinegar', 'balsamic', 'spinach', 'kale',
+    'lentils', 'beans', 'quinoa', 'sweet potato', 'coconut flour', 'almond flour', 'cinnamon',
+    'monk fruit', 'pickles', 'olives', 'green olives', 'hummus', 'pepper', 'cacao', 'protein drinks',
+    'almond milk', 'vanilla extract', 'mixed nuts', 'seasoned almonds',
+  ],
+  balanced: [
+    'granola', 'honey', 'dates', 'dried fruit', 'croissant', 'croissants', 'cheese', 'feta',
+    'mozzarella', 'goat cheese', 'parmesan', 'butter', 'sour cream', 'cream cheese', 'jerky',
+    'noodles', 'bread', 'rice', 'cream of wheat', 'coffee', 'protein bar', 'peanut butter',
+    'nut butter', 'almond butter', 'hoisin', 'soy sauce', 'sriracha', 'hot sauce', 'dressing',
+    'celsius', 'liquid iv', 'iced tea', 'iced teas', 'coconut cream', 'coconut milk',
+    'coconut butter', 'shredded coconut', 'dark chocolate', 'cocoa', 'sugar-free', 'macadamias',
+    'macadamia', 'sesame oil', 'salt', 'sea salt', 'pepperoncini', 'tapioca', 'soup', 'yogurt',
+    'milk', 'protein bread', 'pancake bowl', 'parfait', 'pudding', 'cloud bread', 'mayo',
+    'marinara', 'pho', 'ramen', 'caprese', 'chunky soup', 'ribeye', 'milk tea',
+    'dark chocolate chips', 'sugar-free jello', 'protein brownie',
+  ],
+  treat: [
+    'candy', 'chocolate', 'chocolate chips', 'spam', 'cake', 'brownie', 'fudge', 'pancakes',
+    'tart', 'tarte', 'tarte tatin', 'pie', 'cookie', 'cookies', 'ice cream', 'sugar',
+    'brown sugar', 'sesame balls', 'chips', 'soda', 'fries', 'bacon', 'salami', 'pepperoni',
+    'fruit bites', 'donut', 'doughnut', 'pastry', 'frosting', 'whipped cream', 'jello',
+    'ginger candy', 'mozzarella sticks', 'bacon-wrapped',
+  ],
+};
+
+const LEVEL_OF_WORD = new Map();
+for (const level of LEVELS) for (const word of HEALTH_WORDS[level]) LEVEL_OF_WORD.set(word, level);
+const WORDS_LONGEST_FIRST = [...LEVEL_OF_WORD.keys()].sort((a, b) => b.length - a.length);
+const WORD_PATTERNS = WORDS_LONGEST_FIRST.map((word) => ({
+  word,
+  re: new RegExp('(?<![\\p{L}])' + word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '(?:s|es)?(?![\\p{L}])', 'iu'),
+}));
+
+const TARGETS = [
+  { key: 'calories', label: 'Calories', unit: 'kcal', step: 100, quick: [100, 250], def: 2000 },
+  { key: 'protein', label: 'Protein', unit: 'g', step: 5, quick: [10, 25], def: 150 },
+  { key: 'water', label: 'Water', unit: 'cups', step: 1, quick: [1], def: 8 },
+];
 
 let host = null;
 let generation = 0;
 let storeRef = null;
-let tags = {};
-let filterGroups = [];
-let activeFilter = 'All';
+let saved = { tags: {}, health: {}, targets: {}, today: {} };
 let gridEl = null;
-let filterButtons = [];
+let healthFilter = 'all';
+let catFilter = 'all';
+let query = '';
+let filterUi = null;
+let items = [];        /* every filterable thing: { key, text, level el, card } */
 
 function el(tag, className, text) {
   const node = document.createElement(tag);
@@ -66,403 +127,562 @@ function el(tag, className, text) {
 }
 
 function showLine(container, text) {
-  const card = el('div', 'board-loading-card', text);
-  container.replaceChildren(card);
+  container.replaceChildren(el('div', 'board-loading-card', text));
 }
 
 function titleHas(title, term) {
   return typeof title === 'string' && title.toLowerCase().includes(term);
 }
 
-function isRecipeHeading(heading) {
-  return typeof heading === 'string' && heading.toLowerCase().includes('recipe');
+function todayStamp() {
+  const d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
 }
 
-/* Find the diet section. Returns one of:
-   { kind: 'session', title, session }
-   { kind: 'category', title, cat }
-   or null when nothing matches. */
+function clean(text) {
+  return String(text || '').replace(/\s+/g, ' ').trim();
+}
+
+/* ---- the source ------------------------------------------------------ */
+
 function findDietSource(doc) {
   const sessions = doc && Array.isArray(doc.sessions) ? doc.sessions : [];
   for (const term of SEARCH_TERMS) {
     for (const session of sessions) {
-      if (session && titleHas(session.title, term)) {
-        return { kind: 'session', title: session.title, session };
-      }
+      if (session && titleHas(session.title, term)) return { kind: 'session', title: session.title, session };
     }
     for (const session of sessions) {
       const cats = session && Array.isArray(session.cats) ? session.cats : [];
       for (const cat of cats) {
-        if (cat && titleHas(cat.title, term)) {
-          return { kind: 'category', title: cat.title, cat };
-        }
+        if (cat && titleHas(cat.title, term)) return { kind: 'category', title: cat.title, cat };
       }
     }
   }
   return null;
 }
 
-/* Split one category body into blocks on its h3 headings. The body is
-   schema HTML from the notes document, parsed with DOMParser and then
-   imported into this document, so lists, tables, paragraphs, and chips
-   keep their shape. fallbackHeading names the block that holds any
-   content sitting before the first heading. Empty blocks are dropped. */
-function parseBodyBlocks(bodyHtml, fallbackHeading) {
+/* Split one category body on its h3 headings. Returns the intro text and
+   the blocks, each { heading, nodes } with nodes still in the parsed
+   (inert) document: they are only ever read for text. */
+function splitBody(bodyHtml) {
   const html = typeof bodyHtml === 'string' ? bodyHtml : '';
-  if (!html.trim()) return [];
-  const parsed = new DOMParser().parseFromString(
-    '<div id="diet-parse-root">' + html + '</div>',
-    'text/html',
-  );
+  if (!html.trim()) return { intro: '', blocks: [] };
+  const parsed = new DOMParser().parseFromString('<div id="diet-parse-root">' + html + '</div>', 'text/html');
   const root = parsed.getElementById('diet-parse-root');
-  if (!root) return [];
+  if (!root) return { intro: '', blocks: [] };
+  const intro = [];
   const blocks = [];
-  let current = { heading: null, nodes: [] };
+  let current = null;
   for (const node of [...root.childNodes]) {
-    if (node.nodeType === Node.TEXT_NODE) {
-      if (!node.nodeValue.trim()) continue;
-      const p = document.createElement('p');
-      p.textContent = node.nodeValue.trim();
-      current.nodes.push(p);
-      continue;
-    }
-    if (node.nodeType !== Node.ELEMENT_NODE) continue;
-    if (node.tagName === 'H3') {
+    if (node.nodeType === Node.ELEMENT_NODE && node.tagName === 'H3') {
+      current = { heading: clean(node.textContent) || 'Untitled', nodes: [] };
       blocks.push(current);
-      const heading = (node.textContent || '').trim() || 'Untitled';
-      current = { heading, nodes: [] };
       continue;
     }
-    current.nodes.push(document.importNode(node, true));
+    if (node.nodeType === Node.TEXT_NODE && !node.nodeValue.trim()) continue;
+    if (node.nodeType !== Node.ELEMENT_NODE && node.nodeType !== Node.TEXT_NODE) continue;
+    if (current) current.nodes.push(node);
+    else if (clean(node.textContent)) intro.push(clean(node.textContent));
   }
-  blocks.push(current);
-  const titled = [];
-  for (const block of blocks) {
-    const hasContent = block.nodes.some((n) => {
-      if (n.querySelector && n.querySelector('table, img, hr')) return true;
-      return (n.textContent || '').trim().length > 0;
-    });
-    if (!hasContent) continue;
-    titled.push({ heading: block.heading || fallbackHeading, nodes: block.nodes });
-  }
-  return titled;
+  return { intro: intro.join(' '), blocks: blocks.filter((b) => b.nodes.some((n) => clean(n.textContent))) };
 }
 
-/* Turn the flat block list into cards. Recipe blocks group into one
-   Recipes card. Other blocks group by heading, so two blocks with the
-   same heading share one card. Card order follows first appearance in
-   the document, with the Recipes card sitting where the first recipe
-   block appeared. */
-function buildCards(blocks) {
-  const cards = [];
-  const byKey = new Map();
-  for (const block of blocks) {
-    const recipe = isRecipeHeading(block.heading);
-    const group = recipe ? 'Recipes' : block.heading;
-    const key = group.toLowerCase();
-    let card = byKey.get(key);
-    if (!card) {
-      card = { title: group, group, blocks: [] };
-      byKey.set(key, card);
-      cards.push(card);
-    }
-    card.blocks.push(block);
-  }
-  return cards;
-}
-
-/* The text that names a food: the list item own text, without any
-   nested list inside it and without a tag badge this tab added. */
 function ownText(li) {
   let text = '';
   for (const child of li.childNodes) {
-    if (child.nodeType === Node.TEXT_NODE) {
-      text += child.nodeValue;
-    } else if (child.nodeType === Node.ELEMENT_NODE) {
-      if (child.tagName === 'UL' || child.tagName === 'OL') continue;
-      if (child.hasAttribute('data-diet-tag')) continue;
-      text += child.textContent;
-    }
+    if (child.nodeType === Node.TEXT_NODE) text += child.nodeValue;
+    else if (child.nodeType === Node.ELEMENT_NODE && child.tagName !== 'UL' && child.tagName !== 'OL') text += child.textContent;
   }
-  return text.trim().replace(/\s+/g, ' ');
+  return clean(text);
 }
 
-function paintTag(li) {
-  for (const child of [...li.children]) {
-    if (child.hasAttribute('data-diet-tag')) child.remove();
-  }
-  const food = li.getAttribute('data-food');
-  const own = li.getAttribute('data-own-group') || '';
-  const tag = food ? tags[food] : null;
-  li.setAttribute('data-effective-group', tag || own);
-  if (tag && tag !== own) {
-    const badge = document.createElement('span');
-    badge.setAttribute('data-diet-tag', '1');
-    badge.textContent = ' (' + tag + ')';
-    const nested = [...li.children].find((c) => c.tagName === 'UL' || c.tagName === 'OL');
-    if (nested) li.insertBefore(badge, nested);
-    else li.append(badge);
-  }
-  if (storeRef) {
-    li.title = tag
-      ? 'Tag: ' + tag + '. Click to change the tag.'
-      : 'Click to add a tag.';
-  }
+function listItems(node) {
+  if (node.nodeType !== Node.ELEMENT_NODE) return [];
+  const lists = node.tagName === 'UL' || node.tagName === 'OL' ? [node] : [...node.querySelectorAll('ul, ol')];
+  const out = [];
+  for (const list of lists) for (const li of list.children) if (li.tagName === 'LI') out.push(li);
+  return out;
 }
 
-function persistTags() {
+/* A paragraph that opens with a bold run: { label, rest }. */
+function boldLead(node) {
+  if (node.nodeType !== Node.ELEMENT_NODE || node.tagName !== 'P') return null;
+  const first = [...node.childNodes].find((c) => c.nodeType !== Node.TEXT_NODE || c.nodeValue.trim());
+  if (!first || first.nodeType !== Node.ELEMENT_NODE || !/^(B|STRONG)$/.test(first.tagName)) return null;
+  const label = clean(first.textContent);
+  const rest = clean(node.textContent.slice(node.textContent.indexOf(first.textContent) + first.textContent.length));
+  return { label, rest };
+}
+
+function classify(block, catTitle) {
+  if (/recipe/i.test(catTitle || '') || block.nodes.some((n) => boldLead(n))) return 'recipe';
+  const lis = block.nodes.flatMap(listItems);
+  if (!lis.length) return 'note';
+  const bolded = lis.filter((li) => li.querySelector('b, strong')).length;
+  const words = lis.reduce((sum, li) => sum + ownText(li).split(' ').length, 0) / lis.length;
+  if (bolded > 0 || words > 6) return 'combos';
+  return 'foods';
+}
+
+/* ---- health ---------------------------------------------------------- */
+
+/* A single food takes the level of its longest matching word. A dish
+   (combo or recipe) takes the WORST level among its words, matched
+   longest first with each match blanked out, so "tuna, mayo, spam" is a
+   treat while "dark chocolate" never also counts as "chocolate". */
+function defaultLevel(text, dish) {
+  let t = String(text || '');
+  let worst = -1;
+  for (const { word, re } of WORD_PATTERNS) {
+    if (!re.test(t)) continue;
+    const level = LEVEL_OF_WORD.get(word);
+    if (!dish) return level;
+    worst = Math.max(worst, LEVELS.indexOf(level));
+    t = t.replace(new RegExp(re.source, 'giu'), ' ');
+  }
+  return worst < 0 ? 'balanced' : LEVELS[worst];
+}
+
+function keyOf(text) {
+  return clean(text).toLowerCase();
+}
+
+function levelOf(item) {
+  const o = saved.health[item.key];
+  return LEVELS.includes(o) ? o : item.def;
+}
+
+function cycle(item) {
+  if (!storeRef) return;
+  const next = LEVELS[(LEVELS.indexOf(levelOf(item)) + 1) % LEVELS.length];
+  if (next === item.def) delete saved.health[item.key];
+  else saved.health[item.key] = next;
+  persist();
+  for (const other of items) if (other.key === item.key) paintLevel(other);
+  applyFilters();
+}
+
+function paintLevel(item) {
+  const level = levelOf(item);
+  item.dotHost.setAttribute('data-level', level);
+  const over = Object.prototype.hasOwnProperty.call(saved.health, item.key);
+  item.dotHost.title = LEVEL_LABEL[level] + (over ? ' (your pick)' : ' (guessed)') + (storeRef ? '. Click to change.' : '');
+  item.dotHost.setAttribute('aria-label', item.text + ', ' + LEVEL_LABEL[level] + (storeRef ? '. Click to change.' : ''));
+}
+
+function persist() {
   if (!storeRef) return;
   try {
-    storeRef.save('board-diet', { tags: { ...tags } });
+    storeRef.save('board-diet', {
+      tags: { ...saved.tags },
+      health: { ...saved.health },
+      targets: { ...saved.targets },
+      today: { ...saved.today },
+    });
   } catch (err) {
-    console.warn('board diet: tag save failed', err);
+    console.warn('board diet: save failed', err);
   }
 }
 
-function cycleTag(li) {
-  const food = li.getAttribute('data-food');
-  if (!food) return;
-  const own = li.getAttribute('data-own-group') || '';
-  const options = [null, ...filterGroups.filter((group) => group !== own)];
-  const current = Object.prototype.hasOwnProperty.call(tags, food) ? tags[food] : null;
-  let index = options.indexOf(current);
-  if (index < 0) index = -1;
-  const next = options[(index + 1) % options.length];
-  if (next === null) delete tags[food];
-  else tags[food] = next;
-  persistTags();
-  paintTag(li);
-  applyFilter();
+/* ---- cards ----------------------------------------------------------- */
+
+function card(title, pill, sub) {
+  const section = el('section', 'board-card diet-card');
+  const head = el('div', 'board-card-head');
+  head.append(el('h3', 'board-card-title', title));
+  if (pill) head.append(el('span', 'pill', pill));
+  section.append(head);
+  if (sub) section.append(el('p', 'board-card-sub', sub));
+  const body = el('div', 'board-card-body');
+  section.append(body);
+  return { section, body };
 }
 
-/* Give every list item in the grid its food name and its own group, so
-   filtering and tagging can work per item. Items with no text of their
-   own still take part in filtering through their card group. */
-function enhanceItems() {
-  if (!gridEl) return;
-  for (const li of gridEl.querySelectorAll('li')) {
-    const card = li.closest('.board-card');
-    if (!card) continue;
-    const own = card.getAttribute('data-group') || '';
-    li.setAttribute('data-own-group', own);
-    const food = ownText(li);
-    if (food) li.setAttribute('data-food', food);
-    paintTag(li);
-    if (storeRef && food) {
-      li.style.cursor = 'pointer';
-      li.addEventListener('click', (event) => {
-        if (event.target && typeof event.target.closest === 'function'
-          && event.target.closest('a, button')) return;
-        cycleTag(li);
-      });
+function register(item) {
+  items.push(item);
+  paintLevel(item);
+  if (storeRef) {
+    item.dotHost.addEventListener('click', (e) => { e.stopPropagation(); cycle(item); });
+  }
+  return item;
+}
+
+function levelDot(className) {
+  const b = el(storeRef ? 'button' : 'span', 'diet-dot ' + (className || ''));
+  if (storeRef) b.type = 'button';
+  return b;
+}
+
+function renderFoods(c, block, ctxInfo) {
+  const wrap = el('div', 'diet-chips');
+  for (const li of block.nodes.flatMap(listItems)) {
+    const text = ownText(li);
+    if (!text) continue;
+    const chip = el(storeRef ? 'button' : 'span', 'diet-food');
+    if (storeRef) chip.type = 'button';
+    chip.append(el('span', 'diet-dot-mark'));
+    const m = text.match(/^(.*?)\s*(\(.*\))$/);
+    if (m && m[1]) {
+      chip.append(el('span', 'diet-food-name', m[1]));
+      chip.append(el('span', 'diet-food-detail', m[2].slice(1, -1)));
+    } else {
+      chip.append(el('span', 'diet-food-name', text));
+    }
+    wrap.append(chip);
+    register({ key: keyOf(text), text, def: defaultLevel(text), node: chip, dotHost: chip, card: c.section, cat: ctxInfo.cat });
+  }
+  c.body.append(wrap);
+  renderNotes(c, block.nodes.filter((n) => !listItems(n).length));
+}
+
+function renderNotes(c, nodes) {
+  for (const n of nodes) {
+    const text = clean(n.textContent);
+    if (text) c.body.append(el('p', 'diet-note', text));
+  }
+}
+
+function renderCombos(c, block, ctxInfo) {
+  const list = el('ul', 'board-list diet-combos');
+  for (const li of block.nodes.flatMap(listItems)) {
+    const text = ownText(li);
+    if (!text) continue;
+    const row = el('li', 'board-list-item diet-combo');
+    const dot = levelDot();
+    const body = el('span', 'row-text');
+    const b = li.querySelector('b, strong');
+    if (b && clean(b.textContent)) {
+      const name = clean(b.textContent);
+      body.append(el('strong', '', name));
+      const rest = text.slice(text.indexOf(name) + name.length).replace(/^\s*[—–-]\s*/, '');
+      if (rest) body.append(el('span', 'diet-combo-rest', rest));
+    } else {
+      body.textContent = text;
+    }
+    row.append(dot, body);
+    list.append(row);
+    register({ key: keyOf(b ? b.textContent : text), text, def: defaultLevel(text, true), node: row, dotHost: dot, card: c.section, cat: ctxInfo.cat });
+  }
+  c.body.append(list);
+  renderNotes(c, block.nodes.filter((n) => !listItems(n).length));
+}
+
+function renderRecipe(c, block, ctxInfo) {
+  const dot = levelDot('diet-dot-head');
+  c.section.querySelector('.board-card-head').prepend(dot);
+  const words = [block.heading];
+  for (const n of block.nodes) {
+    const lead = boldLead(n);
+    const lis = listItems(n);
+    if (lis.length) {
+      const ul = el('ul', 'diet-uses');
+      for (const li of lis) {
+        const t = ownText(li);
+        if (!t) continue;
+        ul.append(el('li', '', t));
+        words.push(t);
+      }
+      c.body.append(ul);
+    } else if (lead && !lead.rest) {
+      c.body.append(el('p', 'diet-label', lead.label));
+    } else if (lead) {
+      const p = el('p', 'diet-step');
+      p.append(el('strong', '', lead.label + ' '), document.createTextNode(lead.rest));
+      c.body.append(p);
+      words.push(lead.rest);
+    } else {
+      const text = clean(n.textContent);
+      if (!text) continue;
+      if (/\b\d+\s*(cal|kcal)\b/i.test(text)) c.body.append(el('p', 'diet-macros', text));
+      else c.body.append(el('p', 'diet-step', text));
+      words.push(text);
     }
   }
+  register({
+    key: keyOf(block.heading), text: block.heading, search: words.join(' '),
+    def: defaultLevel(block.heading, true), node: c.section, dotHost: dot, card: c.section, cat: ctxInfo.cat, whole: true,
+  });
 }
 
-function applyFilter() {
-  if (!gridEl) return;
-  const wanted = activeFilter.toLowerCase();
-  for (const card of gridEl.querySelectorAll('.board-card')) {
-    const group = card.getAttribute('data-group') || '';
-    const items = card.querySelectorAll('li');
-    if (!items.length) {
-      const show = activeFilter === 'All' || group.toLowerCase() === wanted;
-      card.style.display = show ? '' : 'none';
+function renderNoteCard(c, block, ctxInfo) {
+  renderNotes(c, block.nodes);
+  c.section.setAttribute('data-plain', '1');
+  items.push({ plain: true, card: c.section, cat: ctxInfo.cat, search: block.heading + ' ' + block.nodes.map((n) => n.textContent).join(' ') });
+}
+
+/* ---- daily targets --------------------------------------------------- */
+
+function renderTargets() {
+  if (saved.today.date !== todayStamp()) saved.today = { date: todayStamp() };
+  const c = card('Daily targets', 'Today');
+  c.section.classList.add('diet-targets');
+  const rows = [];
+  const paint = () => {
+    for (const r of rows) {
+      const target = Number(saved.targets[r.t.key]) || r.t.def;
+      const now = Number(saved.today[r.t.key]) || 0;
+      r.value.textContent = now + ' / ' + target + ' ' + r.t.unit;
+      const pct = Math.max(0, Math.min(100, Math.round((now / target) * 100)));
+      r.fill.style.width = pct + '%';
+      r.bar.classList.toggle('is-done', now >= target);
+      if (document.activeElement !== r.now) r.now.value = String(now);
+      if (document.activeElement !== r.target) r.target.value = String(target);
+    }
+  };
+  for (const t of TARGETS) {
+    const line = el('div', 'stat-row');
+    const value = el('span', 'stat-value');
+    line.append(el('span', 'stat-label', t.label), value);
+    const bar = el('div', 'bar');
+    const fill = el('i');
+    bar.append(fill);
+    const controls = el('div', 'diet-target-controls');
+    const mk = (label, aria) => {
+      const wrap = el('label', 'diet-field');
+      wrap.append(el('span', 'diet-field-label', label));
+      const input = el('input', 'board-input');
+      input.type = 'number';
+      input.min = '0';
+      input.step = String(t.step);
+      input.inputMode = 'numeric';
+      input.setAttribute('aria-label', aria);
+      wrap.append(input);
+      controls.append(wrap);
+      return input;
+    };
+    const now = mk('Today', t.label + ' today');
+    const target = mk('Target', t.label + ' target');
+    now.addEventListener('input', () => { saved.today[t.key] = Math.max(0, Number(now.value) || 0); persist(); paint(); });
+    target.addEventListener('input', () => {
+      const v = Number(target.value);
+      if (v > 0) saved.targets[t.key] = v; else delete saved.targets[t.key];
+      persist(); paint();
+    });
+    for (const q of t.quick) {
+      const b = el('button', 'board-btn is-small', '+' + q);
+      b.type = 'button';
+      b.setAttribute('aria-label', 'Add ' + q + ' ' + (q === 1 && t.unit === 'cups' ? 'cup' : t.unit) + ' of ' + t.label.toLowerCase());
+      b.addEventListener('click', () => { saved.today[t.key] = (Number(saved.today[t.key]) || 0) + q; persist(); paint(); });
+      controls.append(b);
+    }
+    c.body.append(line, bar, controls);
+    rows.push({ t, value, bar, fill, now, target });
+  }
+  const reset = el('button', 'board-btn is-small diet-reset', 'Reset today');
+  reset.type = 'button';
+  reset.addEventListener('click', () => { saved.today = { date: todayStamp() }; persist(); paint(); });
+  c.body.append(reset);
+  if (!storeRef) for (const n of c.body.querySelectorAll('input, button')) n.disabled = true;
+  paint();
+  return c.section;
+}
+
+/* ---- filters --------------------------------------------------------- */
+
+function renderFilterBar(source, catTitles) {
+  const c = card('Foods', 'From ' + source.title);
+  c.section.setAttribute('data-span', 'full');
+  c.section.classList.add('diet-filters');
+  const row = el('div', 'diet-filter-row');
+
+  const search = el('input', 'board-input diet-search');
+  search.type = 'search';
+  search.placeholder = 'Search foods and recipes';
+  search.setAttribute('aria-label', 'Search foods and recipes');
+  search.addEventListener('input', () => { query = search.value.trim().toLowerCase(); applyFilters(); });
+
+  const health = el('div', 'chip-row');
+  health.setAttribute('role', 'group');
+  health.setAttribute('aria-label', 'Filter by how healthy');
+  const healthButtons = [];
+  for (const level of ['all', ...LEVELS]) {
+    const b = el('button', 'chip');
+    b.type = 'button';
+    if (level !== 'all') {
+      const dot = el('span', 'dot');
+      dot.setAttribute('data-level', level);
+      b.append(dot);
+    }
+    const label = el('span', '', level === 'all' ? 'All' : LEVEL_LABEL[level]);
+    const count = el('span', 'diet-count');
+    b.append(label, count);
+    b.addEventListener('click', () => { healthFilter = level; applyFilters(); });
+    health.append(b);
+    healthButtons.push({ level, b, count });
+  }
+
+  const cats = el('div', 'chip-row');
+  cats.setAttribute('role', 'group');
+  cats.setAttribute('aria-label', 'Filter by notes category');
+  const catButtons = [];
+  for (const name of ['all', ...catTitles]) {
+    const b = el('button', 'chip', name === 'all' ? 'Every category' : name);
+    b.type = 'button';
+    b.addEventListener('click', () => { catFilter = name; applyFilters(); });
+    cats.append(b);
+    catButtons.push({ name, b });
+  }
+
+  row.append(search, health, cats);
+  c.body.append(row);
+  const status = el('p', 'diet-status');
+  c.body.append(status);
+  c.body.append(el('p', 'diet-hint', storeRef
+    ? 'Read only from the notes, edit foods in the Notes tab. Dots are guessed; click a food (or a dot) to change its level.'
+    : 'Read only from the notes, edit foods in the Notes tab. Dots are guessed.'));
+  filterUi = { healthButtons, catButtons, status, search };
+  return c.section;
+}
+
+function applyFilters() {
+  if (!gridEl || !filterUi) return;
+  const counts = { all: 0, clean: 0, balanced: 0, treat: 0 };
+  const visibleByCard = new Map();
+  let shownFoods = 0;
+  for (const item of items) {
+    if (!visibleByCard.has(item.card)) visibleByCard.set(item.card, 0);
+    const catOk = catFilter === 'all' || item.cat === catFilter;
+    const text = (item.search || item.text || '').toLowerCase();
+    const queryOk = !query || text.includes(query);
+    if (item.plain) {
+      const show = catOk && queryOk && healthFilter === 'all';
+      if (show) visibleByCard.set(item.card, 1);
       continue;
     }
-    let visible = 0;
-    for (const li of items) {
-      const effective = li.getAttribute('data-effective-group') || group;
-      const show = activeFilter === 'All' || effective.toLowerCase() === wanted;
-      li.style.display = show ? '' : 'none';
-      if (show) visible += 1;
-    }
-    card.style.display = activeFilter === 'All' || visible > 0 ? '' : 'none';
+    const level = levelOf(item);
+    if (catOk && queryOk) { counts.all += 1; counts[level] += 1; }
+    const show = catOk && queryOk && (healthFilter === 'all' || level === healthFilter);
+    if (!item.whole) item.node.hidden = !show;
+    if (show) { visibleByCard.set(item.card, visibleByCard.get(item.card) + 1); shownFoods += 1; }
   }
+  for (const [cardEl, n] of visibleByCard) cardEl.hidden = n === 0;
+  for (const { level, b, count } of filterUi.healthButtons) {
+    b.setAttribute('aria-pressed', level === healthFilter ? 'true' : 'false');
+    count.textContent = String(counts[level]);
+  }
+  for (const { name, b } of filterUi.catButtons) b.setAttribute('aria-pressed', name === catFilter ? 'true' : 'false');
+  const filtered = healthFilter !== 'all' || catFilter !== 'all' || query;
+  filterUi.status.textContent = !filtered ? ''
+    : shownFoods ? shownFoods + ' showing.' : 'Nothing matches these filters.';
+  filterUi.status.hidden = !filtered;
 }
 
-function paintFilterChips() {
-  for (const entry of filterButtons) {
-    const isActive = entry.name === activeFilter;
-    entry.button.classList.toggle('board-btn-primary', isActive);
-    entry.button.setAttribute('aria-pressed', isActive ? 'true' : 'false');
-  }
-}
-
-function renderFilters() {
-  const row = el('div', 'board-row board-row-wrap');
-  row.setAttribute('role', 'group');
-  row.setAttribute('aria-label', 'Filter foods by group');
-  filterButtons = [];
-  for (const name of ['All', ...filterGroups]) {
-    const button = el('button', 'board-btn', name);
-    button.type = 'button';
-    button.addEventListener('click', () => {
-      activeFilter = name;
-      paintFilterChips();
-      applyFilter();
-    });
-    filterButtons.push({ name, button });
-    row.append(button);
-  }
-  paintFilterChips();
-  return row;
-}
-
-function renderCard(card) {
-  const section = el('section', 'board-card');
-  section.setAttribute('data-group', card.group);
-  const head = el('div', 'board-card-head');
-  head.append(el('h3', 'board-card-title', card.title));
-  const body = el('div', 'board-card-body');
-  for (const block of card.blocks) {
-    if (card.group === 'Recipes' && block.heading.trim().toLowerCase() !== 'recipes') {
-      const sub = document.createElement('p');
-      const strong = document.createElement('strong');
-      strong.textContent = block.heading;
-      sub.append(strong);
-      body.append(sub);
-    }
-    for (const node of block.nodes) body.append(node);
-  }
-  section.append(head, body);
-  return section;
-}
+/* ---- render ---------------------------------------------------------- */
 
 function renderEmptyState(container) {
-  const wrap = el('div');
-  const grid = el('div', 'board-grid-dense');
-  const line = el(
-    'p',
-    'board-empty',
-    'The diet notes were not found in the notes document. This tab will fill in when a category named Diet exists.',
-  );
-  wrap.append(grid, line);
-  container.replaceChildren(wrap);
+  const grid = el('div', 'board-grid diet-grid');
+  const c = card('Diet', 'Not found');
+  c.body.append(el('p', 'board-empty', 'No diet section was found in the notes document. This tab fills in when a session or category with Diet, Food, Recipe, Meal or Nutrition in its title exists.'));
+  grid.append(c.section, renderTargets());
+  container.replaceChildren(grid);
+  gridEl = grid;
 }
 
-function renderDiet(container, source, blocks) {
-  const cards = buildCards(blocks);
-  filterGroups = cards.map((card) => card.group);
-  activeFilter = 'All';
-
-  const wrap = el('div');
-  const sourceLine = el('p', 'board-card-title', 'Diet source: ' + source.title);
-  const noteLine = el(
-    'p',
-    'board-card-sub',
-    'Diet content is read only here. Edit it in the Notes tab, where it lives.',
-  );
-  wrap.append(sourceLine, noteLine);
-
-  if (storeRef) {
-    const hint = el(
-      'p',
-      'board-card-sub',
-      'Click a food to cycle its tag. A tag changes which filter shows the food.',
-    );
-    wrap.append(hint);
+function renderDiet(container, source, sections) {
+  items = [];
+  const grid = el('div', 'board-grid diet-grid');
+  const catTitles = sections.map((s) => s.title);
+  grid.append(renderFilterBar(source, catTitles));
+  grid.append(renderTargets());
+  let any = false;
+  for (const s of sections) {
+    s.blocks.forEach((block, i) => {
+      const kind = classify(block, s.title);
+      const c = card(block.heading, s.title, i === 0 && s.intro ? s.intro : '');
+      c.section.setAttribute('data-kind', kind);
+      const info = { cat: s.title };
+      if (kind === 'foods') renderFoods(c, block, info);
+      else if (kind === 'combos') renderCombos(c, block, info);
+      else if (kind === 'recipe') renderRecipe(c, block, info);
+      else renderNoteCard(c, block, info);
+      grid.append(c.section);
+      any = true;
+    });
   }
-
-  if (!cards.length) {
-    const grid = el('div', 'board-grid-dense');
-    const line = el('p', 'board-empty', 'The matched diet section is empty.');
-    wrap.append(grid, line);
-    container.replaceChildren(wrap);
-    gridEl = grid;
-    return;
+  if (!any) {
+    const c = card('Diet', 'Empty');
+    c.body.append(el('p', 'board-empty', 'The diet section "' + source.title + '" has no headed blocks yet.'));
+    grid.append(c.section);
   }
-
-  wrap.append(renderFilters());
-  const grid = el('div', 'board-grid-dense');
-  for (const card of cards) grid.append(renderCard(card));
-  wrap.append(grid);
-  container.replaceChildren(wrap);
+  container.replaceChildren(grid);
   gridEl = grid;
-  enhanceItems();
-  applyFilter();
+  applyFilters();
 }
 
 export async function mount(container, ctx) {
   const gen = ++generation;
   host = container;
   storeRef = ctx && ctx.store ? ctx.store : null;
-  tags = {};
-  filterGroups = [];
-  activeFilter = 'All';
-  gridEl = null;
-  filterButtons = [];
+  saved = { tags: {}, health: {}, targets: {}, today: {} };
+  gridEl = null; filterUi = null; items = [];
+  healthFilter = 'all'; catFilter = 'all'; query = '';
 
   showLine(container, 'Loading diet notes...');
 
   const user = ctx && ctx.user;
-  if (!user) {
-    showLine(container, 'Diet notes are not available.');
-    return;
-  }
+  if (!user) { showLine(container, 'Diet notes are not available.'); return; }
 
   let backend = null;
   try {
     backend = await createNotesBackend(user);
   } catch (err) {
     console.warn('board diet: the notes store could not be opened', err);
-    if (gen === generation && host === container) {
-      showLine(container, 'Your diet notes could not be opened.');
-    }
+    if (gen === generation && host === container) showLine(container, 'Your diet notes could not be opened.');
     return;
   }
   if (gen !== generation || host !== container) return;
 
   let doc = backend.getDocument();
   if (!doc && typeof backend.load === 'function') {
-    try {
-      await backend.load();
-      doc = backend.getDocument();
-    } catch (err) {
+    try { await backend.load(); doc = backend.getDocument(); } catch (err) {
       console.warn('board diet: the notes document could not be loaded', err);
     }
     if (gen !== generation || host !== container) return;
   }
-  if (!doc) {
-    showLine(container, 'Your diet notes could not be opened.');
-    return;
-  }
+  if (!doc) { showLine(container, 'Your diet notes could not be opened.'); return; }
 
   if (storeRef) {
     try {
-      const saved = await storeRef.load('board-diet');
-      if (saved && typeof saved === 'object' && saved.tags && typeof saved.tags === 'object') {
-        tags = { ...saved.tags };
+      const s = await storeRef.load('board-diet');
+      if (s && typeof s === 'object') {
+        const obj = (v) => (v && typeof v === 'object' && !Array.isArray(v) ? { ...v } : {});
+        saved = { tags: obj(s.tags), health: obj(s.health), targets: obj(s.targets), today: obj(s.today) };
       }
     } catch (err) {
-      console.warn('board diet: saved tags could not be loaded', err);
-      tags = {};
+      console.warn('board diet: the saved diet doc could not be loaded', err);
     }
     if (gen !== generation || host !== container) return;
   }
 
   const source = findDietSource(doc);
-  if (!source) {
-    renderEmptyState(container);
-    return;
-  }
+  if (!source) { renderEmptyState(container); return; }
 
-  let blocks = [];
+  const sections = [];
   if (source.kind === 'session') {
-    const cats = Array.isArray(source.session.cats) ? source.session.cats : [];
-    for (const cat of cats) {
+    for (const cat of Array.isArray(source.session.cats) ? source.session.cats : []) {
       if (!cat) continue;
-      const fallback = typeof cat.title === 'string' && cat.title.trim()
-        ? cat.title.trim()
-        : 'General foods';
-      blocks.push(...parseBodyBlocks(cat.body, fallback));
+      const title = clean(cat.title) || 'Foods';
+      const { intro, blocks } = splitBody(cat.body);
+      sections.push({ title, intro, blocks });
     }
   } else {
-    const fallback = isRecipeHeading(source.cat.title) ? 'Recipes' : 'General foods';
-    blocks = parseBodyBlocks(source.cat.body, fallback);
+    const title = clean(source.cat.title) || 'Foods';
+    const { intro, blocks } = splitBody(source.cat.body);
+    sections.push({ title, intro, blocks: blocks.length || !intro ? blocks : [] });
+  }
+  /* A category with text but no h3 still shows, as one block under its own title. */
+  for (const s of sections) {
+    if (!s.blocks.length) {
+      const html = source.kind === 'session'
+        ? (source.session.cats.find((c) => c && clean(c.title) === s.title) || {}).body
+        : source.cat.body;
+      const parsed = new DOMParser().parseFromString('<div>' + (html || '') + '</div>', 'text/html').body.firstChild;
+      const nodes = parsed ? [...parsed.childNodes].filter((n) => clean(n.textContent)) : [];
+      if (nodes.length) { s.blocks = [{ heading: s.title, nodes }]; s.intro = ''; }
+    }
   }
 
-  renderDiet(container, source, blocks);
+  renderDiet(container, source, sections);
 }
 
 export function unmount() {
@@ -470,9 +690,6 @@ export function unmount() {
   if (host) host.replaceChildren();
   host = null;
   storeRef = null;
-  tags = {};
-  filterGroups = [];
-  activeFilter = 'All';
-  gridEl = null;
-  filterButtons = [];
+  saved = { tags: {}, health: {}, targets: {}, today: {} };
+  gridEl = null; filterUi = null; items = [];
 }

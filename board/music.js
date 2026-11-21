@@ -511,7 +511,38 @@ function createPlayer(container, ctx) {
   controls.append(nowWrap, transport, tail);
   bar.append(seekRow, controls);
 
-  root.append(head, addPanel, backupsPanel, toastEl, body, bar);
+  /* Board layout. The overlay's pieces, regrouped as three board blocks
+     with no inner scroll: the stage is the only scroller. Now playing
+     (screen, title, seek, transport, volume, full screen) is sticky at the
+     top of the stage in Scroll view; Playlists is the rail as a list;
+     Tracks holds the count, the TUNES buttons, sort, search, the Add song
+     and Backups panels and every row in a multi-column grid. The overlay's
+     MUSIC heading is the tab name here. */
+  const card = (cls, label) => {
+    const section = el('section', `board-card ${cls}`);
+    section.setAttribute('data-outline', label);
+    const cardHead = el('div', 'board-card-head');
+    cardHead.append(el('h3', 'board-card-title', label));
+    const cardBody = el('div', 'board-card-body');
+    section.append(cardHead, cardBody);
+    return { section, cardHead, cardBody };
+  };
+  const nowCard = card('music-card-now', 'Now playing');
+  const listsCard = card('music-card-lists', 'Playlists');
+  const tracksCard = card('music-card-tracks', 'Tracks');
+  nowCard.cardBody.append(screen, nowBox, seekRow, transport, tail);
+  listsCard.cardBody.append(rail);
+  tracksCard.cardHead.append(countEl, modeTag);
+  actionsRow.replaceChildren(addBtn, backupsBtn);
+  filterRow.append(actionsRow);
+  tracksCard.cardBody.append(filterRow, addPanel, backupsPanel, body);
+  rowsEl.className = 'music-rows';
+  body.replaceChildren(listEl);
+  listEl.append(markEl);
+  const side = el('div', 'music-side');
+  side.append(nowCard.section, listsCard.section);
+  nowCard.section.append(toastEl);
+  root.append(side, tracksCard.section);
   container.append(root);
 
   const narrowMusic = window.matchMedia('(max-width:900px)');
@@ -778,18 +809,42 @@ function createPlayer(container, ctx) {
   }
 
   function showRow(i) {
+    /* The list has no scroll of its own on the board: the stage does. Bring
+       the row into view there, below the sticky Now playing block, and
+       only when the stage is a real scroller (Scroll view, not Zoom). */
     const row = rowsEl.children[i];
-    if (!row || !listEl) return;
-    const top = row.offsetTop;
-    const bottom = top + row.offsetHeight;
-    if (top >= listEl.scrollTop && bottom <= listEl.scrollTop + listEl.clientHeight) return;
-    listEl.scrollTop = top - (listEl.clientHeight - row.offsetHeight) / 2;
+    if (!row || !rootVisible()) return;
+    let stage = root.parentElement;
+    while (stage && stage !== document.body) {
+      const oy = getComputedStyle(stage).overflowY;
+      if ((oy === 'auto' || oy === 'scroll') && stage.scrollHeight > stage.clientHeight) break;
+      stage = stage.parentElement;
+    }
+    if (!stage || stage === document.body) return;
+    const box = stage.getBoundingClientRect();
+    const r = row.getBoundingClientRect();
+    const now = nowCard.section;
+    const cover = getComputedStyle(now).position === 'sticky'
+      ? Math.max(0, Math.min(now.getBoundingClientRect().bottom, box.bottom) - box.top)
+      : 0;
+    const sameColumn = Math.abs(now.getBoundingClientRect().left - r.left) < r.width;
+    const topLimit = box.top + (sameColumn ? cover : 0);
+    if (r.top >= topLimit && r.bottom <= box.bottom) return;
+    const free = box.bottom - topLimit;
+    stage.scrollTop += r.top - topLimit - (free - r.height) / 2;
   }
 
+  /* Row heights move when the column count changes; keep the tick level. */
+  const markWatch = new ResizeObserver(() => { if (!destroyed) mark(); });
+  markWatch.observe(rowsEl);
+
   function mark() {
-    if (index < 0 || !queue.length) { markEl.hidden = true; return; }
+    /* A tick on the tracks block's right edge, level with the playing row,
+       so the row is easy to find again after scrolling the stage. */
+    if (index < 0 || !queue.length || !rowsEl.children[index]) { markEl.hidden = true; return; }
+    const row = rowsEl.children[index];
     markEl.hidden = false;
-    markEl.style.top = `${((index + 0.5) / queue.length) * 100}%`;
+    markEl.style.top = `${row.offsetTop + row.offsetHeight / 2 - 1}px`;
   }
 
   /* ---- OS media session and one sound at a time -------------------------
@@ -2385,6 +2440,7 @@ function createPlayer(container, ctx) {
 
   function destroy() {
     destroyed = true;
+    markWatch.disconnect();
     stop();
     stopSync();
     for (const id of timers) clearTimeout(id);

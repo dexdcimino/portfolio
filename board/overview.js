@@ -7,6 +7,7 @@
      as a month number from 1 to 12 used only for yearly bills, or null
      for monthly bills and for yearly bills saved before dueMonth existed
    fitnessText: string, seeded with the fitness snapshot note
+   quickNote: string, the quick capture box
    Every change saves through the store, and store.listen keeps the
    tab in step with changes from another device. */
 
@@ -62,7 +63,7 @@ function makeMonthSelect(selectedMonth) {
 }
 
 function defaultState() {
-  return { tasks: [], comingUp: [], bills: [], fitnessText: FITNESS_SEED };
+  return { tasks: [], comingUp: [], bills: [], fitnessText: FITNESS_SEED, quickNote: "" };
 }
 
 function normalize(data) {
@@ -91,6 +92,7 @@ function normalize(data) {
       }));
   }
   if (typeof data.fitnessText === "string") out.fitnessText = data.fitnessText;
+  if (typeof data.quickNote === "string") out.quickNote = data.quickNote;
   return out;
 }
 
@@ -102,6 +104,13 @@ function save() {
   if (!ctxRef || !state) return;
   lastSerialized = serialize();
   ctxRef.store.save(DOC, state);
+  announce();
+}
+
+/* The today rail (board/rail.js) reads this doc too; tell it at once rather
+   than waiting for the debounced write to come back through listen. */
+function announce() {
+  try { window.dispatchEvent(new CustomEvent("board:overview", { detail: JSON.parse(serialize()) })); } catch (err) { void err; }
 }
 
 function formatDateLabel(value) {
@@ -152,65 +161,99 @@ function nextDueLabel(bill) {
   return "Next due " + when;
 }
 
-function card(title, sub) {
+function card(title, pillText, pillKind) {
   const wrap = el("section", "board-card");
   const head = el("div", "board-card-head");
   head.appendChild(el("h3", "board-card-title", title));
+  let pill = null;
+  if (pillText !== undefined) {
+    pill = el("span", "pill" + (pillKind ? " " + pillKind : ""), pillText);
+    head.appendChild(pill);
+  }
   wrap.appendChild(head);
-  if (sub) wrap.appendChild(el("p", "board-card-sub", sub));
   const body = el("div", "board-card-body");
   wrap.appendChild(body);
-  return { wrap, body };
+  return { wrap, body, pill };
 }
 
-function smallButton(text) {
-  const btn = el("button", "board-btn", text);
-  btn.type = "button";
-  btn.style.padding = "5px 10px";
-  btn.style.fontSize = "12.5px";
-  return btn;
+function removeButton(label, onClick) {
+  const b = el("button", "row-x", "×");
+  b.type = "button";
+  b.setAttribute("aria-label", label);
+  b.addEventListener("click", onClick);
+  return b;
 }
 
-function renderToday(body) {
+/* Inline editable text, the mockup's rows: click the words to change them.
+   Saves as you type; Enter leaves the field. */
+function editableText(value, label, onChange) {
+  const span = el("span", "row-text", value);
+  span.contentEditable = "plaintext-only";
+  if (span.contentEditable !== "plaintext-only") span.contentEditable = "true";
+  span.spellcheck = true;
+  span.setAttribute("role", "textbox");
+  span.setAttribute("aria-label", label);
+  span.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); span.blur(); } });
+  span.addEventListener("input", () => onChange(span.textContent.replace(/\s+/g, " ").trim()));
+  return span;
+}
+
+function addRow(placeholder, buttonText, extras, onSubmit) {
+  const row = el("div", "add-row");
+  const input = el("input", "board-input");
+  input.type = "text";
+  input.placeholder = placeholder;
+  input.setAttribute("aria-label", placeholder);
+  row.appendChild(input);
+  for (const x of extras || []) row.appendChild(x);
+  const add = el("button", "board-btn board-btn-primary", buttonText);
+  add.type = "button";
+  const submit = () => {
+    const text = input.value.trim();
+    if (!text) { input.focus(); return; }
+    onSubmit(text);
+  };
+  add.addEventListener("click", submit);
+  input.addEventListener("keydown", (event) => { if (event.key === "Enter") submit(); });
+  row.appendChild(add);
+  return { row, input };
+}
+
+function dayDiff(date) {
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  return Math.round((date - today) / 86400000);
+}
+
+function renderToday(c) {
+  const open = state.tasks.filter((t) => !t.done).length;
+  c.pill.textContent = open + " open";
   const list = el("ul", "board-list");
-  list.setAttribute("data-tasks-list", "1");
-  if (!state.tasks.length) {
-    body.appendChild(el("div", "board-empty", "No tasks yet."));
-  } else {
-    for (const task of state.tasks) {
-      const item = el("li", "board-list-item");
-      item.setAttribute("data-id", task.id);
-      const row = el("div", "board-row");
-      const check = document.createElement("input");
-      check.type = "checkbox";
-      check.checked = task.done;
-      check.setAttribute("aria-label", "Done");
-      check.addEventListener("change", () => {
-        task.done = check.checked;
-        save();
-        render();
-      });
-      const label = el("span", null, task.text);
-      label.style.flex = "1 1 auto";
-      label.style.minWidth = "0";
-      if (task.done) {
-        label.style.color = "var(--muted)";
-        label.style.textDecoration = "line-through";
-      }
-      const del = smallButton("Delete");
-      del.addEventListener("click", () => {
-        state.tasks = state.tasks.filter((t) => t.id !== task.id);
-        save();
-        render();
-      });
-      row.appendChild(check);
-      row.appendChild(label);
-      row.appendChild(del);
-      item.appendChild(row);
-      list.appendChild(item);
-    }
+  if (!state.tasks.length) c.body.appendChild(el("div", "board-empty", "No tasks yet. Add the first one below."));
+  for (const task of state.tasks) {
+    const item = el("li", "board-list-item" + (task.done ? " is-done" : ""));
+    item.setAttribute("data-id", task.id);
+    const row = el("div", "board-row");
+    const check = document.createElement("input");
+    check.type = "checkbox";
+    check.checked = task.done;
+    check.setAttribute("aria-label", "Done: " + task.text);
+    check.addEventListener("change", () => {
+      task.done = check.checked;
+      item.classList.toggle("is-done", task.done);
+      c.pill.textContent = state.tasks.filter((t) => !t.done).length + " open";
+      save();
+    });
+    const text = editableText(task.text, "Task", (v) => { task.text = v; save(); });
+    row.append(check, text, removeButton("Remove task", () => {
+      state.tasks = state.tasks.filter((t) => t.id !== task.id);
+      save();
+      render();
+    }));
+    item.appendChild(row);
+    list.appendChild(item);
   }
-  body.appendChild(list);
+  c.body.appendChild(list);
 
   if (taskSortable) { taskSortable.destroy(); taskSortable = null; }
   if (ctxRef && ctxRef.dnd && state.tasks.length > 1) {
@@ -219,9 +262,7 @@ function renderToday(body) {
       onCommit: ({ ids }) => {
         const byId = new Map(state.tasks.map((t) => [t.id, t]));
         const reordered = [];
-        for (const id of ids) {
-          if (byId.has(id)) { reordered.push(byId.get(id)); byId.delete(id); }
-        }
+        for (const id of ids) if (byId.has(id)) { reordered.push(byId.get(id)); byId.delete(id); }
         for (const t of byId.values()) reordered.push(t);
         state.tasks = reordered;
         save();
@@ -229,244 +270,218 @@ function renderToday(body) {
     });
   }
 
-  const addRow = el("div", "board-row");
-  addRow.style.marginTop = "8px";
-  const input = el("input", "board-input");
-  input.type = "text";
-  input.placeholder = "Add a task";
-  input.style.flex = "1 1 auto";
-  const add = el("button", "board-btn board-btn-primary", "Add");
-  add.type = "button";
-  const submit = () => {
-    const text = input.value.trim();
-    if (!text) return;
+  const add = addRow("Add a task", "Add", null, (text) => {
     state.tasks.push({ id: newId(), text, done: false });
     save();
     render();
-  };
-  add.addEventListener("click", submit);
-  input.addEventListener("keydown", (event) => { if (event.key === "Enter") submit(); });
-  addRow.appendChild(input);
-  addRow.appendChild(add);
-  body.appendChild(addRow);
+    focusAdd("Add a task");
+  });
+  c.body.appendChild(add.row);
 }
 
-function renderComingUp(body) {
+function renderComingUp(c) {
   const sorted = state.comingUp.slice().sort((a, b) => {
     if (!a.date && !b.date) return 0;
     if (!a.date) return 1;
     if (!b.date) return -1;
     return a.date < b.date ? -1 : a.date > b.date ? 1 : 0;
   });
-  if (!sorted.length) {
-    body.appendChild(el("div", "board-empty", "Nothing coming up yet."));
-  } else {
-    const list = el("ul", "board-list");
-    for (const itemData of sorted) {
-      const item = el("li", "board-list-item");
-      const row = el("div", "board-row");
-      const textWrap = el("div");
-      textWrap.style.flex = "1 1 auto";
-      textWrap.style.minWidth = "0";
-      textWrap.appendChild(el("div", null, itemData.text));
-      const dateLabel = el("div", null, formatDateLabel(itemData.date));
-      dateLabel.style.fontSize = "12.5px";
-      dateLabel.style.color = "var(--muted)";
-      textWrap.appendChild(dateLabel);
-      const del = smallButton("Delete");
-      del.addEventListener("click", () => {
-        state.comingUp = state.comingUp.filter((t) => t.id !== itemData.id);
-        save();
-        render();
-      });
-      row.appendChild(textWrap);
-      row.appendChild(del);
-      item.appendChild(row);
-      list.appendChild(item);
+  const week = sorted.filter((x) => {
+    if (!x.date) return false;
+    const [y, m, d] = x.date.split("-").map(Number);
+    const n = dayDiff(new Date(y, m - 1, d));
+    return n >= 0 && n <= 7;
+  }).length;
+  c.pill.textContent = week + " this week";
+  if (!sorted.length) c.body.appendChild(el("div", "board-empty", "Nothing coming up yet."));
+  const list = el("ul", "board-list");
+  for (const itemData of sorted) {
+    const item = el("li", "board-list-item");
+    const row = el("div", "board-row");
+    let label = "No date";
+    let hot = false;
+    if (itemData.date) {
+      const [y, m, d] = itemData.date.split("-").map(Number);
+      const date = new Date(y, m - 1, d);
+      const n = dayDiff(date);
+      label = n === 0 ? "Today" : n === 1 ? "Tomorrow" : date.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+      hot = n >= 0 && n <= 3;
     }
-    body.appendChild(list);
+    const meta = el("span", "row-meta" + (hot ? " hot" : ""), label);
+    meta.title = formatDateLabel(itemData.date);
+    const text = editableText(itemData.text, "Coming up", (v) => { itemData.text = v; save(); });
+    row.append(meta, text, removeButton("Remove item", () => {
+      state.comingUp = state.comingUp.filter((t) => t.id !== itemData.id);
+      save();
+      render();
+    }));
+    item.appendChild(row);
+    list.appendChild(item);
   }
-
-  const addRow = el("div", "board-row board-row-wrap");
-  addRow.style.marginTop = "8px";
-  const textInput = el("input", "board-input");
-  textInput.type = "text";
-  textInput.placeholder = "What is coming up";
-  textInput.style.flex = "1 1 140px";
+  c.body.appendChild(list);
   const dateInput = el("input", "board-input");
   dateInput.type = "date";
+  dateInput.setAttribute("aria-label", "Date");
   dateInput.style.flex = "0 1 160px";
-  const add = el("button", "board-btn board-btn-primary", "Add");
+  const add = addRow("What is coming up", "Add", [dateInput], (text) => {
+    state.comingUp.push({ id: newId(), text, date: dateInput.value || "" });
+    save();
+    render();
+    focusAdd("What is coming up");
+  });
+  c.body.appendChild(add.row);
+}
+
+function money(n) {
+  return "$" + (Number(n) || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function cadenceSelect(value) {
+  const s = el("select", "board-select");
+  s.setAttribute("aria-label", "How often");
+  for (const v of ["monthly", "yearly"]) {
+    const opt = el("option", null, v === "monthly" ? "Monthly" : "Yearly");
+    opt.value = v;
+    if (v === value) opt.selected = true;
+    s.appendChild(opt);
+  }
+  return s;
+}
+
+function dayInput(value) {
+  const i = el("input", "board-input");
+  i.type = "number";
+  i.min = "1";
+  i.max = "31";
+  i.placeholder = "Day";
+  if (value) i.value = String(value);
+  i.setAttribute("aria-label", "Due day of the month");
+  return i;
+}
+
+function amountInput(value) {
+  const i = el("input", "board-input");
+  i.type = "number";
+  i.min = "0";
+  i.step = "0.01";
+  i.placeholder = "Amount";
+  if (value) i.value = String(value);
+  i.setAttribute("aria-label", "Amount");
+  return i;
+}
+
+/* Bills: who, how much, monthly or yearly, and the due day (and month for a
+   yearly one). Sorted by when each is next due. */
+function renderBills(c) {
+  const monthly = state.bills.reduce((s, b) => s + (b.cadence === "yearly" ? b.amount / 12 : b.amount), 0);
+  c.pill.textContent = money(monthly) + " a month";
+  const sorted = state.bills.map((b) => ({ b, d: nextDueDate(b) })).sort((x, y) => x.d - y.d);
+  if (!sorted.length) c.body.appendChild(el("div", "board-empty", "No bills yet. Add who it goes to, how much, and when it is due."));
+  const list = el("ul", "board-list bill-list");
+  for (const { b: bill, d } of sorted) {
+    const item = el("li", "board-list-item bill-item");
+    const top = el("div", "board-row");
+    const payee = editableText(bill.payee, "Who the bill goes to", (v) => { bill.payee = v; save(); });
+    payee.classList.add("bill-payee");
+    const n = dayDiff(d);
+    const when = el("span", "row-meta" + (n <= 3 ? " hot" : n <= 10 ? " warn" : ""),
+      n === 0 ? "Due today" : n === 1 ? "Due tomorrow" : "Due " + d.toLocaleDateString("en-US", { month: "short", day: "numeric" }));
+    const amt = el("button", "bill-amt", money(bill.amount) + (bill.cadence === "yearly" ? " /yr" : " /mo"));
+    amt.type = "button";
+    amt.title = "Edit amount, how often and the due day";
+    amt.setAttribute("aria-expanded", "false");
+    amt.addEventListener("click", () => {
+      const open = !item.classList.contains("is-open");
+      item.classList.toggle("is-open", open);
+      amt.setAttribute("aria-expanded", open ? "true" : "false");
+      if (open) { const f = item.querySelector(".bill-edit input"); if (f) f.focus(); }
+    });
+    top.append(payee, when, amt, removeButton("Remove bill", () => {
+      state.bills = state.bills.filter((x) => x.id !== bill.id);
+      save();
+      render();
+    }));
+    const edit = el("div", "bill-edit");
+    const amount = amountInput(bill.amount);
+    amount.addEventListener("change", () => { bill.amount = Math.max(0, Number(amount.value) || 0); save(); render(); });
+    const cadence = cadenceSelect(bill.cadence);
+    cadence.addEventListener("change", () => {
+      bill.cadence = cadence.value === "yearly" ? "yearly" : "monthly";
+      if (bill.cadence === "yearly" && validDueMonth(bill.dueMonth) === null) bill.dueMonth = currentMonthNumber();
+      save();
+      render();
+    });
+    edit.append(amount, cadence);
+    if (bill.cadence === "yearly") {
+      const month = makeMonthSelect(validDueMonth(bill.dueMonth) || currentMonthNumber());
+      month.style.flex = "";
+      month.addEventListener("change", () => { bill.dueMonth = validDueMonth(month.value); save(); render(); });
+      edit.append(month);
+    }
+    const day = dayInput(bill.dueDay);
+    day.addEventListener("change", () => { bill.dueDay = Math.min(31, Math.max(1, parseInt(day.value, 10) || 1)); save(); render(); });
+    edit.append(day);
+    item.append(top, edit);
+    list.appendChild(item);
+  }
+  c.body.appendChild(list);
+
+  const form = el("div", "bill-add");
+  const payeeIn = el("input", "board-input bill-add-payee");
+  payeeIn.type = "text";
+  payeeIn.placeholder = "Who it goes to";
+  payeeIn.setAttribute("aria-label", "Who the new bill goes to");
+  const amountIn = amountInput("");
+  const cadenceIn = cadenceSelect("monthly");
+  const monthIn = makeMonthSelect(currentMonthNumber());
+  monthIn.style.flex = "";
+  monthIn.hidden = true;
+  cadenceIn.addEventListener("change", () => { monthIn.hidden = cadenceIn.value !== "yearly"; });
+  const dayIn = dayInput("");
+  const add = el("button", "board-btn board-btn-primary", "Add bill");
   add.type = "button";
   const submit = () => {
-    const text = textInput.value.trim();
-    if (!text) return;
-    state.comingUp.push({ id: newId(), text, date: dateInput.value || "" });
+    const payee = payeeIn.value.trim();
+    if (!payee) { payeeIn.focus(); return; }
+    const cadence = cadenceIn.value === "yearly" ? "yearly" : "monthly";
+    state.bills.push({
+      id: newId(),
+      payee,
+      amount: Math.max(0, Number(amountIn.value) || 0),
+      cadence,
+      dueDay: Math.min(31, Math.max(1, parseInt(dayIn.value, 10) || 1)),
+      dueMonth: cadence === "yearly" ? validDueMonth(monthIn.value) : null,
+    });
     save();
     render();
   };
   add.addEventListener("click", submit);
-  textInput.addEventListener("keydown", (event) => { if (event.key === "Enter") submit(); });
-  addRow.appendChild(textInput);
-  addRow.appendChild(dateInput);
-  addRow.appendChild(add);
-  body.appendChild(addRow);
+  for (const i of [payeeIn, amountIn, dayIn]) i.addEventListener("keydown", (e) => { if (e.key === "Enter") submit(); });
+  form.append(payeeIn, amountIn, cadenceIn, monthIn, dayIn, add);
+  c.body.appendChild(form);
 }
 
-function renderBills(body) {
-  if (!state.bills.length) {
-    body.appendChild(el("div", "board-empty", "No bills yet."));
-  } else {
-    const list = el("ul", "board-list");
-    for (const bill of state.bills) {
-      const item = el("li", "board-list-item");
-      const row = el("div", "board-row board-row-wrap");
-      const payee = el("input", "board-input");
-      payee.type = "text";
-      payee.value = bill.payee;
-      payee.placeholder = "Payee";
-      payee.setAttribute("aria-label", "Payee");
-      payee.style.flex = "1 1 110px";
-      payee.addEventListener("change", () => { bill.payee = payee.value.trim(); save(); render(); });
-      const amount = el("input", "board-input");
-      amount.type = "number";
-      amount.min = "0";
-      amount.step = "0.01";
-      amount.value = bill.amount ? String(bill.amount) : "";
-      amount.placeholder = "Amount";
-      amount.setAttribute("aria-label", "Amount");
-      amount.style.flex = "0 1 90px";
-      amount.addEventListener("change", () => { bill.amount = Number(amount.value) || 0; save(); render(); });
-      const cadence = el("select", "board-select");
-      cadence.setAttribute("aria-label", "Cadence");
-      cadence.style.flex = "0 1 110px";
-      for (const value of ["monthly", "yearly"]) {
-        const opt = el("option", null, value);
-        opt.value = value;
-        if (bill.cadence === value) opt.selected = true;
-        cadence.appendChild(opt);
-      }
-      cadence.addEventListener("change", () => {
-        bill.cadence = cadence.value === "yearly" ? "yearly" : "monthly";
-        if (bill.cadence === "yearly" && validDueMonth(bill.dueMonth) === null) {
-          bill.dueMonth = currentMonthNumber();
-        }
-        save();
-        render();
-      });
-      let dueMonthSelect = null;
-      if (bill.cadence === "yearly") {
-        dueMonthSelect = makeMonthSelect(validDueMonth(bill.dueMonth) || currentMonthNumber());
-        dueMonthSelect.addEventListener("change", () => {
-          bill.dueMonth = validDueMonth(dueMonthSelect.value);
-          save();
-          render();
-        });
-      }
-      const dueDay = el("input", "board-input");
-      dueDay.type = "number";
-      dueDay.min = "1";
-      dueDay.max = "31";
-      dueDay.value = String(bill.dueDay);
-      dueDay.setAttribute("aria-label", "Due day");
-      dueDay.style.flex = "0 1 64px";
-      dueDay.addEventListener("change", () => {
-        bill.dueDay = Math.min(31, Math.max(1, parseInt(dueDay.value, 10) || 1));
-        save();
-        render();
-      });
-      const del = smallButton("Delete");
-      del.addEventListener("click", () => {
-        state.bills = state.bills.filter((b) => b.id !== bill.id);
-        save();
-        render();
-      });
-      row.appendChild(payee);
-      row.appendChild(amount);
-      row.appendChild(cadence);
-      if (dueMonthSelect) row.appendChild(dueMonthSelect);
-      row.appendChild(dueDay);
-      row.appendChild(del);
-      item.appendChild(row);
-      const meta = el("div", null, nextDueLabel(bill) + " and the amount is $" + bill.amount.toFixed(2));
-      meta.style.fontSize = "12.5px";
-      meta.style.color = "var(--muted)";
-      meta.style.marginTop = "6px";
-      item.appendChild(meta);
-      list.appendChild(item);
-    }
-    body.appendChild(list);
-  }
-
-  const addRow = el("div", "board-row board-row-wrap");
-  addRow.style.marginTop = "8px";
-  const payeeInput = el("input", "board-input");
-  payeeInput.type = "text";
-  payeeInput.placeholder = "Payee";
-  payeeInput.style.flex = "1 1 110px";
-  const amountInput = el("input", "board-input");
-  amountInput.type = "number";
-  amountInput.min = "0";
-  amountInput.step = "0.01";
-  amountInput.placeholder = "Amount";
-  amountInput.style.flex = "0 1 90px";
-  const cadenceInput = el("select", "board-select");
-  cadenceInput.style.flex = "0 1 110px";
-  for (const value of ["monthly", "yearly"]) {
-    const opt = el("option", null, value);
-    opt.value = value;
-    cadenceInput.appendChild(opt);
-  }
-  const monthInput = makeMonthSelect(currentMonthNumber());
-  monthInput.style.display = "none";
-  cadenceInput.addEventListener("change", () => {
-    monthInput.style.display = cadenceInput.value === "yearly" ? "" : "none";
-  });
-  const dueInput = el("input", "board-input");
-  dueInput.type = "number";
-  dueInput.min = "1";
-  dueInput.max = "31";
-  dueInput.placeholder = "Day";
-  dueInput.style.flex = "0 1 64px";
-  const add = el("button", "board-btn board-btn-primary", "Add");
-  add.type = "button";
-  add.addEventListener("click", () => {
-    const payee = payeeInput.value.trim();
-    if (!payee) return;
-    const cadence = cadenceInput.value === "yearly" ? "yearly" : "monthly";
-    state.bills.push({
-      id: newId(),
-      payee,
-      amount: Number(amountInput.value) || 0,
-      cadence,
-      dueDay: Math.min(31, Math.max(1, parseInt(dueInput.value, 10) || 1)),
-      dueMonth: cadence === "yearly" ? validDueMonth(monthInput.value) : null,
-    });
-    save();
-    render();
-  });
-  addRow.appendChild(payeeInput);
-  addRow.appendChild(amountInput);
-  addRow.appendChild(cadenceInput);
-  addRow.appendChild(monthInput);
-  addRow.appendChild(dueInput);
-  addRow.appendChild(add);
-  body.appendChild(addRow);
+function autosize(area) {
+  const fit = () => { area.style.height = "auto"; area.style.height = Math.max(area.scrollHeight + 2, 64) + "px"; };
+  area.addEventListener("input", fit);
+  requestAnimationFrame(fit);
 }
 
-function renderFitness(body) {
+function renderText(c, key, label, placeholder) {
   const area = el("textarea", "board-textarea");
   area.rows = 3;
-  area.value = state.fitnessText;
-  area.setAttribute("aria-label", "Fitness snapshot");
-  area.addEventListener("input", () => {
-    state.fitnessText = area.value;
-    save();
-  });
-  body.appendChild(area);
-  const note = el("p", "board-card-sub", "Editable. Saves as you type.");
-  note.style.margin = "6px 0 0";
-  body.appendChild(note);
+  area.value = state[key];
+  area.placeholder = placeholder;
+  area.setAttribute("aria-label", label);
+  area.addEventListener("input", () => { state[key] = area.value; save(); });
+  autosize(area);
+  c.body.appendChild(area);
+}
+
+function focusAdd(placeholder) {
+  if (!rootEl) return;
+  const input = rootEl.querySelector('input[placeholder="' + placeholder + '"]');
+  if (input) input.focus();
 }
 
 function render() {
@@ -474,18 +489,17 @@ function render() {
   if (taskSortable) { taskSortable.destroy(); taskSortable = null; }
   rootEl.replaceChildren();
   const grid = el("div", "board-grid");
-  const today = card("Today", "Pressing tasks. Drag to reorder.");
-  renderToday(today.body);
-  grid.appendChild(today.wrap);
-  const coming = card("Coming up", "Dated items, soonest first.");
-  renderComingUp(coming.body);
-  grid.appendChild(coming.wrap);
-  const bills = card("Bills", "Payee, amount, cadence and due day.");
-  renderBills(bills.body);
-  grid.appendChild(bills.wrap);
-  const fitness = card("Fitness snapshot", null);
-  renderFitness(fitness.body);
-  grid.appendChild(fitness.wrap);
+  const today = card("Today", "", "hot");
+  renderToday(today);
+  const coming = card("Coming up", "", "warn");
+  renderComingUp(coming);
+  const bills = card("Bills", "", "good");
+  renderBills(bills);
+  const fitness = card("Fitness snapshot", "Saves as you type");
+  renderText(fitness, "fitnessText", "Fitness snapshot", "Weight, streak, how training is going.");
+  const quick = card("Quick note", "Scratch");
+  renderText(quick, "quickNote", "Quick note", "Anything that needs a home for ten minutes.");
+  grid.append(today.wrap, bills.wrap, coming.wrap, fitness.wrap, quick.wrap);
   rootEl.appendChild(grid);
 }
 
@@ -501,6 +515,7 @@ export async function mount(container, ctx) {
   state = normalize(data);
   lastSerialized = serialize();
   render();
+  announce();
   if (unlisten) { unlisten(); unlisten = null; }
   unlisten = ctx.store.listen(DOC, (incoming) => {
     if (!incoming) return;
@@ -508,10 +523,11 @@ export async function mount(container, ctx) {
     const nextSerialized = JSON.stringify(next);
     if (nextSerialized === lastSerialized || nextSerialized === serialize()) return;
     const active = document.activeElement;
-    if (active && container.contains(active) && /INPUT|TEXTAREA|SELECT/.test(active.tagName)) return;
+    if (active && container.contains(active) && (/INPUT|TEXTAREA|SELECT/.test(active.tagName) || active.isContentEditable)) return;
     state = next;
     lastSerialized = nextSerialized;
     render();
+    announce();
   });
 }
 
