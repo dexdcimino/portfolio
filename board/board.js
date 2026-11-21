@@ -375,6 +375,26 @@ function zoomStateFor(tabId) {
   return zoomStates.get(tabId);
 }
 
+/* A PAN NEVER LOSES THE BOARD: the Clayweld dev board's clampPan
+   (devboard.js), copied rule for rule. At every zoom, at least a quarter of
+   the canvas stays on screen along each axis, or the whole screen stays
+   covered once a quarter is bigger than the screen. Every move (drag, wheel,
+   pinch, double click, the HUD, the outline) goes through
+   applyZoomTransform, so this is the one place it is applied. */
+function clampPan(z, w, h, sw, sh) {
+  if (!(sw > 0 && sh > 0 && w > 0 && h > 0 && z.scale > 0)) return;
+  const axis = (pos, size, screen) => {
+    const need = Math.min(size * 0.25, screen);
+    return Math.min(screen - need, Math.max(need - size, pos));
+  };
+  z.x = axis(z.x, w * z.scale, sw);
+  z.y = axis(z.y, h * z.scale, sh);
+}
+/* Zoom bounds, also the dev board's: in to 160%, out to a little past the
+   whole board (85% of the scale that shows all of it), since further out
+   shows nothing new. */
+const ZOOM_MAX = 1.6;
+
 function applyZoomTransform(tabId, animate) {
   const parts = scaffoldFor(tabId);
   if (!parts || !parts.canvas) return;
@@ -384,6 +404,7 @@ function applyZoomTransform(tabId, animate) {
     return;
   }
   const z = zoomStateFor(tabId);
+  clampPan(z, parts.canvas.offsetWidth, parts.canvas.offsetHeight, parts.viewport.clientWidth, parts.viewport.clientHeight);
   parts.canvas.style.transition = animate ? "transform .35s cubic-bezier(.2,.7,.2,1)" : "";
   parts.canvas.style.transform = "translate(" + z.x + "px, " + z.y + "px) scale(" + z.scale + ")";
   if (tabId === activeTab) hudPct.textContent = Math.round(z.scale * 100) + "%";
@@ -456,13 +477,14 @@ function fitZoom(tabId, animate) {
   z.x = Math.round((sw - ww * scale) / 2);
   z.y = Math.max(12, Math.round((sh - wh * scale) / 2));
   if (wh * scale > sh) z.y = 12;
+  z.min = Math.min(scale, (sw - 24) / ww, (sh - 24) / wh) * 0.85;
   z.fitted = true;
   applyZoomTransform(tabId, animate);
 }
 
 function zoomAt(tabId, factor, px, py, animate) {
   const z = zoomStateFor(tabId);
-  const next = Math.max(0.15, Math.min(2.5, z.scale * factor));
+  const next = Math.max(Math.min(z.min || 0.15, z.scale), Math.min(Math.max(ZOOM_MAX, z.scale), z.scale * factor));
   if (next === z.scale) return;
   const cx = (px - z.x) / z.scale;
   const cy = (py - z.y) / z.scale;
@@ -527,6 +549,32 @@ function setViewMode(tabId, mode) {
 }
 
 const INTERACTIVE = "button, input, textarea, select, a, label, summary, iframe, video, [contenteditable], [data-no-pan], .nt-app, .board-insertion-line";
+/* Controls a press never pans from. Editable text and the notes app are not
+   on this list: see startsPan. */
+const NO_PAN = "button, input, textarea, select, a, label, summary, iframe, video, [role=\"button\"], [data-no-pan], .board-insertion-line";
+
+/* TEXT BEFORE THE DRAG, the dev board's overText rule (devboard.js): with a
+   mouse, a press on readable text (glyphs, not the padding around them)
+   selects it or places the caret instead of moving the board. A press
+   anywhere else, or any touch, drags; a tap that does not move is still a
+   click, so a tap on a note still edits it. Without this the Notes board was
+   one big editor and only 10% of the screen would start a drag. */
+function overText(event, canvas) {
+  if (event.pointerType !== "mouse") return false;
+  const at = document.caretPositionFromPoint ? document.caretPositionFromPoint(event.clientX, event.clientY) : null;
+  const node = at ? at.offsetNode : (document.caretRangeFromPoint ? document.caretRangeFromPoint(event.clientX, event.clientY)?.startContainer : null);
+  if (!node || node.nodeType !== Node.TEXT_NODE || !node.textContent.trim() || !canvas.contains(node)) return false;
+  if (getComputedStyle(node.parentElement).userSelect === "none") return false;
+  const range = document.createRange();
+  range.selectNodeContents(node);
+  return Array.from(range.getClientRects()).some((r) => event.clientX >= r.left - 1 && event.clientX <= r.right + 1 && event.clientY >= r.top - 1 && event.clientY <= r.bottom + 1);
+}
+function startsPan(event, canvas) {
+  const t = event.target;
+  if (!t || !t.closest) return true;
+  if (t.closest(NO_PAN)) return false;
+  return !overText(event, canvas);
+}
 
 function attachZoomHandlers(viewport, canvas, tabId) {
   if (viewport.getAttribute("data-zoom-bound") === "1") return;
@@ -537,8 +585,11 @@ function attachZoomHandlers(viewport, canvas, tabId) {
     if (!zoomOn()) return;
     event.preventDefault();
     const rect = viewport.getBoundingClientRect();
+    /* The dev board's wheel: the point under the cursor stays under the
+       cursor, no easing, no recentring; the pan clamp is the only thing
+       that can move the view, and only past its quarter rule. */
     const delta = event.deltaMode === 1 ? event.deltaY * 16 : event.deltaY;
-    zoomAt(tabId, Math.exp(-delta * (event.ctrlKey ? 0.01 : 0.0018)), event.clientX - rect.left, event.clientY - rect.top, false);
+    zoomAt(tabId, Math.exp(-delta * 0.0012), event.clientX - rect.left, event.clientY - rect.top, false);
   }, { passive: false });
 
   const pointers = new Map();
@@ -547,7 +598,6 @@ function attachZoomHandlers(viewport, canvas, tabId) {
   viewport.addEventListener("pointerdown", (event) => {
     if (!zoomOn()) return;
     if (event.button !== 0 && event.pointerType === "mouse") return;
-    const t = event.target;
     pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
     if (pointers.size === 2) {
       const [a, b] = Array.from(pointers.values());
@@ -556,7 +606,7 @@ function attachZoomHandlers(viewport, canvas, tabId) {
       pan = null;
       return;
     }
-    if (t && t.closest && t.closest(INTERACTIVE)) return;
+    if (!startsPan(event, canvas)) return;
     const z = zoomStateFor(tabId);
     pan = { id: event.pointerId, sx: event.clientX, sy: event.clientY, bx: z.x, by: z.y, live: false };
   });
@@ -578,6 +628,9 @@ function attachZoomHandlers(viewport, canvas, tabId) {
       if (Math.hypot(dx, dy) < 4) return;
       pan.live = true;
       viewport.classList.add("is-panning");
+      /* A drag that began in an editor's padding must not leave a text
+         selection behind. */
+      try { window.getSelection().removeAllRanges(); } catch (err) { void err; }
       try { viewport.setPointerCapture(event.pointerId); } catch (err) { void err; }
     }
     const z = zoomStateFor(tabId);
@@ -840,7 +893,12 @@ async function activateTab(tabId) {
   }
 }
 
-for (const btn of tabButtons) btn.addEventListener("click", () => { void activateTab(btn.getAttribute("data-tab")); });
+/* Clicking the tab you are already on puts its Zoom view back to Fit. */
+for (const btn of tabButtons) btn.addEventListener("click", () => {
+  const tabId = btn.getAttribute("data-tab");
+  if (tabId === activeTab && viewModeFor(tabId) === "zoom") { fitZoom(tabId, true); return; }
+  void activateTab(tabId);
+});
 for (const btn of viewButtons) btn.addEventListener("click", () => { setViewMode(activeTab, btn.getAttribute("data-view-mode")); });
 
 /* ---------- Wall and avatar ---------- */
