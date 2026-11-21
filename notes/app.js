@@ -133,8 +133,18 @@ function vaultBackend({ token, onToken, onLocked }) {
   };
 }
 
-export async function mount(container, { payload, token, onToken, onLocked, onStatus, backend, headerTail, headerExtra, shell }) {
+export async function mount(container, { payload, token, onToken, onLocked, onStatus, backend, headerTail, headerExtra, shell, view }) {
   await ensureCss();
+  /* BOARD VIEW (opt in with view: 'board', used by the Dex Board Notes tab).
+     With the option absent every line below behaves exactly as before. With
+     it, the document is held in memory as ONE view session holding every
+     session's categories in document order, so the canvas, the sidebar, the
+     archive and search all work on the whole document at once and no session
+     chrome is shown. The stored document is never flattened: the backend is
+     wrapped below so saves, loads and beacons cross the boundary in the
+     original nested shape, and each category keeps the session it came from
+     (see boardRenest). */
+  const board = view === 'board';
 
   /* ---- the document ---- */
   /* THE DEMO IS THE SAME APP WITH NOTHING BEHIND IT. `demo` is not a reduced
@@ -152,6 +162,73 @@ export async function mount(container, { payload, token, onToken, onLocked, onSt
   else { doc = migrateHtml(payload.content); migrated = true; }
   let rev = Number(payload.rev) || 0;
   const store = demo ? null : (backend || vaultBackend({ token, onToken, onLocked }));
+
+  /* ---- board view: flatten in memory, re-nest at the store boundary ---- */
+  let boardMeta = null;   // the real sessions, in order, metadata intact
+  let boardHome = null;   // category id -> owning session id
+  let boardActive = null; // the document's real active session id
+  function boardFlatten(nested) {
+    boardMeta = nested.sessions;
+    boardHome = new Map();
+    boardActive = nested.active;
+    const cats = [];
+    const arch = [];
+    let updated = nested.sessions[0].updated;
+    for (const s of nested.sessions) {
+      if (s.updated > updated) updated = s.updated;
+      for (const c of s.cats) { boardHome.set(c.id, s.id); cats.push(c); }
+      for (const c of s.archived) { boardHome.set(c.id, s.id); arch.push(c); }
+    }
+    const first = nested.sessions[0];
+    const viewSession = {
+      id: first.id, title: first.title, emoji: first.emoji, color: first.color,
+      created: first.created, updated, cats, archived: arch,
+    };
+    return { ...nested, sessions: [viewSession], active: viewSession.id };
+  }
+  function boardRenest(flat) {
+    if (!boardMeta || !boardHome) return flat;
+    const viewSession = flat.sessions && flat.sessions[0];
+    const cats = viewSession ? viewSession.cats : [];
+    const arch = viewSession ? viewSession.archived : [];
+    /* A category made in the board has no home yet. It takes the home of the
+       category in front of it in board order, which is the session of the
+       category it was created below; one created at the very top takes the
+       first session. It never takes a new home from a drag across what was a
+       session boundary: filtering by home below keeps it in its own session,
+       in the relative order the board left it in. */
+    let last = boardMeta[0].id;
+    for (const c of cats) { if (boardHome.has(c.id)) last = boardHome.get(c.id); else boardHome.set(c.id, last); }
+    for (const c of arch) { if (!boardHome.has(c.id)) boardHome.set(c.id, last); }
+    const sessions = boardMeta.map((meta) => {
+      const mine = cats.filter((c) => boardHome.get(c.id) === meta.id);
+      const mineArch = arch.filter((c) => boardHome.get(c.id) === meta.id);
+      let updated = meta.updated;
+      for (const c of [...mine, ...mineArch]) if (c.updated > updated) updated = c.updated;
+      return { ...meta, cats: mine, archived: mineArch, updated };
+    });
+    return { ...flat, sessions, active: sessions.some((s) => s.id === boardActive) ? boardActive : sessions[0].id };
+  }
+  if (board) {
+    doc = boardFlatten(doc);
+    if (store) {
+      const rawSave = store.save.bind(store);
+      const rawLoad = store.load.bind(store);
+      const rawBeacon = store.beacon ? store.beacon.bind(store) : null;
+      store.save = async (flatDoc, baseRev) => {
+        const out = await rawSave(boardRenest(flatDoc), baseRev);
+        if (out && out.conflict && out.doc) return { ...out, doc: boardFlatten(out.doc) };
+        return out;
+      };
+      store.load = async () => {
+        const out = await rawLoad();
+        if (out && out.doc) return { ...out, doc: boardFlatten(out.doc) };
+        return out;
+      };
+      if (rawBeacon) store.beacon = (flatDoc, baseRev) => rawBeacon(boardRenest(flatDoc), baseRev);
+    }
+  }
+
   const loadedStamps = new Map(doc.sessions.map((s) => [s.id, s.updated]));
 
   /* ---- the layout ---- */
@@ -225,6 +302,20 @@ export async function mount(container, { payload, token, onToken, onLocked, onSt
     catTitle: (id) => { const c = catOf(activeSession(doc), id); return c ? c.title : 'Notes'; },
     scrollToCat: (id) => render.jumpTo(id),
   };
+
+  /* Board view: category title lookup is document wide. In board mode the
+     one view session already holds every category and every archived
+     category, live and archived, so this searches the whole document
+     rather than one session of it. */
+  if (board) {
+    ctx.catTitle = (id) => {
+      for (const s of doc.sessions) {
+        const c = s.cats.find((x) => x.id === id) || s.archived.find((x) => x.id === id);
+        if (c) return c.title;
+      }
+      return 'Notes';
+    };
+  }
 
   /* ---- history ---- */
   ctx.history = new History({
@@ -1044,6 +1135,22 @@ export async function mount(container, { payload, token, onToken, onLocked, onSt
       setSpell(on) { spell.setEnabled(on); syncSettings(); },
       openSessionColor,
     });
+  }
+
+  /* Board view: no session chrome. The session badge and title and colour at
+     the top of the sidebar, the My Sessions sheet and its two triggers, and
+     the session emoji and title and colour on the canvas are hidden, so no
+     session list, no session switcher and no session header exists in this
+     view. The category list, the archive, the sidebar fold and the add
+     category controls stay, and they all act on the one view session. The
+     elements stay in the DOM because the shared render code still writes to
+     them; display none keeps them out of sight and out of pointer reach, so
+     the hover that opens the sessions popup can never fire either. */
+  if (board) {
+    root.classList.add('is-board-view');
+    for (const sel of ['.nt-sidebar-top', '.nt-sess-dock', '.nt-rail-session', '.nt-rail-sessions', '.nt-session-emoji', '.nt-session-title', '.nt-session-color']) {
+      for (const n of root.querySelectorAll(sel)) n.style.display = 'none';
+    }
   }
 
   /* Don't autofocus the first body (Dex, 2026-10-05): it steals the tilde

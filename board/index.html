@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en" data-accent="lime">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0b0d12">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Dex Board">
+<meta name="robots" content="noindex">
+<title>Dex Board</title>
+<script src="/accent-boot.js"></script>
+<link rel="manifest" href="/board/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/board/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="192x192" href="/board/icon-192.png">
+<link rel="icon" type="image/png" sizes="512x512" href="/board/icon-512.png">
+<link rel="stylesheet" href="/board/board.css">
+</head>
+<body>
+<div id="board-app" class="board-app" hidden>
+  <header class="board-topbar">
+    <div class="board-brand">
+      <img id="board-mascot" class="board-mascot" src="https://media.clayweld.com/assets/mascots/mascot_limegreen.png" alt="Clayweld mascot" width="40" height="40">
+      <div class="board-brand-text">
+        <span class="board-title">Dex Board</span>
+        <span id="board-saved" class="board-saved" role="status" aria-live="polite"></span>
+      </div>
+    </div>
+    <div class="board-topbar-actions">
+      <button id="board-theme-btn" type="button" class="board-btn board-theme-btn" aria-label="Change accent color">
+        <span class="board-theme-dot" aria-hidden="true"></span>
+        <span id="board-theme-name">lime</span>
+      </button>
+      <div id="board-avatar-slot" class="board-avatar-slot" aria-label="Signed in account"></div>
+      <button id="board-signout-btn" type="button" class="board-btn">Sign out</button>
+    </div>
+  </header>
+  <nav class="board-tabbar" aria-label="Board tabs">
+    <div class="board-tabs" role="tablist">
+      <button type="button" class="board-tab" role="tab" data-tab="overview" aria-selected="true">Overview</button>
+      <button type="button" class="board-tab" role="tab" data-tab="schedule" aria-selected="false">Schedule</button>
+      <button type="button" class="board-tab" role="tab" data-tab="notes" aria-selected="false">Notes</button>
+      <button type="button" class="board-tab" role="tab" data-tab="diet" aria-selected="false">Diet</button>
+      <button type="button" class="board-tab" role="tab" data-tab="exercise" aria-selected="false">Exercise</button>
+      <button type="button" class="board-tab" role="tab" data-tab="work" aria-selected="false">Work</button>
+      <button type="button" class="board-tab" role="tab" data-tab="music" aria-selected="false">Music</button>
+    </div>
+    <div class="board-view-toggle" role="group" aria-label="View mode">
+      <button type="button" class="board-view-btn is-active" data-view-mode="scroll" aria-pressed="true">Scroll</button>
+      <button type="button" class="board-view-btn" data-view-mode="zoom" aria-pressed="false">Zoom</button>
+    </div>
+  </nav>
+  <main class="board-main">
+    <section id="panel-overview" class="board-panel" data-panel="overview" role="tabpanel" aria-label="Overview"></section>
+    <section id="panel-schedule" class="board-panel" data-panel="schedule" role="tabpanel" aria-label="Schedule" hidden></section>
+    <section id="panel-notes" class="board-panel" data-panel="notes" role="tabpanel" aria-label="Notes" hidden></section>
+    <section id="panel-diet" class="board-panel" data-panel="diet" role="tabpanel" aria-label="Diet" hidden></section>
+    <section id="panel-exercise" class="board-panel" data-panel="exercise" role="tabpanel" aria-label="Exercise" hidden></section>
+    <section id="panel-work" class="board-panel" data-panel="work" role="tabpanel" aria-label="Work" hidden></section>
+    <section id="panel-music" class="board-panel" data-panel="music" role="tabpanel" aria-label="Music" hidden></section>
+  </main>
+</div>
+
+<div id="board-wall" class="board-wall">
+  <div class="board-wall-card">
+    <img class="board-wall-mascot" src="https://media.clayweld.com/assets/mascots/mascot_limegreen.png" alt="Clayweld mascot" width="72" height="72">
+    <h1 class="board-wall-title">Dex Board</h1>
+    <p id="board-wall-msg" class="board-wall-msg">Sign in to open your board.</p>
+    <button id="board-signin-btn" type="button" class="board-btn board-btn-primary board-wall-signin">Sign in with Google</button>
+    <p id="board-wall-error" class="board-wall-error" role="alert" hidden></p>
+    <button id="board-wall-signout-btn" type="button" class="board-btn" hidden>Sign out</button>
+  </div>
+</div>
+
+<script type="module" src="/board/board.js"></script>
+</body>
+</html>
