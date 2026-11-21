@@ -545,6 +545,27 @@ function createPlayer(container, ctx) {
   root.append(side, tracksCard.section);
   container.append(root);
 
+  /* Now playing and Playlists live in the board's LEFT panel, so they stay
+     put while the track list moves (Dex, round 3). The slot carries the
+     board-music class so every rule for them still applies. Where the left
+     panel is a closed drawer (1023px and under) they stay at the top of the
+     tab instead, or a phone would have no player on screen. */
+  const leftSlot = document.getElementById('bd-left-music');
+  const drawerWidth = window.matchMedia('(max-width: 1023px)');
+  const placeSide = () => {
+    if (destroyed) return;
+    const inPanel = !!leftSlot && !drawerWidth.matches;
+    root.classList.toggle('has-side-in-panel', inPanel);
+    if (inPanel && side.parentNode !== leftSlot) leftSlot.append(side);
+    if (!inPanel && side.parentNode !== root) root.prepend(side);
+  };
+  placeSide();
+  drawerWidth.addEventListener('change', placeSide);
+  disposers.push(() => {
+    drawerWidth.removeEventListener('change', placeSide);
+    if (leftSlot && side.parentNode === leftSlot) side.remove();
+  });
+
   const narrowMusic = window.matchMedia('(max-width:900px)');
   const rootVisible = () => !destroyed && root.isConnected && root.getClientRects().length > 0;
 

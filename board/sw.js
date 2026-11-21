@@ -1,4 +1,4 @@
-/* Dex Board service worker, following the dexnote and inko pattern.
+/* Mission Control (the Dex board) service worker, following the dexnote and inko pattern.
    The shell is network first always, with the cache as the offline
    fallback, so an edit reaches the next load with no version string
    to bump. Only GET requests on this origin under /board/ are handled,
@@ -11,6 +11,7 @@ const SHELL = [
   "/board/music.css",
   "/board/work.css",
   "/board/diet.css",
+  "/board/exercise.css",
   "/board/theme-boot.js",
   "/board/pack.js",
   "/board/rail.js",

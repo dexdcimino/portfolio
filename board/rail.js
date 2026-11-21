@@ -155,7 +155,7 @@ function render() {
   if (show.coming) root.append(cp.wrap);
 
   const links = panel("Quick links");
-  for (const [label, href] of [["Portfolio site", "/"], ["DexNote", "/dexnote/"], ["Inko", "/inko/"], ["Mission Control", "https://work-kohl-kappa.vercel.app"]]) {
+  for (const [label, href] of [["Portfolio site", "/"], ["DexNote", "/dexnote/"], ["Inko", "/inko/"], ["Work dashboard", "https://work-kohl-kappa.vercel.app"]]) {
     const a = el("a", "quick-link", label);
     a.href = href;
     if (/^https?:/.test(href)) { a.target = "_blank"; a.rel = "noopener"; }

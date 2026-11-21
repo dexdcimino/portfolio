@@ -7,10 +7,9 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Dex Board">
+<meta name="apple-mobile-web-app-title" content="Mission Control">
 <meta name="robots" content="noindex">
-<title>Dex Board</title>
-<script src="/accent-boot.js"></script>
+<title>Mission Control</title>
 <script src="/board/theme-boot.js"></script>
 <link rel="manifest" href="/board/manifest.webmanifest">
 <link rel="apple-touch-icon" href="/board/apple-touch-icon.png">
@@ -20,6 +19,7 @@
 <link rel="stylesheet" href="/board/music.css">
 <link rel="stylesheet" href="/board/work.css">
 <link rel="stylesheet" href="/board/diet.css">
+<link rel="stylesheet" href="/board/exercise.css">
 </head>
 <body>
 <div id="board-app" class="board-app" data-left="open" data-right="open" hidden>
@@ -27,7 +27,7 @@
     <div class="bd-brand">
       <button id="bd-profile" type="button" class="bd-profile" aria-label="Your account" aria-expanded="false" aria-controls="bd-menu"></button>
       <div class="bd-brand-text">
-        <span class="bd-title">Dex Board</span>
+        <span class="bd-title">Mission Control</span>
         <span id="board-saved" class="board-saved" role="status" aria-live="polite"></span>
       </div>
     </div>
@@ -74,6 +74,7 @@
       <h2 class="bd-side-h"><span id="bd-outline-title">Blocks</span><span id="bd-outline-count"></span></h2>
       <ol id="bd-outline" class="bd-outline"></ol>
       <p id="bd-outline-hint" class="bd-hint"></p>
+      <div id="bd-left-music" class="bd-left-music board-music" aria-label="Player and playlists"></div>
     </aside>
     <main class="board-main">
       <section id="panel-overview" class="board-panel" data-panel="overview" role="tabpanel" aria-label="Overview"></section>
@@ -98,7 +99,7 @@
 <div id="board-wall" class="board-wall">
   <div class="board-wall-card">
     <div class="board-wall-mark" id="board-wall-mark" aria-hidden="true"></div>
-    <h1 class="board-wall-title">Dex Board</h1>
+    <h1 class="board-wall-title">Mission Control</h1>
     <p id="board-wall-msg" class="board-wall-msg">Sign in to open your board.</p>
     <button id="board-signin-btn" type="button" class="board-btn board-btn-primary board-wall-signin">Sign in with Google</button>
     <p id="board-wall-error" class="board-wall-error" role="alert" hidden></p>

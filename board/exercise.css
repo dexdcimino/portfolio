@@ -1,0 +1,28 @@
+/* Exercise tab styles (board/exercise.js). Four short blocks, a status
+   pill each, one line per row. Scoped under .ex-grid so the shell's
+   .ex-* defaults in board.css stay the fallback. */
+
+/* Today's workout: name, done count and x on one line, set boxes under. */
+.ex-grid .ex-item { gap: 6px; padding: 7px 4px; }
+.ex-grid .ex-head { gap: 8px; }
+.ex-grid .ex-head .row-text { font-weight: 600; }
+.ex-grid .ex-count { min-width: 34px; text-align: right; }
+.ex-grid .ex-item.is-complete .ex-count { color: #7fd08d; }
+.ex-grid .ex-sets { gap: 5px; }
+.ex-grid .ex-set { min-width: 34px; height: 30px; padding: 0 8px; font-size: 14px; border-radius: 7px; }
+
+/* Weekly split: the day in mono, today lit. */
+.ex-grid .ex-day { min-width: 36px; }
+.ex-grid .ex-today { background: var(--accent-dim); }
+.ex-grid .ex-today:hover { background: var(--accent-dim); }
+.ex-grid .ex-today .row-text { font-weight: 600; }
+
+/* Progress: three numbers, then a labelled bar each. */
+.ex-grid .ex-kv { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.ex-grid .ex-kv .cell b { font-size: 20px; overflow-wrap: anywhere; }
+.ex-grid .ex-kv .cell span { font-size: 12px; }
+.ex-grid .ex-focus b { font-size: 16px; line-height: 1.3; }
+.ex-grid .ex-focus.is-unset b { color: var(--muted-2); font-weight: 600; }
+.ex-grid .ex-bar-row { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; }
+.ex-grid .ex-bar-row .stat-label { font-size: 14px; }
+.ex-grid .ex-bar-row .bar { margin: 0 2px; }

@@ -1,4 +1,4 @@
-/* Dex Board shell.
+/* Mission Control (the Dex board) shell.
    Gate order, with no exceptions (unchanged from the first board):
    1. The page starts with only the sign in wall visible. No board data
       markup, no tab modules loaded, and no Firestore calls.
@@ -32,8 +32,9 @@ import { attachPacker } from "/board/pack.js";
 /* ---------- Themes ---------- */
 
 /* The site's seven accents, by name (the hex lives in board.css, as it does
-   on the site). Picking one writes the same key and cookie the portfolio
-   uses, so the accent follows Dex between the two. */
+   on the site). The board keeps its OWN choice under board-theme and never
+   reads or writes the portfolio's dex-accent-name or its cookie: changing
+   one never changes the other (Dex, round 3). */
 const SITE_ACCENTS = [
   { id: "red", label: "Red", sw: "#D94727" },
   { id: "yellow", label: "Yellow", sw: "#FAAA1E" },
@@ -54,7 +55,6 @@ const MOCK_THEMES = [
   { id: "m-violet", label: "Violet", sw: "#8e4ec6" },
   { id: "m-pink", label: "Pink", sw: "#e93d82" },
 ];
-const ACCENT_KEY = "dex-accent-name";
 const BOARD_THEME_KEY = "board-theme";
 
 const TABS = [
@@ -63,7 +63,7 @@ const TABS = [
   { id: "notes", label: "Notes", sub: "" },
   { id: "diet", label: "Diet", sub: "From your Food and Diet notes." },
   { id: "exercise", label: "Exercise", sub: "The split and today's sets." },
-  { id: "work", label: "Work", sub: "Mission Control, as blocks." },
+  { id: "work", label: "Work", sub: "Priorities first, details one click in." },
   { id: "music", label: "Music", sub: "" },
 ];
 const TAB_IDS = TABS.map((t) => t.id);
@@ -168,19 +168,14 @@ profileBtn.append(profileMark(null));
 
 function readTheme() {
   let board = null;
-  let site = "lime";
-  try {
-    board = localStorage.getItem(BOARD_THEME_KEY);
-    const s = localStorage.getItem(ACCENT_KEY);
-    if (SITE_ACCENTS.some((a) => a.id === s)) site = s;
-  } catch (err) { void err; }
-  if (MOCK_THEMES.some((t) => t.id === board)) return board;
-  return document.documentElement.getAttribute("data-accent") || site;
+  try { board = localStorage.getItem(BOARD_THEME_KEY); } catch (err) { void err; }
+  if (MOCK_THEMES.some((t) => t.id === board) || SITE_ACCENTS.some((a) => a.id === board)) return board;
+  return "lime";
 }
 
 function themeLabel(id) {
   const site = SITE_ACCENTS.find((a) => a.id === id);
-  if (site) return "Site " + site.label;
+  if (site) return "Accent " + site.label;
   const mock = MOCK_THEMES.find((t) => t.id === id);
   return mock ? "Board " + mock.label : "Theme";
 }
@@ -197,12 +192,7 @@ function applyTheme(id, persist) {
     root.removeAttribute("data-board-theme");
     root.setAttribute("data-accent", accent);
     id = accent;
-    if (persist) {
-      try { localStorage.removeItem(BOARD_THEME_KEY); localStorage.setItem(ACCENT_KEY, accent); } catch (err) { void err; }
-      try {
-        document.cookie = ACCENT_KEY + "=" + encodeURIComponent(accent) + "; domain=.dexcimino.com; path=/; max-age=31536000; SameSite=Lax";
-      } catch (err) { void err; }
-    }
+    if (persist) { try { localStorage.setItem(BOARD_THEME_KEY, accent); } catch (err) { void err; } }
   }
   currentTheme = id;
   themeNameEl.textContent = themeLabel(id);
@@ -215,7 +205,7 @@ function applyTheme(id, persist) {
 
 function buildThemePop() {
   const groups = [
-    { title: "Site accents", list: SITE_ACCENTS, perRow: [4, 3] },
+    { title: "Accents", list: SITE_ACCENTS, perRow: [4, 3] },
     { title: "Board schemes", list: MOCK_THEMES, perRow: [4, 4] },
   ];
   themePop.replaceChildren();
@@ -409,7 +399,6 @@ function layoutZoomWorld(tabId) {
   const stageW = parts.viewport.clientWidth;
   const stageH = parts.viewport.clientHeight;
   if (!stageW || !stageH) return;
-  if (tabId === "notes") { parts.canvas.style.width = ""; return; }
   /* Pick the column count whose packed board is closest to the stage's own
      shape (the dev board's pick()): every count is packed for real and
      scored by |log(board aspect / stage aspect)|, so Fit shows a board that
@@ -427,7 +416,14 @@ function layoutZoomWorld(tabId) {
   /* Music is three blocks whose track list flows into as many columns as
      its width allows, so it is tried by width rather than by block count. */
   const widths = [];
-  if (tabId === "music") for (let k = 1; k <= 6; k += 0.5) widths.push(Math.round(stageW * k));
+  /* Notes in Zoom flows its categories into columns (board.css), so it is
+     tried by width too. */
+  /* Music is one track list now that its player lives in the left panel:
+     it opens at the stage's width, readable, and is moved by dragging. */
+  /* A phone is too narrow for a second column to be readable at Fit: one
+     column at its own width, panned down. */
+  if (tabId === "music" || stageW < 600) widths.push(stageW);
+  else if (tabId === "notes") for (let k = 1; k <= 9; k += 0.5) widths.push(Math.round(stageW * k));
   else for (let c = 1; c <= maxCols; c += 1) widths.push(Math.max(stageW, Math.ceil(c * col + (c - 1) * gap + pad)));
   let best = null;
   for (const width of widths) {
@@ -439,6 +435,7 @@ function layoutZoomWorld(tabId) {
     if (!best || score < best.score - 0.02) best = { width, score };
   }
   if (best) { parts.canvas.style.width = best.width + "px"; packer.repack(); }
+  zoomStateFor(tabId).laidFor = stageW + "x" + stageH;
 }
 
 function fitZoom(tabId, animate) {
@@ -453,7 +450,7 @@ function fitZoom(tabId, animate) {
   /* Notes is one long document that cannot be re-packed wider, so fitting
      its whole height shrank it to 15%, too small to read. It fits the width
      instead, from the top. */
-  const byWidth = tabId === "notes";
+  const byWidth = tabId === "music" || sw < 600;
   const scale = Math.max(0.15, Math.min(1, (sw - 24) / ww, byWidth ? Infinity : (sh - 24) / wh));
   z.scale = scale;
   z.x = Math.round((sw - ww * scale) / 2);
@@ -498,7 +495,10 @@ function applyViewMode(tabId) {
     parts.canvas.style.width = "";
     parts.canvas.style.transform = "";
     if (packer) { packer.setMinCol(minColFor(tabId)); packer.schedule(); }
-  } else if (was !== "zoom" || !zoomStateFor(tabId).fitted) {
+  } else if (was !== "zoom" || !zoomStateFor(tabId).fitted || zoomStateFor(tabId).laidFor !== parts.viewport.clientWidth + "x" + parts.viewport.clientHeight) {
+    /* Also when the stage changed size since this world was laid out (the
+       window was resized while another tab was showing): a stale world kept
+       the old column count. */
     if (!panelFor(tabId).hidden) {
       layoutZoomWorld(tabId);
       fitZoom(tabId, false);

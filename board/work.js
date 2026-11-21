@@ -1,28 +1,29 @@
-/* Dex Board Work tab. Lane 6.
-   All of Mission Control restructured as cards, from the generated data
-   modules under board/data/ (see the header in each module for its
-   source in the Mission Control repo and the regeneration command).
+/* Dex Board Work tab ("Mission Control" Work).
 
-   State decision (full evidence in the Lane 6 build summary): the old
-   app keeps its live progress in a Redis record behind its api/state.js
-   endpoint, keyed work-dashboard-state-v1, and that endpoint only
-   answers a DexAuth JWT bearer token (tier admin, owner true). No token
-   or credential exists in the repo files, the board shell does not pass
-   a DexAuth token to tab modules through the frozen ctx interface, and
-   the endpoint sends no CORS headers for a cross origin read from
-   dexcimino.com. A live read is therefore not wired. Interactive state
-   on this tab (ticks, week edits, client status, backer flags, the one
-   liner, the board cash log) lives in the board own board-work
-   Firestore doc through ctx.store, seeded from the file defaults in the
-   data modules. Migrating the Redis record into that doc is the listed
-   follow up.
+   Round 3 layout: a short, priority-ordered board in the shape of the
+   Clayweld dev board's blocks. Eleven blocks in one .board-grid, in this
+   order: Dex Actions, Today, This Week, Clients, Cash Log, Quick Cash,
+   Pipeline, Funding, Outreach Lanes, Research and Long Shots, Reference.
 
-   Layout: every section is one block in a single .board-grid, packed by
-   the shell's masonry (board/pack.js). No block scrolls inside itself:
-   long lists show their first rows and a "Show all (N)" more-btn that
-   opens the rest in place. Lists over LAZY_OVER rows only build their
-   hidden rows when opened, so the 749 row send register costs eight
-   rows until asked for. Styles live in board/work.css. */
+   The face of every block is one short line per row (about 60 characters,
+   two lines at most), a status pill where it helps and the checkbox the row
+   always had. Everything else (the full text, contact details, notes,
+   rulings, the agent-facing "why" prose, and whole lane tools such as the
+   searchable pipeline or the backer filters) sits one click deeper: a row
+   is a button that opens its detail in place, built on first open. A lane
+   row is the same thing with a whole tool behind it.
+
+   State: ticks, week edits, the one liner, client status and notes, backer
+   flags and the cash log live in the board's own board-work doc through
+   ctx.store, seeded from the file defaults in board/data/*.js. The shape
+   of that doc is unchanged from earlier rounds. The old Mission Control
+   app's live Redis record is not readable from here (DexAuth bearer only,
+   no CORS), so it is not wired; migrating it into board-work is the
+   listed follow up.
+
+   No element scrolls inside itself: long lists show their first rows and a
+   "Show all (N)" more-btn; lists over LAZY_OVER rows only build their
+   hidden rows once opened. Styles live in board/work.css. */
 
 import FRONT from "./data/front.js";
 import PIPELINE from "./data/pipeline.js";
@@ -43,11 +44,17 @@ import ARCHIVE from "./data/archive.js";
 let state = null;
 let storeRef = null;
 let rootEl = null;
+/* Lane rows by key, so the Bash lane index can open another lane. */
+let drawers = new Map();
 
-/* Rows a list shows before its "Show all" button. */
-const CLAMP = 3;
+/* Rows a list shows before its "Show all" button, on a block face and
+   inside an opened lane. */
+const FACE = 5;
+const CLAMP = 4;
 /* Above this many rows the hidden rows are not built until opened. */
 const LAZY_OVER = 120;
+/* Face text length. */
+const FACE_MAX = 60;
 
 function blankState() {
   return {
@@ -68,7 +75,7 @@ function saveState() {
 
 function defaultDone(item) {
   if (!item) return false;
-  if (item.d === 1 || item.d === true) return true;
+  if (item.d === 1 || item.d === true || item.done === true) return true;
   const hist = GPT.history && item.id ? GPT.history[item.id] : null;
   if (hist && (hist.d === 1 || hist.d === true)) return true;
   return false;
@@ -101,8 +108,40 @@ function pill(text, kind) {
   return h("span", "pill" + (kind ? " " + kind : ""), text);
 }
 
-function muted(text) {
-  return h("p", "wk-note", text);
+function str(v) {
+  if (v === null || v === undefined) return "";
+  if (typeof v === "string") return v;
+  if (Array.isArray(v)) return v.map(str).join("\n");
+  return JSON.stringify(v, null, 1);
+}
+
+/* The source data writes a dash as " ,  "; show it as a dash. Display only,
+   the data is never changed. */
+function clean(text) {
+  return str(text).replace(/ ,  /g, " — ");
+}
+
+/* One short face line: the text as is when it fits, else cut at a natural
+   break (a dash, a middle dot, a colon or a full stop) when that leaves a
+   real phrase, else at a word. The full text sits in the row's detail. */
+function shortText(text, max) {
+  const lim = max || FACE_MAX;
+  const s = clean(text).replace(/\s+/g, " ").trim();
+  if (s.length <= lim) return s;
+  for (const sep of [" — ", " · ", ": ", ". "]) {
+    const i = s.indexOf(sep);
+    if (i >= 22 && i <= lim) return s.slice(0, i);
+  }
+  const cut = s.lastIndexOf(" ", lim - 1);
+  return s.slice(0, cut > lim * 0.6 ? cut : lim - 1).replace(/[\s,.;:·—-]+$/, "") + "…";
+}
+
+function note(text) {
+  return h("p", "wk-note", clean(text));
+}
+
+function longText(text) {
+  return h("div", "wk-long", clean(text));
 }
 
 function sectionHead(text, extra) {
@@ -110,22 +149,6 @@ function sectionHead(text, extra) {
   head.appendChild(h("span", "wk-sec-title", text));
   if (extra) head.appendChild(extra);
   return head;
-}
-
-/* A sub-list that sits folded as one row until opened. */
-function foldedSection(parent, title, countText, open) {
-  const det = document.createElement("details");
-  det.className = "wk-group wk-fold";
-  if (open) det.open = true;
-  const sum = h("summary", "wk-group-sum");
-  sum.appendChild(h("span", "wk-group-name", title));
-  const count = h("span", "wk-group-count", countText || "");
-  sum.appendChild(count);
-  det.appendChild(sum);
-  const inner = h("div", "wk-group-body");
-  det.appendChild(inner);
-  parent.appendChild(det);
-  return { det, body: inner, count };
 }
 
 function link(url, label) {
@@ -141,22 +164,23 @@ function copyButton(text, label) {
   b.type = "button";
   b.addEventListener("click", async () => {
     try {
-      await navigator.clipboard.writeText(text || "");
+      await navigator.clipboard.writeText(typeof text === "function" ? text() : (text || ""));
       b.textContent = "Copied";
-      setTimeout(() => { b.textContent = label || "Copy"; }, 1200);
     } catch (err) {
       b.textContent = "Copy failed";
-      setTimeout(() => { b.textContent = label || "Copy"; }, 1200);
     }
+    setTimeout(() => { b.textContent = label || "Copy"; }, 1200);
   });
   return b;
 }
 
+/* A folded long text, for the few places a second level is clearer than
+   one long body (pass logs, audit JSON, a guide's full text). */
 function textDetails(summary, text, mono) {
   const det = document.createElement("details");
   det.className = "wk-det";
   det.appendChild(h("summary", null, summary));
-  det.appendChild(h(mono ? "pre" : "div", mono ? "wk-pre" : "wk-long", text));
+  det.appendChild(h(mono ? "pre" : "div", mono ? "wk-pre" : "wk-long", mono ? str(text) : clean(text)));
   return det;
 }
 
@@ -171,38 +195,35 @@ function kvStrip(cells) {
   return kv;
 }
 
-const SKIP_DETAIL = new Set(["id", "t", "title", "name", "co", "role", "pay", "why", "url", "d", "g", "items", "moves"]);
+const SKIP_DETAIL = new Set(["id", "t", "title", "name", "co", "d", "g", "items", "moves", "url"]);
 
 function detailValue(parent, key, val) {
   if (val === null || val === undefined || val === "") return;
   const row = h("div", "wk-kvrow");
-  const label = key.startsWith("detail") ? key.slice(6).toLowerCase() : key;
+  const label = key.startsWith("detail") && key.length > 6 ? key.slice(6).toLowerCase() : key;
   row.appendChild(h("span", "wk-key", label));
   if (Array.isArray(val)) {
     const list = h("ul", "wk-ul");
-    for (const entry of val) {
-      list.appendChild(h("li", null, typeof entry === "object" ? JSON.stringify(entry) : String(entry)));
-    }
+    for (const entry of val) list.appendChild(h("li", null, typeof entry === "object" ? JSON.stringify(entry) : clean(entry)));
     row.appendChild(list);
   } else if (typeof val === "object") {
     row.appendChild(h("pre", "wk-pre", JSON.stringify(val, null, 1)));
   } else {
-    row.appendChild(h("span", "wk-val", String(val)));
+    row.appendChild(h("span", "wk-val", clean(val)));
   }
   parent.appendChild(row);
 }
 
-/* Expandable detail block. Detail fields (contact data and long text)
-   only ever render inside one of these, never in a header or summary. */
-function detailsFor(obj, skipExtra) {
-  const det = document.createElement("details");
-  det.className = "wk-det";
-  det.appendChild(h("summary", null, "Details"));
-  const body = h("div", "wk-det-body");
+/* Every field of a record as label and value, plus its link. Detail fields
+   (contact data, long notes) only ever render here, inside an opened row. */
+function fieldsFor(obj, skipExtra, first) {
+  const body = h("div", "wk-fields");
   const skip = new Set(SKIP_DETAIL);
   if (skipExtra) for (const k of skipExtra) skip.add(k);
+  const keys = Object.keys(obj || {});
+  const order = first ? [...first.filter((k) => keys.includes(k)), ...keys.filter((k) => !first.includes(k))] : keys;
   let any = false;
-  for (const key of Object.keys(obj || {})) {
+  for (const key of order) {
     if (skip.has(key)) continue;
     const val = obj[key];
     if (val === null || val === undefined || val === "") continue;
@@ -214,27 +235,116 @@ function detailsFor(obj, skipExtra) {
     body.appendChild(link(obj.url, "Open link"));
     any = true;
   }
-  if (!any) return null;
-  det.appendChild(body);
-  return det;
+  return any ? body : null;
 }
 
-/* A long card note keeps its first sentence as the sub line and folds the
-   rest into an expander, so a block opens on its content, not a paragraph. */
-function splitSub(sub) {
-  const text = String(sub || "").trim();
-  if (text.length <= 120) return [text, ""];
-  const cut = text.indexOf(". ");
-  if (cut < 0 || cut > 160) return [text, ""];
-  return [text.slice(0, cut + 1), text.slice(cut + 2)];
+/* ---------- the row: one line on the face, detail one click deeper ---------- */
+
+/* o: text (face, trimmed), full (detail text when longer than the face;
+   defaults to text), check (an item read and written through isDone and
+   setDone) or checked + onCheck (custom store), pill + pillKind, meta (short
+   mono text at the right), detail() (nodes built on first open), extra
+   (nodes appended to the line, e.g. a remove button), onToggle, strong. */
+function row(o) {
+  const li = h("li", "board-list-item wk-item");
+  const line = h("div", "board-row wk-line");
+  if (o.check || o.onCheck) {
+    const box = document.createElement("input");
+    box.type = "checkbox";
+    box.checked = o.check ? isDone(o.check) : !!o.checked;
+    if (o.checkTitle) box.title = o.checkTitle;
+    box.setAttribute("aria-label", "Done: " + shortText(o.text, 40));
+    li.classList.toggle("is-done", box.checked);
+    box.addEventListener("change", () => {
+      if (o.check) setDone(o.check, box.checked);
+      if (o.onCheck) o.onCheck(box.checked);
+      li.classList.toggle("is-done", box.checked);
+      if (typeof o.onToggle === "function") o.onToggle();
+    });
+    line.appendChild(box);
+  }
+  const full = clean(o.full !== undefined ? o.full : o.text);
+  const face = shortText(o.text);
+  const trimmed = face !== clean(o.text).replace(/\s+/g, " ").trim() || (o.full !== undefined && clean(o.full) !== clean(o.text));
+  const opens = !!o.detail || trimmed;
+  const btn = h(opens ? "button" : "div", "wk-rowbtn" + (opens ? "" : " is-static") + (o.strong ? " wk-strong" : ""));
+  if (opens) {
+    btn.type = "button";
+    btn.setAttribute("aria-expanded", "false");
+  }
+  btn.appendChild(h("span", "row-text", face));
+  line.appendChild(btn);
+  if (o.meta) line.appendChild(h("span", "row-meta", o.meta));
+  let tag = null;
+  if (o.pill) {
+    tag = pill(o.pill, o.pillKind);
+    line.appendChild(tag);
+  }
+  for (const node of o.extra || []) line.appendChild(node);
+  li.appendChild(line);
+  let more = null;
+  const setOpen = (open) => {
+    if (!opens) return;
+    if (open && !more) {
+      more = h("div", "wk-more");
+      more.hidden = true;
+      if (trimmed && full) more.appendChild(longText(full));
+      const built = o.detail ? o.detail(more) : null;
+      for (const n of [].concat(built || [])) if (n) more.appendChild(n);
+      li.appendChild(more);
+    }
+    if (!more) return;
+    more.hidden = !open;
+    li.classList.toggle("is-open", open);
+    btn.setAttribute("aria-expanded", open ? "true" : "false");
+  };
+  if (opens) btn.addEventListener("click", () => setOpen(!(more && !more.hidden)));
+  li.open = () => setOpen(true);
+  li.setPill = (text, kind) => {
+    if (!text) { if (tag) tag.hidden = true; return; }
+    if (!tag) {
+      tag = pill("", "");
+      line.insertBefore(tag, (o.extra && o.extra[0]) || null);
+    }
+    tag.hidden = false;
+    tag.textContent = text;
+    tag.className = "pill" + (kind ? " " + kind : "");
+  };
+  return li;
 }
 
-/* opts: span ("2"), pill (initial count text), flag + flagKind (a status
-   tag beside the count), collapsible, collapsed. */
-function cardShell(grid, id, title, sub, opts) {
+/* A lane row: a one line name with a count pill whose whole tool is built
+   behind the click. build(host, setPill) fills the opened area and may keep
+   the pill current. key registers it for the Bash lane index. */
+function laneRow(list, o) {
+  let li = null;
+  const setPill = (text, kind) => { if (li) li.setPill(text, kind || o.pillKind); };
+  li = row({
+    text: o.text,
+    pill: o.pill,
+    pillKind: o.pillKind,
+    meta: o.meta,
+    strong: true,
+    detail: (host) => {
+      host.classList.add("wk-lane");
+      o.build(host, setPill);
+      return null;
+    },
+  });
+  li.classList.add("wk-lane-row");
+  if (o.key) drawers.set(o.key, li);
+  list.appendChild(li);
+  return li;
+}
+
+/* ---------- blocks ---------- */
+
+/* prio 1 (act now) .. 4 (reference) colours the block's edge. */
+function block(grid, id, title, prio, opts) {
   const options = opts || {};
   const card = h("section", "board-card wk-card");
-  if (id) card.id = id;
+  card.id = id;
+  card.dataset.prio = String(prio || 3);
   if (options.span) card.dataset.span = options.span;
   const head = h("div", "board-card-head");
   head.appendChild(h("h3", "board-card-title", title));
@@ -243,37 +353,24 @@ function cardShell(grid, id, title, sub, opts) {
   const count = pill("", options.pillKind || "");
   count.hidden = true;
   right.appendChild(count);
-  let body = null;
-  if (options.collapsible) {
-    const toggle = h("button", "board-btn is-small", options.collapsed ? "Show" : "Hide");
-    toggle.type = "button";
-    toggle.setAttribute("aria-expanded", options.collapsed ? "false" : "true");
-    toggle.addEventListener("click", () => {
-      const hidden = card.classList.toggle("wk-collapsed");
-      toggle.textContent = hidden ? "Show" : "Hide";
-      toggle.setAttribute("aria-expanded", hidden ? "false" : "true");
-    });
-    right.appendChild(toggle);
-  }
   head.appendChild(right);
   card.appendChild(head);
-  const [first, rest] = splitSub(sub);
-  if (first) card.appendChild(h("p", "board-card-sub", first));
-  if (rest) {
-    const about = textDetails("More about this block", rest);
-    about.classList.add("wk-about");
-    card.appendChild(about);
-  }
-  body = h("div", "board-card-body");
-  if (options.collapsed) card.classList.add("wk-collapsed");
+  const body = h("div", "board-card-body");
   card.appendChild(body);
   grid.appendChild(card);
-  const setCount = (txt) => {
+  const setCount = (txt, kind) => {
     count.textContent = txt || "";
     count.hidden = !txt;
+    if (kind !== undefined) count.className = "pill" + (kind ? " " + kind : "");
   };
   if (options.pill) setCount(options.pill);
   return { card, body, setCount };
+}
+
+function plainList(parent) {
+  const ul = h("ul", "board-list");
+  parent.appendChild(ul);
+  return ul;
 }
 
 /* ---------- clamped lists ---------- */
@@ -324,7 +421,7 @@ function clampedList(parent, n, emptyText, tag) {
   };
 }
 
-/* Same clamp for children already built (groups, tag clouds). */
+/* Same clamp for children already built (tag clouds). */
 function clampChildren(container, n, label) {
   const kids = [...container.children];
   if (kids.length <= n) return null;
@@ -352,107 +449,128 @@ function tagCloud(parent, names, n) {
 
 /* ---------- checklist rendering ---------- */
 
+const ITEM_SKIP = ["body", "status", "owner", "priority", "checked", "leadId", "hot", "done"];
+
 function checklistItem(item, opts) {
   const options = opts || {};
-  const li = h("li", "board-list-item");
-  const row = h("div", "board-row wk-top");
-  const box = document.createElement("input");
-  box.type = "checkbox";
-  box.checked = isDone(item);
-  li.classList.toggle("is-done", box.checked);
-  box.addEventListener("change", () => {
-    setDone(item, box.checked);
-    li.classList.toggle("is-done", box.checked);
-    if (typeof options.onToggle === "function") options.onToggle();
+  const text = item.t || item.title || item.name || item.id || "";
+  const meta = [item.owner, item.status].filter(Boolean).join(", ");
+  return row({
+    text,
+    check: item,
+    pill: options.pill,
+    pillKind: options.pillKind,
+    extra: options.extra,
+    onToggle: options.onToggle,
+    detail: () => {
+      const out = [];
+      if (meta) out.push(h("span", "wk-meta", meta));
+      if (item.body) out.push(longText(item.body));
+      const f = fieldsFor(item, ITEM_SKIP);
+      if (f) out.push(f);
+      return out.length ? out : null;
+    },
   });
-  row.appendChild(box);
-  const textWrap = h("div", "wk-main");
-  textWrap.appendChild(h("span", "row-text", item.t || item.title || item.name || item.id || ""));
-  if (item.status || item.owner) {
-    textWrap.appendChild(h("span", "wk-meta", [item.owner, item.status].filter(Boolean).join(", ")));
-  }
-  if (item.body && !options.hideBody) {
-    textWrap.appendChild(textDetails("Notes", item.body));
-  } else {
-    const det = detailsFor(item, ["body", "status", "owner", "priority", "checked", "leadId"]);
-    if (det) textWrap.appendChild(det);
-    else if (item.url) textWrap.appendChild(link(item.url, "Open link"));
-  }
-  row.appendChild(textWrap);
-  li.appendChild(row);
-  return li;
 }
 
 function flatChecklist(parent, items, opts) {
   const options = opts || {};
   const cl = clampedList(parent, options.n || CLAMP);
   cl.set(items, (item) => checklistItem(item, { onToggle: options.onToggle }));
-  return items;
+  return cl;
 }
 
-/* Groups render as one folded row each (name, owner, done count); opening
-   one shows its items, clamped. More than eight groups clamp too. */
+function doneOf(items) {
+  return items.filter((it) => isDone(it)).length + "/" + items.length;
+}
+
+/* Groups render as one lane row each (name, owner, done count); opening one
+   shows its items, clamped. */
 function checklistGroups(parent, groups, opts) {
   const options = opts || {};
   const allItems = [];
-  const host = h("div", "wk-groups");
-  parent.appendChild(host);
+  const list = plainList(parent);
+  list.classList.add("wk-groups");
   for (const group of groups) {
     const items = group.items || [];
     for (const it of items) allItems.push(it);
-    if (!group.g) {
-      flatChecklist(host, items, { onToggle: options.onToggle });
-      continue;
-    }
-    const det = document.createElement("details");
-    det.className = "wk-group";
-    if (options.openAll) det.open = true;
-    const sum = h("summary", "wk-group-sum");
-    sum.appendChild(h("span", "wk-group-name", group.g));
-    if (group.ownerLabel) sum.appendChild(pill(group.ownerLabel));
-    const gc = h("span", "wk-group-count", "");
-    sum.appendChild(gc);
-    det.appendChild(sum);
-    const updateGroup = () => {
-      const done = items.filter((it) => isDone(it)).length;
-      gc.textContent = done + "/" + items.length;
-    };
-    const inner = h("div", "wk-group-body");
-    det.appendChild(inner);
-    const cl = clampedList(inner, CLAMP);
-    cl.set(items, (item) => checklistItem(item, { onToggle: () => { updateGroup(); if (options.onToggle) options.onToggle(); } }));
-    updateGroup();
-    host.appendChild(det);
+    const name = (group.ownerLabel ? group.ownerLabel + ": " : "") + (group.g || "Items");
+    laneRow(list, {
+      text: name,
+      pill: doneOf(items),
+      build: (host, setPill) => {
+        flatChecklist(host, items, { onToggle: () => { setPill(doneOf(items)); if (options.onToggle) options.onToggle(); } });
+      },
+    });
   }
-  clampChildren(host, 3, "groups");
+  if (list.children.length > 6) {
+    const kids = [...list.children];
+    const btn = h("button", "more-btn");
+    btn.type = "button";
+    let open = false;
+    const apply = () => {
+      kids.forEach((k, i) => k.classList.toggle("is-clamped-out", !open && i >= 6));
+      btn.textContent = open ? "Show fewer" : "Show all (" + kids.length + " groups)";
+    };
+    btn.addEventListener("click", () => { open = !open; apply(); });
+    apply();
+    list.after(btn);
+  }
   return allItems;
-}
-
-function doneCount(items) {
-  return items.filter((it) => isDone(it)).length + " of " + items.length + " done";
 }
 
 function searchInput(placeholder, onInput) {
   const input = h("input", "board-input");
   input.type = "search";
   input.placeholder = placeholder;
+  input.setAttribute("aria-label", placeholder);
   input.addEventListener("input", () => onInput(input.value.trim().toLowerCase()));
   return input;
 }
 
 function chipRow(labels, active, onPick) {
-  const row = h("div", "chip-row");
+  const r = h("div", "chip-row");
   for (const label of labels) {
     const b = h("button", "chip", label);
     b.type = "button";
     b.setAttribute("aria-pressed", label === active ? "true" : "false");
     b.addEventListener("click", () => onPick(label));
-    row.appendChild(b);
+    r.appendChild(b);
   }
-  return row;
+  return r;
 }
 
-/* ---------- top strip cards ---------- */
+function shortPay(pay) {
+  const p = clean(pay).trim();
+  return p && p.length <= 16 ? p : "";
+}
+
+/* A lead, company or channel: its name on the face, the reason first in the
+   detail and every other field under it. */
+function leadRow(lead) {
+  return row({
+    text: lead.co || lead.name || lead.id || "",
+    strong: true,
+    meta: shortPay(lead.pay),
+    detail: () => {
+      const out = [];
+      const meta = [lead.role, lead.pay, lead.status, lead.lane, lead.checked].filter(Boolean).map(clean).join(", ");
+      if (meta) out.push(h("span", "wk-meta", meta));
+      if (lead.why) out.push(longText(lead.why));
+      const f = fieldsFor(lead, ["role", "pay", "why", "status", "lane", "checked"]);
+      if (f) out.push(f);
+      return out;
+    },
+  });
+}
+
+function listOfStrings(parent, lines, n) {
+  const cl = clampedList(parent, n || CLAMP);
+  cl.set(lines, (line) => row({ text: typeof line === "string" ? line : JSON.stringify(line) }));
+  return cl;
+}
+
+/* ---------- 1. Dex Actions ---------- */
 
 function buildDexActions(grid) {
   const seen = new Set();
@@ -462,62 +580,88 @@ function buildDexActions(grid) {
     if (item.id) seen.add(item.id);
     items.push(item);
   }
-  const shell = cardShell(grid, "work-dex-actions", "Dex Actions",
-    "The only card that asks Dex to do anything. Bash lane and GPT lane moves, deduped by id.", { pillKind: "hot" });
+  /* Open first, done after; order is fixed at mount so a tick never jumps. */
+  const ordered = [...items.filter((it) => !isDone(it)), ...items.filter((it) => isDone(it))];
+  const shell = block(grid, "work-dex-actions", "Dex Actions", 1, { pillKind: "hot" });
   const formGroup = (GPT.focused || []).find((g) => String(g.g || "").startsWith("Form packets"));
   const subItems = formGroup ? formGroup.items || [] : [];
-  let update = () => shell.setCount(doneCount([...items, ...subItems]));
-  flatChecklist(shell.body, items, { onToggle: () => update() });
-  let fold = null;
-  if (formGroup) {
-    fold = foldedSection(shell.body, "Form packets, Bash fills and Dex clicks");
-    flatChecklist(fold.body, subItems, { onToggle: () => update() });
-  }
-  const baseUpdate = update;
-  update = () => {
-    baseUpdate();
-    if (fold) fold.count.textContent = subItems.filter((it) => isDone(it)).length + "/" + subItems.length;
+  const update = () => {
+    const open = [...items, ...subItems].filter((it) => !isDone(it)).length;
+    shell.setCount(open + " open", open ? "hot" : "good");
   };
+  const cl = clampedList(shell.body, FACE);
+  cl.set(ordered, (item) => checklistItem(item, { onToggle: update }));
+  if (formGroup) {
+    laneRow(plainList(shell.body), {
+      text: "Form packets: Bash fills, Dex clicks",
+      pill: doneOf(subItems),
+      build: (host, setPill) => {
+        flatChecklist(host, subItems, { onToggle: () => { setPill(doneOf(subItems)); update(); } });
+      },
+    });
+  }
   update();
 }
 
-function buildTodayWeek(grid) {
-  const shell = cardShell(grid, "work-today", "Today and This Week",
-    "Daily loop, this week, and the set up once list. Week items can be added and removed here.", {});
+/* ---------- 2. Today ---------- */
+
+function buildToday(grid) {
+  const shell = block(grid, "work-today", "Today", 1, {});
   const daily = FRONT.daily || [];
-  const dayCount = h("span", "wk-sec-count", "");
-  const updateDay = () => { dayCount.textContent = daily.filter((it) => isDone(it)).length + "/" + daily.length; };
-  shell.body.appendChild(sectionHead("Today", dayCount));
-  flatChecklist(shell.body, daily, { onToggle: updateDay });
-  updateDay();
-  shell.body.appendChild(sectionHead("This Week"));
-  const week = clampedList(shell.body, CLAMP, "No week items. Add one below.");
+  const start = FRONT.start || [];
+  const update = () => shell.setCount(doneOf(daily) + " done", daily.every((it) => isDone(it)) ? "good" : "");
+  const list = plainList(shell.body);
+  for (const item of daily) list.appendChild(checklistItem(item, { onToggle: update }));
+  update();
+  laneRow(plainList(shell.body), {
+    text: "Set up once",
+    pill: doneOf(start),
+    build: (host, setPill) => {
+      flatChecklist(host, start, { n: start.length, onToggle: () => setPill(doneOf(start)) });
+    },
+  });
+}
+
+/* ---------- 3. This Week ---------- */
+
+function buildWeek(grid) {
+  const shell = block(grid, "work-week", "This Week", 1, {});
+  const week = clampedList(shell.body, FACE, "No week items. Add one below.");
   const renderWeek = () => {
     const seed = (FRONT.week || []).filter((w) => !state.weekRemoved.includes(w.id));
     const all = [...seed, ...state.weekAdded];
-    week.set(all, (item) => {
-      const li = checklistItem(item, {});
-      const row = li.firstChild;
-      if (item.hot) row.querySelector(".wk-main").appendChild(pill("Time sensitive", "bad"));
+    const ordered = [...all.filter((it) => !isDone(it)), ...all.filter((it) => isDone(it))];
+    week.set(ordered, (item) => {
       const remove = h("button", "row-x", "×");
       remove.type = "button";
       remove.title = "Remove";
-      remove.setAttribute("aria-label", "Remove " + (item.t || "item"));
+      remove.setAttribute("aria-label", "Remove " + shortText(item.t || "item", 40));
       remove.addEventListener("click", () => {
-        if (String(item.id).startsWith("w")) state.weekRemoved.push(item.id);
+        if (String(item.id).startsWith("w") && !String(item.id).startsWith("wk")) state.weekRemoved.push(item.id);
         state.weekAdded = state.weekAdded.filter((x) => x.id !== item.id);
         saveState();
         renderWeek();
       });
-      row.appendChild(remove);
-      return li;
+      return checklistItem(item, {
+        pill: item.hot && !isDone(item) ? "Urgent" : "",
+        pillKind: "bad",
+        extra: [remove],
+        onToggle: () => countWeek(),
+      });
     });
-    shell.setCount(all.length + " this week");
+    countWeek();
+  };
+  const countWeek = () => {
+    const seed = (FRONT.week || []).filter((w) => !state.weekRemoved.includes(w.id));
+    const all = [...seed, ...state.weekAdded];
+    const open = all.filter((it) => !isDone(it)).length;
+    shell.setCount(open + " open", open ? "hot" : "good");
   };
   renderWeek();
   const addRow = h("div", "add-row");
   const addInput = h("input", "board-input");
   addInput.placeholder = "Add a week item";
+  addInput.setAttribute("aria-label", "Add a week item");
   const addBtn = h("button", "board-btn", "Add");
   addBtn.type = "button";
   const add = () => {
@@ -534,131 +678,89 @@ function buildTodayWeek(grid) {
   addRow.appendChild(addInput);
   addRow.appendChild(addBtn);
   shell.body.appendChild(addRow);
-  const start = FRONT.start || [];
-  const startFold = foldedSection(shell.body, "Set up once");
-  const updateStart = () => { startFold.count.textContent = start.filter((it) => isDone(it)).length + "/" + start.length; };
-  flatChecklist(startFold.body, start, { onToggle: updateStart });
-  updateStart();
 }
 
-function buildOneLiner(grid) {
-  const shell = cardShell(grid, "work-oneliner", "One Liner and Framing",
-    "Editable. Saved to the board work doc.", {});
-  const area = h("textarea", "board-textarea");
-  area.rows = 3;
-  area.value = state.oneLiner || FRONT.oneLiner || "";
-  area.addEventListener("input", () => {
-    state.oneLiner = area.value;
-    saveState();
-  });
-  shell.body.appendChild(area);
-  const row = h("div", "board-row board-row-wrap");
-  const copy = h("button", "board-btn is-small", "Copy one liner");
-  copy.type = "button";
-  copy.addEventListener("click", async () => {
-    try {
-      await navigator.clipboard.writeText(area.value || "");
-      copy.textContent = "Copied";
-    } catch (err) {
-      copy.textContent = "Copy failed";
-    }
-    setTimeout(() => { copy.textContent = "Copy one liner"; }, 1200);
-  });
-  row.appendChild(copy);
-  shell.body.appendChild(row);
-  shell.body.appendChild(textDetails("Creative native framing", FRONT.creativeNativeFraming || ""));
-}
+/* ---------- 4. Clients ---------- */
 
-function buildStateAndLanes(grid) {
-  const shell = cardShell(grid, "work-state", "State and Lanes",
-    "Ticks and edits on this tab save to the board work Firestore doc. The old app live Redis state record could not be read from the board, see the Lane 6 summary, so ticks made in the old app after October are not shown here.", {});
-  const lanes = FRONT.laneStatus || [];
-  const list = h("ul", "board-list");
-  for (const lane of lanes) {
-    const li = h("li", "board-list-item");
-    const row = h("div", "board-row board-row-wrap");
-    row.appendChild(h("span", "row-text", lane.name));
-    row.appendChild(pill(lane.cadence, lane.cadence === "paused" ? "bad" : "good"));
-    li.appendChild(row);
-    if (lane.note) li.appendChild(muted(lane.note));
+function buildClients(grid) {
+  const shell = block(grid, "work-clients", "Clients", 2, {});
+  const clients = CLIENTS.clients || [];
+  const statusKind = { "In Progress": "hot", Completed: "good", Cancelled: "bad" };
+  const updateCount = () => {
+    const live = clients.filter((c) => (state.clientStatus[c.id] || "In Progress") === "In Progress").length;
+    shell.setCount(live + " active", live ? "hot" : "");
+  };
+  const list = plainList(shell.body);
+  for (const client of clients) {
+    const status = state.clientStatus[client.id] || "In Progress";
+    let li = null;
+    li = row({
+      text: client.co || client.id || "Client",
+      strong: true,
+      pill: status,
+      pillKind: statusKind[status],
+      detail: () => {
+        const out = [];
+        const select = h("select", "board-select wk-select");
+        select.setAttribute("aria-label", "Client status");
+        for (const s of ["In Progress", "Completed", "Cancelled"]) {
+          const opt = h("option", null, s);
+          opt.value = s;
+          select.appendChild(opt);
+        }
+        select.value = state.clientStatus[client.id] || "In Progress";
+        select.addEventListener("change", () => {
+          state.clientStatus[client.id] = select.value;
+          li.setPill(select.value, statusKind[select.value]);
+          saveState();
+          updateCount();
+        });
+        out.push(select);
+        const notes = h("textarea", "board-textarea");
+        notes.rows = 2;
+        notes.placeholder = "Client notes";
+        notes.setAttribute("aria-label", "Client notes");
+        notes.value = state.clientNotes[client.id] || "";
+        notes.addEventListener("input", () => {
+          state.clientNotes[client.id] = notes.value;
+          saveState();
+        });
+        out.push(notes);
+        const f = fieldsFor(client, ["co"]);
+        if (f) out.push(textDetailsNode("Contact and history", f));
+        return out;
+      },
+    });
     list.appendChild(li);
   }
-  shell.body.appendChild(list);
-  shell.setCount(lanes.filter((l) => l.cadence !== "paused").length + " active");
+  if (!clients.length) list.appendChild(h("li", "board-empty", "No clients."));
+  updateCount();
 }
 
-/* ---------- money cards: counts and tables only, no amounts in headers ---------- */
+function textDetailsNode(summary, node) {
+  const det = document.createElement("details");
+  det.className = "wk-det";
+  det.appendChild(h("summary", null, summary));
+  det.appendChild(node);
+  return det;
+}
 
-function buildTotals(grid) {
-  const ob = GPT_AUDIT.outbound || {};
-  const g = ob.gpt || {};
-  const shell = cardShell(grid, "work-totals", "Totals and Send Audit",
-    "Counts only in the header. The register and the day by day log sit inside, collapsed. Totals log last row is 2026-11-06, so these counts are not a current ledger.", { collapsible: true });
-  shell.body.appendChild(kvStrip([
-    [(ob.emailRecords || []).length, "Email recs"],
-    [(ob.formRecords || []).length, "Form recs"],
-    [g.cold || 0, "Cold sends"],
-    [g.focused || 0, "Focused"],
-    [g.applicationEmails || 0, "Email apps"],
-    [g.bounced || 0, "Bounced"],
-  ]));
-  if (ob.notes) shell.body.appendChild(textDetails("Audit notes", ob.notes));
-  const logDet = document.createElement("details");
-  logDet.className = "wk-det";
-  logDet.appendChild(h("summary", null, "Day by day log, " + (FRONT.totalsLog || []).length + " days"));
-  const logList = clampedList(logDet, CLAMP);
-  logList.set(FRONT.totalsLog || [], (row) => {
-    const li = h("li", "board-list-item");
-    const line = h("div", "board-row");
-    line.appendChild(h("span", "row-text", row.d));
-    line.appendChild(h("span", "row-meta", "sent " + (row.sent || 0) + ", apps " + (row.apps || 0)));
-    li.appendChild(line);
-    const det = detailsFor(row, ["d", "sent", "apps"]);
-    if (det) li.appendChild(det);
-    return li;
-  });
-  shell.body.appendChild(logDet);
-  shell.body.appendChild(sectionHead("Send and submission register"));
-  const records = [...(ob.emailRecords || []), ...(ob.formRecords || [])];
-  let query = "";
-  shell.body.appendChild(searchInput("Search the register", (q) => { query = q; renderRegister(); }));
-  const reg = clampedList(shell.body, CLAMP, "No records match.");
-  function renderRegister() {
-    const filtered = records.filter((r) => !query || JSON.stringify(r).toLowerCase().includes(query));
-    reg.set(filtered, (r) => {
-      const li = h("li", "board-list-item");
-      const main = h("div", "wk-main");
-      main.appendChild(h("span", "row-text wk-strong", r.company || ""));
-      const meta = [r.status, r.date].filter(Boolean).join(", ");
-      if (meta) main.appendChild(h("span", "wk-meta", meta));
-      const det = detailsFor(r, ["company", "status", "date"]);
-      if (det) main.appendChild(det);
-      li.appendChild(main);
-      return li;
-    });
-    shell.setCount(filtered.length + " records");
-  }
-  renderRegister();
+/* ---------- 5. Cash Log ---------- */
 
-  const cash = cardShell(grid, "work-cash", "Cash Board and Log",
-    "The old app cash board lives only in its live Redis state record, which the board cannot read, so no figures were imported. This log is the board own, stored in the board work doc.", {});
-  const cashList = clampedList(cash.body, CLAMP, "No entries yet.");
+function buildCash(grid) {
+  const cash = block(grid, "work-cash", "Cash Log", 2, {});
+  const cashList = clampedList(cash.body, FACE, "No entries yet.");
   const renderCash = () => {
-    cashList.set(state.cashLog, (entry) => {
-      const li = h("li", "board-list-item");
-      const line = h("div", "board-row");
-      line.appendChild(h("span", "row-text", entry.text || ""));
-      line.appendChild(h("span", "row-meta", entry.date || ""));
-      li.appendChild(line);
-      return li;
-    });
+    const newest = [...state.cashLog].reverse();
+    cashList.set(newest, (entry) => row({ text: entry.text || "", meta: entry.date || "" }));
     cash.setCount(state.cashLog.length + " entries");
   };
   renderCash();
   const cashRow = h("div", "add-row");
   const cashInput = h("input", "board-input");
   cashInput.placeholder = "Log entry text";
-  const cashBtn = h("button", "board-btn", "Add entry");
+  cashInput.setAttribute("aria-label", "Log entry text");
+  const cashBtn = h("button", "board-btn", "Add");
   cashBtn.type = "button";
   const addCash = () => {
     const text = cashInput.value.trim();
@@ -667,62 +769,140 @@ function buildTotals(grid) {
     cashInput.value = "";
     saveState();
     renderCash();
-    cashList.expand();
   };
   cashBtn.addEventListener("click", addCash);
   cashInput.addEventListener("keydown", (e) => { if (e.key === "Enter") addCash(); });
   cashRow.appendChild(cashInput);
   cashRow.appendChild(cashBtn);
   cash.body.appendChild(cashRow);
-}
-
-function buildLadder(grid) {
-  const shell = cardShell(grid, "work-ladder", "Quick Cash Ladder",
-    "Moves grouped by level. Pay, speed and where sit on each row, the how sits in the details.", { collapsible: true });
-  const levels = QUICKCASH.ladder || [];
-  let total = 0;
-  const host = h("div", "wk-groups");
-  shell.body.appendChild(host);
-  levels.forEach((level, idx) => {
-    const moves = level.moves || [];
-    total += moves.length;
-    const det = document.createElement("details");
-    det.className = "wk-group";
-    if (idx === 0) det.open = true;
-    const sum = h("summary", "wk-group-sum");
-    sum.appendChild(h("span", "wk-group-name", level.title || ""));
-    if (level.aim) sum.appendChild(pill("aim " + level.aim));
-    det.appendChild(sum);
-    const inner = h("div", "wk-group-body");
-    det.appendChild(inner);
-    const cl = clampedList(inner, CLAMP);
-    cl.set(moves, (m) => {
-      const item = { id: m.id, t: [m.t, m.pay, m.speed].filter(Boolean).join(", "), how: m.how, where: m.where };
-      const li = checklistItem({ id: item.id, t: item.t }, {});
-      const det2 = detailsFor(item, ["t"]);
-      if (det2) li.querySelector(".wk-main").appendChild(det2);
-      return li;
-    });
-    host.appendChild(det);
+  laneRow(plainList(cash.body), {
+    text: "About the old figures",
+    build: (host) => {
+      host.appendChild(note("The old app cash board lives only in its live Redis state record, which the board cannot read, so no figures were imported. This log is the board's own, stored in the board work doc."));
+    },
   });
-  shell.setCount(total + " moves");
 }
 
-/* ---------- pipeline ---------- */
+/* ---------- 6. Quick Cash ---------- */
+
+function buildQuickCash(grid) {
+  const levels = QUICKCASH.ladder || [];
+  const allMoves = levels.flatMap((l) => l.moves || []);
+  const shell = block(grid, "work-quickcash", "Quick Cash", 2, {});
+  const update = () => shell.setCount(allMoves.filter((m) => isDone(m)).length + "/" + allMoves.length + " moves");
+  const list = plainList(shell.body);
+  for (const level of levels) {
+    const moves = level.moves || [];
+    laneRow(list, {
+      text: level.title || "Level",
+      pill: doneOf(moves),
+      build: (host, setPill) => {
+        if (level.aim) host.appendChild(note("Aim: " + level.aim));
+        const cl = clampedList(host, CLAMP);
+        cl.set(moves, (m) => row({
+          text: m.t || "",
+          check: m,
+          meta: shortPay(m.pay),
+          onToggle: () => { setPill(doneOf(moves)); update(); },
+          detail: () => {
+            const out = [];
+            const meta = [m.pay, m.speed].filter(Boolean).map(clean).join(", ");
+            if (meta) out.push(h("span", "wk-meta", meta));
+            const f = fieldsFor(m, ["pay", "speed"], ["how", "where"]);
+            if (f) out.push(f);
+            return out;
+          },
+        }));
+      },
+    });
+  }
+  const channels = QUICKCASH.quick || [];
+  laneRow(list, {
+    text: "Quick cash channels",
+    pill: String(channels.length),
+    build: (host) => {
+      clampedList(host, CLAMP).set(channels, leadRow);
+    },
+  });
+  const asap = INCOME.asap || {};
+  laneRow(list, {
+    text: "Income ASAP plan",
+    pill: (asap.leads || []).length + " leads",
+    key: "income",
+    build: (host) => fillIncome(host),
+  });
+  update();
+}
+
+function fillIncome(host) {
+  const asap = INCOME.asap || {};
+  host.appendChild(note("Checked " + (asap.checked || "2026-10-10") + ", the oldest dated research in the app. Urgent small money plan, remote first."));
+  if (asap.summary) host.appendChild(textDetails("Summary", asap.summary));
+  host.appendChild(sectionHead("Account set up, in sequence"));
+  const setup = (asap.accountSetup || []).map((s) => ({ id: s.id, t: s.title, body: s.body || "" }));
+  flatChecklist(host, setup, {});
+  host.appendChild(sectionHead("Profile copy"));
+  const profileText = typeof asap.profileCopy === "string" ? asap.profileCopy : JSON.stringify(asap.profileCopy || "");
+  const profileRow = h("div", "board-row board-row-wrap");
+  if (asap.profileTitle) profileRow.appendChild(h("span", "row-text", clean(asap.profileTitle)));
+  profileRow.appendChild(copyButton(profileText, "Copy profile copy"));
+  host.appendChild(profileRow);
+  host.appendChild(textDetails("Read the profile copy", profileText));
+  host.appendChild(sectionHead("Leads"));
+  clampedList(host, CLAMP).set(asap.leads || [], leadRow);
+  for (const section of ["review", "sprint"]) {
+    if (asap[section]) {
+      host.appendChild(textDetails(section === "review" ? "Portfolio review" : "Sprint",
+        typeof asap[section] === "string" ? asap[section] : JSON.stringify(asap[section], null, 1), true));
+    }
+  }
+  host.appendChild(note("Exclusion note from the app README: old contests, funding, loans and known stale marketplace examples stay on the original board and are excluded from this urgent list."));
+}
+
+/* ---------- 7. Pipeline ---------- */
 
 function buildPipeline(grid) {
   const companies = PIPELINE.companies || [];
-  const shell = cardShell(grid, "work-pipeline", "Applications Pipeline",
-    "Public and private pipeline merged and deduped by id. One searchable table card, not one card per company. Checked dates are October snapshots.",
-    {});
-  shell.body.appendChild(kvStrip([
+  const shell = block(grid, "work-pipeline", "Pipeline", 2, {});
+  const openCount = () => companies.filter((c) => !isDone(c)).length;
+  const update = () => shell.setCount(openCount() + " open");
+  const list = plainList(shell.body);
+  laneRow(list, {
+    text: "Applications",
+    pill: openCount() + " open",
+    build: (host, setPill) => fillApplications(host, setPill, update),
+  });
+  const names = PIPELINE.watchlist || [];
+  laneRow(list, {
+    text: "Watchlist",
+    pill: names.length + " names",
+    build: (host) => {
+      host.appendChild(note("Company names only. No per company detail exists in the source."));
+      tagCloud(host, names, 18);
+    },
+  });
+  const ob = GPT_AUDIT.outbound || {};
+  const records = (ob.emailRecords || []).length + (ob.formRecords || []).length;
+  laneRow(list, {
+    text: "Send totals and register",
+    pill: records + " sent",
+    build: (host, setPill) => fillTotals(host, setPill),
+  });
+  update();
+}
+
+function fillApplications(host, setPill, onTick) {
+  const companies = PIPELINE.companies || [];
+  host.appendChild(note("Public and private pipeline merged and deduped by id. Checked dates are October snapshots."));
+  host.appendChild(kvStrip([
     [companies.length, "Records"],
     [PIPELINE.publicCount, "Public"],
     [PIPELINE.privateCount, "Private"],
   ]));
   let query = "";
   let pillar = "All";
-  let view = "All";
+  /* Open applications first; All and Done are one chip away. */
+  let view = "Active";
   const pillars = ["All", ...new Set(companies.map((c) => c.pillar).filter(Boolean))];
   const filterRow = h("div", "wk-filters");
   filterRow.appendChild(searchInput("Search company, role or reason", (q) => { query = q; render(); }));
@@ -735,7 +915,7 @@ function buildPipeline(grid) {
   }
   pillarSelect.addEventListener("change", () => { pillar = pillarSelect.value; render(); });
   filterRow.appendChild(pillarSelect);
-  shell.body.appendChild(filterRow);
+  host.appendChild(filterRow);
   const chipHost = h("div");
   const renderChips = () => {
     chipHost.replaceChildren(chipRow(["All", "Active", "Done"], view, (picked) => {
@@ -745,8 +925,9 @@ function buildPipeline(grid) {
     }));
   };
   renderChips();
-  shell.body.appendChild(chipHost);
-  const list = clampedList(shell.body, CLAMP, "No records match.");
+  host.appendChild(chipHost);
+  const list = clampedList(host, CLAMP, "No records match.");
+  const countPill = () => setPill(companies.filter((c) => !isDone(c)).length + " open");
   function render() {
     const filtered = companies.filter((c) => {
       if (pillar !== "All" && c.pillar !== pillar) return false;
@@ -755,320 +936,71 @@ function buildPipeline(grid) {
       if (query && !(String(c.co || "") + " " + String(c.role || "") + " " + String(c.why || "")).toLowerCase().includes(query)) return false;
       return true;
     });
-    list.set(filtered, (c) => {
-      const li = h("li", "board-list-item");
-      const row = h("div", "board-row wk-top");
-      const box = document.createElement("input");
-      box.type = "checkbox";
-      box.checked = isDone(c);
-      li.classList.toggle("is-done", box.checked);
-      box.addEventListener("change", () => {
-        setDone(c, box.checked);
-        li.classList.toggle("is-done", box.checked);
-      });
-      row.appendChild(box);
-      const wrap = h("div", "wk-main");
-      wrap.appendChild(h("span", "row-text wk-strong", c.co || ""));
-      const meta = [c.role, c.pay, c.pillar, c.kind, c.listing].filter(Boolean).join(", ");
-      if (meta) wrap.appendChild(h("span", "wk-meta", meta));
-      if (c.why) wrap.appendChild(textDetails("Why", c.why));
-      if (c.url) wrap.appendChild(link(c.url, "Listing"));
-      row.appendChild(wrap);
-      li.appendChild(row);
-      return li;
-    });
-    shell.setCount(filtered.length + " of " + companies.length);
+    list.set(filtered, (c) => row({
+      text: c.co || "",
+      strong: true,
+      check: c,
+      meta: shortPay(c.pay),
+      onToggle: () => { countPill(); if (onTick) onTick(); },
+      detail: () => {
+        const out = [];
+        const meta = [c.role, c.pay, c.pillar, c.kind, c.listing].filter(Boolean).map(clean).join(", ");
+        if (meta) out.push(h("span", "wk-meta", meta));
+        if (c.why) out.push(longText(c.why));
+        const f = fieldsFor(c, ["role", "pay", "pillar", "kind", "listing", "why"]);
+        if (f) out.push(f);
+        else if (c.url) out.push(link(c.url, "Listing"));
+        return out;
+      },
+    }));
   }
   render();
 }
 
-function buildWatchlist(grid) {
-  const names = PIPELINE.watchlist || [];
-  const shell = cardShell(grid, "work-watchlist", "Watchlist",
-    "Company names only. No per company detail exists in the source.", { collapsible: true, pill: names.length + " names" });
-  tagCloud(shell.body, names, 18);
-}
-
-function leadRow(lead) {
-  const li = h("li", "board-list-item");
-  const main = h("div", "wk-main");
-  main.appendChild(h("span", "row-text wk-strong", lead.co || lead.name || ""));
-  const meta = [lead.role, lead.pay, lead.status, lead.lane, lead.checked].filter(Boolean).join(", ");
-  if (meta) main.appendChild(h("span", "wk-meta", meta));
-  const det = detailsFor(lead, []);
-  if (det) {
-    /* The reason leads the detail block, so a row stays one line tall. */
-    if (lead.why) {
-      det.querySelector("summary").textContent = "Why and details";
-      det.querySelector(".wk-det-body").prepend(h("div", "wk-long", lead.why));
-    }
-    main.appendChild(det);
-  } else if (lead.why) {
-    main.appendChild(textDetails("Why", lead.why));
-  }
-  li.appendChild(main);
-  return li;
-}
-
-function buildQuickChannels(grid) {
-  const channels = QUICKCASH.quick || [];
-  const shell = cardShell(grid, "work-quick-channels", "Quick Cash Channels",
-    "Channels with timing, reason and link.", { collapsible: true, pill: channels.length + " channels" });
-  const list = clampedList(shell.body, CLAMP);
-  list.set(channels, (c) => {
-    const li = h("li", "board-list-item");
-    const main = h("div", "wk-main");
-    main.appendChild(h("span", "row-text wk-strong", c.co || ""));
-    const meta = [c.role, c.pay].filter(Boolean).join(", ");
-    if (meta) main.appendChild(h("span", "wk-meta", meta));
-    if (c.why) main.appendChild(textDetails("Why", c.why));
-    if (c.url) main.appendChild(link(c.url, "Channel"));
-    li.appendChild(main);
-    return li;
-  });
-}
-
-/* ---------- board lane cards ---------- */
-
-function isBuildGroup(group) {
-  return String(group.g || "").startsWith("BUILD");
-}
-
-function buildFocused(grid) {
-  const shell = cardShell(grid, "work-focused", "Focused Outreach",
-    "GPT focused groups and Bash focused groups in one checklist, owner labelled. The form packets group lives in Dex Actions, and the BUILD group has its own card, so no group is editable in two places.", { collapsible: true });
-  const groups = [];
-  for (const g of GPT.focused || []) {
-    if (String(g.g || "").startsWith("Form packets")) continue;
-    groups.push({ g: g.g, items: g.items || [], ownerLabel: "GPT" });
-  }
-  for (const g of BASH.focused || []) {
-    if (isBuildGroup(g)) continue;
-    groups.push({ g: g.g, items: g.items || [], ownerLabel: "Bash" });
-  }
-  let all = [];
-  const update = () => shell.setCount(doneCount(all));
-  all = checklistGroups(shell.body, groups, { onToggle: update });
-  update();
-}
-
-function buildCold(grid) {
-  const pause = GPT.executionPause || {};
-  const shell = cardShell(grid, "work-cold", "Cold Outreach",
-    "Bash cold groups. Cold outreach is paused: " + (pause.scope || "recorded as paused in the source data."),
-    { collapsible: true, flag: "Paused", flagKind: "bad" });
-  let all = [];
-  const update = () => shell.setCount(doneCount(all));
-  all = checklistGroups(shell.body, (BASH.cold || []).map((g) => ({ g: g.g, items: g.items || [], ownerLabel: "Bash" })), { onToggle: update });
-  update();
-}
-
-function buildBashCard(grid) {
-  const shell = cardShell(grid, "work-bash", "Bash Lane",
-    "Email outreach, marketplaces, agencies, inventory and recruiting. The Bash groups render once, in the Focused, Cold and BUILD cards, so ticks never fork. This card is the lane index.", {});
-  const totals = BASH.totals || {};
-  const rows = [
-    ["Dex moves", (BASH.dex || []).length, "work-dex-actions"],
-    ["Cold groups", (BASH.cold || []).reduce((n, g) => n + (g.items || []).length, 0), "work-cold"],
-    ["Focused groups", (BASH.focused || []).filter((g) => !isBuildGroup(g)).reduce((n, g) => n + (g.items || []).length, 0), "work-focused"],
-    ["BUILD group", (BASH.focused || []).filter(isBuildGroup).reduce((n, g) => n + (g.items || []).length, 0), "work-build"],
-  ];
-  if (totals.coldSent !== undefined) {
-    shell.body.appendChild(kvStrip([[totals.coldSent, "Cold sent"], [rows.reduce((n, r) => n + r[1], 0), "Items"]]));
-    shell.body.appendChild(muted("Cold sent, per the source file defaults."));
-  }
-  for (const [label, count, target] of rows) {
-    const row = h("div", "stat-row");
-    row.appendChild(h("span", "stat-label", label));
-    const right = h("span", "wk-stat-right");
-    right.appendChild(h("span", "stat-value", count + " items"));
-    const jump = h("button", "board-btn is-small", "Open");
-    jump.type = "button";
-    jump.title = "Open card";
-    jump.addEventListener("click", () => {
-      const targetEl = document.getElementById(target);
-      if (!targetEl) return;
-      targetEl.classList.remove("wk-collapsed");
-      targetEl.scrollIntoView({ behavior: "smooth", block: "start" });
-      targetEl.classList.add("is-flash");
-      setTimeout(() => targetEl.classList.remove("is-flash"), 1200);
-    });
-    right.appendChild(jump);
-    row.appendChild(right);
-    shell.body.appendChild(row);
-  }
-}
-
-function listOfStrings(parent, lines, n) {
-  const cl = clampedList(parent, n || CLAMP);
-  cl.set(lines, (line) => {
-    const li = h("li", "board-list-item");
-    li.appendChild(h("span", "row-text", typeof line === "string" ? line : JSON.stringify(line)));
-    return li;
-  });
-  return cl;
-}
-
-function buildGptCard(grid) {
-  const shell = cardShell(grid, "work-gpt", "GPT Lane",
-    "Checked " + (GPT.checked || "2026-10-12") + ". Nothing in this lane postdates October 23, 2026. Dex moves live in Dex Actions and focused groups live in Focused Outreach, so this card carries the leads, the gate and rules, the history and the audits.",
-    { collapsible: true });
-  shell.body.appendChild(kvStrip([
-    [(GPT_LEADS.migrated || []).length, "Leads"],
-    [Object.keys(GPT.history || {}).length, "History"],
-    [Object.keys(GPT.review || {}).length, "Reviews"],
-    [(GPT.blocked || []).length, "Blocked"],
+function fillTotals(host, setPill) {
+  const ob = GPT_AUDIT.outbound || {};
+  const g = ob.gpt || {};
+  host.appendChild(note("Totals log last row is 2026-11-06, so these counts are not a current ledger."));
+  host.appendChild(kvStrip([
+    [(ob.emailRecords || []).length, "Email recs"],
+    [(ob.formRecords || []).length, "Form recs"],
+    [g.cold || 0, "Cold sends"],
+    [g.focused || 0, "Focused"],
+    [g.applicationEmails || 0, "Email apps"],
+    [g.bounced || 0, "Bounced"],
   ]));
-  const tabs = ["Migrated leads", "Gate and rules", "History and review", "Audits", "Blocked and owned"];
-  const pane = h("div", "wk-pane");
-  let active = tabs[0];
-  const renderPane = () => {
-    pane.replaceChildren();
-    if (active === "Migrated leads") {
-      const leads = GPT_LEADS.migrated || [];
-      let query = "";
-      pane.appendChild(searchInput("Search migrated leads", (q) => { query = q; renderLeads(); }));
-      const list = clampedList(pane, CLAMP, "No leads match.");
-      function renderLeads() {
-        const filtered = leads.filter((l) => !query || JSON.stringify(l).toLowerCase().includes(query));
-        list.set(filtered, leadRow);
-        shell.setCount(filtered.length + " of " + leads.length + " leads");
-      }
-      renderLeads();
-    } else if (active === "Gate and rules") {
-      pane.appendChild(sectionHead("Pay and quality gate"));
-      listOfStrings(pane, GPT.gate || []);
-      pane.appendChild(sectionHead("Drafting rules"));
-      listOfStrings(pane, GPT.rules || []);
-      shell.setCount("");
-    } else if (active === "History and review") {
-      const hist = GPT.history || {};
-      const rev = GPT.review || {};
-      pane.appendChild(muted("History is the per lead default state store, " + Object.keys(hist).length + " records. Review overrides, " + Object.keys(rev).length + " records. Search by lead id."));
-      let query = "";
-      pane.appendChild(searchInput("Search history by lead id", (q) => { query = q; renderHist(); }));
-      const list = clampedList(pane, CLAMP, "No records match.");
-      function renderHist() {
-        const entries = Object.entries(hist).filter(([id]) => !query || id.includes(query));
-        list.set(entries, ([id, val]) => {
-          const li = h("li", "board-list-item");
-          const main = h("div", "wk-main");
-          main.appendChild(h("span", "row-text", id));
-          const meta = (val.status || "") + (val.d ? ", done" : "");
-          if (meta) main.appendChild(h("span", "wk-meta", meta));
-          if (rev[id]) {
-            const det = detailsFor(rev[id], []);
-            if (det) main.appendChild(det);
-          }
-          li.appendChild(main);
-          return li;
-        });
-        shell.setCount(entries.length + " history records");
-      }
-      renderHist();
-    } else if (active === "Audits") {
-      pane.appendChild(muted("Dated reconciliation audits, carried as summaries. The long disposition lists stay in the source repo. The full send register sits in the Totals and Send Audit card."));
-      const audits = Object.entries(GPT_AUDIT.audits || {});
-      const host = h("div", "wk-groups");
-      for (const [key, val] of audits) host.appendChild(textDetails(key, JSON.stringify(val, null, 1), true));
-      pane.appendChild(host);
-      clampChildren(host, CLAMP);
-      shell.setCount(audits.length + " audit summaries");
-    } else {
-      pane.appendChild(sectionHead("Blocked leads"));
-      clampedList(pane, CLAMP).set(GPT.blocked || [], leadRow);
-      pane.appendChild(sectionHead("Archives"));
-      clampedList(pane, CLAMP).set(GPT.archives || [], leadRow);
-      pane.appendChild(sectionHead("Owned by Bash, GPT must not touch", h("span", "wk-sec-count", (GPT.ownedByBash || []).length + " companies")));
-      tagCloud(pane, GPT.ownedByBash || [], 14);
-      shell.setCount("");
-    }
-  };
-  const tabHost = h("div");
-  const renderTabs = () => {
-    tabHost.replaceChildren(chipRow(tabs, active, (picked) => { active = picked; renderTabs(); renderPane(); }));
-  };
-  renderTabs();
-  shell.body.appendChild(tabHost);
-  shell.body.appendChild(pane);
-  renderPane();
-}
-
-function buildBuildCard(grid) {
-  const group = (BASH.focused || []).find(isBuildGroup);
-  const shell = cardShell(grid, "work-build", "BUILD, Fast Cash Build Stack",
-    group ? group.g : "The BUILD group inside Bash focused.", {});
-  if (group) {
-    const items = group.items || [];
-    const update = () => shell.setCount(items.filter((it) => isDone(it)).length + " of " + items.length + " offers");
-    flatChecklist(shell.body, items, { onToggle: update });
-    update();
+  if (ob.notes) host.appendChild(textDetails("Audit notes", ob.notes));
+  host.appendChild(sectionHead("Day by day log", h("span", "wk-sec-count", (FRONT.totalsLog || []).length + " days")));
+  clampedList(host, 3).set(FRONT.totalsLog || [], (r) => row({
+    text: r.d,
+    meta: "sent " + (r.sent || 0) + ", apps " + (r.apps || 0),
+    detail: () => fieldsFor(r, ["d", "sent", "apps"]),
+  }));
+  host.appendChild(sectionHead("Send and submission register"));
+  const records = [...(ob.emailRecords || []), ...(ob.formRecords || [])];
+  let query = "";
+  host.appendChild(searchInput("Search the register", (q) => { query = q; renderRegister(); }));
+  const reg = clampedList(host, CLAMP, "No records match.");
+  function renderRegister() {
+    const filtered = records.filter((r) => !query || JSON.stringify(r).toLowerCase().includes(query));
+    reg.set(filtered, (r) => row({
+      text: r.company || "",
+      strong: true,
+      meta: r.date || "",
+      detail: () => {
+        const out = [];
+        if (r.status) out.push(h("span", "wk-meta", clean(r.status)));
+        const f = fieldsFor(r, ["company", "status", "date"]);
+        if (f) out.push(f);
+        return out;
+      },
+    }));
+    setPill(filtered.length + (query ? " match" : " sent"));
   }
+  renderRegister();
 }
 
-function buildMoonCheats(grid) {
-  const moon = cardShell(grid, "work-moon", "Moonshots",
-    "Deliberately large asks and giant listings.", { collapsible: true });
-  const moonItems = checklistGroups(moon.body, MOON.moon || [], {});
-  moon.setCount(moonItems.length + " items");
-  const cheats = cardShell(grid, "work-cheats", "Cheat Codes",
-    "Systems, not jobs, grouped by tier.", { collapsible: true });
-  const cheatItems = checklistGroups(cheats.body, MOON.cheats || [], {});
-  cheats.setCount(cheatItems.length + " items");
-}
-
-/* ---------- opportunity, funding and client cards ---------- */
-
-function buildClients(grid) {
-  const shell = cardShell(grid, "work-clients", "Clients in Progress",
-    "Contact data and the negotiation history render only inside the detail block. Status and notes save to the board work doc.", {});
-  const clients = CLIENTS.clients || [];
-  const statusKind = { "In Progress": "hot", Completed: "good", Cancelled: "bad" };
-  const updateCount = () => {
-    const live = clients.filter((c) => (state.clientStatus[c.id] || "In Progress") === "In Progress").length;
-    shell.setCount(live + " in progress");
-  };
-  for (const client of clients) {
-    const item = h("div", "wk-client");
-    const row = h("div", "board-row board-row-wrap");
-    row.appendChild(h("span", "row-text wk-strong", client.co || client.id || "Client"));
-    const select = h("select", "board-select wk-select");
-    select.setAttribute("aria-label", "Client status");
-    for (const status of ["In Progress", "Completed", "Cancelled"]) {
-      const opt = h("option", null, status);
-      opt.value = status;
-      select.appendChild(opt);
-    }
-    select.value = state.clientStatus[client.id] || "In Progress";
-    const tag = pill(select.value, statusKind[select.value]);
-    select.addEventListener("change", () => {
-      state.clientStatus[client.id] = select.value;
-      tag.className = "pill " + (statusKind[select.value] || "");
-      tag.textContent = select.value;
-      saveState();
-      updateCount();
-    });
-    row.appendChild(tag);
-    item.appendChild(row);
-    item.appendChild(select);
-    const det = detailsFor(client, ["co"]);
-    if (det) {
-      det.open = false;
-      item.appendChild(det);
-    }
-    const notes = h("textarea", "board-textarea");
-    notes.rows = 2;
-    notes.placeholder = "Client notes";
-    notes.value = state.clientNotes[client.id] || "";
-    notes.addEventListener("input", () => {
-      state.clientNotes[client.id] = notes.value;
-      saveState();
-    });
-    item.appendChild(notes);
-    shell.body.appendChild(item);
-  }
-  updateCount();
-}
+/* ---------- 8. Funding ---------- */
 
 function backerCategory(b) {
   const type = String(b.type || "").toLowerCase();
@@ -1094,37 +1026,74 @@ function rulingKind(text) {
   return "hot";
 }
 
-function buildBackers(grid) {
+/* "Submitted Nov 16, 2026" -> "Submitted"; the date is in the detail. */
+function rulingWord(text) {
+  const t = clean(text).trim();
+  const m = t.match(/^(Submitted|Closed|Dropped|Pending|Applied|Open|Watch\w*)/i);
+  return m ? m[1] : shortText(t, 16);
+}
+
+function buildFunding(grid) {
   const backers = BACKERS.backers || [];
-  const shell = cardShell(grid, "work-backers", "Backers and Funding",
-    BACKERS.stalenessNote || "", { collapsible: true });
   const rulings = BACKERS.rulings || [];
-  if (rulings.length) {
-    shell.body.appendChild(sectionHead("Rulings"));
-    const rl = h("ul", "board-list");
-    for (const ruling of rulings) {
-      const li = h("li", "board-list-item");
-      const row = h("div", "board-row board-row-wrap");
-      row.appendChild(h("span", "row-text wk-strong", ruling.name));
-      row.appendChild(pill(ruling.status, rulingKind(ruling.status)));
-      li.appendChild(row);
-      if (ruling.note) li.appendChild(muted(ruling.note));
-      rl.appendChild(li);
-    }
-    shell.body.appendChild(rl);
+  const shell = block(grid, "work-funding", "Funding", 2, {});
+  const submitted = backers.filter((b) => backerCategory(b) === "Submitted").length;
+  shell.setCount(submitted + " submitted", submitted ? "good" : "");
+  const list = plainList(shell.body);
+  for (const ruling of rulings) {
+    list.appendChild(row({
+      text: ruling.name,
+      strong: true,
+      pill: rulingWord(ruling.status),
+      pillKind: rulingKind(ruling.status),
+      detail: () => {
+        const out = [h("span", "wk-meta", clean(ruling.status))];
+        if (ruling.note) out.push(longText(ruling.note));
+        return out;
+      },
+    }));
   }
+  const lanes = plainList(shell.body);
+  laneRow(lanes, {
+    text: "All backers",
+    pill: String(backers.length),
+    build: (host, setPill) => fillBackers(host, setPill),
+  });
+  const fw = GPT_OPPS.fundedWaveOct23 || {};
+  laneRow(lanes, {
+    text: "Funded wave Oct 23",
+    pill: "Unverified",
+    pillKind: "warn",
+    build: (host) => {
+      host.appendChild(note("Recorded " + (fw.recordedAt || "") + " by " + (fw.recordedBy || "") + ". " + (fw.companies || []).length + " companies."));
+      if (fw.summary) host.appendChild(textDetails("Summary", fw.summary));
+      if (fw.sendRule) host.appendChild(note("Send rule: " + fw.sendRule));
+      clampedList(host, CLAMP).set(fw.companies || [], leadRow);
+      const rest = fieldsFor(fw, ["recordedAt", "recordedBy", "summary", "sendRule", "companies"]);
+      if (rest) host.appendChild(textDetailsNode("Claims, new targets and standing search", rest));
+    },
+  });
+  if (BACKERS.stalenessNote) {
+    laneRow(lanes, {
+      text: "Where the rulings stand",
+      build: (host) => { host.appendChild(longText(BACKERS.stalenessNote)); },
+    });
+  }
+}
+
+function fillBackers(host, setPill) {
+  const backers = BACKERS.backers || [];
   const filters = ["All", "Grants", "Funds", "Accelerators", "Publishers", "Loans and debt", "Credits not cash", "Angels", "Submitted", "Closed", "Do not pay", "Contested"];
   let active = "All";
   let query = "";
-  shell.body.appendChild(sectionHead("All backers"));
-  shell.body.appendChild(searchInput("Search backers", (q) => { query = q; render(); }));
+  host.appendChild(searchInput("Search backers", (q) => { query = q; render(); }));
   const chipHost = h("div");
   const renderChips = () => {
     chipHost.replaceChildren(chipRow(filters, active, (picked) => { active = picked; renderChips(); render(); }));
   };
   renderChips();
-  shell.body.appendChild(chipHost);
-  const list = clampedList(shell.body, CLAMP, "No backers match this filter.");
+  host.appendChild(chipHost);
+  const list = clampedList(host, CLAMP, "No backers match this filter.");
   function render() {
     const filtered = backers.filter((b) => {
       if (active !== "All" && backerCategory(b) !== active) return false;
@@ -1132,43 +1101,197 @@ function buildBackers(grid) {
       return true;
     });
     list.set(filtered, (b) => {
-      const li = h("li", "board-list-item");
-      const row = h("div", "board-row wk-top");
-      const box = document.createElement("input");
-      box.type = "checkbox";
-      box.checked = !!state.backerDone[b.id];
-      li.classList.toggle("is-done", box.checked);
-      box.title = "Pursued or done";
-      box.addEventListener("change", () => {
-        state.backerDone[b.id] = box.checked;
-        li.classList.toggle("is-done", box.checked);
-        saveState();
+      const cat = backerCategory(b);
+      let tag = "";
+      let kind = "";
+      if (b.ruling) { tag = rulingWord(b.ruling); kind = rulingKind(b.ruling); }
+      else if (cat === "Do not pay") { tag = "Do not pay"; kind = "bad"; }
+      else if (cat === "Contested") { tag = "Contested"; kind = "warn"; }
+      return row({
+        text: b.name || "",
+        strong: true,
+        onCheck: (on) => { state.backerDone[b.id] = on; saveState(); },
+        checked: !!state.backerDone[b.id],
+        checkTitle: "Pursued or done",
+        pill: tag,
+        pillKind: kind,
+        detail: () => {
+          const out = [];
+          const meta = [b.type, b.amount].filter(Boolean).map(clean).join(", ");
+          if (meta) out.push(h("span", "wk-meta", meta));
+          if (b.ruling) out.push(h("span", "wk-meta", "Ruling: " + clean(b.ruling)));
+          if (cat === "Do not pay") out.push(pill("Do not pay", "bad"));
+          if (cat === "Contested") out.push(pill("Contested, recheck before use", "warn"));
+          const f = fieldsFor(b, ["type", "amount", "ruling"]);
+          if (f) out.push(f);
+          return out;
+        },
       });
-      row.appendChild(box);
-      const wrap = h("div", "wk-main");
-      const headRow = h("div", "wk-titleline");
-      headRow.appendChild(h("span", "row-text wk-strong", b.name || ""));
-      if (b.ruling) headRow.appendChild(pill(b.ruling, rulingKind(b.ruling)));
-      if (backerCategory(b) === "Do not pay") headRow.appendChild(pill("Do not pay", "bad"));
-      if (backerCategory(b) === "Contested") headRow.appendChild(pill("Contested, recheck before use", "warn"));
-      wrap.appendChild(headRow);
-      const meta = [b.type, b.amount].filter(Boolean).join(", ");
-      if (meta) wrap.appendChild(h("span", "wk-meta", meta));
-      const det = detailsFor(b, ["name", "type", "amount", "ruling"]);
-      if (det) wrap.appendChild(det);
-      row.appendChild(wrap);
-      li.appendChild(row);
-      return li;
     });
-    shell.setCount(filtered.length + " of " + backers.length);
+    setPill(filtered.length + (filtered.length === backers.length ? "" : " of " + backers.length));
   }
   render();
 }
 
-function buildWebDesign(grid) {
-  const shell = cardShell(grid, "work-webdesign", "Web Design Lane",
-    "Grouped by wave. Status label on every row. Contact routes render only inside detail blocks. Killed rows are hidden until the toggle is on.", { collapsible: true });
+/* ---------- 9. Outreach Lanes ---------- */
+
+function isBuildGroup(group) {
+  return String(group.g || "").startsWith("BUILD");
+}
+
+function buildOutreach(grid) {
+  const shell = block(grid, "work-outreach", "Outreach Lanes", 3, {});
+  const list = plainList(shell.body);
+  let openTotal = 0;
+
+  const focusedGroups = [];
+  for (const g of GPT.focused || []) {
+    if (String(g.g || "").startsWith("Form packets")) continue;
+    focusedGroups.push({ g: g.g, items: g.items || [], ownerLabel: "GPT" });
+  }
+  for (const g of BASH.focused || []) {
+    if (isBuildGroup(g)) continue;
+    focusedGroups.push({ g: g.g, items: g.items || [], ownerLabel: "Bash" });
+  }
+  const focusedItems = focusedGroups.flatMap((g) => g.items);
+  openTotal += focusedItems.filter((it) => !isDone(it)).length;
+  laneRow(list, {
+    text: "Focused outreach",
+    pill: doneOf(focusedItems),
+    key: "focused",
+    build: (host, setPill) => {
+      host.appendChild(note("GPT and Bash focused groups, owner labelled. Form packets live in Dex Actions and the BUILD group has its own lane, so nothing is editable in two places."));
+      checklistGroups(host, focusedGroups, { onToggle: () => setPill(doneOf(focusedItems)) });
+    },
+  });
+
+  const buildGroup = (BASH.focused || []).find(isBuildGroup);
+  if (buildGroup) {
+    const items = buildGroup.items || [];
+    openTotal += items.filter((it) => !isDone(it)).length;
+    laneRow(list, {
+      text: "BUILD: fast cash build stack",
+      pill: doneOf(items),
+      key: "build",
+      build: (host, setPill) => {
+        host.appendChild(note(buildGroup.g));
+        flatChecklist(host, items, { onToggle: () => setPill(doneOf(items)) });
+      },
+    });
+  }
+
+  const pause = GPT.executionPause || {};
+  const coldGroups = (BASH.cold || []).map((g) => ({ g: g.g, items: g.items || [], ownerLabel: "Bash" }));
+  const coldItems = coldGroups.flatMap((g) => g.items);
+  laneRow(list, {
+    text: "Cold outreach",
+    pill: "Paused",
+    pillKind: "bad",
+    meta: doneOf(coldItems),
+    key: "cold",
+    build: (host) => {
+      host.appendChild(note("Cold outreach is paused: " + (pause.scope || "recorded as paused in the source data.")));
+      const rest = fieldsFor(pause, ["scope"]);
+      if (rest) host.appendChild(textDetailsNode("Pause record", rest));
+      checklistGroups(host, coldGroups, {});
+    },
+  });
+
+  const wd = WEBDESIGN.webdesign || [];
+  const wdLive = wd.filter((e) => !String(e.type || "").includes("KILLED")).length;
+  laneRow(list, {
+    text: "Web design lane",
+    pill: wdLive + " live",
+    build: (host, setPill) => fillWebDesign(host, setPill),
+  });
+
+  const s = GPT_OPPS.startups || {};
+  laneRow(list, {
+    text: "Startups cohort",
+    pill: s.active === false ? "Not active" : (s.contactReady || []).length + " ready",
+    pillKind: s.active === false ? "bad" : "",
+    build: (host, setPill) => fillStartups(host, setPill),
+  });
+
+  const fc = GPT_OPPS.fastCoin || {};
+  laneRow(list, {
+    text: "Fast Coin",
+    pill: fc.status === "paused" ? "Paused" : (fc.leads || []).length + " leads",
+    pillKind: fc.status === "paused" ? "warn" : "",
+    build: (host) => fillFastCoin(host),
+  });
+
+  laneRow(list, {
+    text: "GPT lane: leads, gate and audits",
+    pill: (GPT_LEADS.migrated || []).length + " leads",
+    key: "gpt",
+    build: (host, setPill) => fillGpt(host, setPill),
+  });
+
+  laneRow(list, {
+    text: "Bash lane index",
+    build: (host) => fillBashIndex(host),
+  });
+
+  const lanes = FRONT.laneStatus || [];
+  laneRow(list, {
+    text: "Lanes running",
+    pill: lanes.filter((l) => l.cadence !== "paused").length + " active",
+    pillKind: "good",
+    build: (host) => {
+      const ul = plainList(host);
+      for (const lane of lanes) {
+        ul.appendChild(row({
+          text: lane.name,
+          pill: shortText(lane.cadence, 16),
+          pillKind: lane.cadence === "paused" ? "bad" : "good",
+          detail: lane.note ? () => longText(lane.note) : null,
+        }));
+      }
+      host.appendChild(note("Ticks and edits on this tab save to the board work doc. The old app's live Redis state record cannot be read from the board, so ticks made in the old app after October are not shown here."));
+    },
+  });
+
+  shell.setCount(openTotal + " open", openTotal ? "hot" : "");
+}
+
+function fillBashIndex(host) {
+  host.appendChild(note("Email outreach, marketplaces, agencies, inventory and recruiting. The Bash groups render once, in Dex Actions and the Focused, Cold and BUILD lanes, so ticks never fork. This is the lane index."));
+  const totals = BASH.totals || {};
+  const rows = [
+    ["Dex moves", (BASH.dex || []).length, "dex"],
+    ["Cold groups", (BASH.cold || []).reduce((n, g) => n + (g.items || []).length, 0), "cold"],
+    ["Focused groups", (BASH.focused || []).filter((g) => !isBuildGroup(g)).reduce((n, g) => n + (g.items || []).length, 0), "focused"],
+    ["BUILD group", (BASH.focused || []).filter(isBuildGroup).reduce((n, g) => n + (g.items || []).length, 0), "build"],
+  ];
+  if (totals.coldSent !== undefined) {
+    host.appendChild(kvStrip([[totals.coldSent, "Cold sent"], [rows.reduce((n, r) => n + r[1], 0), "Items"]]));
+  }
+  for (const [label, count, target] of rows) {
+    const r = h("div", "stat-row");
+    r.appendChild(h("span", "stat-label", label));
+    const right = h("span", "wk-stat-right");
+    right.appendChild(h("span", "stat-value", count + " items"));
+    const jump = h("button", "board-btn is-small", "Open");
+    jump.type = "button";
+    jump.title = "Open that lane";
+    jump.addEventListener("click", () => {
+      const el = target === "dex" ? document.getElementById("work-dex-actions") : drawers.get(target);
+      if (!el) return;
+      if (el.open) el.open();
+      el.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      el.classList.add("is-flash");
+      setTimeout(() => el.classList.remove("is-flash"), 1200);
+    });
+    right.appendChild(jump);
+    r.appendChild(right);
+    host.appendChild(r);
+  }
+}
+
+function fillWebDesign(host, setPill) {
   const entries = WEBDESIGN.webdesign || [];
+  host.appendChild(note("Grouped by wave. Killed rows are hidden until the toggle is on."));
   let showKilled = false;
   const toggleRow = h("label", "board-row wk-toggle");
   const toggle = document.createElement("input");
@@ -1176,11 +1299,11 @@ function buildWebDesign(grid) {
   toggle.addEventListener("change", () => { showKilled = toggle.checked; render(); });
   toggleRow.appendChild(toggle);
   toggleRow.appendChild(h("span", null, "Show killed"));
-  shell.body.appendChild(toggleRow);
-  const host = h("div", "wk-groups");
-  shell.body.appendChild(host);
+  host.appendChild(toggleRow);
+  const waveHost = h("div", "wk-waves");
+  host.appendChild(waveHost);
   const render = () => {
-    host.replaceChildren();
+    waveHost.replaceChildren();
     const waves = { W1: [], W2: [], W3: [], Other: [] };
     for (const entry of entries) {
       const killed = String(entry.type || "").includes("KILLED");
@@ -1194,40 +1317,40 @@ function buildWebDesign(grid) {
       total += waves[wave].length;
       const sec = h("div", "wk-wave");
       sec.appendChild(sectionHead(wave + " wave", h("span", "wk-sec-count", String(waves[wave].length))));
-      const cl = clampedList(sec, 1);
-      cl.set(waves[wave], (entry) => {
-        const li = h("li", "board-list-item");
-        const main = h("div", "wk-main");
-        const headRow = h("div", "wk-titleline");
-        headRow.appendChild(h("span", "row-text wk-strong", entry.name || ""));
-        const status = String(entry.type || "").split(", ").pop() || entry.type || "";
-        if (status) headRow.appendChild(pill(status, /KILLED/.test(status) ? "bad" : ""));
-        main.appendChild(headRow);
-        if (entry.amount) main.appendChild(h("span", "wk-meta", entry.amount));
-        const det = detailsFor(entry, ["name", "type", "amount"]);
-        if (det) main.appendChild(det);
-        li.appendChild(main);
-        return li;
+      clampedList(sec, 3).set(waves[wave], (entry) => {
+        const status = clean(entry.type || "").split(" — ").pop() || "";
+        return row({
+          text: entry.name || "",
+          strong: true,
+          pill: shortText(status, 14),
+          pillKind: /KILLED/.test(status) ? "bad" : "",
+          detail: () => {
+            const out = [h("span", "wk-meta", clean(entry.type || ""))];
+            if (entry.amount) out.push(h("span", "wk-meta", clean(entry.amount)));
+            const f = fieldsFor(entry, ["type", "amount"]);
+            if (f) out.push(f);
+            return out;
+          },
+        });
       });
-      host.appendChild(sec);
+      waveHost.appendChild(sec);
     }
-    shell.setCount(total + " of " + entries.length + " shown");
+    setPill(total + " shown");
   };
   render();
 }
 
-function buildStartups(grid) {
+function fillStartups(host, setPill) {
   const s = GPT_OPPS.startups || {};
-  const shell = cardShell(grid, "work-startups", "Startups Cohort",
-    "GPT startup outreach cohort, started 2026-10-13. Contact addresses render only inside detail blocks.", { collapsible: true });
+  host.appendChild(note("GPT startup outreach cohort, started " + (s.started || "2026-10-13") + ". Contact addresses render only inside opened rows."));
   const flags = h("div", "chip-row");
   if (s.active === false) flags.appendChild(pill("Not active", "bad"));
   if (s.noSending) flags.appendChild(pill("No sending", "bad"));
   if (s.noDrafts) flags.appendChild(pill("No drafts", "bad"));
-  if (s.requiresExactTextApproval) flags.appendChild(pill("Exact text approval required", "warn"));
+  if (s.requiresExactTextApproval) flags.appendChild(pill("Exact text approval", "warn"));
   if (s.status) flags.appendChild(pill("Status: " + s.status));
-  if (flags.children.length) shell.body.appendChild(flags);
-  if (s.outreachNotice) shell.body.appendChild(textDetails("Outreach notice", s.outreachNotice));
+  if (flags.children.length) host.appendChild(flags);
+  if (s.outreachNotice) host.appendChild(textDetails("Outreach notice", s.outreachNotice));
   const buckets = [
     ["Contact ready", s.contactReady || []],
     ["Backlog", s.backlog || []],
@@ -1235,26 +1358,28 @@ function buildStartups(grid) {
     ["Pass log", s.passLog || []],
     ["Dead", s.dead || []],
   ];
-  shell.body.appendChild(kvStrip(buckets.map(([label, rows]) => [rows.length, label])));
+  host.appendChild(kvStrip(buckets.map(([label, rows]) => [rows.length, label])));
   let active = "Contact ready";
   const chipHost = h("div");
-  shell.body.appendChild(chipHost);
-  const list = clampedList(shell.body, CLAMP, "Nothing in this bucket.");
+  host.appendChild(chipHost);
+  const list = clampedList(host, CLAMP, "Nothing in this bucket.");
   const renderBucket = () => {
     const bucket = buckets.find(([label]) => label === active);
     const rows = bucket ? bucket[1] : [];
-    list.set(rows, (r) => {
-      const li = h("li", "board-list-item");
-      const main = h("div", "wk-main");
-      main.appendChild(h("span", "row-text wk-strong", r.name || r.id || ""));
-      const meta = [r.tier, r.status, r.stage, r.location].filter(Boolean).join(", ");
-      if (meta) main.appendChild(h("span", "wk-meta", meta));
-      const det = detailsFor(r, ["name", "tier", "status", "stage", "location"]);
-      if (det) main.appendChild(det);
-      li.appendChild(main);
-      return li;
-    });
-    shell.setCount(rows.length + " " + active.toLowerCase());
+    list.set(rows, (r) => row({
+      text: r.name || r.id || "",
+      strong: true,
+      meta: r.tier ? shortText(r.tier, 12) : "",
+      detail: () => {
+        const out = [];
+        const meta = [r.tier, r.status, r.stage, r.location].filter(Boolean).map(clean).join(", ");
+        if (meta) out.push(h("span", "wk-meta", meta));
+        const f = fieldsFor(r, ["tier", "status", "stage", "location"]);
+        if (f) out.push(f);
+        return out;
+      },
+    }));
+    setPill(rows.length + " " + active.toLowerCase());
   };
   const renderChips = () => {
     chipHost.replaceChildren(chipRow(buckets.map(([label]) => label), active, (picked) => {
@@ -1265,177 +1390,295 @@ function buildStartups(grid) {
   };
   renderChips();
   renderBucket();
+  const rest = fieldsFor(s, ["active", "status", "outreachNotice", "contactReady", "backlog", "rejected", "passLog", "dead", "started", "applicationOnly", "partial"]);
+  if (rest) host.appendChild(textDetailsNode("Cohort record", rest));
+  for (const key of ["applicationOnly", "partial"]) {
+    if (Array.isArray(s[key]) && s[key].length) {
+      host.appendChild(sectionHead(key === "applicationOnly" ? "Application only" : "Partial", h("span", "wk-sec-count", String(s[key].length))));
+      clampedList(host, 3).set(s[key], leadRow);
+    }
+  }
 }
 
-function buildFastCoin(grid) {
+function fillFastCoin(host) {
   const fc = GPT_OPPS.fastCoin || {};
-  const shell = cardShell(grid, "work-fastcoin", "Fast Coin",
-    "Started " + (fc.started || "") + ". Checkpoint " + (fc.checkpoint || "") + " has passed. Status: " + (fc.status || "") + ". Target: " + (fc.target || "") + ".",
-    { collapsible: true, flag: fc.status === "paused" ? "Paused" : "", flagKind: "warn" });
-  shell.body.appendChild(kvStrip([
+  host.appendChild(note("Started " + (fc.started || "") + ". Checkpoint " + (fc.checkpoint || "") + " has passed. Status: " + (fc.status || "") + ". Target: " + (fc.target || "") + "."));
+  host.appendChild(kvStrip([
     [(fc.leads || []).length, "Leads"],
     [(fc.doFirst || []).length, "Do first"],
     [(fc.dead || []).length, "Dead"],
     [(fc.passes || []).length, "Passes"],
   ]));
-  if (fc.pauseNote) shell.body.appendChild(textDetails("Pause note", fc.pauseNote));
-  shell.body.appendChild(sectionHead("Do first"));
+  if (fc.pauseNote) host.appendChild(textDetails("Pause note", fc.pauseNote));
+  host.appendChild(sectionHead("Do first"));
   const doFirst = (fc.doFirst || []).map((d) => ({ id: d.id || d.name, t: d.name || d.t, body: d.nextAction || "" }));
-  flatChecklist(shell.body, doFirst, {});
-  shell.body.appendChild(sectionHead("Leads"));
-  clampedList(shell.body, CLAMP).set(fc.leads || [], leadRow);
+  flatChecklist(host, doFirst, {});
+  host.appendChild(sectionHead("Leads"));
+  clampedList(host, CLAMP).set(fc.leads || [], leadRow);
   const deadDet = document.createElement("details");
   deadDet.className = "wk-det";
   deadDet.appendChild(h("summary", null, "Dead, " + (fc.dead || []).length));
   clampedList(deadDet, CLAMP).set(fc.dead || [], leadRow);
-  shell.body.appendChild(deadDet);
-  shell.body.appendChild(textDetails("Pass log, " + (fc.passes || []).length, JSON.stringify(fc.passes || [], null, 1), true));
-  if (fc.wrapUpNote) shell.body.appendChild(textDetails("Wrap up note", fc.wrapUpNote));
-  shell.setCount((fc.leads || []).length + " leads");
+  host.appendChild(deadDet);
+  host.appendChild(textDetails("Pass log, " + (fc.passes || []).length, JSON.stringify(fc.passes || [], null, 1), true));
+  if (fc.terms) host.appendChild(textDetails("Terms", typeof fc.terms === "string" ? fc.terms : JSON.stringify(fc.terms, null, 1), typeof fc.terms !== "string"));
+  if (fc.wrapUpNote) host.appendChild(textDetails("Wrap up note", fc.wrapUpNote));
 }
 
-function platformCard(grid, id, title, coll, extra) {
-  const shell = cardShell(grid, id, title,
-    (coll.label || coll.title || "") + (coll.date ? ", " + coll.date : "") + ". Research collection, not a queue.",
-    { collapsible: true });
+function fillGpt(host, setPill) {
+  host.appendChild(note("Checked " + (GPT.checked || "2026-10-12") + ". Nothing in this lane postdates October 23, 2026. Dex moves live in Dex Actions and focused groups in Focused outreach; this carries the leads, the gate and rules, the history and the audits."));
+  host.appendChild(kvStrip([
+    [(GPT_LEADS.migrated || []).length, "Leads"],
+    [Object.keys(GPT.history || {}).length, "History"],
+    [Object.keys(GPT.review || {}).length, "Reviews"],
+    [(GPT.blocked || []).length, "Blocked"],
+  ]));
+  const tabs = ["Migrated leads", "Gate and rules", "History and review", "Audits", "Blocked and owned"];
+  const pane = h("div", "wk-pane");
+  let active = tabs[0];
+  const renderPane = () => {
+    pane.replaceChildren();
+    if (active === "Migrated leads") {
+      const leads = GPT_LEADS.migrated || [];
+      let query = "";
+      pane.appendChild(searchInput("Search migrated leads", (q) => { query = q; renderLeads(); }));
+      const list = clampedList(pane, CLAMP, "No leads match.");
+      function renderLeads() {
+        const filtered = leads.filter((l) => !query || JSON.stringify(l).toLowerCase().includes(query));
+        list.set(filtered, leadRow);
+        setPill(filtered.length + " of " + leads.length + " leads");
+      }
+      renderLeads();
+    } else if (active === "Gate and rules") {
+      pane.appendChild(sectionHead("Pay and quality gate"));
+      listOfStrings(pane, GPT.gate || []);
+      pane.appendChild(sectionHead("Drafting rules"));
+      listOfStrings(pane, GPT.rules || []);
+      if (GPT.text) pane.appendChild(textDetailsNode("Legacy lane text", fieldsFor(GPT.text, []) || h("div")));
+    } else if (active === "History and review") {
+      const hist = GPT.history || {};
+      const rev = GPT.review || {};
+      pane.appendChild(note("History is the per lead default state store, " + Object.keys(hist).length + " records. Review overrides, " + Object.keys(rev).length + " records. Search by lead id."));
+      let query = "";
+      pane.appendChild(searchInput("Search history by lead id", (q) => { query = q; renderHist(); }));
+      const list = clampedList(pane, CLAMP, "No records match.");
+      function renderHist() {
+        const entries = Object.entries(hist).filter(([id]) => !query || id.includes(query));
+        list.set(entries, ([id, val]) => row({
+          text: id,
+          meta: (val.status ? shortText(val.status, 14) : "") + (val.d ? (val.status ? ", done" : "done") : ""),
+          detail: () => {
+            const out = [fieldsFor(val, []) || h("span", "wk-meta", "No fields.")];
+            if (rev[id]) {
+              out.push(sectionHead("Review override"));
+              out.push(fieldsFor(rev[id], []));
+            }
+            return out;
+          },
+        }));
+      }
+      renderHist();
+    } else if (active === "Audits") {
+      pane.appendChild(note("Dated reconciliation audits, carried as summaries. The long disposition lists stay in the source repo. The full send register is under Pipeline, Send totals and register."));
+      const audits = Object.entries(GPT_AUDIT.audits || {});
+      const host2 = h("div", "wk-detlist");
+      for (const [key, val] of audits) host2.appendChild(textDetails(key, JSON.stringify(val, null, 1), true));
+      pane.appendChild(host2);
+      clampChildren(host2, CLAMP);
+    } else {
+      pane.appendChild(sectionHead("Blocked leads"));
+      clampedList(pane, CLAMP).set(GPT.blocked || [], (b) => (typeof b === "string" ? row({ text: b }) : leadRow(b)));
+      pane.appendChild(sectionHead("Archives"));
+      clampedList(pane, CLAMP).set(GPT.archives || [], leadRow);
+      pane.appendChild(sectionHead("Owned by Bash, GPT must not touch", h("span", "wk-sec-count", (GPT.ownedByBash || []).length + " companies")));
+      tagCloud(pane, GPT.ownedByBash || [], 14);
+    }
+  };
+  const tabHost = h("div");
+  const renderTabs = () => {
+    tabHost.replaceChildren(chipRow(tabs, active, (picked) => { active = picked; renderTabs(); renderPane(); }));
+  };
+  renderTabs();
+  host.appendChild(tabHost);
+  host.appendChild(pane);
+  renderPane();
+}
+
+/* ---------- 10. Research and Long Shots ---------- */
+
+function fillPlatform(host, coll, setPill, extra) {
+  host.appendChild(note((coll.label || coll.title || "") + (coll.date ? ", " + coll.date : "") + ". Research collection, not a queue."));
   const companies = coll.companies || coll.records || [];
   if (Array.isArray(coll.topTen) && coll.topTen.length) {
-    shell.body.appendChild(sectionHead("Top ten first"));
-    const top = clampedList(shell.body, 5, null, "ol");
+    host.appendChild(sectionHead("Top ten first"));
+    const top = clampedList(host, 5, null, "ol");
     top.list.classList.add("wk-ol");
-    top.set(coll.topTen, (entry) => h("li", "board-list-item",
-      typeof entry === "string" ? entry : (entry.name || entry.title || JSON.stringify(entry))));
+    top.set(coll.topTen, (entry) => row({
+      text: typeof entry === "string" ? entry : (entry.name || entry.title || JSON.stringify(entry)),
+      detail: typeof entry === "object" ? () => fieldsFor(entry, []) : null,
+    }));
   }
-  shell.body.appendChild(sectionHead("Companies"));
-  clampedList(shell.body, CLAMP).set(companies, leadRow);
-  shell.setCount(companies.length + " companies");
-  if (extra) extra(shell.body, coll);
-  return shell;
+  host.appendChild(sectionHead("Companies", h("span", "wk-sec-count", String(companies.length))));
+  clampedList(host, CLAMP).set(companies, leadRow);
+  const rest = fieldsFor(coll, ["label", "title", "date", "companies", "records", "topTen", "protected", "neverContact"]);
+  if (rest) host.appendChild(textDetailsNode("Method, counts and appendix", rest));
+  if (extra) extra(host, coll);
 }
 
-function buildPlatforms(grid) {
-  platformCard(grid, "work-platforms-opp", "Platform Opportunities", GPT_OPPS.platformOpportunities || {});
-  platformCard(grid, "work-platforms-eco", "Platform Ecosystems", GPT_OPPS.platformEcosystems || {});
-  platformCard(grid, "work-platforms-vol", "Platform Volume Hunt", GPT_OPPS.platformVolumeHunt || {}, (body, coll) => {
-    for (const key of ["protected", "neverContact"]) {
-      if (Array.isArray(coll[key]) && coll[key].length) {
-        const det = document.createElement("details");
-        det.className = "wk-det wk-danger";
-        det.appendChild(h("summary", null, (key === "protected" ? "Protected list" : "Never contact list") + ", " + coll[key].length));
-        const ul = h("ul", "wk-ul");
-        for (const entry of coll[key]) ul.appendChild(h("li", null, typeof entry === "string" ? entry : JSON.stringify(entry)));
-        det.appendChild(ul);
-        body.appendChild(det);
+function buildResearch(grid) {
+  const shell = block(grid, "work-research", "Research and Long Shots", 3, {});
+  const list = plainList(shell.body);
+  const colls = [
+    ["Platform opportunities", GPT_OPPS.platformOpportunities || {}, null],
+    ["Platform ecosystems", GPT_OPPS.platformEcosystems || {}, null],
+    ["Platform volume hunt", GPT_OPPS.platformVolumeHunt || {}, (body, coll) => {
+      for (const key of ["protected", "neverContact"]) {
+        if (Array.isArray(coll[key]) && coll[key].length) {
+          const det = document.createElement("details");
+          det.className = "wk-det wk-danger";
+          det.appendChild(h("summary", null, (key === "protected" ? "Protected list" : "Never contact list") + ", " + coll[key].length));
+          const ul = h("ul", "wk-ul");
+          for (const entry of coll[key]) ul.appendChild(h("li", null, typeof entry === "string" ? entry : JSON.stringify(entry)));
+          det.appendChild(ul);
+          body.appendChild(det);
+        }
       }
-    }
-    const wave2 = GPT_OPPS.platformVolumeHuntWave2 || {};
-    if (wave2.title) {
-      body.appendChild(sectionHead(wave2.title));
-      const records = Array.isArray(wave2.records) ? wave2.records.flatMap((r) => Array.isArray(r.items) ? r.items : [r]) : [];
-      clampedList(body, 4).set(records, leadRow);
-    }
-  });
-}
-
-function buildFundedWave(grid) {
-  const fw = GPT_OPPS.fundedWaveOct23 || {};
-  const shell = cardShell(grid, "work-funded-wave", "Funded Wave, October 23",
-    "Recorded " + (fw.recordedAt || "") + " by " + (fw.recordedBy || "") + ".",
-    { collapsible: true, flag: "Unverified claims", flagKind: "warn" });
-  if (fw.summary) shell.body.appendChild(textDetails("Summary", fw.summary));
-  if (fw.sendRule) shell.body.appendChild(muted("Send rule: " + fw.sendRule));
-  clampedList(shell.body, CLAMP).set(fw.companies || [], leadRow);
-  shell.setCount((fw.companies || []).length + " companies");
-}
-
-function buildIncome(grid) {
-  const asap = INCOME.asap || {};
-  const shell = cardShell(grid, "work-income", "Income ASAP",
-    "Checked " + (asap.checked || "2026-10-10") + ", the oldest dated research in the app. Urgent small money plan, remote first.",
-    { collapsible: true });
-  if (asap.summary) shell.body.appendChild(textDetails("Summary", asap.summary));
-  shell.body.appendChild(sectionHead("Account set up, in sequence"));
-  const setup = (asap.accountSetup || []).map((s) => ({ id: s.id, t: s.title, body: s.body || "" }));
-  flatChecklist(shell.body, setup, {});
-  shell.body.appendChild(sectionHead("Profile copy"));
-  const profileText = typeof asap.profileCopy === "string" ? asap.profileCopy : JSON.stringify(asap.profileCopy || "");
-  const profileRow = h("div", "board-row board-row-wrap");
-  if (asap.profileTitle) profileRow.appendChild(h("span", "row-text", asap.profileTitle));
-  profileRow.appendChild(copyButton(profileText, "Copy profile copy"));
-  shell.body.appendChild(profileRow);
-  shell.body.appendChild(textDetails("Read the profile copy", profileText));
-  shell.body.appendChild(sectionHead("Leads"));
-  clampedList(shell.body, CLAMP).set(asap.leads || [], leadRow);
-  for (const section of ["review", "sprint"]) {
-    if (asap[section]) {
-      shell.body.appendChild(textDetails(section === "review" ? "Portfolio review" : "Sprint",
-        typeof asap[section] === "string" ? asap[section] : JSON.stringify(asap[section], null, 1), true));
-    }
-  }
-  shell.body.appendChild(muted("Exclusion note from the app README: old contests, funding, loans and known stale marketplace examples stay on the original board and are excluded from this urgent list."));
-  shell.setCount((asap.leads || []).length + " leads");
-}
-
-/* ---------- reference stack and archive ---------- */
-
-function buildGuides(grid) {
-  const guides = GUIDES.guides || [];
-  const shell = cardShell(grid, "work-guides", "Guides and Reference",
-    "One collapsed card section per guide. Short version first, full text behind the expander. The resume surfaces registry lives in the work repo root as RESUME-SURFACES.md and is linked from the Resume Sync guide, it is not copied here.",
-    { collapsible: true, pill: guides.length + " guides" });
-  const host = h("div", "wk-groups");
-  for (const guide of guides) {
-    const det = document.createElement("details");
-    det.className = "wk-group";
-    det.appendChild(h("summary", "wk-group-sum", guide.t || "Guide"));
-    const inner = h("div", "wk-group-body");
-    inner.appendChild(h("div", "wk-long", typeof guide.dex === "string" ? guide.dex : JSON.stringify(guide.dex || "")));
-    if (guide.ai) inner.appendChild(textDetails("Full text", typeof guide.ai === "string" ? guide.ai : JSON.stringify(guide.ai || "")));
-    det.appendChild(inner);
-    host.appendChild(det);
-  }
-  shell.body.appendChild(host);
-  clampChildren(host, 8, "guides");
-  shell.body.appendChild(sectionHead("Strategy and application rules"));
-  const blocks = [
-    ["Honesty rules", FRONT.rules],
-    ["High volume sending", FRONT.volume],
-    ["Long term strategy", FRONT.longterm],
+      const wave2 = GPT_OPPS.platformVolumeHuntWave2 || {};
+      if (wave2.title) {
+        body.appendChild(sectionHead(wave2.title));
+        const records = Array.isArray(wave2.records) ? wave2.records.flatMap((r) => Array.isArray(r.items) ? r.items : [r]) : [];
+        clampedList(body, CLAMP).set(records, leadRow);
+        const rest = fieldsFor(wave2, ["title", "records"]);
+        if (rest) body.appendChild(textDetailsNode("Wave 2 notes, dead and top lists", rest));
+      }
+    }],
   ];
-  for (const [label, obj] of blocks) {
-    if (!obj) continue;
-    shell.body.appendChild(textDetails(label, typeof obj === "string" ? obj : JSON.stringify(obj, null, 1), true));
+  let total = 0;
+  for (const [title, coll, extra] of colls) {
+    const n = (coll.companies || coll.records || []).length;
+    total += n;
+    laneRow(list, {
+      text: title,
+      pill: n + " cos",
+      build: (host, setPill) => fillPlatform(host, coll, setPill, extra),
+    });
   }
-  shell.body.appendChild(sectionHead("Outreach scripts"));
-  const scripts = h("ul", "board-list");
-  for (const script of FRONT.scripts || []) {
-    const li = h("li", "board-list-item");
-    const row = h("div", "board-row");
-    row.appendChild(h("span", "row-text", script.t || "Script"));
-    row.appendChild(copyButton(script.body || "", "Copy script"));
-    li.appendChild(row);
-    scripts.appendChild(li);
-  }
-  shell.body.appendChild(scripts);
+  const moonItems = (MOON.moon || []).flatMap((g) => g.items || []);
+  laneRow(list, {
+    text: "Moonshots",
+    pill: doneOf(moonItems),
+    build: (host, setPill) => {
+      host.appendChild(note("Deliberately large asks and giant listings."));
+      checklistGroups(host, MOON.moon || [], { onToggle: () => setPill(doneOf(moonItems)) });
+    },
+  });
+  const cheatItems = (MOON.cheats || []).flatMap((g) => g.items || []);
+  laneRow(list, {
+    text: "Cheat codes",
+    pill: doneOf(cheatItems),
+    build: (host, setPill) => {
+      host.appendChild(note("Systems, not jobs, grouped by tier."));
+      checklistGroups(host, MOON.cheats || [], { onToggle: () => setPill(doneOf(cheatItems)) });
+    },
+  });
+  shell.setCount(total + " companies");
 }
 
-function buildArchive(grid) {
-  const files = ARCHIVE.files || [];
-  const shell = cardShell(grid, "work-archive", "Archive, Local Draft Corpora",
-    ARCHIVE.note || "", { collapsible: true, pill: files.length + " files" });
-  const kb = Math.round(files.reduce((n, f) => n + (f.bytes || 0), 0) / 1024);
-  shell.body.appendChild(kvStrip([[files.length, "Files"], [kb.toLocaleString(), "KB total"]]));
-  clampedList(shell.body, CLAMP).set(files, (file) => {
-    const li = h("li", "board-list-item");
-    const main = h("div", "wk-main");
-    const line = h("div", "board-row");
-    line.appendChild(h("span", "row-text wk-strong", file.name));
-    line.appendChild(h("span", "row-meta", Math.round((file.bytes || 0) / 1024) + " KB"));
-    main.appendChild(line);
-    main.appendChild(h("span", "wk-meta", file.path));
-    li.appendChild(main);
-    return li;
+/* ---------- 11. Reference ---------- */
+
+function buildReference(grid) {
+  const shell = block(grid, "work-reference", "Reference", 4, {});
+  const list = plainList(shell.body);
+  let faceLine = null;
+  faceLine = laneRow(list, {
+    text: "One liner",
+    build: (host) => {
+      const area = h("textarea", "board-textarea");
+      area.rows = 3;
+      area.setAttribute("aria-label", "One liner");
+      area.value = state.oneLiner || FRONT.oneLiner || "";
+      area.addEventListener("input", () => {
+        state.oneLiner = area.value;
+        saveState();
+      });
+      host.appendChild(area);
+      const r = h("div", "board-row board-row-wrap");
+      r.appendChild(copyButton(() => area.value || "", "Copy one liner"));
+      host.appendChild(r);
+      host.appendChild(textDetails("Creative native framing", FRONT.creativeNativeFraming || ""));
+    },
   });
+  faceLine.querySelector(".wk-line").appendChild(copyButton(() => state.oneLiner || FRONT.oneLiner || "", "Copy"));
+  const scripts = FRONT.scripts || [];
+  laneRow(list, {
+    text: "Outreach scripts",
+    pill: String(scripts.length),
+    build: (host) => {
+      const ul = plainList(host);
+      for (const script of scripts) {
+        ul.appendChild(row({
+          text: script.t || "Script",
+          extra: [copyButton(script.body || "", "Copy")],
+          detail: () => h("pre", "wk-pre", script.body || ""),
+        }));
+      }
+    },
+  });
+  const guides = GUIDES.guides || [];
+  laneRow(list, {
+    text: "Guides",
+    pill: String(guides.length),
+    build: (host) => {
+      host.appendChild(note("Short version first, full text behind its own expander. The resume surfaces registry lives in the work repo root as RESUME-SURFACES.md and is linked from the Resume Sync guide; it is not copied here."));
+      const cl = clampedList(host, 8);
+      cl.set(guides, (guide) => row({
+        text: guide.t || "Guide",
+        detail: () => {
+          const out = [longText(typeof guide.dex === "string" ? guide.dex : str(guide.dex || ""))];
+          if (guide.ai) out.push(textDetails("Full text", typeof guide.ai === "string" ? guide.ai : str(guide.ai || "")));
+          return out;
+        },
+      }));
+    },
+  });
+  laneRow(list, {
+    text: "Strategy and application rules",
+    pill: "3",
+    build: (host) => {
+      const blocks = [
+        ["Honesty rules", FRONT.rules],
+        ["High volume sending", FRONT.volume],
+        ["Long term strategy", FRONT.longterm],
+      ];
+      for (const [label, obj] of blocks) {
+        if (!obj) continue;
+        if (typeof obj === "object" && obj.dex) {
+          host.appendChild(sectionHead(label));
+          if (obj.why) host.appendChild(note(str(obj.why)));
+          host.appendChild(longText(str(obj.dex)));
+          if (obj.ai) host.appendChild(textDetails("Full text", str(obj.ai)));
+        } else {
+          host.appendChild(textDetails(label, typeof obj === "string" ? obj : JSON.stringify(obj, null, 1), true));
+        }
+      }
+    },
+  });
+  const files = ARCHIVE.files || [];
+  laneRow(list, {
+    text: "Archive: local draft corpora",
+    pill: files.length + " files",
+    build: (host) => {
+      if (ARCHIVE.note) host.appendChild(note(ARCHIVE.note));
+      const kb = Math.round(files.reduce((n, f) => n + (f.bytes || 0), 0) / 1024);
+      host.appendChild(kvStrip([[files.length, "Files"], [kb.toLocaleString(), "KB total"]]));
+      clampedList(host, CLAMP).set(files, (file) => row({
+        text: file.name,
+        meta: Math.round((file.bytes || 0) / 1024) + " KB",
+        detail: () => h("span", "wk-meta", file.path),
+      }));
+    },
+  });
+  shell.setCount(guides.length + " guides");
 }
 
 /* ---------- mount and unmount ---------- */
@@ -1443,6 +1686,7 @@ function buildArchive(grid) {
 export async function mount(container, ctx) {
   rootEl = container;
   storeRef = ctx && ctx.store ? ctx.store : null;
+  drawers = new Map();
   state = blankState();
   if (storeRef) {
     try {
@@ -1465,77 +1709,16 @@ export async function mount(container, ctx) {
   const grid = h("div", "board-grid wk-grid");
   container.appendChild(grid);
   buildDexActions(grid);
-  buildTodayWeek(grid);
-  buildOneLiner(grid);
-  buildStateAndLanes(grid);
-  buildTotals(grid);
-  buildLadder(grid);
-  buildPipeline(grid);
-  buildWatchlist(grid);
-  buildQuickChannels(grid);
-  buildFocused(grid);
-  buildCold(grid);
-  buildBashCard(grid);
-  buildGptCard(grid);
-  buildBuildCard(grid);
-  buildMoonCheats(grid);
+  buildToday(grid);
+  buildWeek(grid);
   buildClients(grid);
-  buildBackers(grid);
-  buildWebDesign(grid);
-  buildStartups(grid);
-  buildFastCoin(grid);
-  buildPlatforms(grid);
-  buildFundedWave(grid);
-  buildIncome(grid);
-  buildGuides(grid);
-  buildArchive(grid);
-  foldBlocks(grid);
-}
-
-/* Fold every block to its head and its first list. A block's later sections
-   (a second list, its filters, its notes) go behind one "More in this block"
-   button, and any plain list longer than CLAMP rows gets its own Show all.
-   Without this Work was about 10,000px tall at 1440. */
-function foldBlocks(grid) {
-  for (const body of grid.querySelectorAll(":scope > .board-card > .board-card-body")) {
-    for (const ul of body.querySelectorAll("ul.board-list")) {
-      const next = ul.nextElementSibling;
-      if (next && next.classList.contains("more-btn")) continue;
-      const items = Array.from(ul.children).filter((li) => li.tagName === "LI" && !li.classList.contains("board-empty"));
-      /* Plain lists here are long-form rows (rulings, notes): two show. */
-      const SHOW = 2;
-      if (items.length <= SHOW) continue;
-      const btn = h("button", "more-btn");
-      btn.type = "button";
-      let open = false;
-      const draw = () => {
-        items.forEach((li, i) => li.classList.toggle("is-clamped-out", !open && i >= SHOW));
-        btn.textContent = open ? "Show fewer" : "Show all (" + items.length + ")";
-        btn.setAttribute("aria-expanded", open ? "true" : "false");
-      };
-      btn.addEventListener("click", () => { open = !open; draw(); });
-      ul.after(btn);
-      draw();
-    }
-    const kids = Array.from(body.children);
-    let cut = kids.findIndex((k) => k.matches("ul.board-list, table, .kv, details, .wk-groups"));
-    if (cut < 0) continue;
-    if (kids[cut + 1] && kids[cut + 1].classList.contains("more-btn")) cut += 1;
-    const rest = kids.slice(cut + 1);
-    if (!rest.length) continue;
-    const fold = h("div", "wk-fold");
-    fold.hidden = true;
-    fold.append(...rest);
-    const more = h("button", "more-btn wk-fold-btn", "More in this block");
-    more.type = "button";
-    more.setAttribute("aria-expanded", "false");
-    more.addEventListener("click", () => {
-      fold.hidden = !fold.hidden;
-      more.textContent = fold.hidden ? "More in this block" : "Less";
-      more.setAttribute("aria-expanded", fold.hidden ? "false" : "true");
-    });
-    body.append(more, fold);
-  }
+  buildCash(grid);
+  buildQuickCash(grid);
+  buildPipeline(grid);
+  buildFunding(grid);
+  buildOutreach(grid);
+  buildResearch(grid);
+  buildReference(grid);
 }
 
 export function unmount() {
@@ -1543,4 +1726,5 @@ export function unmount() {
   rootEl = null;
   storeRef = null;
   state = null;
+  drawers = new Map();
 }

@@ -351,6 +351,17 @@ img { display: block; }
 .board-app[data-tab="notes"][data-right="closed"] .bd-body { grid-template-columns: 0 minmax(0, 1fr) 0; }
 .board-app[data-tab="notes"] .bd-left { visibility: hidden; }
 .board-app[data-tab="notes"] #bd-left-toggle { display: none; }
+/* Music puts Now playing and Playlists in the left panel (music.js moves
+   them into #bd-left-music), so they stay put while the tracks scroll. The
+   panel widens for the player and drops the outline. */
+#bd-left-music { display: none; }
+.board-app[data-tab="music"] { --left-w: 340px; }
+.board-app[data-tab="music"] #bd-left-music:not(:empty) { display: flex; flex-direction: column; gap: 12px; }
+.board-app[data-tab="music"] .bd-left:has(.bd-left-music:not(:empty)) > :not(.bd-left-music) { display: none; }
+#bd-left .bd-left-music.board-music { grid-template-columns: none; position: static; }
+#bd-left .bd-left-music .music-side { display: flex; flex-direction: column; gap: 12px; }
+#bd-left .bd-left-music .music-card-now { position: static; box-shadow: none; }
+.board-music.has-side-in-panel { grid-template-columns: minmax(0, 1fr); }
 
 .bd-side {
   min-height: 0;
@@ -843,10 +854,23 @@ img { display: block; }
   inset: auto;
   min-height: calc(100dvh - var(--top-h) - 58px);
   overflow: visible;
-  border: 1px solid var(--stroke);
+  border: 0;
   border-radius: var(--radius);
   --bg: var(--panel);
+  --bg2: var(--panel);
+  /* The page behind the notes is the board's own, as on Overview and
+     Schedule; only the boxes carry a fill (Dex, round 3). */
+  background: transparent;
 }
+/* Each category box is filled and edged exactly like a board block. */
+.board-notes .nt-app.is-board-view .nt-cat-box {
+  background: var(--panel);
+  border: 1px solid var(--stroke);
+  border-radius: var(--radius);
+}
+.board-notes .nt-app.is-board-view .nt-header,
+.board-notes .nt-app.is-board-view .nt-sidebar { background: var(--panel); border-color: var(--stroke); }
+.board-notes .nt-app.is-board-view .nt-header { border: 1px solid var(--stroke); }
 .board-notes .nt-app.is-board-view > .nt-frame { align-items: flex-start; min-height: inherit; overflow: visible; }
 .board-notes .nt-app.is-board-view .nt-col { overflow: visible; min-height: inherit; }
 .board-notes .nt-app.is-board-view .nt-main { overflow: visible; flex: 0 0 auto; }
@@ -869,7 +893,20 @@ img { display: block; }
 .board-notes .nt-app.is-board-view .nt-header { height: auto; min-height: var(--hdr); flex-wrap: wrap; row-gap: 2px; padding: 6px 10px; }
 .board-notes .nt-app.is-board-view .nt-header-mid { position: static; transform: none; flex-wrap: wrap; justify-content: center; white-space: normal; flex: 1 1 auto; }
 .board-notes .nt-app.is-board-view .nt-canvas-inner { padding-bottom: 60px; }
-.board-tab-viewport[data-mode="zoom"] .board-notes { width: 1280px; }
+/* Notes in Zoom: the categories become blocks flowed into columns, read
+   like the dev board (Dex, round 3). Scroll view is unchanged. The outliner
+   is not needed when every category is on the board at once. */
+.board-tab-viewport[data-mode="zoom"] .board-notes .nt-app.is-board-view { min-height: 0; }
+.board-tab-viewport[data-mode="zoom"] .board-notes .nt-sidebar,
+.board-tab-viewport[data-mode="zoom"] .board-notes .nt-sb-tab,
+.board-tab-viewport[data-mode="zoom"] .board-notes .nt-rail { display: none; }
+.board-tab-viewport[data-mode="zoom"] .board-notes .nt-main,
+.board-tab-viewport[data-mode="zoom"] .board-notes .nt-col { flex: 1 1 auto; width: 100%; max-width: none; }
+.board-tab-viewport[data-mode="zoom"] .board-notes .nt-canvas-inner { max-width: none; width: auto; padding: 16px; margin: 0; }
+.board-tab-viewport[data-mode="zoom"] .board-notes .nt-cats { column-width: 420px; column-gap: 16px; }
+.board-tab-viewport[data-mode="zoom"] .board-notes .nt-cat { break-inside: avoid; margin: 0 0 16px; }
+.board-tab-viewport[data-mode="zoom"] .board-notes .nt-cat-shell { display: block; }
+.board-tab-viewport[data-mode="zoom"] .board-notes .nt-cat-aside { display: none; }
 .board-tab-viewport[data-mode="scroll"] [data-tab-mount="notes"] .board-tab-canvas,
 .board-panel[data-panel="notes"] .board-tab-viewport[data-mode="scroll"] .board-tab-canvas { padding-top: 0; }
 
@@ -916,8 +953,12 @@ img { display: block; }
     gap: 0 10px;
     padding: 0 10px;
   }
-  .bd-brand { grid-column: 1; grid-row: 1; }
+  .bd-brand { grid-column: 1 / 3; grid-row: 1; gap: 8px; }
   .bd-actions { grid-column: 3; grid-row: 1; gap: 6px; }
+  /* "Mission Control" is two words on a phone, stacked, so it never runs
+     under the header buttons. */
+  .bd-brand-text .bd-title { white-space: normal; line-height: 1.05; font-size: 15px; }
+  .bd-brand-text .board-saved { display: none; }
   .bd-tabs {
     grid-column: 1 / -1;
     grid-row: 2;
@@ -984,3 +1025,13 @@ img { display: block; }
 .board-notes .nt-row.is-dragging { opacity: .35; transition: none; }
 @media (prefers-reduced-motion: reduce) { .board-notes .nt-drop-marker { transition: none; } }
 .board-notes .nt-status { font-size: 13px; }
+/* A zoom block shows the head of its note; putting the caret in it (a click
+   to edit) opens the whole thing. No scroll inside: the rest is clipped
+   behind a fade until then. */
+.board-tab-viewport[data-mode="zoom"] .board-notes .nt-cat-body { max-height: 300px; overflow: hidden; position: relative; }
+.board-tab-viewport[data-mode="zoom"] .board-notes .nt-cat-body::after {
+  content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 56px; pointer-events: none;
+  background: linear-gradient(transparent, var(--panel));
+}
+.board-tab-viewport[data-mode="zoom"] .board-notes .nt-cat:focus-within .nt-cat-body { max-height: none; }
+.board-tab-viewport[data-mode="zoom"] .board-notes .nt-cat:focus-within .nt-cat-body::after { display: none; }

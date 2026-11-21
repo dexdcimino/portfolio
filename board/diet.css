@@ -1,4 +1,5 @@
-/* Diet tab styles (board/diet.js). */
+/* Diet tab styles (board/diet.js). One block per notes category, short
+   rows, details one click deeper (the dev board's feel). */
 
 /* The three health levels, one colour each, used by every dot. */
 .diet-grid { --lvl-clean: var(--green); --lvl-balanced: var(--amber); --lvl-treat: var(--danger); }
@@ -7,12 +8,65 @@
 .diet-grid [data-level="treat"] { --lvl: var(--lvl-treat, var(--danger)); }
 .diet-filters .chip .dot { background: var(--lvl, var(--muted-2)); }
 
-/* Filter bar: search, level chips, category chips on one wrapping row. */
-.diet-filter-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
-.diet-search { flex: 1 1 220px; max-width: 360px; }
+/* Find: search, level chips, category chips. */
+.diet-filter-row { display: flex; flex-direction: column; gap: 8px; }
+.diet-search { width: 100%; }
 .diet-count { font-family: var(--mono); font-size: 13px; opacity: .75; }
 .diet-status { margin: 0; font-size: 14px; color: var(--muted); }
-.diet-hint { margin: 0; font-size: 13px; color: var(--muted-2); }
+.diet-hint { margin: 0; font-size: 13px; color: var(--muted-2); line-height: 1.4; }
+
+/* Rows that open in place. */
+.diet-rows { gap: 0; }
+.diet-open { padding: 0; }
+.diet-open > .board-row { gap: 8px; }
+.diet-open-head {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 4px;
+  border: 0;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-size: 16px;
+  text-align: left;
+  cursor: pointer;
+}
+.diet-open-head:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; border-radius: 6px; }
+.diet-caret {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid var(--muted-2);
+  border-bottom: 2px solid var(--muted-2);
+  transform: rotate(-45deg);
+  transition: transform .15s;
+  margin: 0 2px 0 0;
+}
+.diet-open.is-open .diet-caret { transform: rotate(45deg); border-color: var(--accent-soft); }
+.diet-open-name { flex: none; max-width: 70%; font-weight: 600; overflow-wrap: anywhere; line-height: 1.3; }
+.diet-open-preview {
+  flex: 1 1 0;
+  min-width: 0;
+  color: var(--muted-2);
+  font-size: 14px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.diet-open.is-open .diet-open-preview { visibility: hidden; }
+.diet-recipe .diet-open-name, .diet-recipe .diet-open-head > .row-meta { margin-left: 0; }
+.diet-recipe .diet-open-name { flex: 1 1 auto; max-width: none; }
+.diet-open-head > .row-meta { margin-left: auto; }
+.diet-open-body { display: flex; flex-direction: column; gap: 6px; padding: 2px 4px 10px 22px; }
+.diet-open-body[hidden] { display: none; }
+.diet-recipe .diet-open-body { padding-left: 26px; }
+
+/* The clean/balanced/treat mix of a food group, live with every cycle. */
+.diet-mix { flex: none; display: flex; width: 38px; height: 6px; border-radius: 99px; overflow: hidden; background: var(--panel-2); gap: 1px; }
+.diet-mix > i { display: block; flex: 0 0 0; min-width: 0; background: var(--lvl, var(--muted-2)); }
 
 /* Food chips: dense, wrapping, a coloured dot each. */
 .diet-chips { display: flex; flex-wrap: wrap; gap: 5px; }
@@ -61,33 +115,59 @@ button.diet-food:focus-visible { outline: 2px solid var(--accent); outline-offse
 button.diet-dot { cursor: pointer; }
 button.diet-dot:hover { transform: scale(1.2); }
 button.diet-dot:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.diet-dot-head { margin-right: 2px; }
+.diet-recipe > .board-row { padding-left: 4px; }
 
-/* Combos: tight rows, name bold, ingredients muted. */
-.diet-combos { gap: 0; }
-.diet-combo { display: flex; align-items: baseline; gap: 9px; padding: 4px 2px; }
-.diet-combo + .diet-combo { border-top: 1px solid var(--stroke-soft); }
-.diet-combo .diet-dot { position: relative; top: 2px; }
-.diet-combo .row-text { line-height: 1.4; }
+/* Combos: a small label per group, one line each until clicked. */
+.diet-sub-label {
+  margin: 4px 0 0;
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: .05em;
+}
+.diet-sub-label:first-child { margin-top: 0; }
+.diet-combo { display: flex; align-items: center; gap: 9px; padding: 5px 4px; }
+.diet-combo-text {
+  border: 0;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-size: 16px;
+  text-align: left;
+  padding: 0;
+  cursor: pointer;
+  line-height: 1.4;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.diet-combo.is-open .diet-combo-text { white-space: normal; }
+.diet-combo-text:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
 .diet-combo-rest { color: var(--muted); }
 .diet-combo-rest::before { content: " · "; }
 
 /* Recipes: ingredients in two columns, method below. */
 .diet-label { margin: 2px 0 0; font-size: 13px; font-weight: 700; color: var(--muted); font-family: var(--mono); text-transform: uppercase; letter-spacing: .05em; }
-.diet-uses { margin: 0; padding-left: 18px; columns: 2 150px; column-gap: 18px; font-size: 15px; line-height: 1.4; }
+.diet-uses { margin: 0; padding-left: 18px; columns: 2 140px; column-gap: 18px; font-size: 15px; line-height: 1.4; }
 .diet-uses li { break-inside: avoid; padding: 1px 0; }
 .diet-step { margin: 2px 0 0; font-size: 15px; line-height: 1.5; }
 .diet-step strong { color: var(--accent-soft); }
 .diet-macros { margin: 2px 0 0; font-family: var(--mono); font-size: 13px; color: var(--accent-soft); }
 
-/* Daily targets. */
-.diet-target-controls { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 6px; margin-bottom: 6px; }
-.diet-field { display: flex; flex-direction: column; gap: 2px; flex: 0 1 92px; min-width: 76px; }
-.diet-field-label { font-size: 13px; color: var(--muted); font-family: var(--mono); }
-.diet-field .board-input { min-height: 32px; padding: 4px 8px; }
-.diet-target-controls .board-btn { margin-bottom: 1px; }
+/* Daily targets: label and number, bar, then one line of controls. */
+.diet-targets .board-card-body { gap: 0; }
+.diet-target + .diet-target { margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--stroke-soft); }
+.diet-target .stat-row { padding: 2px 2px 4px; }
+.diet-target .stat-value.is-unset { color: var(--muted-2); font-weight: 500; font-size: 14px; }
+.diet-target .bar { margin: 0 2px 6px; }
+.diet-target-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.diet-field { display: flex; align-items: center; gap: 5px; flex: 0 1 auto; }
+/* The labels stay for screen readers; the line reads "[today] / [target]". */
+.diet-field-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.diet-field .board-input { width: 76px; min-height: 30px; padding: 3px 7px; }
+.diet-of { color: var(--muted-2); font-family: var(--mono); font-size: 14px; }
+.diet-target-controls .board-btn:first-of-type { margin-left: auto; }
 .diet-targets .bar.is-done > i { background: var(--green); }
-.diet-reset { align-self: flex-start; }
-.diet-targets .board-card-body { gap: 2px; }
-.diet-targets .stat-row + .bar { margin-bottom: 4px; }
-.diet-targets .stat-row:not(:first-child) { margin-top: 8px; border-top: 1px solid var(--stroke-soft); padding-top: 10px; }
+.diet-reset { align-self: flex-start; margin-top: 10px; }

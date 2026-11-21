@@ -5,6 +5,11 @@
    exercises: [{ id, name, sets: [{ done }] }] for the today workout
    recovery: [{ id, text, done }] the recovery checklist
    The starter split is structure only and every label is editable.
+   Layout (round 3, dev-board style): four short blocks, each with a
+   status pill: Today's workout (one row per exercise, its set boxes on
+   the same line), Weekly split (one row per day, today marked), Progress
+   (three numbers and the sets bar) and Recovery (a checklist). Styles
+   are in board/exercise.css, scoped under .ex-grid.
    There is no training history. Every change saves through the
    store, and store.listen keeps the tab in step with changes from
    another device. */
@@ -141,18 +146,36 @@ function todayName() {
   return DAYS[(new Date().getDay() + 6) % 7];
 }
 
+let summaryRefs = null;
+
+/* A focus typed into the split updates the split pill and Progress at
+   once, without re-rendering the row being typed in. */
+function refreshSummary() {
+  if (!summaryRefs) return;
+  paintSplitPill(summaryRefs.split);
+  summaryRefs.progress.body.replaceChildren();
+  renderProgress(summaryRefs.progress);
+}
+
+function paintSplitPill(c) {
+  const todayRow = state.split.find((r) => r.day === todayName());
+  const named = state.split.filter((r) => r.focus).length;
+  c.pill.textContent = todayRow && todayRow.focus ? "Today: " + todayRow.focus : named ? named + " of 7 set" : "Not set";
+  c.pill.className = "pill" + (todayRow && todayRow.focus ? " hot" : "");
+}
+
 function renderSplit(c) {
   const today = todayName();
-  const todayRow = state.split.find((r) => r.day === today);
-  c.pill.textContent = todayRow && todayRow.focus ? "Today: " + todayRow.focus : "Week";
+  paintSplitPill(c);
   const list = el("ul", "board-list");
   for (const row of state.split) {
     const item = el("li", "board-list-item");
     const line = el("div", "board-row");
     const isToday = row.day === today;
+    if (isToday) item.classList.add("ex-today");
     line.append(
       el("span", "row-meta ex-day" + (isToday ? " hot" : ""), row.day.slice(0, 3)),
-      editableText(row.focus, row.day + " focus", (v) => { row.focus = v; save(); }, "Set a focus"),
+      editableText(row.focus, row.day + " focus", (v) => { row.focus = v; save(); refreshSummary(); }, "Set a focus"),
     );
     if (isToday) line.append(el("span", "row-meta hot", "Today"));
     item.appendChild(line);
@@ -170,21 +193,18 @@ function setCounts() {
 
 function renderToday(c) {
   const { total, done } = setCounts();
-  c.pill.textContent = (total - done) + (total - done === 1 ? " set left" : " sets left");
+  c.pill.textContent = !total ? "No sets" : total === done ? "All done" : (total - done) + (total - done === 1 ? " set left" : " sets left");
+  c.pill.className = "pill" + (!total ? "" : total === done ? " good" : " hot");
   if (!state.exercises.length) c.body.appendChild(el("div", "board-empty", "No exercises yet. Add the first one below."));
   const list = el("ul", "board-list");
+  if (!state.exercises.length) list.hidden = true;
   for (const exercise of state.exercises) {
     const item = el("li", "board-list-item ex-item");
     item.setAttribute("data-id", exercise.id);
-    const head = el("div", "board-row");
-    head.append(
-      editableText(exercise.name, "Exercise name", (v) => { exercise.name = v; save(); }, "Exercise"),
-      removeButton("Remove exercise", () => {
-        state.exercises = state.exercises.filter((e) => e.id !== exercise.id);
-        save();
-        render();
-      }),
-    );
+    const head = el("div", "board-row ex-head");
+    const doneSets = exercise.sets.filter((s) => s.done).length;
+    if (exercise.sets.length && doneSets === exercise.sets.length) item.classList.add("is-complete");
+    const name = editableText(exercise.name, "Exercise name", (v) => { exercise.name = v; save(); }, "Exercise");
     const sets = el("div", "ex-sets");
     exercise.sets.forEach((set, index) => {
       const b = el("button", "ex-set" + (set.done ? " is-done" : ""), String(index + 1));
@@ -213,6 +233,15 @@ function renderToday(c) {
       less.addEventListener("click", () => { exercise.sets.pop(); save(); render(); });
       sets.appendChild(less);
     }
+    head.append(
+      name,
+      el("span", "row-meta ex-count", doneSets + "/" + exercise.sets.length),
+      removeButton("Remove exercise", () => {
+        state.exercises = state.exercises.filter((e) => e.id !== exercise.id);
+        save();
+        render();
+      }),
+    );
     item.append(head, sets);
     list.appendChild(item);
   }
@@ -228,27 +257,32 @@ function renderProgress(c) {
   c.pill.textContent = pct + "%";
   const today = state.split.find((r) => r.day === todayName());
   const trainDays = state.split.filter((r) => r.focus && !/rest/i.test(r.focus)).length;
-  const rows = [
-    ["Sets done today", done + " of " + total, pct],
-    ["Training days this week", trainDays + " of 7", Math.round((trainDays / 7) * 100)],
-  ];
-  for (const [label, value, w] of rows) {
-    const r = el("div", "stat-row");
-    r.append(el("span", "stat-label", label), el("span", "stat-value", value));
+  const kv = el("div", "kv ex-kv");
+  const cell = (big, label, extra) => {
+    const d = el("div", "cell" + (extra ? " " + extra : ""));
+    d.append(el("b", "", big), el("span", "", label));
+    kv.appendChild(d);
+  };
+  cell(done + "/" + total, "Sets today");
+  cell(trainDays + "/7", "Train days");
+  cell((today && today.focus) || "Not set", "Today's focus", today && today.focus ? "ex-focus" : "ex-focus is-unset");
+  c.body.appendChild(kv);
+  /* One bar per number: sets done today, training days this week. */
+  for (const [label, w] of [["Sets done today", pct], ["Training days this week", Math.round((trainDays / 7) * 100)]]) {
+    const r = el("div", "ex-bar-row");
     const bar = el("div", "bar");
     const fill = el("i");
     fill.style.width = w + "%";
     bar.appendChild(fill);
-    c.body.append(r, bar);
+    r.append(el("span", "stat-label", label), bar);
+    c.body.append(r);
   }
-  const r = el("div", "stat-row");
-  r.append(el("span", "stat-label", "Today's focus"), el("span", "stat-value", (today && today.focus) || "Not set"));
-  c.body.append(r);
 }
 
 function renderRecovery(c) {
   const open = state.recovery.filter((r) => !r.done).length;
-  c.pill.textContent = open ? open + " to do" : "Done";
+  c.pill.textContent = open ? open + " to do" : state.recovery.length ? "Done" : "Empty";
+  c.pill.className = "pill" + (open ? " warn" : state.recovery.length ? " good" : "");
   const list = el("ul", "board-list");
   if (!state.recovery.length) c.body.appendChild(el("div", "board-empty", "Mobility, walks, sleep."));
   for (const r of state.recovery) {
@@ -274,15 +308,16 @@ function renderRecovery(c) {
 function render() {
   if (!rootEl || !state) return;
   rootEl.replaceChildren();
-  const grid = el("div", "board-grid");
+  const grid = el("div", "board-grid ex-grid");
   const split = card("Weekly split", "");
   renderSplit(split);
   const today = card("Today's workout", "", "hot");
   renderToday(today);
   const progress = card("Progress", "", "good");
   renderProgress(progress);
-  const recovery = card("Recovery", "");
+  const recovery = card("Recovery", "", "warn");
   renderRecovery(recovery);
+  summaryRefs = { split, progress };
   grid.append(today.wrap, split.wrap, progress.wrap, recovery.wrap);
   rootEl.appendChild(grid);
 }
@@ -316,6 +351,7 @@ export function unmount() {
   if (unlisten) { unlisten(); unlisten = null; }
   ctxRef = null;
   rootEl = null;
+  summaryRefs = null;
   state = null;
   lastSerialized = "";
 }

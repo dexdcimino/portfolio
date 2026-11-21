@@ -13,14 +13,24 @@
  * order. Matching is case insensitive. A matching session contributes all
  * of its live categories; a matching category is used on its own.
  *
- * Inside a category body each h3 starts a block. Content before the first
- * h3 is the category's intro line and sits under the first block's title.
- * Each block becomes one card, of one of four kinds, decided by its shape:
+ * Layout (round 3, dev-board style): ONE card per notes category (the main
+ * categories: Get and try, Staples, Baking, Quick combos, Recipes), plus a
+ * Daily targets card and a Find card. Content before a category's first h3
+ * is its intro line (the card's sub). Inside a category each h3 starts a
+ * block, which becomes ROWS of that card, of one of four kinds decided by
+ * its shape:
  *   recipe  a block with bold-labelled paragraphs (Uses, Make it, Swap) or
- *           any block in a category whose title says recipe
- *   combos  a list whose items are bold-named or long (assemble-and-eat)
- *   foods   a list of short items, drawn as chips
- *   note    paragraphs only (Leavening rules)
+ *           any block in a category whose title says recipe. One row; a
+ *           click opens its ingredients and method in place.
+ *   combos  a list whose items are bold-named or long (assemble-and-eat).
+ *           A small label, then one row per combo, clamped to one line
+ *           until clicked.
+ *   foods   a list of short items. One row per group (name, preview, a
+ *           clean/balanced/treat mix bar and a count); a click opens its
+ *           chips. A health or text filter opens every matching group.
+ *   note    paragraphs only (Leavening rules). One row that opens its text.
+ * Nothing scrolls inside a card: lists over CLAMP_AT rows show the first
+ * CLAMP_TO and a "Show all" button.
  * Every food, combo and recipe is rendered from text only (textContent),
  * never by cloning the notes HTML into the page.
  *
@@ -30,8 +40,8 @@
  * on a combo or recipe, cycles clean -> balanced -> treat. Overrides live
  * in the board-diet store doc as health: { "<lowercased text>": level };
  * cycling back to the default deletes the override. The filter bar narrows
- * by level, by category and by a text search; a card left with nothing
- * visible is hidden.
+ * by level, by category and by a text search; a row or card left with
+ * nothing visible is hidden.
  *
  * Daily targets: calories, protein and water, each a target and today's
  * number, saved as targets: {...} and today: { date, ... } in the same doc.
@@ -117,7 +127,11 @@ let healthFilter = 'all';
 let catFilter = 'all';
 let query = '';
 let filterUi = null;
-let items = [];        /* every filterable thing: { key, text, level el, card } */
+let items = [];        /* every filterable thing: { key, text, def, node, dotHost, card, cat, group? } */
+let groups = [];       /* expandable food-group rows: { li, head, meta, mix, body, open, items, total } */
+let lists = [];        /* clamped lists: { ul, more, expanded } */
+const CLAMP_AT = 10;
+const CLAMP_TO = 8;
 
 function el(tag, className, text) {
   const node = document.createElement(tag);
@@ -290,12 +304,13 @@ function card(title, pill, sub) {
   const section = el('section', 'board-card diet-card');
   const head = el('div', 'board-card-head');
   head.append(el('h3', 'board-card-title', title));
-  if (pill) head.append(el('span', 'pill', pill));
+  let pillEl = null;
+  if (pill) { pillEl = el('span', 'pill', pill); head.append(pillEl); }
   section.append(head);
   if (sub) section.append(el('p', 'board-card-sub', sub));
   const body = el('div', 'board-card-body');
   section.append(body);
-  return { section, body };
+  return { section, body, head, pill: pillEl };
 }
 
 function register(item) {
@@ -313,11 +328,64 @@ function levelDot(className) {
   return b;
 }
 
-function renderFoods(c, block, ctxInfo) {
+/* A row that opens in place: [lead] [button: caret, name, preview, meta]
+   and a body below it. Returns the parts; the caller fills the body. */
+function openRow(name, opts) {
+  const li = el('li', 'board-list-item diet-open' + (opts.className ? ' ' + opts.className : ''));
+  const line = el('div', 'board-row');
+  if (opts.lead) line.append(opts.lead);
+  const head = el('button', 'diet-open-head');
+  head.type = 'button';
+  head.setAttribute('aria-expanded', 'false');
+  head.append(el('span', 'diet-caret'));
+  head.append(el('span', 'diet-open-name', name));
+  const preview = el('span', 'diet-open-preview', opts.preview || '');
+  if (!opts.preview) preview.hidden = true;
+  head.append(preview);
+  const mix = opts.mix ? el('span', 'diet-mix') : null;
+  if (mix) {
+    for (const level of LEVELS) { const seg = el('i'); seg.setAttribute('data-level', level); mix.append(seg); }
+    mix.setAttribute('aria-hidden', 'true');
+    head.append(mix);
+  }
+  const meta = el('span', 'row-meta', opts.meta || '');
+  head.append(meta);
+  line.append(head);
+  const body = el('div', 'diet-open-body');
+  body.hidden = true;
+  li.append(line, body);
+  const row = { li, head, body, meta, mix, open: false, forced: false, dismissed: false, preview };
+  head.addEventListener('click', () => {
+    if (row.open || (row.forced && !row.dismissed)) { row.open = false; if (row.forced) row.dismissed = true; }
+    else { row.open = true; row.dismissed = false; }
+    paintOpen(row);
+  });
+  return row;
+}
+
+/* forced: a filter is narrowing, so every matching group shows its chips
+   until it is clicked shut (dismissed). */
+function paintOpen(row) {
+  const shown = row.open || (row.forced && !row.dismissed);
+  row.body.hidden = !shown;
+  row.li.classList.toggle('is-open', shown);
+  row.head.setAttribute('aria-expanded', shown ? 'true' : 'false');
+}
+
+function renderNotes(target, nodes) {
+  for (const n of nodes) {
+    const text = clean(n.textContent);
+    if (text) target.append(el('p', 'diet-note', text));
+  }
+}
+
+function foodGroupRow(list, block, info) {
+  const lis = block.nodes.flatMap(listItems).map(ownText).filter(Boolean);
+  const names = lis.map((t) => t.replace(/\s*\(.*\)$/, ''));
+  const row = openRow(block.heading, { preview: names.join(', '), meta: String(lis.length), mix: true, className: 'diet-group' });
   const wrap = el('div', 'diet-chips');
-  for (const li of block.nodes.flatMap(listItems)) {
-    const text = ownText(li);
-    if (!text) continue;
+  const group = Object.assign(row, { items: [], total: lis.length });
+  for (const text of lis) {
     const chip = el(storeRef ? 'button' : 'span', 'diet-food');
     if (storeRef) chip.type = 'button';
     chip.append(el('span', 'diet-dot-mark'));
@@ -329,48 +397,28 @@ function renderFoods(c, block, ctxInfo) {
       chip.append(el('span', 'diet-food-name', text));
     }
     wrap.append(chip);
-    register({ key: keyOf(text), text, def: defaultLevel(text), node: chip, dotHost: chip, card: c.section, cat: ctxInfo.cat });
+    group.items.push(register({ key: keyOf(text), text, def: defaultLevel(text), node: chip, dotHost: chip, card: info.card, cat: info.cat, group }));
   }
-  c.body.append(wrap);
-  renderNotes(c, block.nodes.filter((n) => !listItems(n).length));
+  row.body.append(wrap);
+  renderNotes(row.body, block.nodes.filter((n) => !listItems(n).length));
+  groups.push(group);
+  list.append(row.li);
 }
 
-function renderNotes(c, nodes) {
-  for (const n of nodes) {
-    const text = clean(n.textContent);
-    if (text) c.body.append(el('p', 'diet-note', text));
-  }
+function noteRow(list, block, info) {
+  const words = block.nodes.map((n) => clean(n.textContent)).join(' ');
+  const row = openRow(block.heading, { preview: words, meta: 'note', className: 'diet-noterow' });
+  renderNotes(row.body, block.nodes);
+  list.append(row.li);
+  items.push({ plain: true, node: row.li, card: info.card, cat: info.cat, search: block.heading + ' ' + words });
 }
 
-function renderCombos(c, block, ctxInfo) {
-  const list = el('ul', 'board-list diet-combos');
-  for (const li of block.nodes.flatMap(listItems)) {
-    const text = ownText(li);
-    if (!text) continue;
-    const row = el('li', 'board-list-item diet-combo');
-    const dot = levelDot();
-    const body = el('span', 'row-text');
-    const b = li.querySelector('b, strong');
-    if (b && clean(b.textContent)) {
-      const name = clean(b.textContent);
-      body.append(el('strong', '', name));
-      const rest = text.slice(text.indexOf(name) + name.length).replace(/^\s*[—–-]\s*/, '');
-      if (rest) body.append(el('span', 'diet-combo-rest', rest));
-    } else {
-      body.textContent = text;
-    }
-    row.append(dot, body);
-    list.append(row);
-    register({ key: keyOf(b ? b.textContent : text), text, def: defaultLevel(text, true), node: row, dotHost: dot, card: c.section, cat: ctxInfo.cat });
-  }
-  c.body.append(list);
-  renderNotes(c, block.nodes.filter((n) => !listItems(n).length));
-}
-
-function renderRecipe(c, block, ctxInfo) {
-  const dot = levelDot('diet-dot-head');
-  c.section.querySelector('.board-card-head').prepend(dot);
+function recipeRow(list, block, info) {
+  const dot = levelDot();
   const words = [block.heading];
+  let uses = 0;
+  let macros = '';
+  const body = [];
   for (const n of block.nodes) {
     const lead = boldLead(n);
     const lis = listItems(n);
@@ -381,33 +429,110 @@ function renderRecipe(c, block, ctxInfo) {
         if (!t) continue;
         ul.append(el('li', '', t));
         words.push(t);
+        uses += 1;
       }
-      c.body.append(ul);
+      body.push(ul);
     } else if (lead && !lead.rest) {
-      c.body.append(el('p', 'diet-label', lead.label));
+      body.push(el('p', 'diet-label', lead.label));
     } else if (lead) {
       const p = el('p', 'diet-step');
       p.append(el('strong', '', lead.label + ' '), document.createTextNode(lead.rest));
-      c.body.append(p);
+      body.push(p);
       words.push(lead.rest);
     } else {
       const text = clean(n.textContent);
       if (!text) continue;
-      if (/\b\d+\s*(cal|kcal)\b/i.test(text)) c.body.append(el('p', 'diet-macros', text));
-      else c.body.append(el('p', 'diet-step', text));
+      if (/\b\d+\s*(cal|kcal)\b/i.test(text)) { body.push(el('p', 'diet-macros', text)); if (!macros) macros = text; }
+      else body.push(el('p', 'diet-step', text));
       words.push(text);
     }
   }
+  const kcal = macros.match(/(\d[\d,]*)\s*(?:cal|kcal)\b/i);
+  const meta = kcal ? kcal[1] + ' cal' : uses ? uses + (uses === 1 ? ' item' : ' items') : '';
+  const row = openRow(block.heading, { lead: dot, meta, className: 'diet-recipe' });
+  row.body.append(...body);
+  list.append(row.li);
   register({
     key: keyOf(block.heading), text: block.heading, search: words.join(' '),
-    def: defaultLevel(block.heading, true), node: c.section, dotHost: dot, card: c.section, cat: ctxInfo.cat, whole: true,
+    def: defaultLevel(block.heading, true), node: row.li, dotHost: dot, card: info.card, cat: info.cat,
   });
 }
 
-function renderNoteCard(c, block, ctxInfo) {
-  renderNotes(c, block.nodes);
-  c.section.setAttribute('data-plain', '1');
-  items.push({ plain: true, card: c.section, cat: ctxInfo.cat, search: block.heading + ' ' + block.nodes.map((n) => n.textContent).join(' ') });
+function comboRows(list, block, info) {
+  for (const li of block.nodes.flatMap(listItems)) {
+    const text = ownText(li);
+    if (!text) continue;
+    const row = el('li', 'board-list-item diet-combo');
+    const dot = levelDot();
+    const body = el('button', 'row-text diet-combo-text');
+    body.type = 'button';
+    body.setAttribute('aria-expanded', 'false');
+    body.title = 'Click to show the whole line';
+    const b = li.querySelector('b, strong');
+    if (b && clean(b.textContent)) {
+      const name = clean(b.textContent);
+      body.append(el('strong', '', name));
+      const rest = text.slice(text.indexOf(name) + name.length).replace(/^\s*[—–-]\s*/, '');
+      if (rest) body.append(el('span', 'diet-combo-rest', rest));
+    } else {
+      body.textContent = text;
+    }
+    body.addEventListener('click', () => {
+      const open = row.classList.toggle('is-open');
+      body.setAttribute('aria-expanded', open ? 'true' : 'false');
+    });
+    row.append(dot, body);
+    list.append(row);
+    register({ key: keyOf(b ? b.textContent : text), text, def: defaultLevel(text, true), node: row, dotHost: dot, card: info.card, cat: info.cat });
+  }
+}
+
+function newList(body) {
+  const ul = el('ul', 'board-list diet-rows');
+  body.append(ul);
+  const more = el('button', 'more-btn');
+  more.type = 'button';
+  more.hidden = true;
+  body.append(more);
+  const entry = { ul, more, expanded: false };
+  more.addEventListener('click', () => { entry.expanded = !entry.expanded; applyFilters(); });
+  lists.push(entry);
+  return ul;
+}
+
+/* One card per notes category; each h3 block inside it becomes rows. */
+function renderCategory(s) {
+  const c = card(s.title, ' ', s.intro);
+  const info = { cat: s.title, card: c.section };
+  const kinds = s.blocks.map((block) => classify(block, s.title));
+  c.section.setAttribute('data-kind', kinds.every((k) => k === kinds[0]) ? kinds[0] : 'mixed');
+  let list = null;
+  s.blocks.forEach((block, i) => {
+    const kind = kinds[i];
+    if (kind === 'combos') {
+      const single = s.blocks.length === 1 && block.heading === s.title;
+      if (!single) c.body.append(el('p', 'diet-sub-label', block.heading));
+      comboRows(newList(c.body), block, info);
+      list = null;
+      return;
+    }
+    if (!list) list = newList(c.body);
+    if (kind === 'foods') foodGroupRow(list, block, info);
+    else if (kind === 'recipe') recipeRow(list, block, info);
+    else noteRow(list, block, info);
+  });
+  /* The head pill counts what the card holds. */
+  const mine = items.filter((it) => it.card === c.section);
+  const n = (k) => kinds.filter((x) => x === k).length;
+  const foods = mine.filter((it) => it.group).length;
+  const combos = mine.filter((it) => !it.plain && !it.group && it.node.classList.contains('diet-combo')).length;
+  const parts = [];
+  if (n('recipe')) parts.push(n('recipe') + (n('recipe') === 1 ? ' recipe' : ' recipes'));
+  if (combos) parts.push(combos + (combos === 1 ? ' combo' : ' combos'));
+  if (foods) parts.push(foods + (foods === 1 ? ' food' : ' foods'));
+  if (!parts.length && n('note')) parts.push(n('note') + (n('note') === 1 ? ' note' : ' notes'));
+  c.pill.textContent = parts.join(' · ') || 'Empty';
+  return c.section;
 }
 
 /* ---- daily targets --------------------------------------------------- */
@@ -418,19 +543,26 @@ function renderTargets() {
   c.section.classList.add('diet-targets');
   const rows = [];
   const paint = () => {
+    let set = 0;
+    let met = 0;
     for (const r of rows) {
       /* No made-up default: until Dex types a target it says so. */
       const target = Number(saved.targets[r.t.key]) || 0;
       const now = Number(saved.today[r.t.key]) || 0;
       r.value.textContent = target ? now + ' / ' + target + ' ' + r.t.unit : now + ' ' + r.t.unit + ', set your target';
+      r.value.classList.toggle('is-unset', !target);
       const pct = target ? Math.max(0, Math.min(100, Math.round((now / target) * 100))) : 0;
       r.fill.style.width = pct + '%';
       r.bar.classList.toggle('is-done', !!target && now >= target);
+      if (target) { set += 1; if (now >= target) met += 1; }
       if (document.activeElement !== r.now) r.now.value = String(now);
       if (document.activeElement !== r.target) r.target.value = target ? String(target) : '';
     }
+    c.pill.textContent = set ? met + ' of ' + set + ' met' : 'Today';
+    c.pill.classList.toggle('good', !!set && met === set);
   };
   for (const t of TARGETS) {
+    const block = el('div', 'diet-target');
     const line = el('div', 'stat-row');
     const value = el('span', 'stat-value');
     line.append(el('span', 'stat-label', t.label), value);
@@ -452,8 +584,11 @@ function renderTargets() {
       return input;
     };
     const now = mk('Today', t.label + ' today');
+    controls.append(el('span', 'diet-of', '/'));
     const target = mk('Target', t.label + ' target');
-    target.placeholder = 'Set';
+    target.placeholder = 'Target';
+    now.title = 'Today';
+    target.title = 'Target';
     now.addEventListener('input', () => { saved.today[t.key] = Math.max(0, Number(now.value) || 0); persist(); paint(); });
     target.addEventListener('input', () => {
       const v = Number(target.value);
@@ -467,7 +602,8 @@ function renderTargets() {
       b.addEventListener('click', () => { saved.today[t.key] = (Number(saved.today[t.key]) || 0) + q; persist(); paint(); });
       controls.append(b);
     }
-    c.body.append(line, bar, controls);
+    block.append(line, bar, controls);
+    c.body.append(block);
     rows.push({ t, value, bar, fill, now, target });
   }
   const reset = el('button', 'board-btn is-small diet-reset', 'Reset today');
@@ -482,8 +618,7 @@ function renderTargets() {
 /* ---- filters --------------------------------------------------------- */
 
 function renderFilterBar(source, catTitles) {
-  const c = card('Foods', 'From ' + source.title);
-  c.section.setAttribute('data-span', 'full');
+  const c = card('Find', ' ', 'From ' + source.title + ' in Notes');
   c.section.classList.add('diet-filters');
   const row = el('div', 'diet-filter-row');
 
@@ -530,9 +665,9 @@ function renderFilterBar(source, catTitles) {
   const status = el('p', 'diet-status');
   c.body.append(status);
   c.body.append(el('p', 'diet-hint', storeRef
-    ? 'Read only from the notes, edit foods in the Notes tab. Dots are guessed; click a food (or a dot) to change its level.'
-    : 'Read only from the notes, edit foods in the Notes tab. Dots are guessed.'));
-  filterUi = { healthButtons, catButtons, status, search };
+    ? 'Read only; edit foods in the Notes tab. Dots are guessed: click a food or a dot to change it.'
+    : 'Read only; edit foods in the Notes tab. Dots are guessed.'));
+  filterUi = { healthButtons, catButtons, status, search, pill: c.pill };
   return c.section;
 }
 
@@ -541,6 +676,7 @@ function applyFilters() {
   const counts = { all: 0, clean: 0, balanced: 0, treat: 0 };
   const visibleByCard = new Map();
   let shownFoods = 0;
+  const narrowing = healthFilter !== 'all' || !!query;
   for (const item of items) {
     if (!visibleByCard.has(item.card)) visibleByCard.set(item.card, 0);
     const catOk = catFilter === 'all' || item.cat === catFilter;
@@ -548,16 +684,40 @@ function applyFilters() {
     const queryOk = !query || text.includes(query);
     if (item.plain) {
       const show = catOk && queryOk && healthFilter === 'all';
-      if (show) visibleByCard.set(item.card, 1);
+      item.node.hidden = !show;
+      if (show) visibleByCard.set(item.card, visibleByCard.get(item.card) + 1);
       continue;
     }
     const level = levelOf(item);
     if (catOk && queryOk) { counts.all += 1; counts[level] += 1; }
     const show = catOk && queryOk && (healthFilter === 'all' || level === healthFilter);
-    if (!item.whole) item.node.hidden = !show;
+    item.node.hidden = !show;
+    item.shown = show;
     if (show) { visibleByCard.set(item.card, visibleByCard.get(item.card) + 1); shownFoods += 1; }
   }
+  /* Food groups: the count, the health mix, and open while a filter narrows. */
+  for (const g of groups) {
+    const shown = g.items.filter((it) => it.shown).length;
+    g.li.hidden = shown === 0;
+    g.meta.textContent = narrowing && shown !== g.total ? shown + ' of ' + g.total : String(g.total);
+    const mix = { clean: 0, balanced: 0, treat: 0 };
+    for (const it of g.items) mix[levelOf(it)] += 1;
+    [...g.mix.children].forEach((seg) => { seg.style.flexGrow = String(mix[seg.getAttribute('data-level')]); });
+    g.mix.title = mix.clean + ' clean, ' + mix.balanced + ' balanced, ' + mix.treat + ' treat';
+    g.forced = narrowing;
+    if (!narrowing) g.dismissed = false;
+    paintOpen(g);
+  }
   for (const [cardEl, n] of visibleByCard) cardEl.hidden = n === 0;
+  /* Long lists clamp unless a filter is narrowing them or Show all was pressed. */
+  for (const entry of lists) {
+    const rows = [...entry.ul.children].filter((li) => !li.hidden);
+    const clamp = !narrowing && rows.length > CLAMP_AT && !entry.expanded;
+    [...entry.ul.children].forEach((li) => li.classList.remove('is-clamped-out'));
+    if (clamp) rows.slice(CLAMP_TO).forEach((li) => li.classList.add('is-clamped-out'));
+    entry.more.hidden = narrowing || rows.length <= CLAMP_AT;
+    entry.more.textContent = entry.expanded ? 'Show fewer' : 'Show all (' + rows.length + ')';
+  }
   for (const { level, b, count } of filterUi.healthButtons) {
     b.setAttribute('aria-pressed', level === healthFilter ? 'true' : 'false');
     count.textContent = String(counts[level]);
@@ -567,6 +727,8 @@ function applyFilters() {
   filterUi.status.textContent = !filtered ? ''
     : shownFoods ? shownFoods + ' showing.' : 'Nothing matches these filters.';
   filterUi.status.hidden = !filtered;
+  filterUi.pill.textContent = filtered ? shownFoods + ' showing' : counts.all + ' items';
+  filterUi.pill.classList.toggle('hot', !!filtered);
 }
 
 /* ---- render ---------------------------------------------------------- */
@@ -581,25 +743,16 @@ function renderEmptyState(container) {
 }
 
 function renderDiet(container, source, sections) {
-  items = [];
+  items = []; groups = []; lists = [];
   const grid = el('div', 'board-grid diet-grid');
   const catTitles = sections.map((s) => s.title);
-  grid.append(renderFilterBar(source, catTitles));
   grid.append(renderTargets());
+  grid.append(renderFilterBar(source, catTitles));
   let any = false;
   for (const s of sections) {
-    s.blocks.forEach((block, i) => {
-      const kind = classify(block, s.title);
-      const c = card(block.heading, s.title, i === 0 && s.intro ? s.intro : '');
-      c.section.setAttribute('data-kind', kind);
-      const info = { cat: s.title };
-      if (kind === 'foods') renderFoods(c, block, info);
-      else if (kind === 'combos') renderCombos(c, block, info);
-      else if (kind === 'recipe') renderRecipe(c, block, info);
-      else renderNoteCard(c, block, info);
-      grid.append(c.section);
-      any = true;
-    });
+    if (!s.blocks.length) continue;
+    grid.append(renderCategory(s));
+    any = true;
   }
   if (!any) {
     const c = card('Diet', 'Empty');
@@ -616,7 +769,7 @@ export async function mount(container, ctx) {
   host = container;
   storeRef = ctx && ctx.store ? ctx.store : null;
   saved = { tags: {}, health: {}, targets: {}, today: {} };
-  gridEl = null; filterUi = null; items = [];
+  gridEl = null; filterUi = null; items = []; groups = []; lists = [];
   healthFilter = 'all'; catFilter = 'all'; query = '';
 
   showLine(container, 'Loading diet notes...');
@@ -693,5 +846,5 @@ export function unmount() {
   host = null;
   storeRef = null;
   saved = { tags: {}, health: {}, targets: {}, today: {} };
-  gridEl = null; filterUi = null; items = [];
+  gridEl = null; filterUi = null; items = []; groups = []; lists = [];
 }
