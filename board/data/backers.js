@@ -443,7 +443,7 @@ export default {
    "type": "Accelerator ,  investment",
    "amount": "$220,000 total ($20,000 CEA for 5 percent plus $200,000 uncapped MFN SAFE)",
    "url": "https://www.techstars.com/accelerators/anywhere",
-   "note": "Trawl Oct 22, 2026 (net-new). Applications opened Aug 24, 2026, final deadline Nov 18, 2026; program Mar 8 to Jun 3, 2027. Remote first for North American time zones, no relocation. Above the $100K band; an equity deal for a venture scale company, recorded on the same shelf as a16z Speedrun (bk33) and Y Combinator (bk34). Fits only if Proto Isles is positioned as a fundable startup.",
+   "note": "SUBMITTED 2026-11-16 (Techstars Anywhere, Spring 2027). Trawl Oct 22, 2026 (net-new). Applications opened Aug 24, 2026, final deadline Nov 18, 2026; program Mar 8 to Jun 3, 2027. Remote first for North American time zones, no relocation. Above the $100K band; an equity deal for a venture scale company, recorded on the same shelf as a16z Speedrun (bk33) and Y Combinator (bk34). Fits only if Proto Isles is positioned as a fundable startup.",
    "ruling": "Submitted Nov 16, 2026"
   },
   {
@@ -629,6 +629,70 @@ export default {
    "amount": "$25K to $100K per his own funding requirements",
    "url": "https://www.openvc.app/fund/Francois%20Deliege",
    "note": "Individuals hunt Oct 22, 2026. A solo angel in San Francisco whose OpenVC thesis keywords are gaming, game engines, real time 3D and developer tools, a strong topical fit. Read his numbers carefully: the listing shows $5K to $100K, but his own Funding Requirements page states a $25K to $100K range and a QSBS C-corp preference. Dex ruled Oct 22 that he will meet published floors, so the floor is accepted. The structural watch-out stands even so: Dex has no registered entity and no C-corp, so the QSBS preference may still block at term stage. Route is the Reach out section on his OpenVC profile. Nothing sent yet."
+  },
+  {
+   "id": "bk80",
+   "name": "Variance Ventures",
+   "type": "VC fund",
+   "amount": "Around $50,000 typical initial check, flexible",
+   "url": "https://variance.vc",
+   "note": "Pre-seed and seed, primarily US. Interactive media is a named sector and their own writing names games and AI native creative experiences. Rolling. Flag: a venture check closes into a company, and Dex has no company formed yet. Verified 2026-11-21."
+  },
+  {
+   "id": "bk81",
+   "name": "Frame1Games",
+   "type": "accelerator",
+   "amount": "Amount not published",
+   "url": "https://frame1games.com",
+   "note": "CAA indie funding accelerator and venture fund, first cohort open now, no deadline stated. Capital plus guidance; no amount, equity, or recoupment terms published. Solo developers expressly encouraged and the form accepts free to play. Verified 2026-11-21."
+  },
+  {
+   "id": "bk82",
+   "name": "The Mini Fund",
+   "type": "seed fund",
+   "amount": "Up to $250,000 in a current or future round, via investment rights",
+   "url": "https://themini.fund",
+   "note": "Terms as published: up to 1 percent advisory stake, a 2 year advisor commitment, and decisions in about 2 to 3 weeks. Rolling. The money rides on a round; it is not a standalone first check. Verified 2026-11-21."
+  },
+  {
+   "id": "bk83",
+   "name": "gener8tor",
+   "type": "accelerator",
+   "amount": "$100,000 investment for 7.5 percent equity on a SAFE (some programmes 5 percent)",
+   "url": "https://gener8tor.com/apply",
+   "note": "12 week investment accelerators, cohorts of 5 to 6, rolling by programme; most programmes are city or sector specific. Flag: a SAFE needs a company, and Dex has no company formed yet. Verified 2026-11-21."
+  },
+  {
+   "id": "bk84",
+   "name": "Colorado Advanced Industries ESCR Grant",
+   "type": "grant",
+   "amount": "Up to $250,000 per project (cap may lift to $500,000 for multi industry projects)",
+   "url": "https://oedit.colorado.gov",
+   "note": "Non dilutive reimbursement grant run by OEDIT. Windows run January to March and July to September; next window opens January 2027. Flags: Colorado Secretary of State registration required (no company yet) and a 2 to 1 non state cash match. Verified 2026-11-21."
+  },
+  {
+   "id": "bk85",
+   "name": "Alibi Games",
+   "type": "publisher",
+   "amount": "Amount not published",
+   "url": "https://alibi.games",
+   "note": "Publisher whose own site states it can fund production and marketing, and funds localisation, QA, LQA and porting; revenue terms not published. Rolling. London based micro publisher; stated taste is system driven and mechanically deep games from smaller teams. Flag: catalogue so far is premium priced single player games. Verified 2026-11-21."
+  },
+  {
+   "id": "bk86",
+   "name": "Mad Mushroom",
+   "type": "publisher",
+   "amount": "Amount not published",
+   "url": "https://madmushroom.gg",
+   "note": "Creator led publisher, the publishing arm of the OTK Network, with financing listed among its own services; deal terms not published and positioned as developer friendly. Rolling. Flag: it scouts late stage, nearly funded games and provides finish line support rather than full development funding. Verified 2026-11-21."
+  },
+  {
+   "id": "bk87",
+   "name": "A MAZE. Awards 2027",
+   "type": "prize",
+   "amount": "2000 EUR top prize (Most Amazing Award and WINGS Award); 1000 EUR for all other awards",
+   "url": "https://2027.award.amaze-berlin.de",
+   "note": "Prize competition run by A MAZE. / Berlin. No equity, revenue share, or IP claim stated. Deadline January 10, 2027. Solo friendly, no company needed, and demos and prototypes are welcome. Flag: entry fee (50 EUR regular, 35 EUR early bird in November, pay what you can options, and a free pass is available on request). Verified 2026-11-21."
   }
  ],
  "rulings": [
@@ -640,17 +704,17 @@ export default {
   {
    "name": "Angel Club",
    "status": "Submitted Nov 16, 2026",
-   "note": "Not a row in the October app list. Recorded here so the card does not present it as an open lead."
+   "note": "Not a row in the October app list. Recorded here so the card does not present it as an open lead. SUBMITTED 2026-11-16 (Year End Final, December 3)."
   },
   {
    "name": "Start-Up Chile",
    "status": "Dropped Nov 20, 2026",
-   "note": "Not a row in the October app list. Dropped when the Chile residency requirement and the low amount became clear."
+   "note": "Not a row in the October app list. Dropped when the Chile residency requirement and the low amount became clear. DROPPED by Dex 2026-11-20, not pursued."
   },
   {
    "name": "Papermark",
    "status": "Closed Nov 18, 2026",
-   "note": "Not a row in the October app list. Already closed in the November backers ranking."
+   "note": "Not a row in the October app list. Already closed in the November backers ranking. CLOSED 2026-11-18."
   }
  ],
  "stalenessNote": "Techstars and Angel Club were submitted on Nov 16, 2026. Start-Up Chile was dropped on Nov 20, 2026. Papermark was closed on Nov 18, 2026. The underlying list is the October app copy and has not had a full reconciliation pass against the November files, so treat open flags with care."

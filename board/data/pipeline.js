@@ -3208,6 +3208,176 @@ export default {
    "url": "https://job-boards.greenhouse.io/cabiclothing/jobs/4364107009",
    "pillar": "Apply",
    "kind": "role"
+  },
+  {
+   "id": "o280",
+   "co": "Little Plains",
+   "role": "Design Technologist",
+   "pay": "Contract rate $75 to $125 per hour, freelance, remote anywhere.",
+   "why": "The posting asks for a portfolio of prototypes and shipped work and daily use of frontier agentic tools, building primarily through Claude Code and other agentic tools, which is his working model stated in the employer's own words. Closes 26 November 2026.",
+   "url": "https://the-brandidentity.com/jobs/roles/little-plains/design-technologist-15178790",
+   "pillar": "Apply",
+   "kind": "role"
+  },
+  {
+   "id": "o281",
+   "co": "Northwest AI Consulting",
+   "role": "Claude AI Enablement Trainer",
+   "pay": "$50.00 to $70.00 hourly, 10 to 30 hours a week depending on client demand, first 2 weeks as paid onboarding, contract to hire, 1 to 3 months.",
+   "why": "The work is teaching Claude 101 to 103 workshops and running small weekly pods where employees build real workflows, hired through Upwork. The fit test is using Claude every day and showing something real built with it, which Clayweld and his shipped sites answer directly.",
+   "url": "https://www.upwork.com/freelance-jobs/apply/Claude-Enablement-Trainers_~022111958522159738761/",
+   "pillar": "Apply",
+   "kind": "role"
+  },
+  {
+   "id": "o282",
+   "co": "Syneos Health (GSW agency)",
+   "role": "Freelance Creative Technologist, Unity Generalist (Remote)",
+   "pay": "The anticipated hourly rate for this position is $65 to $75.",
+   "why": "The work is building and optimizing Unity scenes for WebGL interactive web experiences, integrating UI, VFX, audio and logic in a fast moving creative environment, which matches his Unity game building and interactive prototype work. The employer states that applicants whose experience does not align perfectly should apply anyway and that transferable skills will be considered.",
+   "url": "https://commercialcareers.syneoshealth.com/jobs/18323039-freelance-creative-technologist-unity-generalist",
+   "pillar": "Apply",
+   "kind": "role"
+  },
+  {
+   "id": "o283",
+   "co": "Upwork client (unnamed, Frisco, Texas, mid-sized aviation company)",
+   "role": "AI Agent Development Consultant for Persistent Memory, Coding and Administrative Workflows",
+   "pay": "Hourly rate $35 to $50 USD for a one-off training and assessment engagement lasting less than one month.",
+   "why": "The client wants an expert in agent systems and persistent memory who can assess his setup, configure a better one, and teach him to run it. That is the agentic workflow and durable memory system Dex builds and operates daily.",
+   "url": "https://www.upwork.com/freelance-jobs/apply/Agent-Development-Consultant-for-Persistent-Memory-Coding-and-Administrative-Workflows_~022119564633311377364/",
+   "pillar": "Apply",
+   "kind": "role"
+  },
+  {
+   "id": "o284",
+   "co": "Upwork client (unnamed, Baird, USA)",
+   "role": "Claude Code expert: make our scheduled AI agent tasks reliable (short consult)",
+   "pay": "Hourly rate $40.00 to $90.00 USD for a short consult under 10 hours, less than 1 month, one-time project.",
+   "why": "The client runs about 15 Claude Code scheduled tasks that skip steps, stall, and get blocked by permission checks, and asks for someone who has run Claude Code automations in production and knows hooks, permissions, MCP servers, and subagents. That is the scheduled agent system Dex operates every day for his own work.",
+   "url": "https://www.upwork.com/freelance-jobs/apply/Claude-Code-expert-make-our-scheduled-agent-tasks-reliable-short-consult_~022121173264108850633/",
+   "pillar": "Apply",
+   "kind": "role"
+  },
+  {
+   "id": "o285",
+   "co": "Wiley",
+   "role": "Prototyping and Tools Developer",
+   "pay": "Salary Range 73,100.00 USD to 104,633.33 USD.",
+   "why": "The posting carries no years bar, asks for demonstrated experience building web applications shown through shipped projects, repositories or demos, and states that the ideal candidate builds primarily through AI-assisted workflows and reviews and corrects what AI produces. That is his exact model in the employer's own words.",
+   "url": "https://bookjobs.nyc/jobs/prototyping-and-tools-developer-wiley-nov-2026",
+   "pillar": "Apply",
+   "kind": "role"
+  },
+  {
+   "id": "o286",
+   "co": "Coalition",
+   "role": "Embedded AI Builder",
+   "pay": "US base salary $138,000 to $190,000 by geographic market.",
+   "why": "The role embeds inside business teams, finds the work that burns the most hours, and ships AI that removes it in days. Requirements are 2 to 6 years building automations or technical products with side projects counting, things built with AI that people actually use, and comfort writing code using coding agents, with Cursor and Claude Code named in the posting.",
+   "url": "https://www.coalitioninc.com/job-posting?gh_jid=4754897005",
+   "pillar": "Apply",
+   "kind": "role"
+  },
+  {
+   "id": "o287",
+   "co": "Helmsted",
+   "role": "Founding Design Engineer",
+   "pay": "Base salary $150,000 to $175,000, plus early team equity grant.",
+   "why": "The posting asks for someone Pro-AI who builds through AI tools (Claude Code, Cursor and similar) almost every day, designs a screen and ships it in the real codebase, prototypes in code, and owns the design system so AI agents produce correct UI by default. That is his AI directed building model stated in the employer's own words. Route note: the saved Wellfound login is currently rejected by the site, so this application is blocked until the sign-in is fixed.",
+   "url": "https://wellfound.com/jobs/4995298-founding-ai-engineer-clone",
+   "pillar": "Apply",
+   "kind": "role"
+  },
+  {
+   "id": "o288",
+   "co": "IDEO",
+   "role": "Design Engineer Lead",
+   "pay": "The salary range for this role is $120,000 to $140,000 USD.",
+   "why": "The seat is rapid prototyping of products, services and experiences using software, AI, hardware and emerging tools as creative material. There is no years bar and no language fluency bar in the posting; it asks for a track record of experimenting, prototyping and shipping real products, which is portfolio judged. Hybrid in Chicago, in studio Tuesday to Thursday.",
+   "url": "https://job-boards.greenhouse.io/ideo/jobs/8354241",
+   "pillar": "Apply",
+   "kind": "role"
+  },
+  {
+   "id": "o289",
+   "co": "Novig",
+   "role": "Design Engineer",
+   "pay": "$200,000 to $260,000 base, plus meaningful equity for every employee.",
+   "why": "Design at Novig is stated as AI first and craft first, using tools like Claude Code to go from idea to working software fast, with duties covering prototyping in code, testing with real users, and owning motion, interaction and the design system. Route note: the saved Wellfound login is currently rejected by the site.",
+   "url": "https://wellfound.com/jobs/4897791-design-engineer",
+   "pillar": "Apply",
+   "kind": "role"
+  },
+  {
+   "id": "o290",
+   "co": "Nothing",
+   "role": "Applied AI Engineer",
+   "pay": "Base salary pay range $159,000 to $242,000 USD, plus excellent benefits.",
+   "why": "The posting states that what matters is what you have built, how you think, and how fast you learn, and asks for shipped working software, experience building with LLMs or agents, and building with coding agents every day. His shipped game, live sites, and agent built products are the evidence the posting asks for. The role is backend first, framed as AI directed delivery.",
+   "url": "https://join.nothing.tech/careers/66113-applied-ai-engineer/",
+   "pillar": "Apply",
+   "kind": "role"
+  },
+  {
+   "id": "o291",
+   "co": "Arthur (ArthurAI)",
+   "role": "Forward Deployed Engineer",
+   "pay": "Target base salary range $170,000 to $220,000, based on experience and how skills align with role requirements.",
+   "why": "The role embeds with customers to build the solutions that make their AI systems work: custom UI components, dashboards, queries and integrations, with patterns fed back into the core product. It states no years bar, and its AI line is fluency with modern AI tooling, which matches his daily agent driven workflow.",
+   "url": "https://www.indexventures.com/startup-jobs/arthurai/forward-deployed-engineer/",
+   "pillar": "Apply",
+   "kind": "role"
+  },
+  {
+   "id": "o292",
+   "co": "Netflix",
+   "role": "Senior Creative Technologist, Games GenAI",
+   "pay": "$250,000 to $370,000 annual salary, no bonuses, salary versus stock options choice each year.",
+   "why": "The role uses GenAI tools to explore game concepts and build playable prototypes with agentic coding tools, and designs pipelines connecting generative AI APIs to DCC tools and engine systems. The comfort list names Maya, Unity and Unreal, and Figma, which is his exact stack, and his Clayweld work with AI pets and rapid playable prototypes is direct evidence.",
+   "url": "https://explore.jobs.netflix.net/careers/job/790319210998",
+   "pillar": "Apply",
+   "kind": "role"
+  },
+  {
+   "id": "o293",
+   "co": "Nintendo Software Technology",
+   "role": "Character Artist III",
+   "pay": "Base salary range $86,290 to $129,434 annually, plus potential semi-annual discretionary performance bonus.",
+   "why": "Character art is his paid core, mostly organic characters and creatures. The posting asks for 4 or more years of professional experience in game development, which his 6 to 7 years in 3D clears, and the tools named are Photoshop, Maya, ZBrush and Substance Painter with Unreal or Unity. Hybrid in Redmond, Washington.",
+   "url": "https://hitmarker.net/jobs/nintendo-character-artist-iii-nst-1272234",
+   "pillar": "Apply",
+   "kind": "role"
+  },
+  {
+   "id": "o294",
+   "co": "Santa Monica Studio, PlayStation",
+   "role": "Character Artist (ExDev)",
+   "pay": "Hourly rate $44.14 to $66.16 USD.",
+   "why": "The posting asks for 2+ years as a 3D Character Artist, which he clears, and the proficiency list is Maya, ZBrush, Photoshop and Substance Painter or Designer. Character work is his paid core. The day to day is reviewing and giving feedback on outsourced character assets plus cleanup and polish passes.",
+   "url": "https://hitmarker.net/jobs/santa-monica-studio-character-artist-exdev-1258376",
+   "pillar": "Apply",
+   "kind": "role"
+  },
+  {
+   "id": "o295",
+   "co": "Runpod",
+   "role": "Brand Designer and Illustrator",
+   "pay": "Base pay range $99,700 to $132,900 USD.",
+   "why": "The posting asks for 5+ years of design experience, which his 5 paid graphic and product design years meet, proficiency in Figma, which matches his Proficient wording exactly, and Adobe Creative Cloud proficiency. Print and event signage work sits inside his paid signage and packaging core, and AI assisted design tools are named approvingly in the posting.",
+   "url": "https://remotive.com/remote/jobs/design/brand-designer-and-illustrator-6551285",
+   "pillar": "Apply",
+   "kind": "role"
+  },
+  {
+   "id": "o296",
+   "co": "Roblox",
+   "role": "3D Visual Artist (Short Term)",
+   "pay": "Annual Salary Range $109,240 to $133,830 USD.",
+   "why": "No numeric years bar, a portfolio ask around character and accessory design, and Photoshop named, all inside his art foundation. Flags: the seat is concept art first, with 3D limited to reviewing contractor models, Illustrator is named and is not in his claimed kit, and the seat is hybrid in San Mateo, onsite Tuesday to Thursday.",
+   "url": "https://hitmarker.net/jobs/roblox-3d-visual-artist-short-term-5631957",
+   "pillar": "Apply",
+   "kind": "role"
   }
  ],
  "watchlist": [
