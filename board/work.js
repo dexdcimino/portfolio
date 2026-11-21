@@ -45,7 +45,7 @@ let storeRef = null;
 let rootEl = null;
 
 /* Rows a list shows before its "Show all" button. */
-const CLAMP = 4;
+const CLAMP = 3;
 /* Above this many rows the hidden rows are not built until opened. */
 const LAZY_OVER = 120;
 
@@ -424,7 +424,7 @@ function checklistGroups(parent, groups, opts) {
     updateGroup();
     host.appendChild(det);
   }
-  clampChildren(host, 8, "groups");
+  clampChildren(host, 3, "groups");
   return allItems;
 }
 
@@ -1194,7 +1194,7 @@ function buildWebDesign(grid) {
       total += waves[wave].length;
       const sec = h("div", "wk-wave");
       sec.appendChild(sectionHead(wave + " wave", h("span", "wk-sec-count", String(waves[wave].length))));
-      const cl = clampedList(sec, 3);
+      const cl = clampedList(sec, 1);
       cl.set(waves[wave], (entry) => {
         const li = h("li", "board-list-item");
         const main = h("div", "wk-main");
@@ -1489,6 +1489,53 @@ export async function mount(container, ctx) {
   buildIncome(grid);
   buildGuides(grid);
   buildArchive(grid);
+  foldBlocks(grid);
+}
+
+/* Fold every block to its head and its first list. A block's later sections
+   (a second list, its filters, its notes) go behind one "More in this block"
+   button, and any plain list longer than CLAMP rows gets its own Show all.
+   Without this Work was about 10,000px tall at 1440. */
+function foldBlocks(grid) {
+  for (const body of grid.querySelectorAll(":scope > .board-card > .board-card-body")) {
+    for (const ul of body.querySelectorAll("ul.board-list")) {
+      const next = ul.nextElementSibling;
+      if (next && next.classList.contains("more-btn")) continue;
+      const items = Array.from(ul.children).filter((li) => li.tagName === "LI" && !li.classList.contains("board-empty"));
+      /* Plain lists here are long-form rows (rulings, notes): two show. */
+      const SHOW = 2;
+      if (items.length <= SHOW) continue;
+      const btn = h("button", "more-btn");
+      btn.type = "button";
+      let open = false;
+      const draw = () => {
+        items.forEach((li, i) => li.classList.toggle("is-clamped-out", !open && i >= SHOW));
+        btn.textContent = open ? "Show fewer" : "Show all (" + items.length + ")";
+        btn.setAttribute("aria-expanded", open ? "true" : "false");
+      };
+      btn.addEventListener("click", () => { open = !open; draw(); });
+      ul.after(btn);
+      draw();
+    }
+    const kids = Array.from(body.children);
+    let cut = kids.findIndex((k) => k.matches("ul.board-list, table, .kv, details, .wk-groups"));
+    if (cut < 0) continue;
+    if (kids[cut + 1] && kids[cut + 1].classList.contains("more-btn")) cut += 1;
+    const rest = kids.slice(cut + 1);
+    if (!rest.length) continue;
+    const fold = h("div", "wk-fold");
+    fold.hidden = true;
+    fold.append(...rest);
+    const more = h("button", "more-btn wk-fold-btn", "More in this block");
+    more.type = "button";
+    more.setAttribute("aria-expanded", "false");
+    more.addEventListener("click", () => {
+      fold.hidden = !fold.hidden;
+      more.textContent = fold.hidden ? "More in this block" : "Less";
+      more.setAttribute("aria-expanded", fold.hidden ? "false" : "true");
+    });
+    body.append(more, fold);
+  }
 }
 
 export function unmount() {

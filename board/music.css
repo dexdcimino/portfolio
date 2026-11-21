@@ -1499,3 +1499,8 @@ html.music-fullscreen dialog[open]:not(.music-confirm-overlay):not(.music-playli
 .board-music .music-stopbtn .icon svg { width: 17px; height: 17px; }
 
 html.music-live .board-music .music-card-now { border-color: var(--accent); }
+
+/* Under the player while it loads (or when an embed is refused) the box shows
+   the track's cover on the theme's panel, never a white page. */
+.board-music .music-screen iframe { background: var(--panel-2); color-scheme: dark; }
+.board-music .music-screen.is-live { background: var(--panel-2); }

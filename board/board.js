@@ -363,7 +363,7 @@ function scaffoldFor(tabId) {
 }
 
 function minColFor(tabId) {
-  if (tabId === "work") return 360;
+  if (tabId === "work") return 270;
   if (tabId === "schedule") return 300;
   return 340;
 }
@@ -410,16 +410,35 @@ function layoutZoomWorld(tabId) {
   const stageH = parts.viewport.clientHeight;
   if (!stageW || !stageH) return;
   if (tabId === "notes") { parts.canvas.style.width = ""; return; }
-  const col = minColFor(tabId) + 16;
-  const aspect = stageH / stageW;
-  let width = stageW;
-  for (let i = 0; i < 10; i += 1) {
+  /* Pick the column count whose packed board is closest to the stage's own
+     shape (the dev board's pick()): every count is packed for real and
+     scored by |log(board aspect / stage aspect)|, so Fit shows a board that
+     fills the screen instead of a tall strip with dead space either side. */
+  const gap = 16;
+  const pad = Math.max(0, parts.canvas.offsetWidth - (parts.canvas.querySelector(".board-grid") || parts.canvas).clientWidth);
+  /* Work packs 270px columns in Scroll so 1440 gets three; on the zoom
+     board there is room, and wider columns keep its text off one word a
+     line. */
+  const col = tabId === "work" ? 360 : minColFor(tabId);
+  packer.setMinCol(col);
+  const blocks = parts.canvas.querySelectorAll(".board-grid > .board-card").length || 1;
+  const stageAspect = stageW / stageH;
+  const maxCols = Math.min(blocks, 16);
+  /* Music is three blocks whose track list flows into as many columns as
+     its width allows, so it is tried by width rather than by block count. */
+  const widths = [];
+  if (tabId === "music") for (let k = 1; k <= 6; k += 0.5) widths.push(Math.round(stageW * k));
+  else for (let c = 1; c <= maxCols; c += 1) widths.push(Math.max(stageW, Math.ceil(c * col + (c - 1) * gap + pad)));
+  let best = null;
+  for (const width of widths) {
+    if (best && width === best.width) continue;
     parts.canvas.style.width = width + "px";
     packer.repack();
-    const h = parts.canvas.offsetHeight;
-    if (h <= width * aspect * 1.1 || width >= stageW * (tabId === "music" ? 1.5 : 2.6)) break;
-    width += col;
+    const h = parts.canvas.offsetHeight || 1;
+    const score = Math.abs(Math.log((width / h) / stageAspect));
+    if (!best || score < best.score - 0.02) best = { width, score };
   }
+  if (best) { parts.canvas.style.width = best.width + "px"; packer.repack(); }
 }
 
 function fitZoom(tabId, animate) {
@@ -431,10 +450,10 @@ function fitZoom(tabId, animate) {
   const ww = parts.canvas.offsetWidth;
   const wh = parts.canvas.offsetHeight;
   if (!sw || !ww) return;
-  /* Notes and Music are one long column that cannot be re-packed wider, so
-     fitting the whole height shrank them to 15-20%, too small to read. They
-     fit the width instead, from the top. */
-  const byWidth = tabId === "notes" || tabId === "music";
+  /* Notes is one long document that cannot be re-packed wider, so fitting
+     its whole height shrank it to 15%, too small to read. It fits the width
+     instead, from the top. */
+  const byWidth = tabId === "notes";
   const scale = Math.max(0.15, Math.min(1, (sw - 24) / ww, byWidth ? Infinity : (sh - 24) / wh));
   z.scale = scale;
   z.x = Math.round((sw - ww * scale) / 2);
@@ -478,7 +497,7 @@ function applyViewMode(tabId) {
   if (mode === "scroll") {
     parts.canvas.style.width = "";
     parts.canvas.style.transform = "";
-    if (packer) packer.schedule();
+    if (packer) { packer.setMinCol(minColFor(tabId)); packer.schedule(); }
   } else if (was !== "zoom" || !zoomStateFor(tabId).fitted) {
     if (!panelFor(tabId).hidden) {
       layoutZoomWorld(tabId);

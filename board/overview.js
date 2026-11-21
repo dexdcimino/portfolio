@@ -12,7 +12,7 @@
    tab in step with changes from another device. */
 
 const DOC = "board-overview";
-const FITNESS_SEED = "Fasting plus regular gym. 40 pounds lost.";
+const FITNESS_SEED = "";
 
 let ctxRef = null;
 let rootEl = null;
@@ -293,6 +293,7 @@ function renderComingUp(c) {
     return n >= 0 && n <= 7;
   }).length;
   c.pill.textContent = week + " this week";
+  if (!week) c.pill.classList.remove("warn", "hot");
   if (!sorted.length) c.body.appendChild(el("div", "board-empty", "Nothing coming up yet."));
   const list = el("ul", "board-list");
   for (const itemData of sorted) {

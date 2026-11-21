@@ -11,7 +11,8 @@
 
 const DOC = "board-exercise";
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
-const STARTER_FOCUS = ["Push", "Pull", "Legs", "Rest", "Push", "Pull", "Rest"];
+/* Empty until Dex names a day: no invented split. */
+const STARTER_FOCUS = ["", "", "", "", "", "", ""];
 
 let ctxRef = null;
 let rootEl = null;
@@ -151,7 +152,7 @@ function renderSplit(c) {
     const isToday = row.day === today;
     line.append(
       el("span", "row-meta ex-day" + (isToday ? " hot" : ""), row.day.slice(0, 3)),
-      editableText(row.focus, row.day + " focus", (v) => { row.focus = v; save(); }, "Rest"),
+      editableText(row.focus, row.day + " focus", (v) => { row.focus = v; save(); }, "Set a focus"),
     );
     if (isToday) line.append(el("span", "row-meta hot", "Today"));
     item.appendChild(line);
@@ -226,10 +227,10 @@ function renderProgress(c) {
   const pct = total ? Math.round((done / total) * 100) : 0;
   c.pill.textContent = pct + "%";
   const today = state.split.find((r) => r.day === todayName());
-  const restDays = state.split.filter((r) => /rest/i.test(r.focus)).length;
+  const trainDays = state.split.filter((r) => r.focus && !/rest/i.test(r.focus)).length;
   const rows = [
     ["Sets done today", done + " of " + total, pct],
-    ["Training days this week", (7 - restDays) + " of 7", Math.round(((7 - restDays) / 7) * 100)],
+    ["Training days this week", trainDays + " of 7", Math.round((trainDays / 7) * 100)],
   ];
   for (const [label, value, w] of rows) {
     const r = el("div", "stat-row");
@@ -241,7 +242,7 @@ function renderProgress(c) {
     c.body.append(r, bar);
   }
   const r = el("div", "stat-row");
-  r.append(el("span", "stat-label", "Today's focus"), el("span", "stat-value", (today && today.focus) || "Rest"));
+  r.append(el("span", "stat-label", "Today's focus"), el("span", "stat-value", (today && today.focus) || "Not set"));
   c.body.append(r);
 }
 

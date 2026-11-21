@@ -2434,8 +2434,10 @@ function createPlayer(container, ctx) {
     render();
     startSync();
     syncNow();
-    if (index < 0 && queue.length) startFresh();
-    else if (index < 0) idle();
+    /* Never on open: the overlay starts a track when it opens, but the
+       board is a tab Dex flips to while something else is playing (it cut
+       over his podcast). The tab waits for a click. */
+    if (index < 0) idle();
   })();
 
   function destroy() {

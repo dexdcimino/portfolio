@@ -103,9 +103,9 @@ const WORD_PATTERNS = WORDS_LONGEST_FIRST.map((word) => ({
 }));
 
 const TARGETS = [
-  { key: 'calories', label: 'Calories', unit: 'kcal', step: 100, quick: [100, 250], def: 2000 },
-  { key: 'protein', label: 'Protein', unit: 'g', step: 5, quick: [10, 25], def: 150 },
-  { key: 'water', label: 'Water', unit: 'cups', step: 1, quick: [1], def: 8 },
+  { key: 'calories', label: 'Calories', unit: 'kcal', step: 100, quick: [100, 250] },
+  { key: 'protein', label: 'Protein', unit: 'g', step: 5, quick: [10, 25] },
+  { key: 'water', label: 'Water', unit: 'cups', step: 1, quick: [1] },
 ];
 
 let host = null;
@@ -419,14 +419,15 @@ function renderTargets() {
   const rows = [];
   const paint = () => {
     for (const r of rows) {
-      const target = Number(saved.targets[r.t.key]) || r.t.def;
+      /* No made-up default: until Dex types a target it says so. */
+      const target = Number(saved.targets[r.t.key]) || 0;
       const now = Number(saved.today[r.t.key]) || 0;
-      r.value.textContent = now + ' / ' + target + ' ' + r.t.unit;
-      const pct = Math.max(0, Math.min(100, Math.round((now / target) * 100)));
+      r.value.textContent = target ? now + ' / ' + target + ' ' + r.t.unit : now + ' ' + r.t.unit + ', set your target';
+      const pct = target ? Math.max(0, Math.min(100, Math.round((now / target) * 100))) : 0;
       r.fill.style.width = pct + '%';
-      r.bar.classList.toggle('is-done', now >= target);
+      r.bar.classList.toggle('is-done', !!target && now >= target);
       if (document.activeElement !== r.now) r.now.value = String(now);
-      if (document.activeElement !== r.target) r.target.value = String(target);
+      if (document.activeElement !== r.target) r.target.value = target ? String(target) : '';
     }
   };
   for (const t of TARGETS) {
@@ -452,6 +453,7 @@ function renderTargets() {
     };
     const now = mk('Today', t.label + ' today');
     const target = mk('Target', t.label + ' target');
+    target.placeholder = 'Set';
     now.addEventListener('input', () => { saved.today[t.key] = Math.max(0, Number(now.value) || 0); persist(); paint(); });
     target.addEventListener('input', () => {
       const v = Number(target.value);

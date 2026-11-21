@@ -66,9 +66,25 @@ function go(tab) {
   if (ctxRef && ctxRef.boardApi) void ctxRef.boardApi.switchTab(tab);
 }
 
+/* What the panel shows depends on the tab, so it never repeats the canvas
+   beside it: on Overview the tasks, bills and dates ARE the canvas, so the
+   panel keeps only the clock, today's schedule and links; on Schedule it
+   drops today's entries (they are the first block) and keeps the rest. */
+function currentTab() {
+  const app = document.getElementById("board-app");
+  return (app && app.getAttribute("data-tab")) || "overview";
+}
+
 function render() {
   if (!root) return;
   root.replaceChildren();
+  const tab = currentTab();
+  const show = {
+    entries: tab !== "schedule",
+    tasks: tab !== "overview",
+    bills: tab !== "overview",
+    coming: tab !== "overview",
+  };
 
   const today = panel("Today");
   const clock = el("div", "rail-clock");
@@ -77,7 +93,7 @@ function render() {
   const dayKey = DAY_KEYS[new Date().getDay()];
   const entries = schedule && schedule.days && Array.isArray(schedule.days[dayKey]) ? schedule.days[dayKey].slice() : [];
   entries.sort((a, b) => (a.time || "99").localeCompare(b.time || "99"));
-  for (const e of entries.slice(0, 6)) {
+  for (const e of show.entries ? entries.slice(0, 6) : []) {
     const row = el("div", "rail-item");
     row.append(el("time", null, e.time || "--:--"), el("span", "ri-text", e.text));
     today.body.append(row);
@@ -99,7 +115,7 @@ function render() {
   if (tasks.length && !open.length) tp.body.append(el("div", "rail-empty", "All done."));
   tp.h.style.cursor = "pointer";
   tp.h.addEventListener("click", () => go("overview"));
-  root.append(tp.wrap);
+  if (show.tasks) root.append(tp.wrap);
 
   const bills = overview && Array.isArray(overview.bills) ? overview.bills : [];
   const soon = bills.map((b) => ({ b, d: nextDue(b) }))
@@ -120,7 +136,7 @@ function render() {
   }
   bp.h.style.cursor = "pointer";
   bp.h.addEventListener("click", () => go("overview"));
-  root.append(bp.wrap);
+  if (show.bills) root.append(bp.wrap);
 
   const coming = overview && Array.isArray(overview.comingUp) ? overview.comingUp.slice() : [];
   coming.sort((a, b) => (a.date || "9999").localeCompare(b.date || "9999"));
@@ -136,7 +152,7 @@ function render() {
     row.append(el("time", null, label || "Soon"), el("span", "ri-text", c.text));
     cp.body.append(row);
   }
-  root.append(cp.wrap);
+  if (show.coming) root.append(cp.wrap);
 
   const links = panel("Quick links");
   for (const [label, href] of [["Portfolio site", "/"], ["DexNote", "/dexnote/"], ["Inko", "/inko/"], ["Mission Control", "https://work-kohl-kappa.vercel.app"]]) {
@@ -154,10 +170,17 @@ function render() {
 const onOverview = (e) => { overview = e.detail; render(); };
 const onSchedule = (e) => { schedule = e.detail; render(); };
 
+let tabWatch = null;
+
 export async function mount(container, ctx) {
   root = container;
   ctxRef = ctx;
   render();
+  const app = document.getElementById("board-app");
+  if (app) {
+    tabWatch = new MutationObserver(() => render());
+    tabWatch.observe(app, { attributes: true, attributeFilter: ["data-tab"] });
+  }
   window.addEventListener("board:overview", onOverview);
   window.addEventListener("board:schedule", onSchedule);
   try {
@@ -174,6 +197,7 @@ export async function mount(container, ctx) {
 }
 
 export function unmount() {
+  if (tabWatch) { tabWatch.disconnect(); tabWatch = null; }
   window.removeEventListener("board:overview", onOverview);
   window.removeEventListener("board:schedule", onSchedule);
   for (const u of unlisteners.splice(0)) { try { u(); } catch (err) { void err; } }

@@ -80,3 +80,5 @@
 #panel-work .kv .cell b { font-size: 20px; }
 #panel-work .kv .cell span { font-size: 12px; letter-spacing: 0.03em; display: block; line-height: 1.3; }
 #panel-work .board-card-body > .wk-fold { border-top: 1px solid var(--stroke-soft); margin-top: 2px; }
+.wk-fold { display: flex; flex-direction: column; gap: 6px; }
+.wk-fold[hidden] { display: none; }

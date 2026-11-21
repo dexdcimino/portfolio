@@ -852,13 +852,17 @@ img { display: block; }
 .board-notes .nt-app.is-board-view .nt-main { overflow: visible; flex: 0 0 auto; }
 .board-notes .nt-app.is-board-view .nt-canvas { overflow: visible; height: auto; max-height: none; }
 .board-notes .nt-app.is-board-view .nt-header { position: sticky; top: 0; z-index: 8; border-radius: var(--radius) var(--radius) 0 0; }
-.board-notes .nt-app.is-board-view .nt-sidebar {
-  /* One scroller per view: the outliner grows with its rows instead of
-     scrolling inside a sticky column. */
-  position: static;
-  align-self: stretch;
-  height: auto;
-  border-radius: var(--radius) 0 0 var(--radius);
+/* One scroller per view: the outliner grows with its rows instead of
+   scrolling inside a sticky column. Above 720px only: below it the notes
+   app makes the sidebar an overlaid drawer, and in flow it crushed the
+   text to a 48px column. */
+@media (min-width: 721px) {
+  .board-notes .nt-app.is-board-view .nt-sidebar {
+    position: static;
+    align-self: stretch;
+    height: auto;
+    border-radius: var(--radius) 0 0 var(--radius);
+  }
 }
 .board-notes .nt-app.is-board-view .nt-rows,
 .board-notes .nt-app.is-board-view .nt-archive-list { flex: 0 0 auto; overflow: visible; max-height: none; }
