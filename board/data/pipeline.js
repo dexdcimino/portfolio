@@ -1204,7 +1204,7 @@ export default {
    "co": "Figma",
    "role": "Product Designer, Design, Dev & AI Tools",
    "pay": "Not recorded",
-   "why": "SUBMITTED Oct 12 via Greenhouse (confirmation received). Backfill card added Oct 13.",
+   "why": "SUBMITTED Oct 12 via Greenhouse (confirmation received). REJECTED 2026-11-21: Figma Recruiting emailed Dex that they are not moving forward with his candidacy for Product Designer, Design, Dev and AI Tools. Resume kept on file for future opportunities. Backfill card added Oct 13.",
    "url": "https://job-boards.greenhouse.io/figma/jobs/5711468004?gh_jid=5711468004",
    "pillar": "Apply",
    "kind": "role"
@@ -3447,5 +3447,5 @@ export default {
   "fal"
  ],
  "publicCount": 59,
- "privateCount": 258
+ "privateCount": 275
 };
