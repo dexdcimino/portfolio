@@ -52,7 +52,7 @@ export default {
    "type": "Game fund ,  syndicate of named individuals",
    "amount": "$10K-$50K typical (their apply page)",
    "url": "https://indie-fund.com/apply",
-   "note": "Updated Oct 18, 2026 (Tier 1 ,  best pure game-fund fit). A syndicate of ~19 named individual devs (Jonathan Blow, the Saltsmans, Zach Gage, Tanya X. Short among them); each member chooses how much to invest per project. Playable prototype REQUIRED ,  the Steam closed-test build clears it. Application needs a 1-2 min gameplay video, screenshots, and a budget spreadsheet including a PR/marketing line. Terms: repay first, then 25% of revenue until 2x returned or 2 years post-launch, then the obligation EXPIRES. IP stays Dex’s. Silence ~1 week = no."
+   "note": "FILLED Nov 25, 2026, not yet submitted: the application is complete except the gameplay video, which Dex is cutting. Updated Oct 18, 2026 (Tier 1 ,  best pure game-fund fit). A syndicate of ~19 named individual devs (Jonathan Blow, the Saltsmans, Zach Gage, Tanya X. Short among them); each member chooses how much to invest per project. Playable prototype REQUIRED ,  the Steam closed-test build clears it. Application needs a 1-2 min gameplay video, screenshots, and a budget spreadsheet including a PR/marketing line. Terms: repay first, then 25% of revenue until 2x returned or 2 years post-launch, then the obligation EXPIRES. IP stays Dex’s. Silence ~1 week = no."
   },
   {
    "id": "bk7",
@@ -154,15 +154,15 @@ export default {
    "name": "Verizon Small Business Digital Ready Grant (via LISC)",
    "type": "Grant",
    "amount": "$10K",
-   "note": "Tier 1 (Oct 18, 2026). $10K grant, 10 winners/month Jun-Dec 2026, administered by LISC. Gate: register free on the Verizon Small Business Digital Ready platform and complete 2 free courses by Dec 7, 2026 to unlock the application. US for-profit solo dev qualifies; nonprofits ineligible; award is taxable (1099). One application stays eligible for all remaining 2026 selections; decisions by Jan 12, 2027. Lottery odds nationally."
+   "note": "SUBMITTED Nov 25, 2026. Gate cleared the same day (both required courses complete) and Dex submitted the LISC application himself. Decision by Jan 12, 2027. Tier 1 (Oct 18, 2026). $10K grant, 10 winners/month Jun-Dec 2026, administered by LISC. Gate: register free on the Verizon Small Business Digital Ready platform and complete 2 free courses by Dec 7, 2026 to unlock the application. US for-profit solo dev qualifies; nonprofits ineligible; award is taxable (1099). One application stays eligible for all remaining 2026 selections; decisions by Jan 12, 2027. Lottery odds nationally."
   },
   {
    "id": "bk20",
    "name": "Awesome Foundation",
-   "type": "Micro-grant, SUBMITTED Oct 22, 2026",
+   "type": "Micro-grant, NOT FUNDED Nov 2026 round",
    "amount": "$1,000 grant (San Francisco CA chapter)",
    "url": "https://www.awesomefoundation.org/en/submissions/new",
-   "note": "SUBMITTED Oct 22, 2026 to the San Francisco CA chapter (the live form offers no Any chapter; Dex picked SF and noted he lived in the Bay Area during his digital nomad years, and one sentence saying so sits in the application). Project: Proto Isles, Community Playtest Commons. Confirmation page text: THANKS FOR APPLYING! We look forward to reviewing your application to the San Francisco, CA chapter. The money answer frames the grant as keeping Proto Isles in active development: about $300 covers the Maya license for the year, the rest covers the monthly build stack (Claude Code Max $200/mo, Adobe suite $30/mo, ZBrush $50/mo, ChatGPT $20/mo) plus server costs to open the 32 player commons for public playtest weekends. The application carries the five Proto Isles gallery links on dexcimino.com and the five screenshots Dex supplied himself, and the about text is his own dictated wording. Full application text saved at ~/workspace/your_files/awesome-foundation-pack-oct19.md. Tier 1 micro-grant, $1K monthly, no strings attached; chapters generally contact only the winner, so silence is normal."
+   "note": "NOT FUNDED for the November 2026 round: decision email Nov 25, 2026 from Joel Pomerantz; the grant went to a California Mission history animation (135 October applications, one funded per month). Monthly grant, reapplying in a future month is possible. Originally SUBMITTED Oct 22, 2026 to the San Francisco CA chapter (the live form offers no Any chapter; Dex picked SF and noted he lived in the Bay Area during his digital nomad years, and one sentence saying so sits in the application). Project: Proto Isles, Community Playtest Commons. Confirmation page text: THANKS FOR APPLYING! We look forward to reviewing your application to the San Francisco, CA chapter. The money answer frames the grant as keeping Proto Isles in active development: about $300 covers the Maya license for the year, the rest covers the monthly build stack (Claude Code Max $200/mo, Adobe suite $30/mo, ZBrush $50/mo, ChatGPT $20/mo) plus server costs to open the 32 player commons for public playtest weekends. The application carries the five Proto Isles gallery links on dexcimino.com and the five screenshots Dex supplied himself, and the about text is his own dictated wording. Full application text saved at ~/workspace/your_files/awesome-foundation-pack-oct19.md. Tier 1 micro-grant, $1K monthly, no strings attached; chapters generally contact only the winner, so silence is normal."
   },
   {
    "id": "bk21",
@@ -568,11 +568,11 @@ export default {
   },
   {
    "id": "bk72",
-   "name": "Skip $10,000 Grants ,  CONTESTED",
-   "type": "Grant ,  CONTESTED, recheck before use",
+   "name": "Skip $10,000 Grants",
+   "type": "Grant, SUBMITTED Nov 25, 2026",
    "amount": "$10,000 (amounts may vary by round)",
    "url": "https://helloskip.com/grants/skip-10k-grants",
-   "note": "Trawl Oct 22, 2026. CONTESTED, held out of the verified count, recheck before use: one trawl wave verified it as a rolling merit grant; another wave found the page live but publishing no open round or deadline, with the last dated round closed Sep 19, 2026. Needs a free Skip account and application questions. Use only the free pages; a sibling Growth Grant needs a paid membership and was killed in the trawl."
+   "note": "SUBMITTED Nov 25, 2026 (Fall 2026 round, $10,000; application filled on Dex's Skip account and submitted by Dex). Trawl Oct 22, 2026 history, formerly CONTESTED: one trawl wave verified it as a rolling merit grant; another wave found the page live but publishing no open round or deadline, with the last dated round closed Sep 19, 2026. Needs a free Skip account and application questions. Use only the free pages; a sibling Growth Grant needs a paid membership and was killed in the trawl."
   },
   {
    "id": "bk73",
@@ -715,7 +715,62 @@ export default {
    "name": "Papermark",
    "status": "Closed Nov 18, 2026",
    "note": "Not a row in the October app list. Already closed in the November backers ranking. CLOSED 2026-11-18."
+  },
+  {
+   "name": "Awesome Foundation",
+   "status": "Not funded Nov 25, 2026",
+   "note": "November 2026 round decision: the $1,000 went to a California Mission history animation, from 135 October applications. Monthly grant, reapplying is possible. Its bk20 row carries the same flag."
+  },
+  {
+   "name": "Verizon Digital Ready (LISC)",
+   "status": "Submitted Nov 25, 2026",
+   "note": "Gate cleared Nov 25, 2026 (both courses complete); Dex submitted the LISC application himself. Decision by Jan 12, 2027. Its bk19 row carries the same flag."
+  },
+  {
+   "name": "Skip Growth Grants",
+   "status": "Submitted Nov 25, 2026",
+   "note": "Fall 2026 round, $10,000. Application filled on Dex's Skip account and submitted by Dex. The bk72 row carries the same flag."
+  },
+  {
+   "name": "Basis Fellowship",
+   "status": "Submitted Nov 25, 2026",
+   "note": "Not a row in the October app list. $50,000, no equity, rolling. Confirmation reference BF-2026-RJEYNF; the site sends no confirmation email."
+  },
+  {
+   "name": "Mozilla Fellowship",
+   "status": "LOI submitted Nov 25, 2026",
+   "note": "Not a row in the October app list. Confirmation email received Nov 25, 2026. Full application invitations expected Feb 16, 2027."
+  },
+  {
+   "name": "Banana Capital",
+   "status": "Pitch sent Nov 25, 2026",
+   "note": "Not a row in the October app list. Email to Turner Novak with the deck link, sent by Dex from Gmail."
+  },
+  {
+   "name": "Dreamhaven",
+   "status": "Pitch sent Nov 25, 2026",
+   "note": "Not a row in the October app list. Email to partnerships@dreamhaven.com, sent by Dex from Gmail."
+  },
+  {
+   "name": "Human Capital Fellowship",
+   "status": "Applications closed; note sent Nov 25, 2026",
+   "note": "Not a row in the October app list. The fellowship form was closed when checked Nov 25, 2026; a short note went to Emma at Human Capital instead, sent by Dex."
+  },
+  {
+   "name": "Indie Fund",
+   "status": "Filled Nov 25, 2026, awaiting video",
+   "note": "Application complete except Dex's gameplay video. Its bk6 row carries the same flag."
+  },
+  {
+   "name": "Boost VC Fellowship",
+   "status": "Not yet submitted, deadline Dec 1, 2026",
+   "note": "Not a row in the October app list. Waiting on Dex's video (founder clip plus gameplay, under 2 minutes). Safe submit day Nov 30, 2026."
+  },
+  {
+   "name": "Sputnik ATX",
+   "status": "Not yet open",
+   "note": "Not a row in the October app list. Winter application not posted on Gust yet; their FAQ points to about Dec 25, 2026. Answers are staged and ready to fill."
   }
  ],
- "stalenessNote": "Techstars and Angel Club were submitted on Nov 16, 2026. Start-Up Chile was dropped on Nov 20, 2026. Papermark was closed on Nov 18, 2026. The underlying list is the October app copy and has not had a full reconciliation pass against the November files, so treat open flags with care."
+ "stalenessNote": "Reconciled Nov 25, 2026. Submitted: Techstars and Angel Club (Nov 16), Basis, Mozilla LOI, Skip and Verizon (Nov 25). Pitches sent Nov 25: Banana Capital, Dreamhaven, and a note to Human Capital after its applications closed. Denied: Awesome Foundation, November round (Nov 25). Dropped: Start-Up Chile (Nov 20). Closed: Papermark (Nov 18). Indie Fund is filled awaiting Dex video; Boost VC waits on the same video (deadline Dec 1); Sputnik ATX winter applications are not open yet. The underlying list is the October app copy."
 };
