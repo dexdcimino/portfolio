@@ -1789,6 +1789,12 @@ html.fv-maxed .fv-item:popover-open{pointer-events:auto}
    specificity, and only source order settles that. */
 @media(max-width:860px){ .tk-desc{display:none} .tk-tabrow{gap:0} }
 @media(max-width:760px){ .tk-tabrow .tk-tabs{flex:1 1 auto;min-width:0} }
+/* Six toolkit tabs cannot sit on one phone-width line at a readable size,
+   and Dex ruled the row must fit with no sideways scroll (2026-11-26) — so
+   the toolkit row alone wraps to a second line down here. Scoped to
+   .tk-tabrow so the other three tablists keep their scroll behaviour, and
+   .tk-tabrow .tk-tabs outranks the shared nowrap rule above. */
+@media(max-width:760px){ .tk-tabrow .tk-tabs{flex-wrap:wrap;overflow-x:visible} }
 
 /* Tiles are focusable now, so give them a visible focus ring. */
 

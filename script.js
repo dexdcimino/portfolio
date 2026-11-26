@@ -13945,6 +13945,7 @@ const DEEP_TAB_SETS = [
     ['engine', 'tk-tab-engines', 'engines'],
     ['dev-stack', 'tk-tab-devstack', 'devstack'],
     ['team-tools', 'tk-tab-team', 'team'],
+    ['utility', 'tk-tab-utility'],
   ] },
   { section: 'picks', el: 'picks', region: 'about', tablist: '.pk-tabs', tabs: [
     ['games', 'pk-tab-games'],

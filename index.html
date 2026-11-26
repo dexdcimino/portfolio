@@ -41,7 +41,7 @@
   <link rel="icon" id="faviconSvg" type="image/svg+xml" href="" />
   <link rel="preload" as="image" href="https://media.clayweld.com/assets/logos/DEX.svg" />
   <link rel="preload" as="image" href="https://media.clayweld.com/assets/logos/CIMINO.svg" />
-  <link rel="stylesheet" href="styles.css?v=232" />
+  <link rel="stylesheet" href="styles.css?v=233" />
   <!-- preload src="https://media.clayweld.com/assets/mascots/mascot_limegreen.png" slot="hero-mascot" -->
   <link rel="preload" as="image" fetchpriority="high"
         href="https://media.clayweld.com/assets/derived/mascots/mascot_limegreen-900.avif?v=6edad5f9"
@@ -2758,6 +2758,7 @@
         <button class="tk-tab" type="button" role="tab" id="tk-tab-engines" aria-controls="tk-panel-engines" aria-selected="false" tabindex="-1">Engine</button>
         <button class="tk-tab" type="button" role="tab" id="tk-tab-devstack" aria-controls="tk-panel-devstack" aria-selected="false" tabindex="-1">Dev Stack</button>
         <button class="tk-tab" type="button" role="tab" id="tk-tab-team" aria-controls="tk-panel-team" aria-selected="false" tabindex="-1">Team Tools</button>
+        <button class="tk-tab" type="button" role="tab" id="tk-tab-utility" aria-controls="tk-panel-utility" aria-selected="false" tabindex="-1">Utility</button>
       </div>
       <!-- Visual echo of the hovered/focused tile. aria-hidden because each
            tile already carries the same sentence as sr-only text, so exposing
@@ -3078,6 +3079,82 @@
                 <span class="tk-meta">
                   <span class="tk-name">Jira</span>
                 </span>
+              </a>
+            </li>
+        </ul>
+      </div>
+      <div class="tk-panel" id="tk-panel-utility" role="tabpanel" aria-labelledby="tk-tab-utility" hidden>
+        <ul class="tk-list">
+            <li class="tk-item" data-desc="Fast viewer for whole image folders">
+              <a class="tk-link" href="https://imageglass.org/" target="_blank" rel="noopener noreferrer">
+                <img class="tk-icon" src="https://media.clayweld.com/assets/icons/software/imageglass.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
+                <span class="tk-meta">
+                  <span class="tk-name">ImageGlass</span>
+                </span>
+                <span class="sr-only">Fast viewer for whole image folders</span>
+              </a>
+            </li>
+            <li class="tk-item" data-desc="Shows what's eating disk space">
+              <a class="tk-link" href="https://www.diskanalyzer.com/" target="_blank" rel="noopener noreferrer">
+                <img class="tk-icon" src="https://media.clayweld.com/assets/icons/software/wiztree.png" alt="" width="64" height="64" loading="lazy" decoding="async">
+                <span class="tk-meta">
+                  <span class="tk-name">WizTree</span>
+                </span>
+                <span class="sr-only">Shows what's eating disk space</span>
+              </a>
+            </li>
+            <li class="tk-item" data-desc="Records and streams the screen">
+              <a class="tk-link" href="https://obsproject.com/" target="_blank" rel="noopener noreferrer">
+                <img class="tk-icon" src="https://media.clayweld.com/assets/icons/software/obs-studio.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
+                <span class="tk-meta">
+                  <span class="tk-name">OBS</span>
+                </span>
+                <span class="sr-only">Records and streams the screen</span>
+              </a>
+            </li>
+            <li class="tk-item" data-desc="Plays, trims and cleans up audio">
+              <a class="tk-link" href="https://www.audacityteam.org/" target="_blank" rel="noopener noreferrer">
+                <img class="tk-icon" src="https://media.clayweld.com/assets/icons/software/audacity.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
+                <span class="tk-meta">
+                  <span class="tk-name">Audacity</span>
+                </span>
+                <span class="sr-only">Plays, trims and cleans up audio</span>
+              </a>
+            </li>
+            <li class="tk-item" data-desc="Plays any video file">
+              <a class="tk-link" href="https://github.com/clsid2/mpc-hc" target="_blank" rel="noopener noreferrer">
+                <img class="tk-icon" src="https://media.clayweld.com/assets/icons/software/mpc-hc.png" alt="" width="64" height="64" loading="lazy" decoding="async">
+                <span class="tk-meta">
+                  <span class="tk-name">MPC-HC</span>
+                </span>
+                <span class="sr-only">Plays any video file</span>
+              </a>
+            </li>
+            <li class="tk-item" data-desc="Merges and splits video tracks">
+              <a class="tk-link" href="https://mkvtoolnix.download/" target="_blank" rel="noopener noreferrer">
+                <img class="tk-icon" src="https://media.clayweld.com/assets/icons/software/mkv-tool.png" alt="" width="64" height="64" loading="lazy" decoding="async">
+                <span class="tk-meta">
+                  <span class="tk-name">MKV Tool</span>
+                </span>
+                <span class="sr-only">Merges and splits video tracks</span>
+              </a>
+            </li>
+            <li class="tk-item" data-desc="Encrypts drives and private files">
+              <a class="tk-link" href="https://www.veracrypt.io/" target="_blank" rel="noopener noreferrer">
+                <img class="tk-icon" src="https://media.clayweld.com/assets/icons/software/veracrypt.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
+                <span class="tk-meta">
+                  <span class="tk-name">VeraCrypt</span>
+                </span>
+                <span class="sr-only">Encrypts drives and private files</span>
+              </a>
+            </li>
+            <li class="tk-item" data-desc="Private VPN, no account or email">
+              <a class="tk-link" href="https://mullvad.net/" target="_blank" rel="noopener noreferrer">
+                <img class="tk-icon" src="https://media.clayweld.com/assets/icons/software/mullvad.svg" alt="" width="64" height="64" loading="lazy" decoding="async">
+                <span class="tk-meta">
+                  <span class="tk-name">Mullvad</span>
+                </span>
+                <span class="sr-only">Private VPN, no account or email</span>
               </a>
             </li>
         </ul>
@@ -6160,6 +6237,6 @@
   </dialog>
 
   <script src="lib/music-embeds.js"></script>
-  <script src="script.js?v=237"></script>
+  <script src="script.js?v=238"></script>
 </body>
 </html>
